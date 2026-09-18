@@ -30,6 +30,6 @@ Port Berner fire-protection variant worktree infrastructure (schema isolation, w
 
 - **Breaking**: `variant-api` public surface changes from `createClient().free(lookup)` to `createClient().create(slug)` etc
 - **Breaking**: `variant-mcp` tool `variant_free` removed, replaced with variant lifecycle tools
-- **New dependencies**: cleye (CLI), Kysely (database abstraction), yq-compatible YAML support
+- **New dependencies**: cleye (CLI), Drizzle ORM with dialect drivers, YAML/TOML parsers
 - **Config artifact**: `variants.yaml` at workspace root (user-created, JSON schema validated)
 - **Docs**: VitePress user guide for setup + workspace adoption

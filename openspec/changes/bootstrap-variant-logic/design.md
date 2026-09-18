@@ -20,13 +20,13 @@ Current `variant-api` is BuiltWith free endpoint client. MCP exposes `variant_fr
 
 ## Decisions
 
-### DB abstraction library: Kysely
+### DB abstraction library: Drizzle ORM
 
-**Chosen:** Kysely  
-**Why:** Type-safe query builder, multi-dialect (Postgres/MySQL/SQLite), zero ORM overhead. Drizzle needs schema codegen (overkill for schema CREATE/DROP). Raw SQL fragile across dialects.
+**Chosen:** Drizzle ORM with Bun SQLite, Postgres-js, and MySQL drivers  
+**Why:** Type-safe multi-dialect API with a native Bun SQLite driver and established Postgres/MySQL drivers. One adapter contract hides driver details while retaining dialect-specific schema/database operations.
 
 **Alternatives:**
-- Drizzle: schema-first, migration-heavy
+- Kysely: strong query builder, but no native Bun SQLite driver
 - node-postgres: Postgres-only
 - Raw SQL: dialect differences error-prone
 
@@ -103,7 +103,7 @@ packages/
         destroy.ts
         list.ts
         switch.ts
-      db/              # Kysely adapters
+      db/              # Drizzle-backed adapters
         postgres.ts
         sqlite.ts
       slug.ts          # git worktree resolution
@@ -132,7 +132,7 @@ import { describe, expect, it } from "bun:test";
 
 ## Risks / Trade-offs
 
-**[Risk]** Kysely version churn → **Mitigation:** Pin `^0.27`, test multi-dialect in CI  
+**[Risk]** Drizzle/driver version churn → **Mitigation:** Pin compatible versions, test multi-dialect adapters in CI
 **[Risk]** yq format drift from reference → **Mitigation:** Test suite with reference YAML samples  
 **[Risk]** Git worktree parsing breaks on exotic setups → **Mitigation:** Explicit `-s`/`--slug` always takes precedence
 **[Trade-off]** Bun-only (no Node fallback) → Faster, simpler deps, limits audience  
@@ -141,7 +141,7 @@ import { describe, expect, it } from "bun:test";
 ## Migration Plan
 
 1. Delete existing BuiltWith code and remove its package/API references
-2. Install: `bun add kysely cleye zod@4`
+2. Install: `bun add drizzle-orm postgres mysql2 yaml smol-toml cleye zod@4`
 3. Implement packages in order: `variant-config` → `variant-api` → `variant-mcp`
 4. Port reference test cases from `variants-*.test.sh` to `bun:test`
 5. CLI smoke test: `variant config`, `variant create test`, `variant list`, `variant destroy test`
