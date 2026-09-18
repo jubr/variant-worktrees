@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, join, parse as parsePath, relative, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import type { DbConfig, DbDialect, VariantInstance } from "./schema.js";
@@ -74,6 +75,39 @@ export const findMiseFile = (startDir = process.cwd()): string | undefined => {
     }
   }
   return undefined;
+};
+
+const gitCommonRoot = (startDir: string): string | undefined => {
+  try {
+    const commonDir = execFileSync("git", ["-C", resolve(startDir), "rev-parse", "--git-common-dir"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return realpathSync(dirname(resolve(startDir, commonDir)));
+  } catch {
+    return undefined;
+  }
+};
+
+export const detectVariantRoot = (configDir: string): string => {
+  const parentAgents = join(dirname(resolve(configDir)), "AGENTS.md");
+  try {
+    if (lstatSync(parentAgents).isSymbolicLink()) {
+      return dirname(realpathSync(parentAgents));
+    }
+  } catch {
+    // Continue with git metadata fallback.
+  }
+
+  const commonRoot = gitCommonRoot(configDir);
+  if (commonRoot) {
+    const realAgents = join(commonRoot, "AGENTS.md");
+    if (existsSync(realAgents)) {
+      return dirname(resolve(realAgents));
+    }
+    return realpathSync(commonRoot);
+  }
+  return realpathSync(resolve(configDir));
 };
 
 const readMiseEnvironment = (path: string): Environment => {

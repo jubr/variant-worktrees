@@ -32,6 +32,7 @@ export const VariantInstanceSchema = z.strictObject({
 export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
 
 export const VariantRuntimeSchema = z.strictObject({
+  root: z.string().min(1).optional(),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
   instances: z.array(VariantInstanceSchema).optional(),

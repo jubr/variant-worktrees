@@ -14,6 +14,7 @@ import type { VariantClient, VariantClientOptions } from "./types.js";
 export const createClient = (options: VariantClientOptions = {}): VariantClient => {
   const cwd = resolve(options.cwd ?? process.cwd());
   const config = options.config ?? loadConfig({ cwd, configPath: options.configPath ?? process.env.VARIANT_CONFIG });
+  const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? join(config.configDir, ".cache", "variants"));
   mkdirSync(stateDir, { recursive: true });
   migrateJsonStates(stateDir);
@@ -23,6 +24,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     try {
       return await operation({
         config,
+        variantRoot,
         stateDir,
         cwd,
         useWorktree: options.worktree ?? true,
@@ -43,6 +45,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
         return switchVariant(
           {
             config,
+            variantRoot,
             stateDir,
             cwd,
             useWorktree: options.worktree ?? true,

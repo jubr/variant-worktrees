@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 import { ensureWorktree } from "../src/worktree.js";
 
 const git = (cwd: string, ...args: string[]): string =>
@@ -21,9 +21,33 @@ describe("worktree coupling", () => {
       git(repo, "commit", "-m", "initial");
 
       destination = ensureWorktree("feature-one", repo);
-      expect(destination).toBe(join(dirname(realpathSync(repo)), "_v-feature-one"));
+      expect(destination).toBe(join(realpathSync(repo), "_v-feature-one"));
       expect(existsSync(join(destination, "README.md"))).toBe(true);
       expect(basename(destination)).toBe("_v-feature-one");
+    } finally {
+      if (destination && existsSync(destination)) {
+        git(repo, "worktree", "remove", "--force", destination);
+      }
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("uses an explicit variant root for worktree placement", () => {
+    const parent = mkdtempSync(join("/tmp", "variant-worktree-root-"));
+    const repo = join(parent, "repo");
+    const variantRoot = join(parent, "variants");
+    let destination: string | undefined;
+    try {
+      execFileSync("git", ["init", "-b", "main", repo], { encoding: "utf8" });
+      git(repo, "config", "user.email", "variant@example.test");
+      git(repo, "config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git(repo, "add", "README.md");
+      git(repo, "commit", "-m", "initial");
+
+      destination = ensureWorktree("feature-two", repo, variantRoot);
+      expect(destination).toBe(join(variantRoot, "_v-feature-two"));
+      expect(existsSync(join(destination, "README.md"))).toBe(true);
     } finally {
       if (destination && existsSync(destination)) {
         git(repo, "worktree", "remove", "--force", destination);

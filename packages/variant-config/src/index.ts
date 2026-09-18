@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { detectConnection, detectInstances } from "./autodetect.js";
+import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
 import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
 import { VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
 
@@ -68,6 +68,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const source = config.db ? "config" : detected.source;
   const variant = {
     ...config.variant,
+    root: config.variant?.root ? resolve(configDir, config.variant.root) : detectVariantRoot(configDir),
     instances: resolveInstances(config, configDir),
   };
 
@@ -92,7 +93,7 @@ export const runtimeCommandFor = (
 
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
-export { detectConnection, detectInstances, findMiseFile } from "./autodetect.js";
+export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
 export type {
   DbConfig,
   DbDialect,
