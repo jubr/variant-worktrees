@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { detectVariantRoot } from "variant-config";
 import { gitRoot, sanitizeSlug, worktreeEntries } from "./slug.js";
 
 const runGit = (cwd: string, args: string[]): string =>
@@ -26,7 +27,7 @@ export const primaryWorktree = (cwd = process.cwd()): string => {
   return resolve(primary ?? gitRoot(cwd));
 };
 
-export const ensureWorktree = (slug: string, cwd = process.cwd()): string => {
+export const ensureWorktree = (slug: string, cwd = process.cwd(), variantRoot?: string): string => {
   const normalized = sanitizeSlug(slug);
   const primary = primaryWorktree(cwd);
   if (normalized === "main") {
@@ -38,7 +39,9 @@ export const ensureWorktree = (slug: string, cwd = process.cwd()): string => {
     return resolve(existing);
   }
 
-  const destination = join(dirname(primary), `_v-${normalized}`);
+  const root = resolve(variantRoot ?? detectVariantRoot(cwd));
+  mkdirSync(root, { recursive: true });
+  const destination = join(root, `_v-${normalized}`);
   if (existsSync(destination)) {
     throw new Error(`Worktree path already exists but is not registered: ${destination}`);
   }
@@ -55,8 +58,8 @@ export const ensureWorktree = (slug: string, cwd = process.cwd()): string => {
   return resolve(destination);
 };
 
-export const switchWorktree = (slug: string, cwd = process.cwd()): string => {
-  const path = ensureWorktree(slug, cwd);
+export const switchWorktree = (slug: string, cwd = process.cwd(), variantRoot?: string): string => {
+  const path = ensureWorktree(slug, cwd, variantRoot);
   process.chdir(path);
   return path;
 };
