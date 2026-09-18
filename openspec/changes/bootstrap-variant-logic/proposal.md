@@ -10,8 +10,8 @@ Port Berner fire-protection variant worktree infrastructure (schema isolation, w
 - **CLI library** cleye → command routing from `commands.ts` (port existing pattern from docs/cli-vscode-webview.md)
 - **VS Code extension** enhancement: auto-register commands, webview forms (future work after CLI)
 - **State storage**: `.cache/variants/*.yaml` with yq compat (matches reference)
-- **Worktree integration**: `-s/--slug` flag + git-based derive fallback (slugs map to `_v-$slug` worktrees)
-- **Container orchestration hooks**: abstract `variant.up` / `variant.watch` commands from `variants.yaml` config (detect Vite/Nest instances in subdirs)
+- **Worktree integration**: `-s/--slug` explicitly overrides git-based slug detection (slugs map to `_v-$slug` worktrees)
+- **Runtime orchestration hooks**: use explicit `variant.instances[]` config when present; otherwise autodetect Vite/NestJS instances by searching subdirectories from the directory containing `variants.yaml`, with abstract `variant.up` / `variant.watch` commands
 
 ## Capabilities
 
@@ -30,6 +30,6 @@ Port Berner fire-protection variant worktree infrastructure (schema isolation, w
 
 - **Breaking**: `variant-api` public surface changes from `createClient().free(lookup)` to `createClient().create(slug)` etc
 - **Breaking**: `variant-mcp` tool `variant_free` removed, replaced with variant lifecycle tools
-- **New dependencies**: cleye (CLI), database abstraction lib (Kysely? Drizzle?), yq (state files)
+- **New dependencies**: cleye (CLI), Kysely (database abstraction), yq-compatible YAML support
 - **Config artifact**: `variants.yaml` at workspace root (user-created, JSON schema validated)
 - **Docs**: VitePress user guide for setup + workspace adoption

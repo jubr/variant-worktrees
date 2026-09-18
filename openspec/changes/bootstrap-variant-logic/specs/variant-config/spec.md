@@ -59,3 +59,19 @@ The system SHALL allow `variants.yaml` to define a `seed` command per variant or
 #### Scenario: Per-variant seed override
 - **WHEN** config has `variants.main.seed = "echo skip"` and global `seed = "bun run db:seed"`
 - **THEN** provisioning slug `main` runs `echo skip`
+
+### Requirement: Runtime instance discovery
+
+The system SHALL use explicitly configured runtime instances when present and otherwise discover Vite or NestJS instances by searching subdirectories from the directory containing `variants.yaml`.
+
+#### Scenario: Explicit instances take precedence
+- **WHEN** `variants.yaml` defines `variant.instances`
+- **THEN** runtime commands use those instances without filesystem autodetection
+
+#### Scenario: Vite instance autodetected
+- **WHEN** `variant.instances` is absent and a searched subdirectory contains Vite configuration
+- **THEN** the config includes that subdirectory as a Vite instance
+
+#### Scenario: NestJS instance autodetected
+- **WHEN** `variant.instances` is absent and a searched subdirectory contains NestJS configuration
+- **THEN** the config includes that subdirectory as a NestJS instance

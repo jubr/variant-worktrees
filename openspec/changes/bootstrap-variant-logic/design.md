@@ -48,9 +48,9 @@ Current `variant-api` is BuiltWith free endpoint client. MCP exposes `variant_fr
 - JSON: breaks reference migration
 - SQLite state: overkill for key-value
 
-### Slug resolution: git-first + explicit fallback
+### Slug resolution: explicit override + git detection
 
-**Chosen:** Try `git worktree list`, parse branch, strip `feat/`/`fix/`, fall back to `--slug` flag  
+**Chosen:** Use `-s`/`--slug` when supplied; otherwise try `git worktree list`, parse branch, and strip `feat/`/`fix/`
 **Why:** Matches reference `variants-slug.sh`. Primary worktree → `main`. Feature worktrees → kebab slug.
 
 **Alternatives:**
@@ -76,10 +76,10 @@ Current `variant-api` is BuiltWith free endpoint client. MCP exposes `variant_fr
 - Separate CLI/MCP impls: duplication
 - commander/yargs: imperative, heavy
 
-### Container orchestration: config hooks
+### Runtime orchestration: config-first instance discovery
 
-**Chosen:** `variants.yaml` has `variant.up`, `variant.watch` commands, optional `variant.instances` array for auto-detect  
-**Why:** User wants abstract hooks. Reference hard-codes `docker run`, `bun run start:dev`. Config makes it workspace-specific.
+**Chosen:** Use explicit `variant.instances[]` entries from `variants.yaml` when present. Otherwise search subdirectories starting at the directory containing `variants.yaml` and detect `vite` or `nestjs` instances. Execute configured `variant.up` and `variant.watch` commands as workspace hooks.
+**Why:** User wants abstract hooks without hard-coding Docker, Bun, or framework paths. Explicit config remains authoritative; autodetection supports conventional Vite/NestJS workspaces.
 
 **Alternatives:**
 - Built-in Docker: couples library to containers
@@ -121,17 +121,26 @@ packages/
 
 CLI bin: `packages/variant-api/src/cli.ts` (cleye entry)
 
+## Testing convention
+
+Every test file SHALL use Bun's test runner and live under its package `test/`
+directory as `<file>.test.ts`. Each file starts with:
+
+```typescript
+import { describe, expect, it } from "bun:test";
+```
+
 ## Risks / Trade-offs
 
 **[Risk]** Kysely version churn → **Mitigation:** Pin `^0.27`, test multi-dialect in CI  
 **[Risk]** yq format drift from reference → **Mitigation:** Test suite with reference YAML samples  
-**[Risk]** Git worktree parsing breaks on exotic setups → **Mitigation:** Explicit `--slug` always works  
+**[Risk]** Git worktree parsing breaks on exotic setups → **Mitigation:** Explicit `-s`/`--slug` always takes precedence
 **[Trade-off]** Bun-only (no Node fallback) → Faster, simpler deps, limits audience  
 **[Trade-off]** No built-in migrations → Flexible, but user must wire `seed` command
 
 ## Migration Plan
 
-1. Archive existing BuiltWith code under `_archive/builtwith/` (no delete — reference for tests)
+1. Delete existing BuiltWith code and remove its package/API references
 2. Install: `bun add kysely cleye zod@4`
 3. Implement packages in order: `variant-config` → `variant-api` → `variant-mcp`
 4. Port reference test cases from `variants-*.test.sh` to `bun:test`
@@ -139,7 +148,7 @@ CLI bin: `packages/variant-api/src/cli.ts` (cleye entry)
 6. MCP integration test: mock client calling lifecycle tools
 7. Update docs (VitePress user guide replaces BuiltWith docs)
 
-Rollback: revert PR, restore `_archive/builtwith/` if needed (but this is a pivot, not a feature flag)
+Rollback: revert PR (this is a pivot, not a feature flag)
 
 ## Open Questions
 
