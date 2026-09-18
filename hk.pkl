@@ -1,0 +1,58 @@
+amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+  ["biome"] = (Builtins.biome) {
+    prefix = List("bunx", "--bun")
+    glob = List("packages/*/src/**/*.ts", "packages/*/test/**/*.ts")
+    exclude = List("**/dist/**", "**/node_modules/**", "docs/.vitepress/**")
+  }
+}
+
+local rootCheck = new Mapping<String, Step> {
+  ["commitlint"] {
+    check = "task --silent commitlint"
+    profiles = List("ci")
+  }
+}
+
+local heavy = new Mapping<String, Step> {
+  ["test"] {
+    check = "task --silent test"
+    profiles = List("ci")
+  }
+  ["build"] {
+    check = "task --silent build"
+    profiles = List("ci")
+  }
+  ["docs:build"] {
+    check = "task --silent docs:build"
+    profiles = List("full")
+  }
+}
+
+hooks {
+  ["check"] {
+    steps {
+      ...linters
+      ...rootCheck
+      ...heavy
+    }
+  }
+  ["fix"] {
+    fix = true
+    steps = linters
+  }
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps = linters
+  }
+  ["commit-msg"] {
+    steps {
+      ["commitlint"] {
+        check = "task --silent commitlint:edit -- {{commit_msg_file}}"
+      }
+    }
+  }
+}

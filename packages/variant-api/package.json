@@ -1,0 +1,52 @@
+{
+  "name": "variant-api",
+  "version": "0.0.1",
+  "description": "Database variant lifecycle library and CLI",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./commands": {
+      "types": "./dist/commands.d.ts",
+      "import": "./dist/commands.js"
+    }
+  },
+  "bin": {
+    "variant": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build ./src/index.ts ./src/cli.ts ./src/commands.ts --outdir dist --target node --format esm --sourcemap=external --external yaml --external drizzle-orm --external postgres --external mysql2 --external variant-config",
+    "build:types": "tsc --emitDeclarationOnly",
+    "prepublishOnly": "bun run build",
+    "test": "bun test"
+  },
+  "homepage": "https://github.com/jubr/variant-worktrees",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jubr/variant-worktrees.git",
+    "directory": "packages/variant-api"
+  },
+  "keywords": [
+    "variant",
+    "database",
+    "worktree"
+  ],
+  "files": [
+    "dist"
+  ],
+  "author": "Zach Caceres (@zachcaceres)",
+  "license": "MIT",
+  "dependencies": {
+    "cleye": "^2.6.0",
+    "drizzle-orm": "^0.45.2",
+    "mysql2": "^3.24.4",
+    "postgres": "^3.4.9",
+    "variant-config": "workspace:*",
+    "yaml": "^2.9.1"
+  }
+}

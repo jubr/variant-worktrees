@@ -1,0 +1,66 @@
+import { z } from "zod/v4";
+
+export const DbDialectSchema = z.enum(["postgres", "mysql", "sqlite"]);
+export type DbDialect = z.infer<typeof DbDialectSchema>;
+
+export const DbConfigSchema = z.strictObject({
+  dialect: DbDialectSchema.optional(),
+  url: z.string().min(1).optional(),
+  host: z.string().min(1).optional(),
+  port: z.number().int().positive().optional(),
+  user: z.string().min(1).optional(),
+  password: z.string().optional(),
+  database: z.string().min(1).optional(),
+  schema: z.string().min(1).optional(),
+  filename: z.string().min(1).optional(),
+  ssl: z.boolean().optional(),
+});
+export type DbConfig = z.infer<typeof DbConfigSchema>;
+
+export const VariantEntrySchema = z.strictObject({
+  seed: z.string().min(1).optional(),
+});
+export type VariantEntry = z.infer<typeof VariantEntrySchema>;
+
+export const VariantInstanceSchema = z.strictObject({
+  name: z.string().min(1).optional(),
+  kind: z.enum(["vite", "nestjs"]),
+  dir: z.string().min(1),
+  up: z.string().min(1).optional(),
+  watch: z.string().min(1).optional(),
+});
+export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
+
+export const VariantRuntimeSchema = z.strictObject({
+  up: z.string().min(1).optional(),
+  watch: z.string().min(1).optional(),
+  instances: z.array(VariantInstanceSchema).optional(),
+});
+export type VariantRuntime = z.infer<typeof VariantRuntimeSchema>;
+
+export const VariantsConfigSchema = z
+  .strictObject({
+    db: DbConfigSchema.optional(),
+    seed: z.string().min(1).optional(),
+    variant: VariantRuntimeSchema.optional(),
+    variants: z.record(z.string().min(1), VariantEntrySchema).optional(),
+  })
+  .superRefine((config, context) => {
+    if (config.db && !config.db.url && config.db.dialect !== "sqlite" && !config.db.host) {
+      context.addIssue({
+        code: "custom",
+        path: ["db", "host"],
+        message: "db.host is required when db.url is absent and dialect is not sqlite",
+      });
+    }
+  });
+export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
+
+export type ResolvedConfig = VariantsConfig & {
+  db: DbConfig;
+  configPath: string;
+  configDir: string;
+  source: "mise" | "env" | "config" | "default";
+};
+
+export const variantsJsonSchema = z.toJSONSchema(VariantsConfigSchema);

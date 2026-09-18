@@ -1,0 +1,6 @@
+.env
+test.ts
+test/
+src/
+.idea
+.claude

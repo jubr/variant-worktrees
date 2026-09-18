@@ -1,0 +1,103 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/go-task/task/refs/tags/v3.44.0/website/static/schema.json
+version: '3'
+
+# AIDEV-NOTE: bun workspace dispatch. Root package.json remains the workspace
+# definition; Taskfile is the agent/human CLI. commitlint/openspec are mise
+# npm: tools (node is only their shim runtime, not the package toolchain).
+
+tasks:
+  install:
+    desc: "Install workspace dependencies (bun install)"
+    run: once
+    cmds: ["bun install --no-summary"]
+  install:ci:
+    desc: "Install workspace dependencies from the committed lockfile"
+    cmds: ["bun install --frozen-lockfile"]
+
+  bootstrap:
+    desc: "mise trust/install, then bun install"
+    cmds:
+      - mise trust .
+      - mise install
+      - task: install
+
+  parent-symlink-here:
+    desc: "Symlink .agents/AGENTS/CONTRIBUTING (and backlog/security if present) into parent"
+    vars:
+      PARENT: '{{.ROOT_DIR}}/..'
+      NAME: { sh: "basename '{{.ROOT_DIR}}'" }
+    cmds:
+      - >-
+        parent='{{.PARENT}}';
+        name='{{.NAME}}';
+        for rel in .agents .vscode AGENTS.md BACKLOG.md CONTRIBUTING.md SECURITY.md SECURITY-BACKLOG.md;
+        do src='{{.ROOT_DIR}}/'"$rel";
+        dst="$parent/$rel";
+        if [ ! -e "$src" ] && [ ! -L "$src" ];
+        then continue;
+        fi;
+        if [ -e "$dst" ] && [ ! -L "$dst" ];
+        then echo "refuse: $dst exists and is not a symlink" >&2;
+        exit 1;
+        fi;
+        ln -sfn "$name/$rel" "$dst";
+        echo "$dst -> $name/$rel";
+        done
+
+  lint:
+    desc: "Lint packages (biome check)"
+    cmds: ["bun run lint"]
+  lint:fix:
+    desc: "Write biome lint/format fixes"
+    aliases: ["format:write", "format"]
+    cmds: ["bun run lint:fix"]
+
+  build:
+    desc: "Build variant-api then variant-mcp"
+    cmds: ["bun run build"]
+
+  test:
+    desc: "Run workspace bun:test suites"
+    cmds: ["bun run test"]
+
+  clean:
+    desc: "Remove package dist directories"
+    cmds: ["bun run clean"]
+
+  docs:api:
+    desc: "Generate TypeDoc API markdown into docs/api"
+    cmds: ["bun run docs:api"]
+  docs:dev:
+    desc: "TypeDoc then VitePress dev server"
+    cmds: ["bun run docs:dev"]
+  docs:build:
+    desc: "TypeDoc then VitePress production build"
+    cmds: ["bun run docs:build"]
+  docs:preview:
+    desc: "Preview the built VitePress site"
+    cmds: ["bun run docs:preview"]
+
+  commitlint:
+    desc: "Conventional Commits range lint origin/main..HEAD (mise npm:@commitlint/cli)"
+    cmds:
+      - bash scripts/commitlint-range.sh
+  commitlint:edit:
+    desc: "Conventional Commits lint of a commit-msg file (mise npm:@commitlint/cli)"
+    cmds:
+      - commitlint --edit {{.CLI_ARGS}}
+
+  check:changed:
+    desc: "hk check on git-changed files (no install)"
+    cmds:
+      - hk check
+  check:all:
+    desc: "hk check --all (biome/commitlint/build/test)"
+    aliases: [combined]
+    cmds:
+      - hk check --all --profile ci
+  check:full:
+    desc: "bun install, then hk check --all --profile ci --profile full"
+    aliases: ["combined:hk"]
+    deps: [install]
+    cmds:
+      - hk check --all --profile ci --profile full

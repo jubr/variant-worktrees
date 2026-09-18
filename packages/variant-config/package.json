@@ -1,0 +1,32 @@
+{
+  "name": "variant-config",
+  "version": "0.0.1",
+  "description": "Configuration discovery for variant workspaces",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    }
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build ./src/index.ts ./src/schema.ts ./src/autodetect.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external smol-toml --external yaml",
+    "build:types": "tsc --emitDeclarationOnly",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "smol-toml": "^1.8.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  },
+  "files": [
+    "dist"
+  ]
+}
