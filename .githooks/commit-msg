@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e
+
+task --silent commitlint:edit -- "$1"

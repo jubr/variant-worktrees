@@ -1,0 +1,54 @@
+{
+  "name": "variant-mcp",
+  "version": "0.0.1",
+  "description": "Database variants as an MCP server for AI clients",
+  "type": "module",
+  "main": "dist/mcp.js",
+  "types": "dist/mcp.d.ts",
+  "bin": {
+    "variant-mcp": "./dist/mcp.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js"
+    }
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:types && chmod +x dist/mcp.js",
+    "build:js": "bun build ./src/mcp.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external @modelcontextprotocol/sdk --external variant-api --external variant-config",
+    "build:types": "tsc --emitDeclarationOnly",
+    "mcp": "bun run src/mcp.ts",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector node dist/mcp.js",
+    "prepublishOnly": "bun run build",
+    "test": "bun test"
+  },
+  "homepage": "https://github.com/jubr/variant-worktrees",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jubr/variant-worktrees.git",
+    "directory": "packages/variant-mcp"
+  },
+  "keywords": [
+    "variant",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "claude",
+    "cursor"
+  ],
+  "files": [
+    "dist"
+  ],
+  "author": "Zach Caceres (@zachcaceres)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "variant-api": "workspace:*",
+    "variant-config": "workspace:*",
+    "zod": "^4.3.6"
+  }
+}

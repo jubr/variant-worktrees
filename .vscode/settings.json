@@ -1,0 +1,18 @@
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#2E2267",
+        "titleBar.activeBackground": "#46339A",
+        "titleBar.inactiveBackground": "#2E2267",
+        "statusBar.background": "#2E2267",
+        "statusBar.debuggingBackground": "#2E2267",
+        "statusBar.noFolderBackground": "#2E2267",
+        "activityBar.foreground": "#FFFFFF",
+        "activityBar.inactiveForeground": "#FFFFFF",
+        "titleBar.activeForeground": "#FFFFFF",
+        "titleBar.inactiveForeground": "#FFFFFF",
+        "statusBar.foreground": "#FFFFFF",
+        "statusBar.debuggingForeground": "#FFFFFF",
+        "statusBar.noFolderForeground": "#FFFFFF"
+    },
+    "specstory.cloudSync.enabled": "never"
+}
