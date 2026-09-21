@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { resolveSlug, sanitizeSlug } from "../src/slug.js";
 
 describe("variant slug resolution", () => {
@@ -12,6 +13,11 @@ describe("variant slug resolution", () => {
   });
 
   it("derives slug from the current worktree", () => {
-    expect(resolveSlug(undefined, process.cwd())).toBe("bootstrap-variant-logic");
+    const branch = execFileSync("git", ["branch", "--show-current"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    }).trim();
+    const expected = branch === "main" ? "main" : sanitizeSlug(branch.replace(/^(feat|fix)\//, ""));
+    expect(resolveSlug(undefined, process.cwd())).toBe(expected);
   });
 });
