@@ -53,7 +53,7 @@ tasks:
     cmds: ["bun run lint:fix"]
 
   build:
-    desc: "Build variant-api then variant-mcp"
+    desc: "Build variant-config, variant-api, then variant-mcp"
     cmds: ["bun run build"]
 
   test:

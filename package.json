@@ -7,12 +7,12 @@
   ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
-    "build": "bun run --filter variant-api build && bun run --filter variant-mcp build && bun run --filter variant-vscode build",
+    "build": "bun run --filter variant-config build && bun run --filter variant-api build && bun run --filter variant-mcp build && bun run --filter variant-vscode build",
     "lint": "biome check packages/",
     "lint:fix": "biome check --write packages/",
-    "test": "bun run --filter '*' test",
+    "test": "bun run --filter variant-config build && bun run --filter '*' test",
     "clean": "rm -rf packages/*/dist",
-    "docs:api": "typedoc",
+    "docs:api": "bun run --filter variant-config build && typedoc",
     "docs:dev": "bun run docs:api && vitepress dev docs",
     "docs:build": "bun run docs:api && vitepress build docs",
     "docs:preview": "vitepress preview docs"
