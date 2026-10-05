@@ -4074,8 +4074,15 @@
 
 export const commands = {
   registerCommand: () => {},
+  getCommands: async (_filterInternal?: boolean): Promise<string[]> => [],
+  executeCommand: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
 export const window = {
   showInformationMessage: () => {},
+  createOutputChannel: (_name: string) => ({
+    clear: () => {},
+    appendLine: (_line: string) => {},
+    show: () => {},
+  }),
 };
