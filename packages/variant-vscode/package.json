@@ -40,13 +40,18 @@
     "vscode": "^1.86.0"
   },
   "activationEvents": [
-    "onCommand:variant-vscode.helloworld"
+    "onCommand:variant-vscode.helloworld",
+    "onCommand:variant-vscode.probeCursorCommands"
   ],
   "contributes": {
     "commands": [
       {
         "command": "variant-vscode.helloworld",
         "title": "Variant: Hello World"
+      },
+      {
+        "command": "variant-vscode.probeCursorCommands",
+        "title": "Variant: Probe Cursor Chat Commands"
       }
     ]
   }
