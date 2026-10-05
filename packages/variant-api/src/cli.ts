@@ -43,15 +43,20 @@ const runCommand = (definition: CommandDefinition) =>
   );
 
 try {
-  await cli({
-    name: "variant",
-    version: "0.0.1",
-    help: {
-      description: "Database variants for git worktrees",
+  const args = process.argv.slice(2);
+  await cli(
+    {
+      name: "variant",
+      version: "0.0.1",
+      help: {
+        description: "Database variants for git worktrees",
+      },
+      strictFlags: true,
+      commands: commands.map(runCommand),
     },
-    strictFlags: true,
-    commands: commands.map(runCommand),
-  });
+    undefined,
+    args.length === 0 ? ["--help"] : args,
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
