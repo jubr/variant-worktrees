@@ -41,14 +41,16 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { instances: [{ ...instance, open: "" }] } }).success).toBe(false);
   });
 
-  it("rejects an open URL template on a NestJS instance", () => {
-    const instance = { kind: "nestjs", dir: "server", open: "http://{{slug}}.vw.localhost:{{port}}" };
-    const result = VariantsConfigSchema.safeParse({ variant: { instances: [instance] } });
+  it("accepts an open URL template and a dotenv file on a NestJS instance", () => {
+    const instance = { kind: "nestjs", dir: "server", open: "http://{{slug}}.vw.localhost:{{port}}", dotenv: ".env" };
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0]?.path).toEqual(["variant", "instances", 0, "open"]);
-    }
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: [instance] } }).success).toBe(true);
+  });
+
+  it("rejects an empty dotenv path", () => {
+    const instance = { kind: "nestjs", dir: "server", dotenv: "" };
+
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: [instance] } }).success).toBe(false);
   });
 
   it("accepts a chatRenamer section with every option", () => {

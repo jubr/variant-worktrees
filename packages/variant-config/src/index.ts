@@ -129,6 +129,7 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
+export { amendDotenv, dotenvFor } from "./dotenv.js";
 export { openUrlFor, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,

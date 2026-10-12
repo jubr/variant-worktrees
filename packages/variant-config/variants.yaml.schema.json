@@ -109,6 +109,10 @@
               "open": {
                 "type": "string",
                 "minLength": 1
+              },
+              "dotenv": {
+                "type": "string",
+                "minLength": 1
               }
             },
             "required": [
