@@ -28,6 +28,8 @@ Not shown in the palette; meant for other extensions and scripts:
 
 All activity is logged to the **Chat Renamer** output channel.
 
+A host extension can supply the same options from elsewhere (Variant reads the `chatRenamer` section of `variants.yaml`); an option you set explicitly in the editor settings wins over the host's value, which wins over the default.
+
 ## Using it inside another extension
 
 Import `registerChatRenamer` from `chat-renamer-vscode` in `activate`:
