@@ -2,6 +2,9 @@ import { join } from "node:path";
 
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
+/** Same default as variant-config's `variant.worktreePrefix`; this package does not depend on it. */
+export const DEFAULT_WORKTREE_PREFIX = "_v";
+
 export type ChatRenameTrigger = "titleEvent" | "hook";
 export type HookScope = "workspace" | "user";
 
@@ -9,17 +12,23 @@ export type TriggerSettings = {
   trigger: ChatRenameTrigger;
   hookScope: HookScope;
   activationPatterns: string[];
+  /** Prefixes of worktree directories whose dragged-in path names a chat. Empty turns the derivation off. */
+  worktreePrefixes: string[];
 };
 
 /** Normalises raw configuration values. Unknown values fall back to the defaults. */
 export const readTriggerSettings = (get: (key: string) => unknown): TriggerSettings => {
   const patterns = get("activationPatterns");
+  const prefixes = get("worktreePrefixes");
   return {
     trigger: get("trigger") === "hook" ? "hook" : "titleEvent",
     hookScope: get("hookScope") === "user" ? "user" : "workspace",
     activationPatterns: Array.isArray(patterns)
       ? patterns.filter((entry): entry is string => typeof entry === "string")
       : [...DEFAULT_ACTIVATION_PATTERNS],
+    worktreePrefixes: Array.isArray(prefixes)
+      ? prefixes.filter((entry): entry is string => typeof entry === "string")
+      : [DEFAULT_WORKTREE_PREFIX],
   };
 };
 

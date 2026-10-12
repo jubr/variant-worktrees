@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS, findRenameRequest } from "./chat-rename-patterns";
+import {
+  compilePatterns,
+  DEFAULT_ACTIVATION_PATTERNS,
+  findRenameRequest,
+  worktreeActivationPatterns,
+} from "./chat-rename-patterns";
 
 const defaults = compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns;
 
@@ -67,5 +72,61 @@ describe("findRenameRequest", () => {
 
   it("returns none for empty text", () => {
     expect(findRenameRequest("", defaults)).toEqual({ kind: "none" });
+  });
+});
+
+describe("worktree path patterns", () => {
+  const forPrefixes = (...prefixes: string[]) => compilePatterns(worktreeActivationPatterns(prefixes)).patterns;
+
+  it("derives the slug of a dragged-in worktree with the default prefix", () => {
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename", forPrefixes("_v"))).toEqual({
+      kind: "rename",
+      title: "cursor-chat-win-rename",
+      viaPattern: true,
+    });
+  });
+
+  it("accepts a custom prefix and a trailing slash", () => {
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/vw/_work-my-slug/", forPrefixes("_work"))).toMatchObject({
+      kind: "rename",
+      title: "my-slug",
+    });
+  });
+
+  it("ignores a prefix that is not configured", () => {
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/vw/_work-my-slug", forPrefixes("_v"))).toEqual({
+      kind: "none",
+    });
+  });
+
+  it("uses the last path segment", () => {
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/_v-outer/_v-inner", forPrefixes("_v"))).toMatchObject({
+      title: "inner",
+    });
+  });
+
+  it("tries every configured prefix", () => {
+    const patterns = forPrefixes("_v", "_work");
+
+    expect(findRenameRequest("/vw-spec-start @/x/_work-a", patterns)).toMatchObject({ title: "a" });
+    expect(findRenameRequest("/vw-spec-start @/x/_v-b", patterns)).toMatchObject({ title: "b" });
+  });
+
+  it("matches a prefix literally, whatever characters it holds", () => {
+    expect(findRenameRequest("/vw-spec-start @/x/_wxk-slug", forPrefixes("_w.k"))).toEqual({ kind: "none" });
+    expect(findRenameRequest("/vw-spec-start @/x/_w.k-slug", forPrefixes("_w.k"))).toMatchObject({ title: "slug" });
+  });
+
+  it("needs the spec command in front of the path", () => {
+    expect(findRenameRequest("look at @/Users/me/vw/_v-my-slug", forPrefixes("_v"))).toEqual({ kind: "none" });
+  });
+
+  it("is off for an empty or blank prefix list", () => {
+    expect(worktreeActivationPatterns([])).toEqual([]);
+    expect(worktreeActivationPatterns(["", "  "])).toEqual([]);
+  });
+
+  it("lists each prefix once", () => {
+    expect(worktreeActivationPatterns(["_v", "_v"])).toHaveLength(1);
   });
 });

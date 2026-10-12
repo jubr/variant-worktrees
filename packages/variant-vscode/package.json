@@ -12,7 +12,8 @@
   ],
   "dependencies": {
     "@types/vscode": "^1.86.0",
-    "chat-renamer-vscode": "workspace:*"
+    "chat-renamer-vscode": "workspace:*",
+    "variant-config": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -82,6 +83,16 @@
             "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"
           ],
           "markdownDescription": "JavaScript regular expressions tested against each line of the first prompt of a chat. A match renames the chat to its first capture group (or the whole match). The title is numbered against other open chats: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. `/chat-rename` and `/rename-chat` always work and are not numbered. In `hook` mode the patterns are copied into the hook script, which evaluates them with Python's `re`; change the setting to reinstall it."
+        },
+        "variant-worktrees.chatRename.worktreePrefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "_v"
+          ],
+          "markdownDescription": "Prefixes of worktree directories (`_v` in `_v-my-slug`). A first prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. An empty list turns this off."
         },
         "variant-worktrees.chatRename.hookScope": {
           "type": "string",

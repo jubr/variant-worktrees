@@ -19,6 +19,7 @@ import {
   resolveCursorDir,
   subscribeCatalogTitleChanges,
   uninstallChatRenameHook,
+  worktreeActivationPatterns,
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
@@ -41,6 +42,8 @@ export type TriggerHost = {
   /** Reads a chat's first prompt. Default: Cursor's on-disk store. */
   readFirstPrompt?: (sessionId: string) => Promise<FirstPrompt | undefined>;
   now?: () => number;
+  /** Worktree prefixes the host adds to the `worktreePrefixes` setting, e.g. from its own project config. */
+  extraWorktreePrefixes?: readonly string[];
 };
 
 export const startChatRenameTrigger = (
@@ -95,7 +98,13 @@ export const startChatRenameTrigger = (
     eventSubscription = undefined;
 
     const config = vscode.workspace.getConfiguration(names.configSection);
-    const { trigger, hookScope, activationPatterns } = readTriggerSettings((key) => config.get(key));
+    const settings = readTriggerSettings((key) => config.get(key));
+    const { trigger, hookScope } = settings;
+    // Worktree patterns are more specific, so they go first.
+    const activationPatterns = [
+      ...worktreeActivationPatterns([...settings.worktreePrefixes, ...(host.extraWorktreePrefixes ?? [])]),
+      ...settings.activationPatterns,
+    ];
     options.patterns = compilePatterns(activationPatterns, (source, error) =>
       log.warn(
         `ignoring invalid activation pattern ${JSON.stringify(source)}: ${error instanceof Error ? error.message : String(error)}`,
