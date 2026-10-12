@@ -37,11 +37,10 @@ describe("the example project", () => {
         stdio: "ignore",
       });
       const rows = execFileSync(
-        "node",
+        process.execPath,
         [
-          "--no-warnings",
           "-e",
-          'const { DatabaseSync } = require("node:sqlite"); const database = new DatabaseSync(process.env.DB); console.log(JSON.stringify(database.prepare("SELECT text FROM notes ORDER BY id").all()));',
+          'const { Database } = require("bun:sqlite"); console.log(JSON.stringify(new Database(process.env.DB).query("SELECT text FROM notes ORDER BY id").all()));',
         ],
         { env: { ...process.env, DB: created.target }, encoding: "utf8" },
       );

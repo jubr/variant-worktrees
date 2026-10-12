@@ -1,13 +1,9 @@
 import "reflect-metadata";
-import { existsSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
-  // Variables already in the environment win over .env.
-  if (existsSync(".env")) {
-    process.loadEnvFile(".env");
-  }
+  // Bun loads .env from the working directory itself; variables already in the environment win.
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("api");
   // The variant's {{port}}: each variant gets its own, so several run side by side.

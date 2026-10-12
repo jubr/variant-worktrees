@@ -5,9 +5,9 @@
   "description": "Trivial Vite app: the `fe` instance of variants.example.yaml",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:watch": "vite build --watch"
+    "dev": "bun --bun vite",
+    "build": "bun --bun vite build",
+    "build:watch": "bun --bun vite build --watch"
   },
   "devDependencies": {
     "vite": "^7.0.0"
