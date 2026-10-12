@@ -113,3 +113,13 @@
 
 - [x] 22.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
+## 23. Open on any instance, dotenv, local runtime state
+
+- [ ] 23.1 Red then green: `open` valid on NestJS instances too; `instances[].dotenv`; `amendDotenv` and `dotenvFor`. Verify with `bun test` in `variant-config`.
+- [ ] 23.2 Red then green: `variants.local.yaml` with the `runtime` section (reusing the `db` schema), env expansion, `runtime` in the resolved config, `writeRuntime`, its JSON schema file, example and coverage test; `variants.local.yaml` in `.gitignore`. Verify with `bun test` in `variant-config`.
+- [ ] 23.3 Red then green: instance ports from `runtime.instances.<name>.port`; `variant.cacheDir` and the `.cache/variants` state file are removed; README and guide follow. Verify with `bun test` in `variant-config` and `task check:full`.
+
+## 24. Validation of group 23
+
+- [ ] 24.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+
