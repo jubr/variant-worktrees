@@ -7,6 +7,7 @@ describe("chatRenamerNames", () => {
     expect(chatRenamerNames()).toEqual({
       renameChat: "chat-renamer.renameChat",
       renameChatFromPrompt: "chat-renamer.renameChatFromPrompt",
+      renameExistingChats: "chat-renamer.renameExistingChats",
       configSection: "chat-renamer",
       hookScriptName: "chat-renamer-chat-rename.sh",
     });
@@ -18,6 +19,7 @@ describe("chatRenamerNames", () => {
     ).toEqual({
       renameChat: "variant-worktrees.renameChat",
       renameChatFromPrompt: "variant-worktrees.renameChatFromPrompt",
+      renameExistingChats: "variant-worktrees.renameExistingChats",
       configSection: "variant-worktrees.chatRename",
       hookScriptName: "variant-worktrees-chat-rename.sh",
     });

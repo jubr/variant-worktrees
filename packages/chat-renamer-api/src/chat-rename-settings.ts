@@ -14,6 +14,8 @@ export type TriggerSettings = {
   activationPatterns: string[];
   /** Prefixes of worktree directories whose dragged-in path names a chat. Empty turns the derivation off. */
   worktreePrefixes: string[];
+  /** Rename chats that existed before the renamer started, oldest first. */
+  renameExistingChats: boolean;
 };
 
 /** Normalises raw configuration values. Unknown values fall back to the defaults. */
@@ -29,6 +31,7 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
     worktreePrefixes: Array.isArray(prefixes)
       ? prefixes.filter((entry): entry is string => typeof entry === "string")
       : [DEFAULT_WORKTREE_PREFIX],
+    renameExistingChats: get("renameExistingChats") !== false,
   };
 };
 

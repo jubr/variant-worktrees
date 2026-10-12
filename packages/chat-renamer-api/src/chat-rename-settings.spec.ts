@@ -13,6 +13,7 @@ describe("readTriggerSettings", () => {
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
       worktreePrefixes: ["_v"],
+      renameExistingChats: true,
     });
   });
 
@@ -24,6 +25,7 @@ describe("readTriggerSettings", () => {
       hookScope: "user",
       activationPatterns: ["^a$", "b"],
       worktreePrefixes: ["_v"],
+      renameExistingChats: true,
     });
   });
 
@@ -33,12 +35,19 @@ describe("readTriggerSettings", () => {
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
       worktreePrefixes: ["_v"],
+      renameExistingChats: true,
     });
   });
 
   it("lets an empty list switch the patterns off and drops non-string entries", () => {
     expect(readTriggerSettings(settings({ activationPatterns: [] })).activationPatterns).toEqual([]);
     expect(readTriggerSettings(settings({ activationPatterns: ["a", 1, null] })).activationPatterns).toEqual(["a"]);
+  });
+
+  it("reads renameExistingChats, on unless explicitly false", () => {
+    expect(readTriggerSettings(settings({})).renameExistingChats).toBe(true);
+    expect(readTriggerSettings(settings({ renameExistingChats: false })).renameExistingChats).toBe(false);
+    expect(readTriggerSettings(settings({ renameExistingChats: "no" })).renameExistingChats).toBe(true);
   });
 
   it("reads worktree prefixes, drops non-strings, and lets an empty list switch them off", () => {
