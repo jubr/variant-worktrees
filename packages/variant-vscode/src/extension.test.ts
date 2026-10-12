@@ -16,7 +16,7 @@ const extensionContext: vscode.ExtensionContext = {
 
 const probeCallback = () => {
   activate(extensionContext);
-  const call = registerCommand.mock.calls.find((entry) => entry[0] === "variant-vscode.probeCursorCommands");
+  const call = registerCommand.mock.calls.find((entry) => entry[0] === "variant-worktrees.probeCursorCommands");
   if (!call) {
     throw new Error("probe command was not registered");
   }
@@ -59,11 +59,19 @@ describe("extension", () => {
   });
 
   describe("activation", () => {
+    it("registers the rename chat commands", () => {
+      activate(extensionContext);
+
+      const ids = registerCommand.mock.calls.map((entry) => entry[0]);
+      expect(ids).toContain("variant-worktrees.renameChat");
+      expect(ids).toContain("variant-worktrees.renameChatFromPrompt");
+    });
+
     it("registers the Cursor command probe", () => {
       activate(extensionContext);
 
       const ids = registerCommand.mock.calls.map((call) => call[0]);
-      expect(ids).toContain("variant-vscode.probeCursorCommands");
+      expect(ids).toContain("variant-worktrees.probeCursorCommands");
     });
 
     it("reports matching command ids in Cursor Command Probe", async () => {
@@ -108,10 +116,10 @@ describe("extension", () => {
         contributes: { commands: { command: string; title: string }[] };
       };
       const command = manifest.contributes.commands.find(
-        (entry) => entry.command === "variant-vscode.probeCursorCommands",
+        (entry) => entry.command === "variant-worktrees.probeCursorCommands",
       );
 
-      expect(manifest.activationEvents).toContain("onCommand:variant-vscode.probeCursorCommands");
+      expect(manifest.activationEvents).toContain("onCommand:variant-worktrees.probeCursorCommands");
       expect(command?.title).toEqual("Variant: Probe Cursor Chat Commands");
     });
 
@@ -121,7 +129,7 @@ describe("extension", () => {
       expect(registerCommand).toHaveBeenCalled();
       const [command, callback] = registerCommand.mock.calls[0] as [string, () => void];
 
-      expect(command).toEqual("variant-vscode.helloworld");
+      expect(command).toEqual("variant-worktrees.helloworld");
 
       expect(showInformationMessage).not.toHaveBeenCalled();
       callback();

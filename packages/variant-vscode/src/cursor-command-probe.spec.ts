@@ -17,7 +17,7 @@ describe("selectCursorTitleCommands", () => {
         "Cursor.SetTitle",
         "workbench.action.rename",
         "aichat.setTitle",
-        "variant-vscode.helloworld",
+        "variant-worktrees.helloworld",
         "agent.updateLabel",
         "composer.renameChat",
       ]),
@@ -31,7 +31,7 @@ describe("selectCursorTitleCommands", () => {
 
 describe("formatProbeReport", () => {
   it("formats no matches as the empty-result line", () => {
-    expect(formatProbeReport(["cursor.openChat", "variant-vscode.helloworld"])).toEqual([
+    expect(formatProbeReport(["cursor.openChat", "variant-worktrees.helloworld"])).toEqual([
       "No rename-like commands found in this build.",
     ]);
   });

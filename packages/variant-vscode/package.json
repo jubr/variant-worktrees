@@ -11,7 +11,8 @@
     "LICENSE.txt"
   ],
   "dependencies": {
-    "@types/vscode": "^1.86.0"
+    "@types/vscode": "^1.86.0",
+    "chat-renamer-vscode": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -40,19 +41,62 @@
     "vscode": "^1.86.0"
   },
   "activationEvents": [
-    "onCommand:variant-vscode.helloworld",
-    "onCommand:variant-vscode.probeCursorCommands"
+    "onStartupFinished",
+    "onUri",
+    "onCommand:variant-worktrees.helloworld",
+    "onCommand:variant-worktrees.probeCursorCommands"
   ],
   "contributes": {
     "commands": [
       {
-        "command": "variant-vscode.helloworld",
+        "command": "variant-worktrees.helloworld",
         "title": "Variant: Hello World"
       },
       {
-        "command": "variant-vscode.probeCursorCommands",
+        "command": "variant-worktrees.probeCursorCommands",
         "title": "Variant: Probe Cursor Chat Commands"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Variant Worktrees",
+      "properties": {
+        "variant-worktrees.chatRename.trigger": {
+          "type": "string",
+          "enum": [
+            "titleEvent",
+            "hook"
+          ],
+          "default": "titleEvent",
+          "enumDescriptions": [
+            "Listen to Cursor's chat title change event (cursor.onDidChangeAgentHostSessionCatalogTitle) and rename when the first prompt is a rename request.",
+            "Install a beforeSubmitPrompt hook in the Cursor hooks.json that sends rename requests to this extension and blocks lone /chat-rename prompts from the model."
+          ],
+          "markdownDescription": "What triggers a rename. Experimental: relies on private Cursor internals and may stop working on a Cursor update."
+        },
+        "variant-worktrees.chatRename.activationPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"
+          ],
+          "markdownDescription": "JavaScript regular expressions tested against each line of the first prompt of a chat. A match renames the chat to its first capture group (or the whole match). The title is numbered against other open chats: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. `/chat-rename` and `/rename-chat` always work and are not numbered. In `hook` mode the patterns are copied into the hook script, which evaluates them with Python's `re`; change the setting to reinstall it."
+        },
+        "variant-worktrees.chatRename.hookScope": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "user"
+          ],
+          "default": "workspace",
+          "enumDescriptions": [
+            "Write `.cursor/hooks.json` in the first workspace folder.",
+            "Write `~/.cursor/hooks.json`."
+          ],
+          "markdownDescription": "Which hooks.json receives the hook when `#variant-worktrees.chatRename.trigger#` is `hook`."
+        }
+      }
+    }
   }
 }
