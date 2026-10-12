@@ -5,7 +5,7 @@ db:
   dialect: sqlite
 
 variant:
-  seed: node scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
+  seed: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
   instances:
     - name: fe
       kind: vite

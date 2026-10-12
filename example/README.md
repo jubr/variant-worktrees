@@ -5,11 +5,11 @@ The test suites of `variant-config` and `variant-api` use this directory as thei
 
 ```bash
 cd example
-mise install          # bun, node and the `variant` CLI (see mise.toml)
+mise install          # bun and the `variant` CLI (see mise.toml)
 bun install
 variant config        # the resolved configuration
 variant create demo   # a SQLite database for the variant `demo`
-SQLITE_DATABASE=./be/example.sqlite node scripts/seed.mjs
+SQLITE_DATABASE=./be/example.sqlite bun scripts/seed.mjs
 ```
 
 - `fe` proxies `/api` to `be` (`VARIANT_API_PORT`, default 3000) and listens on `PORT` (default 5173).

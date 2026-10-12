@@ -36,7 +36,7 @@ describe("the example project", () => {
     const config = loadConfig({ cwd: exampleDirectory });
 
     expect(config.db.dialect).toBe("sqlite");
-    expect(config.variant?.seed).toBe("node scripts/seed.mjs");
+    expect(config.variant?.seed).toBe("bun scripts/seed.mjs");
     expect(config.variant?.instances).toMatchObject([
       { name: "fe", kind: "vite", dir: "fe", open: DEFAULT_OPEN_URL },
       { name: "be", kind: "nestjs", dir: "be", dotenv: ".env" },
@@ -75,12 +75,12 @@ describe("the example project", () => {
       expect(be && (await openUrlFor(config, "demo", be))).toBeUndefined();
     }));
 
-  it("declares bun, node and the variant CLI in mise.toml", () => {
+  it("declares bun and the variant CLI in mise.toml", () => {
     const mise = parseToml(readFileSync(join(exampleDirectory, "mise.toml"), "utf8")) as {
       tools: Record<string, string>;
     };
 
-    expect(Object.keys(mise.tools)).toEqual(["bun", "node", "github:jubr/variant-worktrees"]);
+    expect(Object.keys(mise.tools)).toEqual(["bun", "github:jubr/variant-worktrees"]);
   });
 
   it("ships be/.env.example with SQLite settings and a seed script", () => {
