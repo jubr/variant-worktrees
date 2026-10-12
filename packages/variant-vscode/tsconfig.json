@@ -17,9 +17,6 @@
     "skipLibCheck": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "vscode": ["./mocks/vscode.ts"]
-    }
+    "forceConsistentCasingInFileNames": true
   }
 }
