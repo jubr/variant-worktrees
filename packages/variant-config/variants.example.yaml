@@ -30,13 +30,12 @@ variant:
       dir: packages/example-fe
       up: bun run dev
       watch: bun run build:watch
-      open: http://{{slug}}.vw.localhost:{{port}} # URL template; placeholders: {{slug}}, {{port}}
+      open: http://{{slug}}.vw.localhost:{{port}} # vite only; URL template, placeholders {{slug}} and {{port}}; autodetected vite instances get this default
     - name: be
       kind: nestjs
       dir: packages/example-be
       up: bun run start:dev
       watch: bun run build:watch
-      open: http://{{slug}}.vw.localhost:{{port}}
 
 # Per-variant overrides, keyed by slug.
 variants:

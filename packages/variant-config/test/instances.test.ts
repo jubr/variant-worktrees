@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { detectInstances } from "../src/autodetect.js";
 import { loadConfig } from "../src/index.js";
+import { DEFAULT_OPEN_URL } from "../src/schema.js";
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-instances-"));
 
@@ -16,7 +17,7 @@ describe("runtime instance discovery", () => {
       writeFileSync(join(directory, "server", "nest-cli.json"), "{}\n");
 
       expect(detectInstances(directory)).toEqual([
-        { kind: "vite", dir: "app" },
+        { kind: "vite", dir: "app", open: DEFAULT_OPEN_URL },
         { kind: "nestjs", dir: "server" },
       ]);
     } finally {
