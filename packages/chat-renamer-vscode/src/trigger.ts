@@ -43,8 +43,6 @@ export type TriggerHost = {
   /** Reads a chat's first prompt. Default: Cursor's on-disk store. */
   readFirstPrompt?: (sessionId: string) => Promise<FirstPrompt | undefined>;
   now?: () => number;
-  /** Worktree prefixes the host adds to the `worktreePrefixes` setting, e.g. from its own project config. */
-  extraWorktreePrefixes?: readonly string[];
   /** Renames chats that existed before startup. Without it no existing-chats run is scheduled. */
   existing?: ExistingChatsRunner;
   /** Option values the host supplies, e.g. from `variants.yaml`. Editor settings the user set explicitly win. */
@@ -154,7 +152,7 @@ export const startChatRenameTrigger = (
     const { trigger, hookScope } = settings;
     // Worktree patterns are more specific, so they go first.
     const activationPatterns = [
-      ...worktreeActivationPatterns([...settings.worktreePrefixes, ...(host.extraWorktreePrefixes ?? [])]),
+      ...worktreeActivationPatterns(settings.worktreePrefixes),
       ...settings.activationPatterns,
     ];
     options.patterns = compilePatterns(activationPatterns, (source, error) =>

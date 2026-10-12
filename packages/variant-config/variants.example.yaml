@@ -45,5 +45,5 @@ chatRenamer:
   activationPatterns: # regular expressions tested per prompt line; the first capture group is the title
     - '/[a-z]+-spec-[a-z]+\s+([A-Za-z0-9_-]+)'
   worktreePrefixes: # prefixes (with connector) of worktree folders whose dragged-in path names a chat
-    - _v- # _work-
+    - _v- # default: variant.prefix (above); list them here only to replace it, e.g. _work-
   renameExistingDays: 7 # 0 turns off renaming of chats that existed before the editor started

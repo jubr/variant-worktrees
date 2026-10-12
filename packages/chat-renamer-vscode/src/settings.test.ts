@@ -23,7 +23,7 @@ describe("readSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: ["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"],
-      worktreePrefixes: ["_v-"],
+      worktreePrefixes: [],
       renameExistingDays: 7,
     });
   });
