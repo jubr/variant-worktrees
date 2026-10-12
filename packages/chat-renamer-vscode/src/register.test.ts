@@ -10,7 +10,7 @@ describe("registerChatRenamer", () => {
     const registerCommand = spyOn(vscode.commands, "registerCommand");
     registerCommand.mockClear();
 
-    const names = registerChatRenamer(context());
+    const { names } = registerChatRenamer(context());
 
     expect(names.configSection).toBe("chat-renamer");
     expect(registerCommand.mock.calls.map((call) => call[0])).toEqual([
@@ -23,7 +23,7 @@ describe("registerChatRenamer", () => {
     const registerCommand = spyOn(vscode.commands, "registerCommand");
     registerCommand.mockClear();
 
-    const names = registerChatRenamer(context(), {
+    const { names } = registerChatRenamer(context(), {
       commandPrefix: "variant-worktrees",
       configSection: "variant-worktrees.chatRename",
     });

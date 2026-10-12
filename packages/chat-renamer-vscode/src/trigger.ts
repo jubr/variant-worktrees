@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   type ChatRenamerNames,
+  claimRenamer,
   compilePatterns,
   handleCatalogTitleChange,
   handleChatRenameUri,
@@ -27,33 +28,45 @@ import { resolveChatRenameDeps } from "./cursor-host";
  *  - titleEvent (default): on cursor.onDidChangeAgentHostSessionCatalogTitle, read the chat's first prompt from Cursor's
  *    on-disk store and rename when it contains a /chat-rename request. Falls back to the title text.
  *  - hook: install a beforeSubmitPrompt hook that sends /chat-rename prompts to this extension's URI handler.
- * The URI handler is always registered. Switching the setting uninstalls the hook we wrote.
+ * Only one extension per host runs a trigger: the first to start owns renaming (see claimRenamer). Any other one
+ * registers no listener, hook or URI handler and removes the hook script it wrote earlier.
+ * The owner's URI handler is always registered. Switching the setting uninstalls the hook we wrote.
+ * Resolves when the first setup pass is done.
  */
 export const startChatRenameTrigger = (
   context: vscode.ExtensionContext,
   log: Logger,
   options: RenameOptions,
   names: ChatRenamerNames,
-): void => {
+  home: string = homedir(),
+): Promise<void> => {
   if (typeof vscode.env?.appName !== "string") {
-    return;
+    return Promise.resolve();
   }
 
-  context.subscriptions.push(
-    vscode.window.registerUriHandler({
-      handleUri: async (uri) => {
-        try {
-          const handled = await handleChatRenameUri(resolveChatRenameDeps(context), uri, options);
-          log.info(`uri ${uri.path}${uri.query ? `?${uri.query}` : ""} handled=${handled}`);
-        } catch (error) {
-          log.error("uri handler failed", error);
-          void vscode.window.showErrorMessage(
-            `Chat rename failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      },
-    }),
-  );
+  const claim = claimRenamer(context.extension.id);
+  context.subscriptions.push({ dispose: claim.release });
+  if (!claim.owned) {
+    log.info(`${claim.owner} already runs chat renaming; this instance stays idle`);
+  }
+
+  if (claim.owned) {
+    context.subscriptions.push(
+      vscode.window.registerUriHandler({
+        handleUri: async (uri) => {
+          try {
+            const handled = await handleChatRenameUri(resolveChatRenameDeps(context), uri, options);
+            log.info(`uri ${uri.path}${uri.query ? `?${uri.query}` : ""} handled=${handled}`);
+          } catch (error) {
+            log.error("uri handler failed", error);
+            void vscode.window.showErrorMessage(
+              `Chat rename failed: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        },
+      }),
+    );
+  }
 
   options.peerTitles = async (sessionId) => {
     const openIds = await vscode.commands.executeCommand<string[]>("composer.getOrderedSelectedComposerIds");
@@ -76,10 +89,9 @@ export const startChatRenameTrigger = (
     ).patterns;
     log.info(`activation patterns: ${JSON.stringify(activationPatterns)}`);
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const home = homedir();
     const chosenDir = resolveCursorDir(hookScope, workspaceRoot, home);
     const otherDirs = [...new Set([resolveCursorDir("workspace", workspaceRoot, home), join(home, ".cursor")])].filter(
-      (dir) => trigger === "titleEvent" || dir !== chosenDir,
+      (dir) => !(claim.owned && trigger === "hook") || dir !== chosenDir,
     );
 
     for (const dir of otherDirs) {
@@ -88,6 +100,10 @@ export const startChatRenameTrigger = (
       } catch (error) {
         log.warn(`could not clean ${dir}: ${error instanceof Error ? error.message : String(error)}`);
       }
+    }
+
+    if (!claim.owned) {
+      return;
     }
 
     if (trigger === "hook") {
@@ -122,13 +138,14 @@ export const startChatRenameTrigger = (
     log.info("listening to onDidChangeAgentHostSessionCatalogTitle");
   };
 
-  const schedule = (): void => {
+  const schedule = (): Promise<void> => {
     queue = queue.then(apply).catch((error: unknown) => {
       log.error("trigger setup failed", error);
       void vscode.window.showWarningMessage(
         `Chat rename trigger setup failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     });
+    return queue;
   };
 
   context.subscriptions.push(
@@ -139,5 +156,5 @@ export const startChatRenameTrigger = (
     }),
     { dispose: () => eventSubscription?.dispose() },
   );
-  schedule();
+  return schedule();
 };

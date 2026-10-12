@@ -40,7 +40,7 @@ registerChatRenamer(context, {
 
 The host manifest must contribute the three settings under `configSection` and list `onStartupFinished` and `onUri` as activation events. The editor-independent logic lives in the `chat-renamer-api` package.
 
-If this extension and a host that embeds it are both installed, both react to the same title event. The rename is idempotent, so the result is the same.
+If this extension and a host that embeds it are both installed in one window, only the one that starts first runs the triggers (title listener, hook, URI handler). The other logs which extension owns renaming, removes any hook script it wrote earlier, and stays idle; its commands still work. Ownership passes on when the owner is disposed.
 
 ## Development
 
