@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
 import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
-import { DEFAULT_WORKTREE_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+import { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -69,7 +69,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const variant = {
     ...config.variant,
     root: config.variant?.root ? resolve(configDir, config.variant.root) : detectVariantRoot(configDir),
-    worktreePrefix: config.variant?.worktreePrefix ?? DEFAULT_WORKTREE_PREFIX,
+    prefix: config.variant?.prefix ?? DEFAULT_PREFIX,
     instances: resolveInstances(config, configDir),
   };
 
@@ -93,18 +93,18 @@ export const runtimeCommandFor = (
 ): string | undefined => instance?.[kind] ?? config.variant?.[kind];
 
 /**
- * Only the worktree prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
+ * Only the variant name prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
  * cheap and safe to call from an editor extension. Falls back to the default when the file is missing or invalid.
  */
-export const readWorktreePrefix = (startDir = process.cwd()): string => {
+export const readPrefix = (startDir = process.cwd()): string => {
   const configPath = findConfigFile(startDir);
   if (!configPath) {
-    return DEFAULT_WORKTREE_PREFIX;
+    return DEFAULT_PREFIX;
   }
   try {
-    return readConfigFile(configPath).variant?.worktreePrefix ?? DEFAULT_WORKTREE_PREFIX;
+    return readConfigFile(configPath).variant?.prefix ?? DEFAULT_PREFIX;
   } catch {
-    return DEFAULT_WORKTREE_PREFIX;
+    return DEFAULT_PREFIX;
   }
 };
 
@@ -120,4 +120,4 @@ export type {
   VariantRuntime,
   VariantsConfig,
 } from "./schema.js";
-export { DEFAULT_WORKTREE_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+export { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";

@@ -9,7 +9,7 @@ export const createVariant = async (context: OperationContext, requestedSlug?: s
   const existing = readState(context.stateDir, slug);
   const worktree =
     context.useWorktree && slug !== "main"
-      ? ensureWorktree(slug, context.cwd, context.variantRoot, context.config.variant?.worktreePrefix)
+      ? ensureWorktree(slug, context.cwd, context.variantRoot, context.config.variant?.prefix)
       : undefined;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
 

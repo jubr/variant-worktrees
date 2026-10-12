@@ -68,7 +68,7 @@ describe("worktree coupling", () => {
       git(repo, "add", "README.md");
       git(repo, "commit", "-m", "initial");
 
-      destination = ensureWorktree("feature-three", repo, undefined, "_work");
+      destination = ensureWorktree("feature-three", repo, undefined, "_work-");
       expect(basename(destination)).toBe("_work-feature-three");
       expect(existsSync(join(destination, "README.md"))).toBe(true);
     } finally {
