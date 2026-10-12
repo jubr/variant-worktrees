@@ -20,12 +20,12 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
-  it("accepts a custom worktree prefix", () => {
-    expect(VariantsConfigSchema.safeParse({ variant: { worktreePrefix: "_work" } }).success).toBe(true);
+  it("accepts a custom prefix", () => {
+    expect(VariantsConfigSchema.safeParse({ variant: { prefix: "_work-" } }).success).toBe(true);
   });
 
-  it("rejects an empty worktree prefix and one with a path separator", () => {
-    expect(VariantsConfigSchema.safeParse({ variant: { worktreePrefix: "" } }).success).toBe(false);
-    expect(VariantsConfigSchema.safeParse({ variant: { worktreePrefix: "a/b" } }).success).toBe(false);
+  it("rejects an empty prefix and one with a path separator", () => {
+    expect(VariantsConfigSchema.safeParse({ variant: { prefix: "" } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ variant: { prefix: "a/b" } }).success).toBe(false);
   });
 });

@@ -62,7 +62,7 @@
           "type": "string",
           "minLength": 1
         },
-        "worktreePrefix": {
+        "prefix": {
           "type": "string",
           "minLength": 1
         },

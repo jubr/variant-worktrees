@@ -75,23 +75,23 @@ describe("loadConfig", () => {
     }
   });
 
-  it("resolves the default worktree prefix _v", () => {
+  it("resolves the default prefix _v-", () => {
     const directory = tempDirectory();
     try {
       writeFileSync(join(directory, "variants.yaml"), "seed: ./seed.sh\n");
 
-      expect(loadConfig({ cwd: directory }).variant?.worktreePrefix).toBe("_v");
+      expect(loadConfig({ cwd: directory }).variant?.prefix).toBe("_v-");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
 
-  it("resolves a configured worktree prefix", () => {
+  it("resolves a configured prefix", () => {
     const directory = tempDirectory();
     try {
-      writeFileSync(join(directory, "variants.yaml"), "variant:\n  worktreePrefix: _work\n");
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
 
-      expect(loadConfig({ cwd: directory }).variant?.worktreePrefix).toBe("_work");
+      expect(loadConfig({ cwd: directory }).variant?.prefix).toBe("_work-");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
