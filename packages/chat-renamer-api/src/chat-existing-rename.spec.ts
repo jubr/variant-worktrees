@@ -7,7 +7,7 @@ import type { ChatRenameDeps } from "./cursor-chat-rename";
 const STARTED = Date.parse("2026-10-12T09:00:00.000Z");
 const patterns = compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns;
 
-type Session = { sessionId: string; title?: string };
+type Session = { sessionId: string; title?: string; updatedAt?: number };
 type Prompt = { text: string; submittedAtMs?: number } | undefined;
 
 const setup = (sessions: Session[], prompts: Record<string, Prompt>) => {
@@ -41,6 +41,75 @@ const setup = (sessions: Session[], prompts: Record<string, Prompt>) => {
 
 const old = (text: string, ageMs: number) => ({ text, submittedAtMs: STARTED - ageMs });
 
+const DAY = 86_400_000;
+
+describe("renameExistingChats window", () => {
+  it("leaves chats created before the window alone and does not record them", async () => {
+    const { deps, options, renamed, recorded } = setup([{ sessionId: "inside" }, { sessionId: "outside" }], {
+      inside: old("/vw-spec-start abc", 2 * DAY),
+      outside: old("/vw-spec-start abc", 9 * DAY),
+    });
+
+    const result = await renameExistingChats(deps, { ...options, notBeforeMs: STARTED - 7 * DAY });
+
+    expect(renamed.map((entry) => entry.sessionId)).toEqual(["inside"]);
+    expect(recorded).toEqual([["inside"]]);
+    expect(result.examined).toBe(1);
+  });
+
+  it("numbers only the chats inside the window", async () => {
+    const { deps, options, renamed } = setup(
+      [{ sessionId: "outside" }, { sessionId: "first" }, { sessionId: "second" }],
+      {
+        outside: old("/vw-spec-start abc", 9 * DAY),
+        first: old("/vw-spec-start abc", 3 * DAY),
+        second: old("/vw-spec-start abc", 2 * DAY),
+      },
+    );
+
+    await renameExistingChats(deps, { ...options, notBeforeMs: STARTED - 7 * DAY });
+
+    expect(renamed.map(({ sessionId, title }) => ({ sessionId, title }))).toEqual([
+      { sessionId: "first", title: "abc" },
+      { sessionId: "second", title: "abc2" },
+    ]);
+  });
+
+  it("skips without reading a chat last updated before the window", async () => {
+    const { deps, options, reads } = setup(
+      [
+        { sessionId: "stale", updatedAt: STARTED - 10 * DAY },
+        { sessionId: "recent", updatedAt: STARTED - DAY },
+      ],
+      { stale: old("/vw-spec-start abc", 11 * DAY), recent: old("/vw-spec-start abc", 2 * DAY) },
+    );
+
+    await renameExistingChats(deps, { ...options, notBeforeMs: STARTED - 7 * DAY });
+
+    expect(reads).toEqual(["recent"]);
+  });
+
+  it("ignores an updatedAt that is not in epoch milliseconds", async () => {
+    const { deps, options, reads } = setup([{ sessionId: "seconds", updatedAt: 1_700_000_000 }], {
+      seconds: old("/vw-spec-start abc", DAY),
+    });
+
+    await renameExistingChats(deps, { ...options, notBeforeMs: STARTED - 7 * DAY });
+
+    expect(reads).toEqual(["seconds"]);
+  });
+
+  it("has no lower bound without notBeforeMs", async () => {
+    const { deps, options, renamed } = setup([{ sessionId: "ancient" }], {
+      ancient: old("/vw-spec-start abc", 3000 * DAY),
+    });
+
+    await renameExistingChats(deps, options);
+
+    expect(renamed).toHaveLength(1);
+  });
+});
+
 describe("renameExistingChats", () => {
   it("renames same-titled old chats in creation order, oldest first", async () => {
     const { deps, options, renamed } = setup(
@@ -65,6 +134,16 @@ describe("renameExistingChats", () => {
     ]);
     expect(result.renamed).toHaveLength(3);
     expect(result.listed).toBe(3);
+  });
+
+  it("reports the old title and creation time of every rename", async () => {
+    const { deps, options } = setup([{ sessionId: "a", title: "AI name" }], { a: old("/vw-spec-start abc", 5_000) });
+
+    const result = await renameExistingChats(deps, options);
+
+    expect(result.renamed).toEqual([
+      { sessionId: "a", title: "abc", previousTitle: "AI name", createdAtMs: STARTED - 5_000 },
+    ]);
   });
 
   it("renames through the borrowed identity", async () => {

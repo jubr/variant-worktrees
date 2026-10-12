@@ -13,15 +13,25 @@ export type ExistingChatsOptions = {
   isRecorded?: (sessionId: string) => boolean;
   /** Called once with every chat examined this run. */
   record?: (sessionIds: string[]) => void | Promise<void>;
+  /** Epoch ms. Chats whose first prompt came earlier are left alone and not recorded. Unset: no lower bound. */
+  notBeforeMs?: number;
   limit?: number;
 };
+
+export type RenamedChat = { sessionId: string; title: string; previousTitle?: string; createdAtMs: number };
 
 export type ExistingChatsResult = {
   listed: number;
   examined: number;
-  renamed: Array<{ sessionId: string; title: string }>;
+  renamed: RenamedChat[];
   failed: Array<{ sessionId: string; error: string }>;
 };
+
+const EPOCH_MS_FLOOR = 1e11; // 1973 in ms, 5138 in seconds: tells the two units apart
+
+/** A chat cannot predate its last update, so a stale `updatedAt` rules it out without reading its prompt. */
+const lastUpdatedBefore = (updatedAt: number | undefined, notBeforeMs: number): boolean =>
+  typeof updatedAt === "number" && updatedAt > EPOCH_MS_FLOOR && updatedAt < notBeforeMs;
 
 /**
  * Renames chats that existed before the renamer started. Reads each listed chat's first prompt once; chats whose
@@ -44,8 +54,14 @@ export const renameExistingChats = async (
     if (options.isRecorded?.(session.sessionId)) {
       continue;
     }
+    if (options.notBeforeMs !== undefined && lastUpdatedBefore(session.updatedAt, options.notBeforeMs)) {
+      continue;
+    }
     const prompt = await options.readFirstPrompt(session.sessionId);
     if (!prompt || prompt.submittedAtMs === undefined) {
+      continue;
+    }
+    if (options.notBeforeMs !== undefined && prompt.submittedAtMs < options.notBeforeMs) {
       continue;
     }
     examined.push(session.sessionId);
@@ -64,10 +80,15 @@ export const renameExistingChats = async (
   }
 
   const result: ExistingChatsResult = { listed: sessions.length, examined: examined.length, renamed: [], failed: [] };
+  const byId = new Map(candidates.map((chat) => [chat.sessionId, chat]));
   for (const planned of planExistingRenames(candidates)) {
     try {
       await renameChat(deps, planned.sessionId, planned.title);
-      result.renamed.push(planned);
+      result.renamed.push({
+        ...planned,
+        previousTitle: byId.get(planned.sessionId)?.currentTitle,
+        createdAtMs: byId.get(planned.sessionId)?.createdAtMs ?? 0,
+      });
     } catch (error) {
       result.failed.push({
         sessionId: planned.sessionId,

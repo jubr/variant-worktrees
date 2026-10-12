@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { DEFAULT_WORKTREE_PREFIX } from "chat-renamer-config";
+import { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX, isRenameExistingDays } from "chat-renamer-config";
 
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
@@ -16,14 +16,15 @@ export type TriggerSettings = {
   activationPatterns: string[];
   /** Prefixes of worktree directories whose dragged-in path names a chat. Empty turns the derivation off. */
   worktreePrefixes: string[];
-  /** Rename chats that existed before the renamer started, oldest first. */
-  renameExistingChats: boolean;
+  /** Rename existing chats created within this many days, oldest first. 0 turns it off. */
+  renameExistingDays: number;
 };
 
 /** Normalises raw configuration values. Unknown values fall back to the defaults. */
 export const readTriggerSettings = (get: (key: string) => unknown): TriggerSettings => {
   const patterns = get("activationPatterns");
   const prefixes = get("worktreePrefixes");
+  const days = get("renameExistingDays");
   return {
     trigger: get("trigger") === "hook" ? "hook" : "titleEvent",
     hookScope: get("hookScope") === "user" ? "user" : "workspace",
@@ -33,7 +34,7 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
     worktreePrefixes: Array.isArray(prefixes)
       ? prefixes.filter((entry): entry is string => typeof entry === "string")
       : [DEFAULT_WORKTREE_PREFIX],
-    renameExistingChats: get("renameExistingChats") !== false,
+    renameExistingDays: isRenameExistingDays(days) ? days : DEFAULT_RENAME_EXISTING_DAYS,
   };
 };
 
