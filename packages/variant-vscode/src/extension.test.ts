@@ -110,7 +110,7 @@ describe("extension", () => {
       expect(executeCommand).not.toHaveBeenCalled();
     });
 
-    it("contributes the probe title and activation event", () => {
+    it("contributes the probe command, which activates the extension without an explicit event", () => {
       const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
         activationEvents: string[];
         contributes: { commands: { command: string; title: string }[] };
@@ -119,7 +119,8 @@ describe("extension", () => {
         (entry) => entry.command === "variant-worktrees.probeCursorCommands",
       );
 
-      expect(manifest.activationEvents).toContain("onCommand:variant-worktrees.probeCursorCommands");
+      // VS Code activates on every contributed command, so no onCommand events are listed.
+      expect(manifest.activationEvents.filter((event) => event.startsWith("onCommand:"))).toEqual([]);
       expect(command?.title).toEqual("Variant: Probe Cursor Chat Commands");
     });
 

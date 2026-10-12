@@ -38,7 +38,7 @@ The callback never calls `executeCommand`. A discovered id is evidence about thi
 
 ### Command contribution
 
-Id `variant-worktrees.probeCursorCommands`, title `Variant: Probe Cursor Chat Commands`, activation event `onCommand:variant-worktrees.probeCursorCommands`. Keep the Hello World command and its activation event. Register the probe from `activate` and push the disposable onto `context.subscriptions`.
+Id `variant-worktrees.probeCursorCommands`, title `Variant: Probe Cursor Chat Commands`, no explicit activation event: VS Code (engine ^1.86) activates the extension on every contributed command. Keep the Hello World command. Register the probe from `activate` and push the disposable onto `context.subscriptions`.
 
 ### Tests and the vscode mock
 

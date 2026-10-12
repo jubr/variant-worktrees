@@ -43,10 +43,7 @@
   },
   "activationEvents": [
     "onStartupFinished",
-    "onUri",
-    "onCommand:variant-worktrees.helloworld",
-    "onCommand:variant-worktrees.probeCursorCommands",
-    "onCommand:variant-worktrees.renameExistingChats"
+    "onUri"
   ],
   "contributes": {
     "commands": [
