@@ -46,6 +46,23 @@ describe("dotenvFor", () => {
       expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "62061" })).toBe("PORT=62061\n");
     }));
 
+  it("falls back to the .example file when the source does not exist", () =>
+    withProject((directory) => {
+      writeFileSync(join(directory, "server", ".env.example"), "PORT=3000\n");
+      const instance: VariantInstance = { kind: "nestjs", dir: "server", dotenv: ".env" };
+
+      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "62061" })).toBe("PORT=62061\n");
+    }));
+
+  it("prefers the source over its .example file", () =>
+    withProject((directory) => {
+      writeFileSync(join(directory, "server", ".env"), "A=1\n");
+      writeFileSync(join(directory, "server", ".env.example"), "B=2\n");
+      const instance: VariantInstance = { kind: "nestjs", dir: "server", dotenv: ".env" };
+
+      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "1" })).toBe("A=1\nPORT=1\n");
+    }));
+
   it("treats a missing source as empty", () =>
     withProject((directory) => {
       const instance: VariantInstance = { kind: "nestjs", dir: "server", dotenv: ".env" };
