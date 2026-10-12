@@ -74,6 +74,10 @@
           "type": "string",
           "minLength": 1
         },
+        "cacheDir": {
+          "type": "string",
+          "minLength": 1
+        },
         "instances": {
           "type": "array",
           "items": {

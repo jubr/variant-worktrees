@@ -21,6 +21,7 @@ db:
 variant:
   root: .. # directory that holds the variant worktrees; default: detected from the git checkout
   prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
+  cacheDir: .cache/variants # per-variant state files <slug>.yaml; spa_port / api_port there assign instance ports, else random
   seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
   up: bun run dev # command that starts a variant; an instance's own `up` wins
   watch: bun run watch # command that rebuilds a variant; an instance's own `watch` wins

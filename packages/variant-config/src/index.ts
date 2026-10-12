@@ -4,7 +4,7 @@ import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
 import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
-import { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+import { DEFAULT_CACHE_DIR, DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -71,6 +71,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     ...config.variant,
     root: config.variant?.root ? resolve(configDir, config.variant.root) : detectVariantRoot(configDir),
     prefix: config.variant?.prefix ?? DEFAULT_PREFIX,
+    cacheDir: resolve(configDir, config.variant?.cacheDir ?? DEFAULT_CACHE_DIR),
     instances: resolveInstances(config, configDir),
   };
 
@@ -128,6 +129,7 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
+export { openUrlFor, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
@@ -137,5 +139,11 @@ export type {
   VariantRuntime,
   VariantsConfig,
 } from "./schema.js";
-export { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+export {
+  DEFAULT_CACHE_DIR,
+  DEFAULT_OPEN_URL,
+  DEFAULT_PREFIX,
+  VariantsConfigSchema,
+  variantsJsonSchema,
+} from "./schema.js";
 export type { ChatRenamerConfig };
