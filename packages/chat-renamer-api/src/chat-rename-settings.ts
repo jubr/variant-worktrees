@@ -1,14 +1,23 @@
 import { join } from "node:path";
 
-import { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX, isRenameExistingDays } from "chat-renamer-config";
+import {
+  DEFAULT_HOOK_SCOPE,
+  DEFAULT_RENAME_EXISTING_DAYS,
+  DEFAULT_TRIGGER,
+  DEFAULT_WORKTREE_PREFIXES,
+  type HookScope,
+  isHookScope,
+  isRenameExistingDays,
+  isTrigger,
+  type Trigger,
+} from "chat-renamer-config";
 
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
-/** Shared with variant-config's `variant.worktreePrefix` through chat-renamer-config. */
-export { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX };
+/** The defaults live in chat-renamer-config, which owns the full set of options. */
+export { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIXES, type HookScope };
 
-export type ChatRenameTrigger = "titleEvent" | "hook";
-export type HookScope = "workspace" | "user";
+export type ChatRenameTrigger = Trigger;
 
 export type TriggerSettings = {
   trigger: ChatRenameTrigger;
@@ -25,15 +34,17 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
   const patterns = get("activationPatterns");
   const prefixes = get("worktreePrefixes");
   const days = get("renameExistingDays");
+  const trigger = get("trigger");
+  const hookScope = get("hookScope");
   return {
-    trigger: get("trigger") === "hook" ? "hook" : "titleEvent",
-    hookScope: get("hookScope") === "user" ? "user" : "workspace",
+    trigger: isTrigger(trigger) ? trigger : DEFAULT_TRIGGER,
+    hookScope: isHookScope(hookScope) ? hookScope : DEFAULT_HOOK_SCOPE,
     activationPatterns: Array.isArray(patterns)
       ? patterns.filter((entry): entry is string => typeof entry === "string")
       : [...DEFAULT_ACTIVATION_PATTERNS],
     worktreePrefixes: Array.isArray(prefixes)
       ? prefixes.filter((entry): entry is string => typeof entry === "string")
-      : [DEFAULT_WORKTREE_PREFIX],
+      : [...DEFAULT_WORKTREE_PREFIXES],
     renameExistingDays: isRenameExistingDays(days) ? days : DEFAULT_RENAME_EXISTING_DAYS,
   };
 };

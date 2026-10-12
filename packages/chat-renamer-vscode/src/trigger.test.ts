@@ -244,7 +244,7 @@ describe("trigger", () => {
     });
 
     it("honours the worktreePrefixes setting", async () => {
-      configure({ worktreePrefixes: ["_work"] });
+      configure({ worktreePrefixes: ["_work-"] });
 
       await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug");
 
@@ -252,7 +252,7 @@ describe("trigger", () => {
     });
 
     it("adds the prefixes a host extension supplies", async () => {
-      await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug", { extraWorktreePrefixes: ["_work"] });
+      await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug", { extraWorktreePrefixes: ["_work-"] });
 
       expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
     });
@@ -266,11 +266,11 @@ describe("trigger", () => {
     });
 
     it("copies the worktree patterns into the hook script", async () => {
-      configure({ trigger: "hook", hookScope: "user", worktreePrefixes: ["_work"] });
+      configure({ trigger: "hook", hookScope: "user", worktreePrefixes: ["_work-"] });
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { commandPrefix: "wt", log: quiet }).ready;
 
       const script = readFileSync(join(homeDir, ".cursor", "hooks", "wt-chat-rename.sh"), "utf8");
-      const patterns = [...worktreeActivationPatterns(["_work"]), ...DEFAULT_ACTIVATION_PATTERNS];
+      const patterns = [...worktreeActivationPatterns(["_work-"]), ...DEFAULT_ACTIVATION_PATTERNS];
       expect(script).toContain(Buffer.from(JSON.stringify(patterns), "utf8").toString("base64"));
     });
   });
