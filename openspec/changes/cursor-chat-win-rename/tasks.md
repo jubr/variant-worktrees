@@ -95,11 +95,11 @@
 
 ## 19. Seed under variant, instance open URL
 
-- [ ] 19.1 Red then green: `seed` moves from the top level to `variant.seed` (top-level key rejected), `seedCommandFor` and `variant-mcp` follow; README and library guide follow. Verify with `bun test` in `variant-config`, `variant-api` and `variant-mcp`.
-- [ ] 19.2 Red then green: `variant.instances[].open` URL template; regenerate `variants.yaml.schema.json`; `variants.example.yaml` lists instances `fe` (`packages/example-fe`, Vite) and `be` (`packages/example-be`, NestJS) with `open: http://{{slug}}.vw.localhost:{{port}}`. Verify with `bun test` in `variant-config`.
-- [ ] 19.3 Add the trivial `example-fe` (Vite) and `example-be` (NestJS) packages those instances point at. Verify they are detected by `detectInstances` and that `task check:full` stays green.
+- [x] 19.1 Red then green: `seed` moves from the top level to `variant.seed` (top-level key rejected), `seedCommandFor` and `variant-mcp` follow; README and library guide follow. Verify with `bun test` in `variant-config`, `variant-api` and `variant-mcp`.
+- [x] 19.2 Red then green: `variant.instances[].open` URL template; regenerate `variants.yaml.schema.json`; `variants.example.yaml` lists instances `fe` (`packages/example-fe`, Vite) and `be` (`packages/example-be`, NestJS) with `open: http://{{slug}}.vw.localhost:{{port}}`. Verify with `bun test` in `variant-config`.
+- [x] 19.3 Add the trivial `example-fe` (Vite) and `example-be` (NestJS) packages those instances point at. Verify they are detected by `detectInstances` and that `task check:full` stays green.
 
 ## 20. Validation of group 19
 
-- [ ] 20.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 20.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
