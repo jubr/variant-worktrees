@@ -1,3 +1,4 @@
+import { ChatRenamerConfigSchema } from "chat-renamer-config/schema";
 import { z } from "zod/v4";
 
 export const DbDialectSchema = z.enum(["postgres", "mysql", "sqlite"]);
@@ -58,6 +59,8 @@ export const VariantsConfigSchema = z
     seed: z.string().min(1).optional(),
     variant: VariantRuntimeSchema.optional(),
     variants: z.record(z.string().min(1), VariantEntrySchema).optional(),
+    /** Options of the Cursor chat renamer. The full set and its validation are owned by chat-renamer-config. */
+    chatRenamer: ChatRenamerConfigSchema.optional(),
   })
   .superRefine((config, context) => {
     if (config.db && !config.db.url && config.db.dialect !== "sqlite" && !config.db.host) {

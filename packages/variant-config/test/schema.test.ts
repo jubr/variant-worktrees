@@ -28,4 +28,23 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "" } }).success).toBe(false);
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "a/b" } }).success).toBe(false);
   });
+
+  it("accepts a chatRenamer section with every option", () => {
+    const result = VariantsConfigSchema.safeParse({
+      chatRenamer: {
+        trigger: "hook",
+        hookScope: "user",
+        activationPatterns: ["/x/"],
+        worktreePrefixes: ["_v-", "_work-"],
+        renameExistingDays: 30,
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid or unknown chatRenamer option", () => {
+    expect(VariantsConfigSchema.safeParse({ chatRenamer: { renameExistingDays: -1 } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ chatRenamer: { trigger: "poll" } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ chatRenamer: { colour: "red" } }).success).toBe(false);
+  });
 });

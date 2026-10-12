@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
 import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
@@ -108,6 +109,22 @@ export const readPrefix = (startDir = process.cwd()): string => {
   }
 };
 
+/**
+ * Only the `chatRenamer` section of the nearest variants.yaml, without database detection, so an editor extension can
+ * call it cheaply. An empty section when the file is missing or invalid.
+ */
+export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConfig => {
+  const configPath = findConfigFile(startDir);
+  if (!configPath) {
+    return {};
+  }
+  try {
+    return readConfigFile(configPath).chatRenamer ?? {};
+  } catch {
+    return {};
+  }
+};
+
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
@@ -121,3 +138,4 @@ export type {
   VariantsConfig,
 } from "./schema.js";
 export { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+export type { ChatRenamerConfig };
