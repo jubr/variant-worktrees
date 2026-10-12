@@ -3,8 +3,9 @@ import { dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
+import { readRuntime } from "./local.js";
 import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
-import { DEFAULT_CACHE_DIR, DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+import { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -71,14 +72,16 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     ...config.variant,
     root: config.variant?.root ? resolve(configDir, config.variant.root) : detectVariantRoot(configDir),
     prefix: config.variant?.prefix ?? DEFAULT_PREFIX,
-    cacheDir: resolve(configDir, config.variant?.cacheDir ?? DEFAULT_CACHE_DIR),
     instances: resolveInstances(config, configDir),
   };
+
+  const runtime = readRuntime(configDir);
 
   return {
     ...config,
     db,
     variant,
+    ...(runtime ? { runtime } : {}),
     configPath,
     configDir,
     source,
@@ -130,21 +133,27 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
-export { openUrlFor, resolveInstancePort } from "./ports.js";
+export { readRuntime, writeRuntime } from "./local.js";
+export { instanceKey, openUrlFor, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
   ResolvedConfig,
+  ResolvedRuntime,
+  Runtime,
   VariantEntry,
   VariantInstance,
   VariantRuntime,
   VariantsConfig,
+  VariantsLocal,
 } from "./schema.js";
 export {
-  DEFAULT_CACHE_DIR,
   DEFAULT_OPEN_URL,
   DEFAULT_PREFIX,
+  LOCAL_FILENAME,
   VariantsConfigSchema,
+  VariantsLocalSchema,
   variantsJsonSchema,
+  variantsLocalJsonSchema,
 } from "./schema.js";
 export type { ChatRenamerConfig };

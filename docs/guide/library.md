@@ -52,7 +52,8 @@ variant:
 ```
 
 Use `variant.instances` for explicit Vite/NestJS directories. `open` is a URL template
-with `{{slug}}` and `{{port}}` placeholders and is only valid on Vite instances. The port
-is the one assigned in `.cache/variants/<slug>.yaml` (`spa_port` for Vite, `api_port` for
-NestJS; the directory is `variant.cacheDir`), otherwise a random free port. If omitted,
-subdirectories below the configuration file are searched automatically.
+with `{{slug}}` and `{{port}}` placeholders; `dotenv` names an env file, relative to `dir`, that is
+copied for a variant and amended with its values. The port is `runtime.instances.<name>.port`
+from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
+port. If `variant.instances` is omitted, subdirectories below the configuration file are
+searched automatically.
