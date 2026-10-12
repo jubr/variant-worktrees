@@ -31,8 +31,16 @@ export const VariantInstanceSchema = z.strictObject({
 });
 export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
 
+/** Prefix of worktree directories: `<prefix>-<slug>`. */
+export const DEFAULT_WORKTREE_PREFIX = "_v";
+
 export const VariantRuntimeSchema = z.strictObject({
   root: z.string().min(1).optional(),
+  worktreePrefix: z
+    .string()
+    .min(1)
+    .refine((value) => !/[\\/]/.test(value), "worktreePrefix must not contain a path separator")
+    .optional(),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
   instances: z.array(VariantInstanceSchema).optional(),

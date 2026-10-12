@@ -19,4 +19,13 @@ describe("VariantsConfigSchema", () => {
       expect(result.error.issues.some((issue) => issue.path.join(".") === "db.port")).toBe(true);
     }
   });
+
+  it("accepts a custom worktree prefix", () => {
+    expect(VariantsConfigSchema.safeParse({ variant: { worktreePrefix: "_work" } }).success).toBe(true);
+  });
+
+  it("rejects an empty worktree prefix and one with a path separator", () => {
+    expect(VariantsConfigSchema.safeParse({ variant: { worktreePrefix: "" } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ variant: { worktreePrefix: "a/b" } }).success).toBe(false);
+  });
 });

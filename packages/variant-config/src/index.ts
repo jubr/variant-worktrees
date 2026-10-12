@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
 import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
-import { VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+import { DEFAULT_WORKTREE_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -69,6 +69,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const variant = {
     ...config.variant,
     root: config.variant?.root ? resolve(configDir, config.variant.root) : detectVariantRoot(configDir),
+    worktreePrefix: config.variant?.worktreePrefix ?? DEFAULT_WORKTREE_PREFIX,
     instances: resolveInstances(config, configDir),
   };
 
@@ -91,6 +92,22 @@ export const runtimeCommandFor = (
   instance?: VariantInstance,
 ): string | undefined => instance?.[kind] ?? config.variant?.[kind];
 
+/**
+ * Only the worktree prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
+ * cheap and safe to call from an editor extension. Falls back to the default when the file is missing or invalid.
+ */
+export const readWorktreePrefix = (startDir = process.cwd()): string => {
+  const configPath = findConfigFile(startDir);
+  if (!configPath) {
+    return DEFAULT_WORKTREE_PREFIX;
+  }
+  try {
+    return readConfigFile(configPath).variant?.worktreePrefix ?? DEFAULT_WORKTREE_PREFIX;
+  } catch {
+    return DEFAULT_WORKTREE_PREFIX;
+  }
+};
+
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
@@ -103,4 +120,4 @@ export type {
   VariantRuntime,
   VariantsConfig,
 } from "./schema.js";
-export { VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+export { DEFAULT_WORKTREE_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
