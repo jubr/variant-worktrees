@@ -51,6 +51,8 @@ variant:
       dir: packages/example-be
 ```
 
-Use `variant.instances` for explicit Vite/NestJS directories; `open` is a URL template
-with `{{slug}}` and `{{port}}` placeholders. If omitted,
+Use `variant.instances` for explicit Vite/NestJS directories. `open` is a URL template
+with `{{slug}}` and `{{port}}` placeholders and is only valid on Vite instances. The port
+is the one assigned in `.cache/variants/<slug>.yaml` (`spa_port` for Vite, `api_port` for
+NestJS; the directory is `variant.cacheDir`), otherwise a random free port. If omitted,
 subdirectories below the configuration file are searched automatically.

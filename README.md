@@ -36,6 +36,8 @@ Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
+`open` is only valid on Vite instances (autodetected ones get `http://{{slug}}.vw.localhost:{{port}}`). `{{port}}` is the port assigned in `.cache/variants/<slug>.yaml` (`spa_port` for Vite, `api_port` for NestJS; directory set by `variant.cacheDir`), otherwise a random free port. `openUrlFor` in `variant-config` fills the template; nothing launches it yet.
+
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
 configures the Cursor chat renamer in `variant-vscode`. Every option is listed in
