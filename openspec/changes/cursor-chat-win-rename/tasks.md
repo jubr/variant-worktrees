@@ -23,17 +23,17 @@
 
 ## 5. Single active instance
 
-- [ ] 5.1 Red: add failing `claimRenamer` tests in `packages/chat-renamer-api` for first claim, second claimant idle, same id re-claim, release, and release by a non-owner. Verify they fail because the module is absent.
-- [ ] 5.2 Green: implement `claimRenamer` over a `globalThis` registry. Verify the new tests pass.
-- [ ] 5.3 Use the claim in `packages/chat-renamer-vscode` so a non-owner registers no listener, hook or URI handler and removes its own hook script. Verify with a test that two registrations produce one listener.
+- [x] 5.1 Red: add failing `claimRenamer` tests in `packages/chat-renamer-api` for first claim, second claimant idle, same id re-claim, release, and release by a non-owner. Verify they fail because the module is absent.
+- [x] 5.2 Green: implement `claimRenamer` over a `globalThis` registry. Verify the new tests pass.
+- [x] 5.3 Use the claim in `packages/chat-renamer-vscode` so a non-owner registers no listener, hook or URI handler and removes its own hook script. Verify with a test that two registrations produce one listener.
 
 ## 6. Realtime-only renaming
 
-- [ ] 6.1 Red: add failing `handleCatalogTitleChange` cases for a prompt older than the start time, a prompt without a timestamp, an unreadable prompt, and a prompt inside the 30 second window. Verify they fail for the intended reason.
-- [ ] 6.2 Green: add the `notBeforeMs` rule, require a timestamp, drop the title-text fallback, and default `maxAgeMs` to 30 seconds. Verify the cases pass.
-- [ ] 6.3 Pass the renamer start time from `packages/chat-renamer-vscode`. Verify with a trigger-level test that events for older chats rename nothing.
+- [x] 6.1 Red: add failing `handleCatalogTitleChange` cases for a prompt older than the start time, a prompt without a timestamp, an unreadable prompt, and a prompt inside the 30 second window. Verify they fail for the intended reason.
+- [x] 6.2 Green: add the `notBeforeMs` rule, require a timestamp, drop the title-text fallback, and default `maxAgeMs` to 30 seconds. Verify the cases pass.
+- [x] 6.3 Pass the renamer start time from `packages/chat-renamer-vscode`. Verify with a trigger-level test that events for older chats rename nothing.
 
 ## 7. Renamer validation
 
-- [ ] 7.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 7.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
