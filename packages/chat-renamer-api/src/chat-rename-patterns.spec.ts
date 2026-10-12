@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import * as shared from "chat-renamer-config";
 
 import {
   compilePatterns,
@@ -6,6 +7,12 @@ import {
   findRenameRequest,
   worktreeActivationPatterns,
 } from "./chat-rename-patterns";
+
+describe("shared defaults", () => {
+  it("takes the activation patterns from chat-renamer-config", () => {
+    expect(DEFAULT_ACTIVATION_PATTERNS).toBe(shared.DEFAULT_ACTIVATION_PATTERNS);
+  });
+});
 
 const defaults = compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns;
 

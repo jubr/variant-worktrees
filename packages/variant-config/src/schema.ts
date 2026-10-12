@@ -1,3 +1,5 @@
+import { DEFAULT_WORKTREE_PREFIX } from "chat-renamer-config";
+import { worktreePrefixSchema } from "chat-renamer-config/schema";
 import { z } from "zod/v4";
 
 export const DbDialectSchema = z.enum(["postgres", "mysql", "sqlite"]);
@@ -31,16 +33,12 @@ export const VariantInstanceSchema = z.strictObject({
 });
 export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
 
-/** Prefix of worktree directories: `<prefix>-<slug>`. */
-export const DEFAULT_WORKTREE_PREFIX = "_v";
+/** Prefix of worktree directories: `<prefix>-<slug>`. Defined in chat-renamer-config. */
+export { DEFAULT_WORKTREE_PREFIX };
 
 export const VariantRuntimeSchema = z.strictObject({
   root: z.string().min(1).optional(),
-  worktreePrefix: z
-    .string()
-    .min(1)
-    .refine((value) => !/[\\/]/.test(value), "worktreePrefix must not contain a path separator")
-    .optional(),
+  worktreePrefix: worktreePrefixSchema.optional(),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
   instances: z.array(VariantInstanceSchema).optional(),

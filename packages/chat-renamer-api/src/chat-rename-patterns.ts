@@ -1,7 +1,9 @@
+import { DEFAULT_ACTIVATION_PATTERNS } from "chat-renamer-config";
+
 import { parseChatRenameSlash } from "./chat-rename-slash";
 
 /** Matches e.g. `/vw-spec-start my-slug`; the capture group is the title. Applied per prompt line. */
-export const DEFAULT_ACTIVATION_PATTERNS: readonly string[] = ["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"];
+export { DEFAULT_ACTIVATION_PATTERNS };
 
 const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

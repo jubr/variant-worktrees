@@ -17,14 +17,15 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/schema.ts ./src/autodetect.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external smol-toml --external yaml",
+    "build:js": "bun build ./src/index.ts ./src/schema.ts ./src/autodetect.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external smol-toml --external yaml --external chat-renamer-config",
     "build:types": "tsc --emitDeclarationOnly",
     "test": "bun test"
   },
   "dependencies": {
     "smol-toml": "^1.8.0",
     "yaml": "^2.9.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "chat-renamer-config": "workspace:*"
   },
   "files": [
     "dist"
