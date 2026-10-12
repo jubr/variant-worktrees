@@ -22,7 +22,7 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   readFirstPrompt?: TriggerHost["readFirstPrompt"];
   /** Clock in epoch milliseconds. For tests. */
   now?: () => number;
-  /** Worktree prefixes added to the `worktreePrefixes` setting, such as `variant.worktreePrefix` from variants.yaml. */
+  /** Worktree prefixes added to the `worktreePrefixes` setting, such as `variant.prefix` from variants.yaml. */
   extraWorktreePrefixes?: readonly string[];
   /** Delay before the startup run and after the last title event, in milliseconds. Default 3000. For tests. */
   existingChatsDelayMs?: number;
