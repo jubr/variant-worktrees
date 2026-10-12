@@ -135,9 +135,9 @@
 
 ## 27. Instance commands in their directory
 
-- [ ] 27.1 Red then green: `provision` runs each instance's `up` in `<worktree>/<dir>`, the seed in the worktree root. Verify with `bun test` in `variant-api` and `task check:full`.
+- [x] 27.1 Red then green: `provision` runs each instance's `up` in `<worktree>/<dir>`, the seed in the worktree root. Verify with `bun test` in `variant-api` and `task check:full`.
 
 ## 28. Validation of group 27
 
-- [ ] 28.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 28.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
