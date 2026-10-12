@@ -4,6 +4,7 @@ import { AppModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix("api");
   // The variant's {{port}}: each variant picks its own so several can run side by side.
   await app.listen(Number(process.env.PORT ?? 3000));
 }
