@@ -77,10 +77,10 @@
 
 ## 15. Same base is left alone
 
-- [ ] 15.1 Red then green: `planExistingRenames` skips chats whose current title has the requested base and gives the others the smallest free numbers; slash titles stay literal. Verify with its spec.
-- [ ] 15.2 Red then green: `handleCatalogTitleChange` skips a pattern request when the event title has the same base. Verify with its spec.
+- [x] 15.1 Red then green: `planExistingRenames` skips chats whose current title has the requested base and gives the others the smallest free numbers; slash titles stay literal. Verify with its spec.
+- [x] 15.2 Red then green: `handleCatalogTitleChange` skips a pattern request when the event title has the same base. Verify with its spec.
 
 ## 16. Validation of group 15
 
-- [ ] 16.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 16.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
