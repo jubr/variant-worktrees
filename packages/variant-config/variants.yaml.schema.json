@@ -129,6 +129,48 @@
         },
         "additionalProperties": false
       }
+    },
+    "chatRenamer": {
+      "type": "object",
+      "properties": {
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "titleEvent",
+            "hook"
+          ],
+          "description": "What renames a chat: Cursor's title event, or a beforeSubmitPrompt hook."
+        },
+        "hookScope": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "user"
+          ],
+          "description": "Where the hook is installed when trigger is hook: the first workspace folder or the user home."
+        },
+        "activationPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Regular expressions tested against each prompt line; the first capture group becomes the chat title."
+        },
+        "worktreePrefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Worktree directory prefixes including their connector, such as _v-, that name a chat when dragged in."
+        },
+        "renameExistingDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Rename existing chats created within this many days. 0 turns it off."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
