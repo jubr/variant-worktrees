@@ -84,3 +84,12 @@
 
 - [x] 16.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
+## 17. One definition of the worktree prefix
+
+- [ ] 17.1 Red then green: `DEFAULT_WORKTREE_PREFIXES` is empty in `chat-renamer-config`; the settings reader, both manifests and their defaults follow. Verify with `bun test` in `chat-renamer-config`, `chat-renamer-api` and `chat-renamer-vscode`.
+- [ ] 17.2 Red then green: `variant-vscode` supplies `[variant.prefix]` under the `chatRenamer` section as host values; `extraWorktreePrefixes` is removed from `chat-renamer-vscode`; the example config and READMEs follow. Verify with the trigger, settings and `variant-vscode` tests.
+
+## 18. Validation of group 17
+
+- [ ] 18.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+

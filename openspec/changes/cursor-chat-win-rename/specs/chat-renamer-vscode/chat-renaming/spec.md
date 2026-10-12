@@ -83,7 +83,7 @@ When several extensions in one extension host embed the renamer, exactly one SHA
 
 ### Requirement: Settings and embedding
 
-The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array of prefixes including their connector, default `["_v-"]`) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to supply the same options from `variants.yaml` (`chatRenamer`). An option the user set explicitly in the editor settings SHALL win over the host-supplied value, which SHALL win over the default. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
+The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array of prefixes including their connector, default empty) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to supply the same options, for example from `variants.yaml` (`chatRenamer`). When embedded in Variant, `worktreePrefixes` SHALL default to the workspace's `variant.prefix`, so the prefix is defined once; an explicit `chatRenamer.worktreePrefixes` replaces that default rather than adding to it. An option the user set explicitly in the editor settings SHALL win over the host-supplied value, which SHALL win over the default. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
 
 #### Scenario: Standalone defaults
 
@@ -94,6 +94,21 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 
 - **WHEN** `variant-vscode` activates
 - **THEN** commands `variant-worktrees.renameChat` and `variant-worktrees.renameChatFromPrompt` are registered and settings are read from `variant-worktrees.chatRename.*`
+
+#### Scenario: Variant prefix is recognised without repeating it
+
+- **WHEN** `variant-vscode` activates in a workspace whose `variants.yaml` sets `variant.prefix: _work-` and no `chatRenamer.worktreePrefixes`
+- **THEN** a prompt line `/vw-spec-iterate @/path/_work-my-slug` renames the chat `my-slug`, and `_v-my-slug` does not
+
+#### Scenario: Explicit prefixes replace the derived one
+
+- **WHEN** `variants.yaml` sets `variant.prefix: _work-` and `chatRenamer.worktreePrefixes: [_wt-]`
+- **THEN** `_wt-my-slug` is recognised and `_work-my-slug` is not
+
+#### Scenario: Standalone has no prefixes by default
+
+- **WHEN** the standalone extension runs with no `worktreePrefixes` set
+- **THEN** dragged-in worktree folders derive no title
 
 #### Scenario: Value from variants.yaml
 

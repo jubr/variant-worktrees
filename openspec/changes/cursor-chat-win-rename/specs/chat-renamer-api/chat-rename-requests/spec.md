@@ -95,9 +95,9 @@ A title that came from an activation pattern SHALL be made distinct from the tit
 
 A prompt line that is a command of the form `/<word>-spec-<word>` followed by `@` and a path whose last segment is `<prefix><slug>` SHALL derive the title `<slug>`, for each configured worktree prefix. A prefix holds its own leading character and connector (`_v-`), so nothing is inserted between it and the slug. The slug SHALL consist of letters, digits, `_` and `-`. A trailing `/` after the path SHALL be accepted. Only the last path segment SHALL count. A prefix SHALL match literally, whatever characters it holds. An empty prefix list SHALL turn the derivation off. Titles derived this way SHALL be numbered like other pattern titles.
 
-#### Scenario: Default prefix
+#### Scenario: Configured prefix
 
-- **WHEN** a prompt line is `/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename`
+- **WHEN** the configured prefixes are `_v-` and a prompt line is `/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename`
 - **THEN** the requested title is `cursor-chat-win-rename`
 
 #### Scenario: Custom prefix
