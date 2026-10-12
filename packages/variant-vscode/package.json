@@ -95,9 +95,9 @@
             "type": "string"
           },
           "default": [
-            "_v"
+            "_v-"
           ],
-          "markdownDescription": "Prefixes of worktree directories (`_v` in `_v-my-slug`). A first prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. An empty list turns this off."
+          "markdownDescription": "Prefixes of worktree directories, each with its own leading character and connector (`_v-` in `_v-my-slug`). A first prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. An empty list turns this off."
         },
         "variant-worktrees.chatRename.renameExistingDays": {
           "type": "integer",

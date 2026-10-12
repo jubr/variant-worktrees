@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { isRenameExistingDays, isWorktreePrefix } from "../src/index";
+import { isHookScope, isRenameExistingDays, isTrigger, isWorktreePrefix } from "../src/index";
 
 describe("isRenameExistingDays", () => {
   it("accepts zero and positive integers only", () => {
@@ -17,8 +17,17 @@ describe("isRenameExistingDays", () => {
 });
 
 describe("isWorktreePrefix", () => {
-  it("accepts non-empty strings without separators", () => {
-    expect(["_v", "_work"].map(isWorktreePrefix)).toEqual([true, true]);
-    expect(["", "a/b", "a\\b", 3].map(isWorktreePrefix)).toEqual([false, false, false, false]);
+  it("accepts non-empty strings without separators, connector included", () => {
+    expect(["_v-", "_work-", "ws_"].map(isWorktreePrefix)).toEqual([true, true, true]);
+    expect(["", "a/b-", "a\\b", 3].map(isWorktreePrefix)).toEqual([false, false, false, false]);
+  });
+});
+
+describe("isTrigger and isHookScope", () => {
+  it("accept only the listed values", () => {
+    expect(["titleEvent", "hook"].map(isTrigger)).toEqual([true, true]);
+    expect(["poll", "", 1].map(isTrigger)).toEqual([false, false, false]);
+    expect(["workspace", "user"].map(isHookScope)).toEqual([true, true]);
+    expect(["global", undefined].map(isHookScope)).toEqual([false, false]);
   });
 });

@@ -28,10 +28,10 @@ describe("extension manifest", () => {
   });
 
   it("keeps the other defaults in step with the shared defaults", async () => {
-    const { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX } = await import("chat-renamer-api");
+    const { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIXES } = await import("chat-renamer-api");
     const properties = manifest.contributes.configuration.properties;
 
-    expect(properties["chat-renamer.worktreePrefixes"].default).toEqual([DEFAULT_WORKTREE_PREFIX]);
+    expect(properties["chat-renamer.worktreePrefixes"].default).toEqual([...DEFAULT_WORKTREE_PREFIXES]);
     expect(properties["chat-renamer.renameExistingDays"]).toMatchObject({
       type: "integer",
       minimum: 0,

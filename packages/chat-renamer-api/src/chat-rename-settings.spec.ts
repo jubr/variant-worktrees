@@ -2,14 +2,14 @@ import { describe, expect, it } from "bun:test";
 import * as shared from "chat-renamer-config";
 
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
-import { DEFAULT_WORKTREE_PREFIX, hookCommand, readTriggerSettings, resolveCursorDir } from "./chat-rename-settings";
+import { DEFAULT_WORKTREE_PREFIXES, hookCommand, readTriggerSettings, resolveCursorDir } from "./chat-rename-settings";
 
 const HOOK_SCRIPT_NAME = "demo-chat-rename.sh";
 const settings = (values: Record<string, unknown>) => (key: string) => values[key];
 
 describe("shared defaults", () => {
-  it("takes the worktree prefix from chat-renamer-config", () => {
-    expect(DEFAULT_WORKTREE_PREFIX).toBe(shared.DEFAULT_WORKTREE_PREFIX);
+  it("takes the worktree prefixes from chat-renamer-config", () => {
+    expect(DEFAULT_WORKTREE_PREFIXES).toBe(shared.DEFAULT_WORKTREE_PREFIXES);
   });
 });
 
@@ -19,7 +19,7 @@ describe("readTriggerSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
-      worktreePrefixes: ["_v"],
+      worktreePrefixes: ["_v-"],
       renameExistingDays: 7,
     });
   });
@@ -31,7 +31,7 @@ describe("readTriggerSettings", () => {
       trigger: "hook",
       hookScope: "user",
       activationPatterns: ["^a$", "b"],
-      worktreePrefixes: ["_v"],
+      worktreePrefixes: ["_v-"],
       renameExistingDays: 7,
     });
   });
@@ -41,7 +41,7 @@ describe("readTriggerSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
-      worktreePrefixes: ["_v"],
+      worktreePrefixes: ["_v-"],
       renameExistingDays: 7,
     });
   });
@@ -64,12 +64,12 @@ describe("readTriggerSettings", () => {
   });
 
   it("reads worktree prefixes, drops non-strings, and lets an empty list switch them off", () => {
-    expect(readTriggerSettings(settings({ worktreePrefixes: ["_work", 1, "_v"] })).worktreePrefixes).toEqual([
-      "_work",
-      "_v",
+    expect(readTriggerSettings(settings({ worktreePrefixes: ["_work-", 1, "_v-"] })).worktreePrefixes).toEqual([
+      "_work-",
+      "_v-",
     ]);
     expect(readTriggerSettings(settings({ worktreePrefixes: [] })).worktreePrefixes).toEqual([]);
-    expect(readTriggerSettings(settings({ worktreePrefixes: "_work" })).worktreePrefixes).toEqual(["_v"]);
+    expect(readTriggerSettings(settings({ worktreePrefixes: "_work" })).worktreePrefixes).toEqual(["_v-"]);
   });
 });
 
