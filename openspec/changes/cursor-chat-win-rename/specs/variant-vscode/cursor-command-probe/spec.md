@@ -6,12 +6,12 @@ Reports whether the running editor registers Cursor-family commands whose ids lo
 
 ### Requirement: Probe command is available
 
-The extension SHALL contribute command `variant-vscode.probeCursorCommands` with title `Variant: Probe Cursor Chat Commands` and SHALL activate when that command runs.
+The extension SHALL contribute command `variant-worktrees.probeCursorCommands` with title `Variant: Probe Cursor Chat Commands` and SHALL activate when that command runs.
 
 #### Scenario: Command is registered
 
 - **WHEN** the extension activates
-- **THEN** command `variant-vscode.probeCursorCommands` is registered
+- **THEN** command `variant-worktrees.probeCursorCommands` is registered
 
 #### Scenario: Palette title
 
@@ -24,7 +24,7 @@ The probe SHALL read every command id registered in the current editor process, 
 
 #### Scenario: Hidden commands are eligible
 
-- **WHEN** the user runs `variant-vscode.probeCursorCommands`
+- **WHEN** the user runs `variant-worktrees.probeCursorCommands`
 - **THEN** the probe requests the full registered command list, including internal commands
 
 ### Requirement: Match a chat family and a title verb
@@ -63,8 +63,8 @@ The probe SHALL report a command id only when that id contains, case-insensitive
 
 #### Scenario: Unrelated Variant command is omitted
 
-- **WHEN** the registered ids include `variant-vscode.helloworld`
-- **THEN** the report does not include `variant-vscode.helloworld`
+- **WHEN** the registered ids include `variant-worktrees.helloworld`
+- **THEN** the report does not include `variant-worktrees.helloworld`
 
 ### Requirement: Report in the Cursor Command Probe channel
 
@@ -94,5 +94,5 @@ The probe SHALL NOT execute a command id it reports.
 #### Scenario: A hit is listed and not run
 
 - **WHEN** the registered ids include `composer.renameChat`
-- **AND** the user runs `variant-vscode.probeCursorCommands`
+- **AND** the user runs `variant-worktrees.probeCursorCommands`
 - **THEN** `composer.renameChat` is not executed
