@@ -26,21 +26,17 @@ export type VariantEntry = z.infer<typeof VariantEntrySchema>;
 /** Template of the URL that opens a Vite instance. `{{slug}}` and `{{port}}` are placeholders. */
 export const DEFAULT_OPEN_URL = "http://{{slug}}.vw.localhost:{{port}}";
 
-export const VariantInstanceSchema = z
-  .strictObject({
-    name: z.string().min(1).optional(),
-    kind: z.enum(["vite", "nestjs"]),
-    dir: z.string().min(1),
-    up: z.string().min(1).optional(),
-    watch: z.string().min(1).optional(),
-    /** URL template to open the instance (Vite only); `{{slug}}` and `{{port}}` are placeholders. */
-    open: z.string().min(1).optional(),
-  })
-  .superRefine((instance, context) => {
-    if (instance.open !== undefined && instance.kind !== "vite") {
-      context.addIssue({ code: "custom", path: ["open"], message: "open is only valid on a vite instance" });
-    }
-  });
+export const VariantInstanceSchema = z.strictObject({
+  name: z.string().min(1).optional(),
+  kind: z.enum(["vite", "nestjs"]),
+  dir: z.string().min(1),
+  up: z.string().min(1).optional(),
+  watch: z.string().min(1).optional(),
+  /** URL template to open the instance; `{{slug}}` and `{{port}}` are placeholders. */
+  open: z.string().min(1).optional(),
+  /** Environment file, relative to `dir`, that is copied for a variant and amended with that variant's values. */
+  dotenv: z.string().min(1).optional(),
+});
 export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
 
 /**
