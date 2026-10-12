@@ -2,24 +2,34 @@
 
 ### Requirement: Shared renamer defaults and field schemas
 
-The system SHALL provide a package `chat-renamer-config` with a main entry that exports the renamer's default values without loading any schema library, and a `./schema` entry that exports Zod schemas for the worktree prefix, the activation patterns and the existing-chats day window. The defaults SHALL be `_v` for the worktree prefix, `["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"]` for the activation patterns and `7` for the day window. The worktree prefix schema SHALL accept a non-empty string without path separators. The day window schema SHALL accept a non-negative integer, where 0 means off. The renamer and `variant-config` SHALL take these defaults and schemas from this package instead of defining their own copies.
+The system SHALL provide a package `chat-renamer-config` that owns the full set of chat renamer options: `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array) and `renameExistingDays` (non-negative integer, 0 means off). Its main entry SHALL export the default values and the allowed values of the two enumerations without loading any schema library. Its `./schema` entry SHALL export a Zod schema for each option and a strict object schema `ChatRenamerConfigSchema` of all of them, each optional. The defaults SHALL be `titleEvent`, `workspace`, `["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"]`, `["_v-"]` and `7`. A worktree prefix entry SHALL be a non-empty string without path separators and holds its own leading character and connector. The renamer and `variant-config` SHALL take these defaults and schemas from this package instead of defining their own copies. The package SHALL NOT define the variant name prefix, which belongs to `variant-config`.
 
 #### Scenario: Defaults without Zod
 
 - **WHEN** a consumer imports the main entry
-- **THEN** it receives the three defaults and does not load Zod
+- **THEN** it receives the five defaults and does not load Zod
 
-#### Scenario: Prefix schema
+#### Scenario: Prefix entries
 
-- **WHEN** the prefix schema parses `_work`, `""` and `a/b`
-- **THEN** it accepts `_work` and rejects the other two
+- **WHEN** the worktree prefixes schema parses `["_work-"]`, `[""]` and `["a/b"]`
+- **THEN** it accepts the first and rejects the other two
 
 #### Scenario: Day window schema
 
 - **WHEN** the window schema parses `0`, `7`, `-1` and `1.5`
 - **THEN** it accepts `0` and `7` and rejects the other two
 
+#### Scenario: Enumerations
+
+- **WHEN** the trigger schema parses `hook`, `titleEvent` and `poll`
+- **THEN** it accepts the first two and rejects `poll`
+
+#### Scenario: Whole section
+
+- **WHEN** `ChatRenamerConfigSchema` parses an object with an unknown key
+- **THEN** it rejects it, and an empty object is accepted
+
 #### Scenario: One definition for variant-config
 
-- **WHEN** `variants.yaml` sets `variant.worktreePrefix` to `a/b`
-- **THEN** loading fails with the shared schema's message, and an absent prefix resolves to the shared default
+- **WHEN** `variants.yaml` sets `chatRenamer.renameExistingDays` to `-1`
+- **THEN** loading fails with the shared schema's message

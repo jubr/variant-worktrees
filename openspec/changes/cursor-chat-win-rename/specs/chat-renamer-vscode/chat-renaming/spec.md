@@ -83,7 +83,7 @@ When several extensions in one extension host embed the renamer, exactly one SHA
 
 ### Requirement: Settings and embedding
 
-The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array, default `["_v"]`) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
+The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array of prefixes including their connector, default `["_v-"]`) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to supply the same options from `variants.yaml` (`chatRenamer`). An option the user set explicitly in the editor settings SHALL win over the host-supplied value, which SHALL win over the default. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
 
 #### Scenario: Standalone defaults
 
@@ -94,6 +94,16 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 
 - **WHEN** `variant-vscode` activates
 - **THEN** commands `variant-worktrees.renameChat` and `variant-worktrees.renameChatFromPrompt` are registered and settings are read from `variant-worktrees.chatRename.*`
+
+#### Scenario: Value from variants.yaml
+
+- **WHEN** the host supplies `renameExistingDays: 30` from `variants.yaml` and the user set nothing in the editor
+- **THEN** the renamer uses 30
+
+#### Scenario: Editor setting wins
+
+- **WHEN** the host supplies `renameExistingDays: 30` and the user set `0` in the editor settings
+- **THEN** the renamer uses 0
 
 #### Scenario: Manifest copy stays in step
 
