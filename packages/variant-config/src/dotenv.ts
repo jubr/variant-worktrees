@@ -34,7 +34,7 @@ export const amendDotenv = (source: string, entries: Readonly<Record<string, str
 };
 
 /**
- * The amended copy of an instance's dotenv file: `<configDir>/<dir>/<dotenv>` (empty when it does not exist) with the
+ * The amended copy of an instance's dotenv file: `<configDir>/<dir>/<dotenv>` (else `<dotenv>.example`, else empty) with the
  * variant's values applied. Nothing when the instance has no `dotenv`. It does not write the copy.
  */
 export const dotenvFor = (
@@ -46,5 +46,6 @@ export const dotenvFor = (
     return undefined;
   }
   const path = join(config.configDir, instance.dir, instance.dotenv);
-  return amendDotenv(existsSync(path) ? readFileSync(path, "utf8") : "", entries);
+  const source = [path, `${path}.example`].find((candidate) => existsSync(candidate));
+  return amendDotenv(source ? readFileSync(source, "utf8") : "", entries);
 };
