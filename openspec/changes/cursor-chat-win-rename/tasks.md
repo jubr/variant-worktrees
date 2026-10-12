@@ -39,21 +39,26 @@
 
 ## 8. Worktree prefix in variant-config and variant-api
 
-- [ ] 8.1 Red then green: `variant.worktreePrefix` in the schema (default `_v`, no separators), resolved on the loaded config, and a `readWorktreePrefix` reader; regenerate `variants.yaml.schema.json`. Verify with `bun test` in `packages/variant-config`.
-- [ ] 8.2 Red then green: `ensureWorktree` names worktrees with the prefix from the client context. Verify with `bun test` in `packages/variant-api`.
+- [x] 8.1 Red then green: `variant.worktreePrefix` in the schema (default `_v`, no separators), resolved on the loaded config, and a `readWorktreePrefix` reader; regenerate `variants.yaml.schema.json`. Verify with `bun test` in `packages/variant-config`.
+- [x] 8.2 Red then green: `ensureWorktree` names worktrees with the prefix from the client context. Verify with `bun test` in `packages/variant-api`.
 
 ## 9. Worktree path patterns
 
-- [ ] 9.1 Red then green: `worktreeActivationPatterns(prefixes)` in `packages/chat-renamer-api`, tried before user patterns. Verify with its spec.
-- [ ] 9.2 Red then green: setting `worktreePrefixes`, host-added prefixes, hook script gets the combined patterns, `variant-vscode` adds the prefix from `variants.yaml`. Verify with the trigger and manifest tests.
+- [x] 9.1 Red then green: `worktreeActivationPatterns(prefixes)` in `packages/chat-renamer-api`, tried before user patterns. Verify with its spec.
+- [x] 9.2 Red then green: setting `worktreePrefixes`, host-added prefixes, hook script gets the combined patterns, `variant-vscode` adds the prefix from `variants.yaml`. Verify with the trigger and manifest tests.
 
-## 10. Existing chats
+## 10. Shared config package
 
-- [ ] 10.1 Red then green: pure `planExistingRenames` (grouping, creation order, literal slash titles, no-op titles). Verify with its spec.
-- [ ] 10.2 Red then green: `renameExistingChats` orchestration (list, skip recorded and newer chats, read once, plan, rename, record). Verify with its spec.
-- [ ] 10.3 Red then green: setting `renameExistingChats`, global-state record, startup, debounced title-event and command triggers in `packages/chat-renamer-vscode`, manifest copies in `packages/variant-vscode`. Verify with the trigger and manifest tests.
+- [ ] 10.1 Red then green: new `packages/chat-renamer-config` with the defaults entry and the `./schema` entry (prefix, activation patterns, day window). Verify with `bun test` in that package, including that the main entry does not load Zod.
+- [ ] 10.2 Red then green: `chat-renamer-api` and `variant-config` take their defaults and the prefix schema from it; root `build` and `test` scripts build it first; regenerate `variants.yaml.schema.json` if it changes. Verify with `bun test` in both packages.
 
-## 11. Validation of groups 8 to 10
+## 11. Existing chats
 
-- [ ] 11.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 11.1 Red then green: pure `planExistingRenames` (grouping, creation order, literal slash titles, no-op titles). Verify with its spec.
+- [~] 11.2 Red then green: `renameExistingChats` orchestration (list, skip recorded, newer and out-of-window chats, `updatedAt` prefilter, read once, plan, rename, record). Verify with its spec.
+- [~] 11.3 Red then green: setting `renameExistingDays` (default 7, 0 = off) replaces the boolean in `readTriggerSettings`. Verify with its spec.
+- [ ] 11.4 Red then green: in `packages/chat-renamer-vscode`, global-state record, startup, debounced title-event and command triggers, `[existing-chats]` log lines naming the trigger and `<section>.renameExistingDays=<value>`, the off explanation, and the command while off; manifest and command copies in `packages/variant-vscode`. Verify with the trigger and manifest tests.
 
+## 12. Validation of groups 8 to 11
+
+- [ ] 12.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
