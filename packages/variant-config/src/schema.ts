@@ -29,6 +29,8 @@ export const VariantInstanceSchema = z.strictObject({
   dir: z.string().min(1),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
+  /** URL template to open the instance; `{{slug}}` and `{{port}}` are placeholders. */
+  open: z.string().min(1).optional(),
 });
 export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
 
@@ -49,6 +51,8 @@ export const VariantRuntimeSchema = z.strictObject({
   prefix: prefixSchema.optional(),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
+  /** Command that seeds a new variant database. A per-variant `seed` wins. */
+  seed: z.string().min(1).optional(),
   instances: z.array(VariantInstanceSchema).optional(),
 });
 export type VariantRuntime = z.infer<typeof VariantRuntimeSchema>;
@@ -56,7 +60,6 @@ export type VariantRuntime = z.infer<typeof VariantRuntimeSchema>;
 export const VariantsConfigSchema = z
   .strictObject({
     db: DbConfigSchema.optional(),
-    seed: z.string().min(1).optional(),
     variant: VariantRuntimeSchema.optional(),
     variants: z.record(z.string().min(1), VariantEntrySchema).optional(),
     /** Options of the Cursor chat renamer. The full set and its validation are owned by chat-renamer-config. */

@@ -85,7 +85,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
 };
 
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
-  config.variants?.[slug]?.seed ?? config.seed;
+  config.variants?.[slug]?.seed ?? config.variant?.seed;
 
 export const runtimeCommandFor = (
   config: ResolvedConfig,

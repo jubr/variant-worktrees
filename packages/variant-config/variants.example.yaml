@@ -17,21 +17,26 @@ db:
   filename: ./app.sqlite # sqlite only
   ssl: false # true
 
-# Command that seeds a new variant database. A per-variant `seed` below wins.
-seed: ./scripts/seed.sh
-
 # Runtime layout of variants.
 variant:
   root: .. # directory that holds the variant worktrees; default: detected from the git checkout
   prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
+  seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
   up: bun run dev # command that starts a variant; an instance's own `up` wins
   watch: bun run watch # command that rebuilds a variant; an instance's own `watch` wins
   instances:
-    - name: web
+    - name: fe
       kind: vite # nestjs
-      dir: apps/web
+      dir: packages/example-fe
       up: bun run dev
       watch: bun run build:watch
+      open: http://{{slug}}.vw.localhost:{{port}} # URL template; placeholders: {{slug}}, {{port}}
+    - name: be
+      kind: nestjs
+      dir: packages/example-be
+      up: bun run start:dev
+      watch: bun run build:watch
+      open: http://{{slug}}.vw.localhost:{{port}}
 
 # Per-variant overrides, keyed by slug.
 variants:

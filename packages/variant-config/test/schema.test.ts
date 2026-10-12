@@ -29,6 +29,18 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "a/b" } }).success).toBe(false);
   });
 
+  it("accepts a seed command under variant and rejects the former top-level key", () => {
+    expect(VariantsConfigSchema.safeParse({ variant: { seed: "bun run db:seed" } }).success).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ seed: "bun run db:seed" }).success).toBe(false);
+  });
+
+  it("accepts an open URL template on an instance and rejects an empty one", () => {
+    const instance = { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" };
+
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: [instance] } }).success).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: [{ ...instance, open: "" }] } }).success).toBe(false);
+  });
+
   it("accepts a chatRenamer section with every option", () => {
     const result = VariantsConfigSchema.safeParse({
       chatRenamer: {

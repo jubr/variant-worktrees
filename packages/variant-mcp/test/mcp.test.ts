@@ -11,7 +11,7 @@ const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-mcp-"));
 
 const configFile = (directory: string, seed = false): string => {
   const path = join(directory, "variants.yaml");
-  writeFileSync(path, `db:\n  dialect: sqlite\n${seed ? 'seed: "printf seeded"\n' : ""}`);
+  writeFileSync(path, `db:\n  dialect: sqlite\n${seed ? 'variant:\n  seed: "printf seeded"\n' : ""}`);
   return path;
 };
 
