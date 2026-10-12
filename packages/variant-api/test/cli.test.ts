@@ -28,6 +28,14 @@ describe("variant CLI", () => {
     expect(result.stdout).toContain("provision");
   });
 
+  it("shows help when invoked without arguments", async () => {
+    const noArgs = await runCli([]);
+    const explicitHelp = await runCli(["--help"]);
+    expect(noArgs.exitCode).toBe(0);
+    expect(noArgs.stdout).toBe(explicitHelp.stdout);
+    expect(noArgs.stderr).toBe(explicitHelp.stderr);
+  });
+
   it("prints detected config as JSON", async () => {
     const result = await runCli(["config"]);
     expect(result.exitCode).toBe(0);
