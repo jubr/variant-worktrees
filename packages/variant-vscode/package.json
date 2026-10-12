@@ -45,7 +45,8 @@
     "onStartupFinished",
     "onUri",
     "onCommand:variant-worktrees.helloworld",
-    "onCommand:variant-worktrees.probeCursorCommands"
+    "onCommand:variant-worktrees.probeCursorCommands",
+    "onCommand:variant-worktrees.renameExistingChats"
   ],
   "contributes": {
     "commands": [
@@ -56,6 +57,10 @@
       {
         "command": "variant-worktrees.probeCursorCommands",
         "title": "Variant: Probe Cursor Chat Commands"
+      },
+      {
+        "command": "variant-worktrees.renameExistingChats",
+        "title": "Variant: Rename Existing Chats"
       }
     ],
     "configuration": {
@@ -93,6 +98,12 @@
             "_v"
           ],
           "markdownDescription": "Prefixes of worktree directories (`_v` in `_v-my-slug`). A first prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. An empty list turns this off."
+        },
+        "variant-worktrees.chatRename.renameExistingDays": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 7,
+          "markdownDescription": "How many days back to rename chats that already existed when the editor started. Chats whose first prompt matches an activation pattern or `/chat-rename` are renamed oldest first, numbered per title (`abc`, `abc2`, `abc3`), once per chat. `0` turns it off (default `7`). Changing it applies without a reload; the log lines starting with `[existing-chats]` name this setting and its value."
         },
         "variant-worktrees.chatRename.hookScope": {
           "type": "string",

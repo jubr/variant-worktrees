@@ -10,7 +10,9 @@ export const vscodeMock = {
   /** Cursor's private API object. A test installs the members it needs. */
   cursor: {} as {
     onDidChangeAgentHostSessionCatalogTitle?: (listener: TitleListener) => { dispose(): void };
-    listAgentHostSessionCatalog?: (limit?: number) => Promise<Array<{ sessionId: string; title?: string }>>;
+    listAgentHostSessionCatalog?: (
+      limit?: number,
+    ) => Promise<Array<{ sessionId: string; title?: string; updatedAt?: number }>>;
     projectAgentHostSessionTitle?: (sessionId: string, title: string) => Promise<void>;
   },
   commands: {
@@ -21,6 +23,7 @@ export const vscodeMock = {
     createOutputChannel: (_name: string) => ({ appendLine: (_line: string) => {}, dispose: () => {} }),
     registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
     showErrorMessage: async (..._args: unknown[]) => undefined,
+    showInformationMessage: async (..._args: unknown[]) => undefined,
     showWarningMessage: async (..._args: unknown[]) => undefined,
   },
   workspace: {

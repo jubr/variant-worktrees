@@ -8,6 +8,7 @@ import {
 import type * as vscode from "vscode";
 
 import { registerRenameChatCommands } from "./commands";
+import { createExistingChatsRunner } from "./existing-chats";
 import { createExtensionLog } from "./log";
 import { startChatRenameTrigger, type TriggerHost } from "./trigger";
 
@@ -22,12 +23,14 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   now?: () => number;
   /** Worktree prefixes added to the `worktreePrefixes` setting, such as `variant.worktreePrefix` from variants.yaml. */
   extraWorktreePrefixes?: readonly string[];
+  /** Delay before the startup run and after the last title event, in milliseconds. Default 3000. For tests. */
+  existingChatsDelayMs?: number;
 };
 
 /**
  * Starts the chat renamer inside a host extension: the rename commands, the `/chat-rename` URI handler and the
  * configured trigger. The host extension's manifest must contribute the settings (`trigger`, `hookScope`,
- * `activationPatterns`) under `configSection` and list `onStartupFinished` and `onUri` as activation events.
+ * `activationPatterns`, `worktreePrefixes`, `renameExistingDays`) under `configSection` and list `onStartupFinished` and `onUri` as activation events.
  * Disposables are added to `context.subscriptions`. `ready` resolves when the first trigger setup pass is done.
  *
  * AIDEV-NOTE: the rename call borrows the identity of Cursor's built-in agent-host extension, so it reads and
@@ -35,18 +38,36 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
  */
 export const registerChatRenamer = (
   context: vscode.ExtensionContext,
-  { log, homeDir, readFirstPrompt, now, extraWorktreePrefixes, ...nameInput }: RegisterChatRenamerOptions = {},
+  {
+    log,
+    homeDir,
+    readFirstPrompt,
+    now,
+    extraWorktreePrefixes,
+    existingChatsDelayMs,
+    ...nameInput
+  }: RegisterChatRenamerOptions = {},
 ): { names: ChatRenamerNames; ready: Promise<void> } => {
   const names = chatRenamerNames(nameInput);
   const logger = log ?? createExtensionLog(context);
   const options: RenameOptions = {};
   logger.info(`chat renamer starting (commands ${names.renameChat}, settings ${names.configSection}.*)`);
-  context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names));
+  const existing = createExistingChatsRunner({
+    context,
+    log: logger,
+    options,
+    names,
+    startedAtMs: (now ?? Date.now)(),
+    readFirstPrompt,
+  });
+  context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names, existing));
   const ready = startChatRenameTrigger(context, logger, options, names, {
     homeDir,
     readFirstPrompt,
     now,
     extraWorktreePrefixes,
+    existing,
+    existingChatsDelayMs,
   });
   return { names, ready };
 };

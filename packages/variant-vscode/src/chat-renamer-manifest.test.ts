@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 
 type Manifest = {
   activationEvents: string[];
-  contributes: { configuration: { properties: Record<string, unknown> } };
+  contributes: {
+    configuration: { properties: Record<string, unknown> };
+    commands: Array<{ command: string; title: string }>;
+  };
 };
 
 const read = (path: string): Manifest => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -30,6 +33,18 @@ describe("embedded chat renamer manifest", () => {
     expect(variant.contributes.configuration.properties).toEqual(
       expect.objectContaining(toVariantKeys(renamer.contributes.configuration.properties)),
     );
+  });
+
+  it("contributes the renamer's commands under the variant-worktrees prefix", () => {
+    const expected = renamer.contributes.commands.map(({ command }) =>
+      command.replace("chat-renamer.", "variant-worktrees."),
+    );
+
+    expect(variant.contributes.commands.map(({ command }) => command)).toEqual(expect.arrayContaining(expected));
+    expect(variant.contributes.commands).toContainEqual({
+      command: "variant-worktrees.renameExistingChats",
+      title: "Variant: Rename Existing Chats",
+    });
   });
 
   it("has the activation events the renamer needs", () => {
