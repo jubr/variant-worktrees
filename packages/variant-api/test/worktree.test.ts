@@ -55,4 +55,27 @@ describe("worktree coupling", () => {
       rmSync(parent, { recursive: true, force: true });
     }
   });
+
+  it("names the worktree with a configured prefix", () => {
+    const parent = mkdtempSync(join("/tmp", "variant-worktree-prefix-"));
+    const repo = join(parent, "repo");
+    let destination: string | undefined;
+    try {
+      execFileSync("git", ["init", "-b", "main", repo], { encoding: "utf8" });
+      git(repo, "config", "user.email", "variant@example.test");
+      git(repo, "config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git(repo, "add", "README.md");
+      git(repo, "commit", "-m", "initial");
+
+      destination = ensureWorktree("feature-three", repo, undefined, "_work");
+      expect(basename(destination)).toBe("_work-feature-three");
+      expect(existsSync(join(destination, "README.md"))).toBe(true);
+    } finally {
+      if (destination && existsSync(destination)) {
+        git(repo, "worktree", "remove", "--force", destination);
+      }
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
 });
