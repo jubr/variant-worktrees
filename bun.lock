@@ -16,6 +16,16 @@
     "packages/chat-renamer-api": {
       "name": "chat-renamer-api",
       "version": "0.0.1",
+      "dependencies": {
+        "chat-renamer-config": "workspace:*",
+      },
+    },
+    "packages/chat-renamer-config": {
+      "name": "chat-renamer-config",
+      "version": "0.0.1",
+      "dependencies": {
+        "zod": "^4.6.5",
+      },
     },
     "packages/chat-renamer-vscode": {
       "name": "chat-renamer-vscode",
@@ -52,6 +62,7 @@
       "name": "variant-config",
       "version": "0.0.1",
       "dependencies": {
+        "chat-renamer-config": "workspace:*",
         "smol-toml": "^1.8.0",
         "yaml": "^2.9.1",
         "zod": "^4.6.5",
@@ -446,6 +457,8 @@
     "character-entities-legacy": ["character-entities-legacy@3.0.0", "", {}, "sha512-RpPp0asT/6ufRm//AJVwpViZbGM/MkjQFxJccQRHmISF/22NBtsHqAWmL+/pmkPWoIUJdWyeVleTl1wydHATVQ=="],
 
     "chat-renamer-api": ["chat-renamer-api@workspace:packages/chat-renamer-api"],
+
+    "chat-renamer-config": ["chat-renamer-config@workspace:packages/chat-renamer-config"],
 
     "chat-renamer-vscode": ["chat-renamer-vscode@workspace:packages/chat-renamer-vscode"],
 

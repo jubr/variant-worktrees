@@ -2,6 +2,7 @@
   "references": [
     { "path": "packages/variant-api" },
     { "path": "packages/variant-mcp" },
+    { "path": "packages/chat-renamer-config" },
     { "path": "packages/chat-renamer-api" },
     { "path": "packages/chat-renamer-vscode" },
     { "path": "packages/variant-vscode" }

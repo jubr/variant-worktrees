@@ -1,9 +1,11 @@
 import { join } from "node:path";
 
+import { DEFAULT_WORKTREE_PREFIX } from "chat-renamer-config";
+
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
-/** Same default as variant-config's `variant.worktreePrefix`; this package does not depend on it. */
-export const DEFAULT_WORKTREE_PREFIX = "_v";
+/** Shared with variant-config's `variant.worktreePrefix` through chat-renamer-config. */
+export { DEFAULT_WORKTREE_PREFIX };
 
 export type ChatRenameTrigger = "titleEvent" | "hook";
 export type HookScope = "workspace" | "user";

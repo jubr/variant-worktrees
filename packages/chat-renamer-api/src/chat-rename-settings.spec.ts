@@ -1,10 +1,17 @@
 import { describe, expect, it } from "bun:test";
+import * as shared from "chat-renamer-config";
 
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
-import { hookCommand, readTriggerSettings, resolveCursorDir } from "./chat-rename-settings";
+import { DEFAULT_WORKTREE_PREFIX, hookCommand, readTriggerSettings, resolveCursorDir } from "./chat-rename-settings";
 
 const HOOK_SCRIPT_NAME = "demo-chat-rename.sh";
 const settings = (values: Record<string, unknown>) => (key: string) => values[key];
+
+describe("shared defaults", () => {
+  it("takes the worktree prefix from chat-renamer-config", () => {
+    expect(DEFAULT_WORKTREE_PREFIX).toBe(shared.DEFAULT_WORKTREE_PREFIX);
+  });
+});
 
 describe("readTriggerSettings", () => {
   it("defaults to the title event and a workspace hook scope", () => {

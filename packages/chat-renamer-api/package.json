@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build ./src/index.ts --outdir dist --target node --format esm --sourcemap=external",
+    "build:js": "bun build ./src/index.ts --outdir dist --target node --format esm --sourcemap=external --external chat-renamer-config",
     "build:types": "tsc --emitDeclarationOnly",
     "prepublishOnly": "bun run build",
     "test": "bun test"
@@ -32,5 +32,8 @@
   "files": [
     "dist"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "chat-renamer-config": "workspace:*"
+  }
 }
