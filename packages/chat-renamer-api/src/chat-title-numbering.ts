@@ -1,6 +1,9 @@
 const TRAILING_NUMBER = /(\d+)$/;
 
-const baseOf = (title: string): string => title.replace(TRAILING_NUMBER, "");
+/** The title without its trailing digits. */
+export const titleBase = (title: string): string => title.replace(TRAILING_NUMBER, "");
+
+const baseOf = titleBase;
 
 const numberOf = (title: string): number => {
   const match = TRAILING_NUMBER.exec(title);
