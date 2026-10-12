@@ -6,7 +6,7 @@ export type ChatRenamerNames = {
   renameChatFromPrompt: string;
   /** Command id for renaming the chats that already exist, oldest first. */
   renameExistingChats: string;
-  /** Configuration section holding `trigger`, `hookScope`, `activationPatterns`, `worktreePrefixes` and `renameExistingChats`. */
+  /** Configuration section holding `trigger`, `hookScope`, `activationPatterns`, `worktreePrefixes` and `renameExistingDays`. */
   configSection: string;
   /** File name of the hook script written to `.cursor/hooks/`. */
   hookScriptName: string;

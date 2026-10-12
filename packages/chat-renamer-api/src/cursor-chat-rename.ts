@@ -10,11 +10,14 @@ export type Description = {
   enabledApiProposals?: string[];
 };
 
+/** A chat as Cursor's session catalog lists it. `updatedAt` is expected in epoch milliseconds. */
+export type CatalogSession = { sessionId: string; title?: string; updatedAt?: number };
+
 export type CatalogTitleChange = { sessionId: string; title?: string };
 
 export type AgentHostApi = {
   projectAgentHostSessionTitle?: (sessionId: string, title: string) => Promise<void>;
-  listAgentHostSessionCatalog?: (limit?: number) => Promise<Array<{ sessionId: string; title?: string }>>;
+  listAgentHostSessionCatalog?: (limit?: number) => Promise<CatalogSession[]>;
   onDidChangeAgentHostSessionCatalogTitle?: (listener: (change: CatalogTitleChange) => void) => {
     dispose(): void;
   };
@@ -124,10 +127,7 @@ export const renameChatFromPrompt = async (
  * Chats Cursor currently lists (non-archived, non-subagent), read live from its session catalog. Resolves
  * undefined when this build has no `listAgentHostSessionCatalog`.
  */
-export const listChatCatalog = async (
-  deps: ChatRenameDeps,
-  limit = 1000,
-): Promise<Array<{ sessionId: string; title?: string }> | undefined> => {
+export const listChatCatalog = async (deps: ChatRenameDeps, limit = 1000): Promise<CatalogSession[] | undefined> => {
   const list = deps.cursor?.listAgentHostSessionCatalog;
   if (!deps.cursor || typeof list !== "function") {
     return undefined;

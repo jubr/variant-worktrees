@@ -20,7 +20,7 @@ describe("readTriggerSettings", () => {
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
       worktreePrefixes: ["_v"],
-      renameExistingChats: true,
+      renameExistingDays: 7,
     });
   });
 
@@ -32,7 +32,7 @@ describe("readTriggerSettings", () => {
       hookScope: "user",
       activationPatterns: ["^a$", "b"],
       worktreePrefixes: ["_v"],
-      renameExistingChats: true,
+      renameExistingDays: 7,
     });
   });
 
@@ -42,7 +42,7 @@ describe("readTriggerSettings", () => {
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
       worktreePrefixes: ["_v"],
-      renameExistingChats: true,
+      renameExistingDays: 7,
     });
   });
 
@@ -51,10 +51,16 @@ describe("readTriggerSettings", () => {
     expect(readTriggerSettings(settings({ activationPatterns: ["a", 1, null] })).activationPatterns).toEqual(["a"]);
   });
 
-  it("reads renameExistingChats, on unless explicitly false", () => {
-    expect(readTriggerSettings(settings({})).renameExistingChats).toBe(true);
-    expect(readTriggerSettings(settings({ renameExistingChats: false })).renameExistingChats).toBe(false);
-    expect(readTriggerSettings(settings({ renameExistingChats: "no" })).renameExistingChats).toBe(true);
+  it("reads renameExistingDays, default 7, 0 turns it off", () => {
+    expect(readTriggerSettings(settings({})).renameExistingDays).toBe(7);
+    expect(readTriggerSettings(settings({ renameExistingDays: 30 })).renameExistingDays).toBe(30);
+    expect(readTriggerSettings(settings({ renameExistingDays: 0 })).renameExistingDays).toBe(0);
+  });
+
+  it("falls back to 7 days for an invalid window", () => {
+    for (const value of [-1, 1.5, "7", true, null]) {
+      expect(readTriggerSettings(settings({ renameExistingDays: value })).renameExistingDays).toBe(7);
+    }
   });
 
   it("reads worktree prefixes, drops non-strings, and lets an empty list switch them off", () => {
