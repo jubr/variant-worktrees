@@ -13,10 +13,10 @@ export const DEFAULT_ACTIVATION_PATTERNS: readonly string[] = ["/[a-z]+-spec-[a-
 
 /**
  * Prefixes of worktree directories whose dragged-in path names a chat. Each carries its leading character and
- * connector, so `_v-` matches `_v-my-slug`. Same literal as variant-config's default `variant.prefix`, but defined here
- * on its own: the variant prefix belongs to variant-config.
+ * connector, so `_v-` matches `_v-my-slug`. Empty by default: the host that knows the variant prefix supplies it
+ * (variant-vscode passes `variant.prefix`), so that literal lives in variant-config only.
  */
-export const DEFAULT_WORKTREE_PREFIXES: readonly string[] = ["_v-"];
+export const DEFAULT_WORKTREE_PREFIXES: readonly string[] = [];
 
 /** How many days back existing chats are renamed. 0 turns it off. */
 export const DEFAULT_RENAME_EXISTING_DAYS = 7;

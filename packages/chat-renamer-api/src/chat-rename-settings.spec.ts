@@ -19,7 +19,7 @@ describe("readTriggerSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
-      worktreePrefixes: ["_v-"],
+      worktreePrefixes: [],
       renameExistingDays: 7,
     });
   });
@@ -31,7 +31,7 @@ describe("readTriggerSettings", () => {
       trigger: "hook",
       hookScope: "user",
       activationPatterns: ["^a$", "b"],
-      worktreePrefixes: ["_v-"],
+      worktreePrefixes: [],
       renameExistingDays: 7,
     });
   });
@@ -41,7 +41,7 @@ describe("readTriggerSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
-      worktreePrefixes: ["_v-"],
+      worktreePrefixes: [],
       renameExistingDays: 7,
     });
   });
@@ -69,7 +69,7 @@ describe("readTriggerSettings", () => {
       "_v-",
     ]);
     expect(readTriggerSettings(settings({ worktreePrefixes: [] })).worktreePrefixes).toEqual([]);
-    expect(readTriggerSettings(settings({ worktreePrefixes: "_work" })).worktreePrefixes).toEqual(["_v-"]);
+    expect(readTriggerSettings(settings({ worktreePrefixes: "_work" })).worktreePrefixes).toEqual([]);
   });
 });
 
