@@ -121,19 +121,30 @@ export const renameChatFromPrompt = async (
 };
 
 /**
- * Titles of the other open chats, read live from Cursor's session catalog (cursor.listAgentHostSessionCatalog).
- * `openIds` comes from composer.getOrderedSelectedComposerIds. Without the catalog API there are no peers.
+ * Chats Cursor currently lists (non-archived, non-subagent), read live from its session catalog. Resolves
+ * undefined when this build has no `listAgentHostSessionCatalog`.
+ */
+export const listChatCatalog = async (
+  deps: ChatRenameDeps,
+  limit = 1000,
+): Promise<Array<{ sessionId: string; title?: string }> | undefined> => {
+  const list = deps.cursor?.listAgentHostSessionCatalog;
+  if (!deps.cursor || typeof list !== "function") {
+    return undefined;
+  }
+  return withBorrowedIdentity(deps, () => list.call(deps.cursor, limit));
+};
+
+/**
+ * Titles of the other open chats. `openIds` comes from composer.getOrderedSelectedComposerIds.
+ * Without the catalog API there are no peers.
  */
 export const listPeerTitles = async (
   deps: ChatRenameDeps,
   openIds: readonly string[],
   selfId: string,
 ): Promise<string[]> => {
-  const list = deps.cursor?.listAgentHostSessionCatalog;
-  if (!deps.cursor || typeof list !== "function") {
-    return [];
-  }
-  const sessions = await withBorrowedIdentity(deps, () => list.call(deps.cursor, 1000));
+  const sessions = (await listChatCatalog(deps)) ?? [];
   const open = new Set(openIds);
   return sessions
     .filter((session) => session.sessionId !== selfId && open.has(session.sessionId) && session.title)

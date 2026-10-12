@@ -5,6 +5,7 @@
  */
 
 export * from "./chat-existing-plan";
+export * from "./chat-existing-rename";
 export * from "./chat-first-prompt";
 export * from "./chat-rename-hooks";
 export * from "./chat-rename-patterns";
