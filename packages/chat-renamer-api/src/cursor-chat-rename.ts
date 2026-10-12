@@ -158,19 +158,21 @@ export const handleChatRenameUri = async (
 };
 
 export type TitleChangeOptions = RenameOptions & {
-  /** Reads the chat's first human prompt. When it resolves, the prompt decides; otherwise the title does. */
+  /** Reads the chat's first human prompt. Without a prompt that has a timestamp the chat is not renamed. */
   readFirstPrompt?: (sessionId: string) => Promise<FirstPrompt | undefined>;
   now?: () => number;
-  /** A first prompt older than this is ignored, so a later manual rename of an old chat does not re-trigger. */
+  /** A chat whose first prompt was submitted before this time already existed, so it is left alone. */
+  notBeforeMs?: number;
+  /** A first prompt older than this is ignored: the title event of a new chat follows its first prompt within seconds. */
   maxAgeMs?: number;
 };
 
-const DEFAULT_MAX_AGE_MS = 2 * 60 * 1000;
+const DEFAULT_MAX_AGE_MS = 30 * 1000;
 
 /**
  * Title-event trigger. Cursor's title change event is the moment the first prompt has been named, so this reads the
- * chat's first prompt and, when it is a `/chat-rename` request, renames the chat. If the prompt cannot be read the
- * new title is parsed instead (Cursor's fallback auto-name is the first line of the first prompt).
+ * chat's first prompt and, when it holds a rename request, renames the chat. A chat whose first prompt cannot be
+ * read, or carries no timestamp, is left alone: without a timestamp there is no telling a new chat from an old one.
  * Ordinary and malformed requests are ignored.
  */
 export const handleCatalogTitleChange = async (
@@ -178,16 +180,18 @@ export const handleCatalogTitleChange = async (
   change: CatalogTitleChange,
   options: TitleChangeOptions = {},
 ): Promise<boolean> => {
-  let source = change.title ?? "";
   const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
-  if (firstPrompt) {
-    const age = (options.now ?? Date.now)() - (firstPrompt.submittedAtMs ?? Number.NEGATIVE_INFINITY);
-    if (firstPrompt.submittedAtMs !== undefined && age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
-      return false;
-    }
-    source = firstPrompt.text;
+  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
+    return false;
   }
-  const request = findRenameRequest(source, options.patterns ?? []);
+  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
+    return false;
+  }
+  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
+  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
+    return false;
+  }
+  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
   if (request.kind !== "rename") {
     return false;
   }

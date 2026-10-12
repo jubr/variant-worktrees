@@ -140,4 +140,62 @@ describe("trigger", () => {
       });
     });
   });
+
+  describe("realtime renaming only", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let prompts: Record<string, { text: string; submittedAtMs?: number }>;
+
+    const start = async () => {
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: quiet,
+        now: () => STARTED,
+        readFirstPrompt: async (sessionId) => prompts[sessionId],
+      }).ready;
+    };
+    const titleEvent = async (sessionId: string) => {
+      listeners[0]?.({ sessionId, title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+
+    beforeEach(() => {
+      renamed = [];
+      prompts = {};
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("renames a chat whose first prompt was sent after the renamer started", async () => {
+      prompts.fresh = { text: "/chat-rename wanted", submittedAtMs: STARTED + 1_000 };
+      await start();
+
+      await titleEvent("fresh");
+
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "wanted" }]);
+    });
+
+    it("ignores chats that already existed when the editor loaded them", async () => {
+      prompts.old = { text: "/chat-rename wanted", submittedAtMs: STARTED - 5_000 };
+      await start();
+
+      await titleEvent("old");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("handles each chat on its first title event only", async () => {
+      prompts.fresh = { text: "/chat-rename wanted", submittedAtMs: STARTED + 1_000 };
+      await start();
+
+      await titleEvent("fresh");
+      await titleEvent("fresh");
+
+      expect(renamed).toHaveLength(1);
+    });
+  });
 });
