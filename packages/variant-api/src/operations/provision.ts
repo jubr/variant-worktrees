@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 import { runtimeCommandFor, seedCommandFor } from "variant-config";
 import { resolveSlug } from "../slug.js";
 import { ensureWorktree } from "../worktree.js";
@@ -42,13 +43,16 @@ export const provisionVariant = async (
     environment.SQLITE_DATABASE = target;
   }
 
-  const instanceCommands = (context.config.variant?.instances ?? [])
-    .map((instance) => runtimeCommandFor(context.config, "up", instance))
-    .filter((command): command is string => Boolean(command));
-  const commands = [
-    ...(instanceCommands.length > 0 ? instanceCommands : [runtimeCommandFor(context.config, "up")]),
-    seedCommandFor(context.config, slug),
-  ].filter((command): command is string => Boolean(command));
-  const output = commands.map((command) => run(command, worktree, environment)).join("");
+  const instanceSteps = (context.config.variant?.instances ?? []).flatMap((instance) => {
+    const command = runtimeCommandFor(context.config, "up", instance);
+    return command ? [{ command, cwd: resolve(worktree, instance.dir) }] : [];
+  });
+  const upSteps =
+    instanceSteps.length > 0 ? instanceSteps : [{ command: runtimeCommandFor(context.config, "up"), cwd: worktree }];
+  const steps = [...upSteps, { command: seedCommandFor(context.config, slug), cwd: worktree }].flatMap((step) =>
+    step.command ? [{ command: step.command, cwd: step.cwd }] : [],
+  );
+  const commands = steps.map((step) => step.command);
+  const output = steps.map((step) => run(step.command, step.cwd, environment)).join("");
   return { slug, commands, output };
 };
