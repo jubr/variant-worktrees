@@ -149,3 +149,36 @@ When several existing chats yield pattern titles with the same base (case-insens
 - **WHEN** a chat's current title equals its planned title
 - **THEN** it is left out of the changes
 
+### Requirement: A chat that already has the requested base is not renamed
+
+When a title derived from an activation pattern would be given to a chat whose current title has the same base (trailing digits removed, compared case-insensitively), the chat SHALL be left untouched, both when planning renames of existing chats and when a title event names a new chat. A title from a slash command SHALL NOT be skipped on this ground, since the user asked for it literally. In the plan for existing chats, a chat left untouched for this reason still holds its number: the other chats of the group, oldest first, SHALL take the smallest numbers (`abc` for 1, then `abc2`, ...) that no untouched chat of the group holds, and a title with no trailing number holds 1.
+
+#### Scenario: Same base, other number
+
+- **WHEN** a chat is titled `abc3` and its first prompt yields `abc`
+- **THEN** it is not renamed
+
+#### Scenario: Case-insensitive
+
+- **WHEN** a chat is titled `ABC` and its first prompt yields `abc`
+- **THEN** it is not renamed
+
+#### Scenario: Slash titles are not skipped
+
+- **WHEN** a chat is titled `abc3` and its first prompt is `/chat-rename abc`
+- **THEN** it is renamed `abc`
+
+#### Scenario: Untouched chats hold their number
+
+- **WHEN** a chat titled `abc` is kept and two older and newer chats with other titles both yield `abc`
+- **THEN** they are named `abc2` and `abc3` in creation order
+
+#### Scenario: Untouched newer chat holds the plain title
+
+- **WHEN** an older chat with another title and a newer chat titled `abc` both yield `abc`
+- **THEN** the older chat is named `abc2` and the newer one is not renamed
+
+#### Scenario: Title event for a chat that already has the base
+
+- **WHEN** a title event reports the title `abc4` for a new chat whose first prompt yields `abc`
+- **THEN** the chat is not renamed
