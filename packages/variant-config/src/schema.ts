@@ -47,6 +47,9 @@ export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
  * Prefix of every name derived from a variant slug: `<prefix><slug>`. It carries its own leading character and
  * connector, so worktree directories (and later database schemas and the like) are `_v-<slug>` by default.
  */
+/** Default of `variant.cacheDir`, below the directory of variants.yaml. */
+export const DEFAULT_CACHE_DIR = ".cache/variants";
+
 export const DEFAULT_PREFIX = "_v-";
 
 /** A prefix: non-empty, without a path separator. */
@@ -62,6 +65,8 @@ export const VariantRuntimeSchema = z.strictObject({
   watch: z.string().min(1).optional(),
   /** Command that seeds a new variant database. A per-variant `seed` wins. */
   seed: z.string().min(1).optional(),
+  /** Directory of per-variant state files `<slug>.yaml`, relative to variants.yaml. Default `.cache/variants`. */
+  cacheDir: z.string().min(1).optional(),
   instances: z.array(VariantInstanceSchema).optional(),
 });
 export type VariantRuntime = z.infer<typeof VariantRuntimeSchema>;
