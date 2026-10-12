@@ -6,12 +6,12 @@ import {
   type Logger,
   type RenameOptions,
   readFirstPrompt,
-  readTriggerSettings,
   renameExistingChats,
 } from "chat-renamer-api";
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 
 import { resolveChatRenameDeps } from "./cursor-host";
+import { type HostSettings, readSettings } from "./settings";
 
 /** Marks every log line of this feature so it can be told apart from the realtime trigger. */
 export const EXISTING_CHATS_TAG = "[existing-chats]";
@@ -43,6 +43,8 @@ export type ExistingChatsRunnerInput = {
   startedAtMs: number;
   /** Reads a chat's first prompt once. Default: Cursor's on-disk store. */
   readFirstPrompt?: (sessionId: string) => Promise<FirstPrompt | undefined>;
+  /** Option values the host supplies, e.g. from `variants.yaml`. */
+  fileConfig?: HostSettings;
 };
 
 /**
@@ -57,12 +59,12 @@ export const createExistingChatsRunner = ({
   names,
   startedAtMs,
   readFirstPrompt: readPrompt,
+  fileConfig,
 }: ExistingChatsRunnerInput): ExistingChatsRunner => {
   const settingName = `${names.configSection}.renameExistingDays`;
   const recordKey = `${names.configSection}.examinedChats`;
   const dbPath = (): string => join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
-  const days = (): number =>
-    readTriggerSettings((key) => vscode.workspace.getConfiguration(names.configSection).get(key)).renameExistingDays;
+  const days = (): number => readSettings(names.configSection, fileConfig).renameExistingDays;
   const stamp = (epochMs: number): string => new Date(epochMs).toISOString();
   let queue: Promise<unknown> = Promise.resolve();
 

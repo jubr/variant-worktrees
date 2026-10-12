@@ -1,7 +1,7 @@
 import { createExtensionLog, registerChatRenamer } from "chat-renamer-vscode";
 import * as vscode from "vscode";
 import { formatProbeReport } from "./cursor-command-probe.ts";
-import { worktreePrefixesFor } from "./worktree-prefixes.ts";
+import { chatRenamerConfigFor, worktreePrefixesFor } from "./worktree-prefixes.ts";
 
 export const LOG_CHANNEL_NAME = "Variant Worktrees";
 
@@ -23,10 +23,13 @@ export const activate = (context: vscode.ExtensionContext) => {
 
   context.subscriptions.push(helloWorld, probe);
   // AIDEV-NOTE: keep the pre-extraction command prefix and settings section so existing user settings keep working.
+  const workspaceRoot = vscode.workspace?.workspaceFolders?.[0]?.uri.fsPath;
   registerChatRenamer(context, {
     commandPrefix: "variant-worktrees",
     configSection: "variant-worktrees.chatRename",
-    extraWorktreePrefixes: worktreePrefixesFor(vscode.workspace?.workspaceFolders?.[0]?.uri.fsPath),
+    extraWorktreePrefixes: worktreePrefixesFor(workspaceRoot),
+    // The chatRenamer section of variants.yaml; settings the user set explicitly in the editor still win.
+    fileConfig: chatRenamerConfigFor(workspaceRoot),
     log,
   });
 };

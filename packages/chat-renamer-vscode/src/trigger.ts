@@ -14,7 +14,6 @@ import {
   type RenameOptions,
   readFirstPrompt,
   readFirstPromptWithRetry,
-  readTriggerSettings,
   renderHookScript,
   resolveCursorDir,
   subscribeCatalogTitleChanges,
@@ -25,6 +24,7 @@ import * as vscode from "vscode";
 
 import { resolveChatRenameDeps } from "./cursor-host";
 import { EXISTING_CHATS_TAG, type ExistingChatsRunner, type ExistingChatsTrigger } from "./existing-chats";
+import { type HostSettings, readSettings } from "./settings";
 
 /**
  * Wires the configured rename trigger:
@@ -47,6 +47,8 @@ export type TriggerHost = {
   extraWorktreePrefixes?: readonly string[];
   /** Renames chats that existed before startup. Without it no existing-chats run is scheduled. */
   existing?: ExistingChatsRunner;
+  /** Option values the host supplies, e.g. from `variants.yaml`. Editor settings the user set explicitly win. */
+  fileConfig?: HostSettings;
   /** Delay before the startup run and after the last title event. Default 3000 ms. */
   existingChatsDelayMs?: number;
 };
@@ -148,8 +150,7 @@ export const startChatRenameTrigger = (
     eventSubscription?.dispose();
     eventSubscription = undefined;
 
-    const config = vscode.workspace.getConfiguration(names.configSection);
-    const settings = readTriggerSettings((key) => config.get(key));
+    const settings = readSettings(names.configSection, host.fileConfig);
     const { trigger, hookScope } = settings;
     // Worktree patterns are more specific, so they go first.
     const activationPatterns = [

@@ -33,6 +33,12 @@ Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
+`variant.prefix` (default `_v-`, connector included) starts every name derived from a
+slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
+configures the Cursor chat renamer in `variant-vscode`. Every option is listed in
+[`variants.example.yaml`](./packages/variant-config/variants.example.yaml), next to the
+[JSON schema](./packages/variant-config/variants.yaml.schema.json).
+
 ## CLI
 
 ```bash

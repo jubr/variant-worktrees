@@ -10,6 +10,7 @@ import type * as vscode from "vscode";
 import { registerRenameChatCommands } from "./commands";
 import { createExistingChatsRunner } from "./existing-chats";
 import { createExtensionLog } from "./log";
+import type { HostSettings } from "./settings";
 import { startChatRenameTrigger, type TriggerHost } from "./trigger";
 
 export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
@@ -25,6 +26,11 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   extraWorktreePrefixes?: readonly string[];
   /** Delay before the startup run and after the last title event, in milliseconds. Default 3000. For tests. */
   existingChatsDelayMs?: number;
+  /**
+   * Option values from the host, such as the `chatRenamer` section of `variants.yaml`. An editor setting the user set
+   * explicitly wins over them; they win over the defaults.
+   */
+  fileConfig?: HostSettings;
 };
 
 /**
@@ -45,6 +51,7 @@ export const registerChatRenamer = (
     now,
     extraWorktreePrefixes,
     existingChatsDelayMs,
+    fileConfig,
     ...nameInput
   }: RegisterChatRenamerOptions = {},
 ): { names: ChatRenamerNames; ready: Promise<void> } => {
@@ -59,6 +66,7 @@ export const registerChatRenamer = (
     names,
     startedAtMs: (now ?? Date.now)(),
     readFirstPrompt,
+    fileConfig,
   });
   context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names, existing));
   const ready = startChatRenameTrigger(context, logger, options, names, {
@@ -68,6 +76,7 @@ export const registerChatRenamer = (
     extraWorktreePrefixes,
     existing,
     existingChatsDelayMs,
+    fileConfig,
   });
   return { names, ready };
 };

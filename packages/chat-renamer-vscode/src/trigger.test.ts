@@ -43,8 +43,10 @@ describe("trigger", () => {
   };
 
   const configure = (values: Record<string, unknown>) => {
+    // Everything configured here counts as set by the user.
     spyOn(vscode.workspace, "getConfiguration").mockImplementation((() => ({
       get: (key: string) => values[key],
+      inspect: (key: string) => ({ globalValue: values[key] }),
     })) as unknown as typeof vscode.workspace.getConfiguration);
   };
 
@@ -253,6 +255,12 @@ describe("trigger", () => {
 
     it("adds the prefixes a host extension supplies", async () => {
       await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug", { extraWorktreePrefixes: ["_work-"] });
+
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
+    });
+
+    it("uses the prefixes from variants.yaml when the editor sets none", async () => {
+      await run("/vw-spec-iterate @/Users/me/vw/_wt-my-slug", { fileConfig: { worktreePrefixes: ["_wt-"] } });
 
       expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
     });
@@ -492,6 +500,48 @@ describe("trigger", () => {
         -1,
       );
       expect(String(warning?.[0])).toContain(`${SETTING}`);
+    });
+
+    describe("values from variants.yaml", () => {
+      const startWith = async (fileConfig: Record<string, unknown>) => {
+        await registerChatRenamer(context("variant.variant-vscode"), {
+          ...names,
+          log,
+          now: () => STARTED,
+          readFirstPrompt: async (sessionId) => prompts[sessionId],
+          existingChatsDelayMs: 0,
+          fileConfig,
+        }).ready;
+        await settle();
+      };
+
+      beforeEach(() => {
+        configure({});
+        catalog = [{ sessionId: "stale", title: "AI" }];
+        prompts = { stale: aged("/vw-spec-start abc", 8 * DAY) };
+      });
+
+      it("widens the window when variants.yaml asks for more days", async () => {
+        await startWith({ renameExistingDays: 30 });
+
+        expect(renamed).toEqual([{ sessionId: "stale", title: "abc" }]);
+        expect(lines.some((line) => line.includes("run started") && line.includes(`${SETTING}=30`))).toBe(true);
+      });
+
+      it("switches existing chats off when variants.yaml says 0", async () => {
+        await startWith({ renameExistingDays: 0 });
+
+        expect(renamed).toEqual([]);
+        expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(true);
+      });
+
+      it("lets the editor setting win over variants.yaml", async () => {
+        configure({ renameExistingDays: 0 });
+
+        await startWith({ renameExistingDays: 30 });
+
+        expect(renamed).toEqual([]);
+      });
     });
   });
 });
