@@ -3,6 +3,8 @@
  * first prompt, installing the hook script, and renaming through Cursor's private agent-host API.
  * Nothing here imports `vscode`; chat-renamer-vscode wires it into an extension.
  */
+
+export * from "./chat-existing-plan";
 export * from "./chat-first-prompt";
 export * from "./chat-rename-hooks";
 export * from "./chat-rename-patterns";
