@@ -125,11 +125,11 @@
 
 ## 25. Example project
 
-- [ ] 25.1 Red then green: `dotenvFor` falls back to `<dotenv>.example`. Verify with `bun test` in `variant-config`.
-- [ ] 25.2 Move `example-fe` and `example-be` to `example/fe` and `example/be` (SQLite, `.env.example`), add `example/variants.yaml`, `example/mise.toml`, the seed script and `example/package.json`; drop them from the workspace.
-- [ ] 25.3 Red then green: tests in `variant-config` and `variant-api` use `example/` as the fixture (config, autodetect equivalence, dotenv, open URL, seed on a variant database). Verify with `bun test` in both and `task check:full`.
+- [x] 25.1 Red then green: `dotenvFor` falls back to `<dotenv>.example`. Verify with `bun test` in `variant-config`.
+- [x] 25.2 Move `example-fe` and `example-be` to `example/fe` and `example/be` (SQLite, `.env.example`), add `example/variants.yaml`, `example/mise.toml`, the seed script and `example/package.json`; drop them from the workspace.
+- [x] 25.3 Red then green: tests in `variant-config` and `variant-api` use `example/` as the fixture (config, autodetect equivalence, dotenv, open URL, seed on a variant database). Verify with `bun test` in both and `task check:full`.
 
 ## 26. Validation of group 25
 
-- [ ] 26.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 26.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
