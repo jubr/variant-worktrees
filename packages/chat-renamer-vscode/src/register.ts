@@ -9,13 +9,17 @@ import type * as vscode from "vscode";
 
 import { registerRenameChatCommands } from "./commands";
 import { createExtensionLog } from "./log";
-import { startChatRenameTrigger } from "./trigger";
+import { startChatRenameTrigger, type TriggerHost } from "./trigger";
 
 export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   /** Where activity is logged. Default: a "Chat Renamer" output channel. */
   log?: Logger;
   /** Home folder whose `.cursor` receives user-scope hooks. Default: the OS home folder. */
   homeDir?: string;
+  /** Replaces the read of a chat's first prompt from Cursor's store. For tests. */
+  readFirstPrompt?: TriggerHost["readFirstPrompt"];
+  /** Clock in epoch milliseconds. For tests. */
+  now?: () => number;
 };
 
 /**
@@ -29,13 +33,13 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
  */
 export const registerChatRenamer = (
   context: vscode.ExtensionContext,
-  { log, homeDir, ...nameInput }: RegisterChatRenamerOptions = {},
+  { log, homeDir, readFirstPrompt, now, ...nameInput }: RegisterChatRenamerOptions = {},
 ): { names: ChatRenamerNames; ready: Promise<void> } => {
   const names = chatRenamerNames(nameInput);
   const logger = log ?? createExtensionLog(context);
   const options: RenameOptions = {};
   logger.info(`chat renamer starting (commands ${names.renameChat}, settings ${names.configSection}.*)`);
   context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names));
-  const ready = startChatRenameTrigger(context, logger, options, names, homeDir);
+  const ready = startChatRenameTrigger(context, logger, options, names, { homeDir, readFirstPrompt, now });
   return { names, ready };
 };

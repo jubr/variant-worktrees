@@ -4,6 +4,7 @@ import {
   type ChatRenamerNames,
   claimRenamer,
   compilePatterns,
+  type FirstPrompt,
   handleCatalogTitleChange,
   handleChatRenameUri,
   hookCommand,
@@ -26,20 +27,33 @@ import { resolveChatRenameDeps } from "./cursor-host";
 /**
  * Wires the configured rename trigger:
  *  - titleEvent (default): on cursor.onDidChangeAgentHostSessionCatalogTitle, read the chat's first prompt from Cursor's
- *    on-disk store and rename when it contains a /chat-rename request. Falls back to the title text.
+ *    on-disk store and rename when it holds a rename request. Only chats whose first prompt was sent after startup are renamed.
  *  - hook: install a beforeSubmitPrompt hook that sends /chat-rename prompts to this extension's URI handler.
  * Only one extension per host runs a trigger: the first to start owns renaming (see claimRenamer). Any other one
  * registers no listener, hook or URI handler and removes the hook script it wrote earlier.
  * The owner's URI handler is always registered. Switching the setting uninstalls the hook we wrote.
  * Resolves when the first setup pass is done.
  */
+/** Seams for the host environment. Production code leaves them unset. */
+export type TriggerHost = {
+  /** Home folder whose `.cursor` receives user-scope hooks. */
+  homeDir?: string;
+  /** Reads a chat's first prompt. Default: Cursor's on-disk store. */
+  readFirstPrompt?: (sessionId: string) => Promise<FirstPrompt | undefined>;
+  now?: () => number;
+};
+
 export const startChatRenameTrigger = (
   context: vscode.ExtensionContext,
   log: Logger,
   options: RenameOptions,
   names: ChatRenamerNames,
-  home: string = homedir(),
+  host: TriggerHost = {},
 ): Promise<void> => {
+  const home = host.homeDir ?? homedir();
+  const now = host.now ?? Date.now;
+  // Cursor re-emits title events for existing chats when it loads them. Only chats created after this moment count.
+  const startedAtMs = now();
   if (typeof vscode.env?.appName !== "string") {
     return Promise.resolve();
   }
@@ -126,11 +140,19 @@ export const startChatRenameTrigger = (
         return;
       }
       checked.add(change.sessionId);
-      const readPrompt = (sessionId: string) => readFirstPromptWithRetry(() => readFirstPrompt({ dbPath, sessionId }));
-      void handleCatalogTitleChange(resolveChatRenameDeps(context), change, { ...options, readFirstPrompt: readPrompt })
+      const readPrompt = (sessionId: string) =>
+        readFirstPromptWithRetry(() =>
+          (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
+        );
+      void handleCatalogTitleChange(resolveChatRenameDeps(context), change, {
+        ...options,
+        readFirstPrompt: readPrompt,
+        now,
+        notBeforeMs: startedAtMs,
+      })
         .then((handled) => {
           log.info(
-            `title event ${change.sessionId} title=${JSON.stringify(change.title)}: ${handled ? "renamed from first prompt" : "no rename request"}`,
+            `title event ${change.sessionId} title=${JSON.stringify(change.title)}: ${handled ? "renamed from first prompt" : "not renamed"}`,
           );
         })
         .catch((error: unknown) => log.error(`title event ${change.sessionId} failed`, error));

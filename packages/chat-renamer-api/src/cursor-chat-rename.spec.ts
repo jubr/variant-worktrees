@@ -151,23 +151,12 @@ describe("handleChatRenameUri", () => {
 });
 
 describe("handleCatalogTitleChange", () => {
-  it("renames when the new title is itself a /chat-rename request", async () => {
+  it("does not read a request out of the title text", async () => {
     const { deps, calls } = makeDeps();
 
     await expect(
       handleCatalogTitleChange(deps, { sessionId: "chat-1", title: '/chat-rename "wanted name"' }),
-    ).resolves.toBe(true);
-    expect(calls[0]?.id).toBe("chat-1");
-    expect(calls[0]?.title).toBe("wanted name");
-  });
-
-  it("leaves ordinary and malformed titles alone", async () => {
-    const { deps, calls } = makeDeps();
-
-    await expect(handleCatalogTitleChange(deps, { sessionId: "c", title: "Fix build" })).resolves.toBe(false);
-    await expect(handleCatalogTitleChange(deps, { sessionId: "c", title: "/chat-rename two words" })).resolves.toBe(
-      false,
-    );
+    ).resolves.toBe(false);
     expect(calls).toHaveLength(0);
   });
 });
@@ -231,7 +220,7 @@ describe("handleCatalogTitleChange with the first prompt", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("falls back to the title when the first prompt cannot be read", async () => {
+  it("leaves the chat alone when the first prompt cannot be read", async () => {
     const { deps, calls } = makeDeps();
 
     const handled = await handleCatalogTitleChange(
@@ -240,8 +229,80 @@ describe("handleCatalogTitleChange with the first prompt", () => {
       options(undefined),
     );
 
-    expect(handled).toBe(true);
-    expect(calls[0]?.title).toBe("from the title");
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("leaves the chat alone when the first prompt has no timestamp", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "Anything" },
+      options({ text: "/chat-rename abc-def" }),
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("handleCatalogTitleChange only for chats created after the renamer started", () => {
+  const NOW = Date.parse("2026-10-09T15:00:00.000Z");
+  const STARTED = NOW - 10_000;
+  const run = (submittedAtMs: number) => {
+    const { deps, calls } = makeDeps();
+    const handled = handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "Anything" },
+      {
+        readFirstPrompt: async () => ({ text: "/chat-rename abc-def", submittedAtMs }),
+        now: () => NOW,
+        notBeforeMs: STARTED,
+      },
+    );
+    return { handled, calls };
+  };
+
+  it("ignores a chat whose first prompt predates the start", async () => {
+    const { handled, calls } = run(STARTED - 5_000);
+
+    await expect(handled).resolves.toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("renames a chat whose first prompt came after the start", async () => {
+    const { handled, calls } = run(STARTED + 5_000);
+
+    await expect(handled).resolves.toBe(true);
+    expect(calls[0]?.title).toBe("abc-def");
+  });
+});
+
+describe("handleCatalogTitleChange default window", () => {
+  const NOW = Date.parse("2026-10-09T15:00:00.000Z");
+  const run = (ageMs: number) => {
+    const { deps, calls } = makeDeps();
+    const handled = handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "Anything" },
+      { readFirstPrompt: async () => ({ text: "/chat-rename abc-def", submittedAtMs: NOW - ageMs }), now: () => NOW },
+    );
+    return { handled, calls };
+  };
+
+  it("renames a chat named within 30 seconds of its first prompt", async () => {
+    const { handled, calls } = run(25_000);
+
+    await expect(handled).resolves.toBe(true);
+    expect(calls[0]?.title).toBe("abc-def");
+  });
+
+  it("ignores a chat named later than 30 seconds after its first prompt", async () => {
+    const { handled, calls } = run(40_000);
+
+    await expect(handled).resolves.toBe(false);
+    expect(calls).toHaveLength(0);
   });
 });
 
@@ -318,7 +379,11 @@ describe("activation patterns with numbering", () => {
     const handled = await handleCatalogTitleChange(
       deps,
       { sessionId: "chat-1", title: "Anything" },
-      { readFirstPrompt: async () => ({ text: "/vw-spec-iterate abc" }), ...peers("abc", "abc2") },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-iterate abc", submittedAtMs: 1_000 }),
+        now: () => 2_000,
+        ...peers("abc", "abc2"),
+      },
     );
 
     expect(handled).toBe(true);
