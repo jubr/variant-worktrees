@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=./variants.yaml.schema.json
+#
+# Every option of variants.yaml, with an illustrative value. Alternatives are listed after `#` on the same line.
+# Every key is optional; an absent one is detected from mise.local.toml / the environment, or takes its default.
+# A test keeps this file in step with variants.yaml.schema.json.
+
+# Database connection. Detected from mise.local.toml, then environment variables, when absent.
+db:
+  dialect: postgres # sqlite | mysql
+  url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set
+  host: 127.0.0.1 # required when `url` is absent and dialect is not sqlite
+  port: 5432 # mysql: 3306
+  user: app
+  password: secret
+  database: app
+  schema: public # database schema of the main variant
+  filename: ./app.sqlite # sqlite only
+  ssl: false # true
+
+# Command that seeds a new variant database. A per-variant `seed` below wins.
+seed: ./scripts/seed.sh
+
+# Runtime layout of variants.
+variant:
+  root: .. # directory that holds the variant worktrees; default: detected from the git checkout
+  prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
+  up: bun run dev # command that starts a variant; an instance's own `up` wins
+  watch: bun run watch # command that rebuilds a variant; an instance's own `watch` wins
+  instances:
+    - name: web
+      kind: vite # nestjs
+      dir: apps/web
+      up: bun run dev
+      watch: bun run build:watch
+
+# Per-variant overrides, keyed by slug.
+variants:
+  add-auth:
+    seed: ./scripts/seed-auth.sh
+
+# Cursor chat renamer: renames a Cursor chat from its first prompt. Editor settings still win over these values.
+chatRenamer:
+  trigger: titleEvent # hook
+  hookScope: workspace # user; where the hook is installed when trigger is hook
+  activationPatterns: # regular expressions tested per prompt line; the first capture group is the title
+    - '/[a-z]+-spec-[a-z]+\s+([A-Za-z0-9_-]+)'
+  worktreePrefixes: # prefixes (with connector) of worktree folders whose dragged-in path names a chat
+    - _v- # _work-
+  renameExistingDays: 7 # 0 turns off renaming of chats that existed before the editor started
