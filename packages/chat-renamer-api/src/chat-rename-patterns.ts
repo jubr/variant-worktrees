@@ -3,6 +3,18 @@ import { parseChatRenameSlash } from "./chat-rename-slash";
 /** Matches e.g. `/vw-spec-start my-slug`; the capture group is the title. Applied per prompt line. */
 export const DEFAULT_ACTIVATION_PATTERNS: readonly string[] = ["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"];
 
+const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Patterns for a dragged-in worktree folder, one per prefix: `/vw-spec-iterate @/abs/path/_v-my-slug` gives
+ * `my-slug`. The greedy `\S*` makes the last path segment win. Sources work in both JavaScript and Python `re`,
+ * since the hook script evaluates them too.
+ */
+export const worktreeActivationPatterns = (prefixes: readonly string[]): string[] =>
+  [...new Set(prefixes.filter((prefix) => typeof prefix === "string" && prefix.trim().length > 0))].map(
+    (prefix) => `/[a-z]+-spec-[a-z]+\\s+@\\S*/${escapeRegex(prefix)}-([A-Za-z0-9_-]+)/?(?=\\s|$)`,
+  );
+
 export type RenameRequest =
   | { kind: "none" }
   | { kind: "rename"; title: string; viaPattern: boolean }

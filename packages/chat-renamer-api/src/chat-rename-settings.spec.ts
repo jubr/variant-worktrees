@@ -12,6 +12,7 @@ describe("readTriggerSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
+      worktreePrefixes: ["_v"],
     });
   });
 
@@ -22,6 +23,7 @@ describe("readTriggerSettings", () => {
       trigger: "hook",
       hookScope: "user",
       activationPatterns: ["^a$", "b"],
+      worktreePrefixes: ["_v"],
     });
   });
 
@@ -30,12 +32,22 @@ describe("readTriggerSettings", () => {
       trigger: "titleEvent",
       hookScope: "workspace",
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
+      worktreePrefixes: ["_v"],
     });
   });
 
   it("lets an empty list switch the patterns off and drops non-string entries", () => {
     expect(readTriggerSettings(settings({ activationPatterns: [] })).activationPatterns).toEqual([]);
     expect(readTriggerSettings(settings({ activationPatterns: ["a", 1, null] })).activationPatterns).toEqual(["a"]);
+  });
+
+  it("reads worktree prefixes, drops non-strings, and lets an empty list switch them off", () => {
+    expect(readTriggerSettings(settings({ worktreePrefixes: ["_work", 1, "_v"] })).worktreePrefixes).toEqual([
+      "_work",
+      "_v",
+    ]);
+    expect(readTriggerSettings(settings({ worktreePrefixes: [] })).worktreePrefixes).toEqual([]);
+    expect(readTriggerSettings(settings({ worktreePrefixes: "_work" })).worktreePrefixes).toEqual(["_v"]);
   });
 });
 

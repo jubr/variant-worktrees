@@ -5,11 +5,12 @@ import { join } from "node:path";
 const manifest = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8"));
 
 describe("extension manifest", () => {
-  it("contributes the three settings the trigger reads", () => {
+  it("contributes the settings the trigger reads", () => {
     expect(Object.keys(manifest.contributes.configuration.properties).sort()).toEqual([
       "chat-renamer.activationPatterns",
       "chat-renamer.hookScope",
       "chat-renamer.trigger",
+      "chat-renamer.worktreePrefixes",
     ]);
   });
 

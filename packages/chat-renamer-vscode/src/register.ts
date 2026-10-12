@@ -20,6 +20,8 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   readFirstPrompt?: TriggerHost["readFirstPrompt"];
   /** Clock in epoch milliseconds. For tests. */
   now?: () => number;
+  /** Worktree prefixes added to the `worktreePrefixes` setting, such as `variant.worktreePrefix` from variants.yaml. */
+  extraWorktreePrefixes?: readonly string[];
 };
 
 /**
@@ -33,13 +35,18 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
  */
 export const registerChatRenamer = (
   context: vscode.ExtensionContext,
-  { log, homeDir, readFirstPrompt, now, ...nameInput }: RegisterChatRenamerOptions = {},
+  { log, homeDir, readFirstPrompt, now, extraWorktreePrefixes, ...nameInput }: RegisterChatRenamerOptions = {},
 ): { names: ChatRenamerNames; ready: Promise<void> } => {
   const names = chatRenamerNames(nameInput);
   const logger = log ?? createExtensionLog(context);
   const options: RenameOptions = {};
   logger.info(`chat renamer starting (commands ${names.renameChat}, settings ${names.configSection}.*)`);
   context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names));
-  const ready = startChatRenameTrigger(context, logger, options, names, { homeDir, readFirstPrompt, now });
+  const ready = startChatRenameTrigger(context, logger, options, names, {
+    homeDir,
+    readFirstPrompt,
+    now,
+    extraWorktreePrefixes,
+  });
   return { names, ready };
 };

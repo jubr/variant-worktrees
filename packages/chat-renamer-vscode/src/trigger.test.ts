@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { installChatRenameHook } from "chat-renamer-api";
+import { DEFAULT_ACTIVATION_PATTERNS, installChatRenameHook, worktreeActivationPatterns } from "chat-renamer-api";
 import * as vscode from "vscode";
 
 import { vscodeMock } from "../test/vscode-mock";
@@ -196,6 +196,70 @@ describe("trigger", () => {
       await titleEvent("fresh");
 
       expect(renamed).toHaveLength(1);
+    });
+  });
+
+  describe("dragged-in worktree folders", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+
+    const run = async (prompt: string, options: Partial<RegisterChatRenamerOptions> = {}) => {
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: quiet,
+        now: () => STARTED,
+        readFirstPrompt: async () => ({ text: prompt, submittedAtMs: STARTED + 1_000 }),
+        ...options,
+      }).ready;
+      listeners[0]?.({ sessionId: "fresh", title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+
+    beforeEach(() => {
+      renamed = [];
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("derives the slug with the default _v prefix", async () => {
+      await run("/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename");
+
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "cursor-chat-win-rename" }]);
+    });
+
+    it("honours the worktreePrefixes setting", async () => {
+      configure({ worktreePrefixes: ["_work"] });
+
+      await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug");
+
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
+    });
+
+    it("adds the prefixes a host extension supplies", async () => {
+      await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug", { extraWorktreePrefixes: ["_work"] });
+
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
+    });
+
+    it("derives nothing when the prefix list is empty", async () => {
+      configure({ worktreePrefixes: [] });
+
+      await run("/vw-spec-iterate @/Users/me/vw/_v-my-slug");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("copies the worktree patterns into the hook script", async () => {
+      configure({ trigger: "hook", hookScope: "user", worktreePrefixes: ["_work"] });
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), { commandPrefix: "wt", log: quiet }).ready;
+
+      const script = readFileSync(join(homeDir, ".cursor", "hooks", "wt-chat-rename.sh"), "utf8");
+      const patterns = [...worktreeActivationPatterns(["_work"]), ...DEFAULT_ACTIVATION_PATTERNS];
+      expect(script).toContain(Buffer.from(JSON.stringify(patterns), "utf8").toString("base64"));
     });
   });
 });
