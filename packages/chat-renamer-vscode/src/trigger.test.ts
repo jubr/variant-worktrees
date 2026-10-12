@@ -239,10 +239,10 @@ describe("trigger", () => {
       vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
     });
 
-    it("derives the slug with the default _v prefix", async () => {
+    it("derives nothing by default, since no prefix is known", async () => {
       await run("/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename");
 
-      expect(renamed).toEqual([{ sessionId: "fresh", title: "cursor-chat-win-rename" }]);
+      expect(renamed).toEqual([]);
     });
 
     it("honours the worktreePrefixes setting", async () => {
@@ -253,10 +253,12 @@ describe("trigger", () => {
       expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
     });
 
-    it("adds the prefixes a host extension supplies", async () => {
-      await run("/vw-spec-iterate @/Users/me/vw/_work-my-slug", { extraWorktreePrefixes: ["_work-"] });
+    it("lets the editor setting replace the prefixes a host supplies", async () => {
+      configure({ worktreePrefixes: ["_work-"] });
 
-      expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
+      await run("/vw-spec-iterate @/Users/me/vw/_wt-my-slug", { fileConfig: { worktreePrefixes: ["_wt-"] } });
+
+      expect(renamed).toEqual([]);
     });
 
     it("uses the prefixes from variants.yaml when the editor sets none", async () => {
@@ -265,10 +267,10 @@ describe("trigger", () => {
       expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
     });
 
-    it("derives nothing when the prefix list is empty", async () => {
+    it("derives nothing when the editor empties the prefix list", async () => {
       configure({ worktreePrefixes: [] });
 
-      await run("/vw-spec-iterate @/Users/me/vw/_v-my-slug");
+      await run("/vw-spec-iterate @/Users/me/vw/_wt-my-slug", { fileConfig: { worktreePrefixes: ["_wt-"] } });
 
       expect(renamed).toEqual([]);
     });
