@@ -83,7 +83,7 @@ When several extensions in one extension host embed the renamer, exactly one SHA
 
 ### Requirement: Settings and embedding
 
-The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array, default `["_v"]`) and `renameExistingChats` (boolean, default true) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
+The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array, default `["_v"]`) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
 
 #### Scenario: Standalone defaults
 
@@ -100,9 +100,9 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 - **WHEN** the standalone manifest contributes a setting
 - **THEN** the embedding host manifest contributes the same setting under its own section
 
-### Requirement: Existing chats are renamed when enabled
+### Requirement: Existing chats are renamed within a day window
 
-With setting `renameExistingChats` true (the default) the active instance SHALL rename existing chats: chats listed by Cursor whose first prompt was submitted before the renamer started, whose first prompt can be read, and which holds a rename request. The names SHALL follow the creation-order numbering of the request capability. The run SHALL happen shortly after startup, again after Cursor has reported title events for chats that existed at startup (waiting for the reports to stop), and when the command `<prefix>.renameExistingChats` runs. Each chat examined with a readable, timestamped first prompt SHALL be recorded in the extension's persistent state, and a recorded chat SHALL NOT be examined again by an automatic run, so a title the user later changes by hand stays. The command SHALL ignore the record. A chat whose first prompt cannot be read SHALL NOT be recorded. With the setting false none of this SHALL run, and changing the setting SHALL take effect without a reload.
+With setting `renameExistingDays` greater than 0 (default 7) the active instance SHALL rename existing chats: chats listed by Cursor whose first prompt was submitted before the renamer started and no more than `renameExistingDays` days before it, whose first prompt can be read, and which holds a rename request. The names SHALL follow the creation-order numbering of the request capability. The run SHALL happen shortly after startup, again after Cursor has reported title events for chats that existed at startup (waiting for the reports to stop), and when the command `<prefix>.renameExistingChats` runs. Each chat examined inside the window with a readable, timestamped first prompt SHALL be recorded in the extension's persistent state, and a recorded chat SHALL NOT be examined again by an automatic run, so a title the user later changes by hand stays. The command SHALL ignore the record but SHALL obey the window. A chat whose first prompt cannot be read, and a chat outside the window, SHALL NOT be recorded. With the setting 0 none of this SHALL run, and changing the setting SHALL take effect without a reload.
 
 #### Scenario: Backfill orders by creation time
 
@@ -114,15 +114,25 @@ With setting `renameExistingChats` true (the default) the active instance SHALL 
 - **WHEN** a listed chat's first prompt was submitted after the renamer started
 - **THEN** the existing-chats run does not rename it
 
+#### Scenario: Chats older than the window are left alone
+
+- **WHEN** `renameExistingDays` is 7 and a listed chat's first prompt is 8 days older than the start
+- **THEN** it is neither renamed nor recorded
+
+#### Scenario: Window is widened later
+
+- **WHEN** a chat was outside the window in an earlier run and `renameExistingDays` is then raised to cover it
+- **THEN** the next run renames it
+
 #### Scenario: Recorded chats are not touched again
 
 - **WHEN** a chat was examined by an earlier run and the user renamed it by hand
 - **THEN** an automatic run leaves its title alone
 
-#### Scenario: Command re-runs everything
+#### Scenario: Command re-runs everything in the window
 
 - **WHEN** the user runs `<prefix>.renameExistingChats`
-- **THEN** recorded chats are examined again
+- **THEN** recorded chats inside the window are examined again
 
 #### Scenario: Unreadable prompt is retried later
 
@@ -131,6 +141,24 @@ With setting `renameExistingChats` true (the default) the active instance SHALL 
 
 #### Scenario: Switched off
 
-- **WHEN** `renameExistingChats` is false
+- **WHEN** `renameExistingDays` is 0
 - **THEN** no existing chat is renamed at startup, after title events, or by the automatic runs
 
+#### Scenario: Command while switched off
+
+- **WHEN** `renameExistingDays` is 0 and the user runs `<prefix>.renameExistingChats`
+- **THEN** no chat is renamed and the user is told that `<section>.renameExistingDays` is 0
+
+### Requirement: Existing-chats activity is clearly logged
+
+Every log line about renaming existing chats SHALL start with `[existing-chats]`. A run SHALL log what triggered it (`startup`, `title events settled` or `command`) together with the setting it obeys, written as `<section>.renameExistingDays=<value>`, and the start of the window. When the setting is 0 the log SHALL say the feature is off and name the setting. Each rename SHALL log the chat id, old title, new title and creation time, and the run SHALL end with a summary of listed, examined, renamed and failed chats.
+
+#### Scenario: Startup run
+
+- **WHEN** the startup run begins with `renameExistingDays` 7 in section `variant-worktrees.chatRename`
+- **THEN** the log has a `[existing-chats]` line naming trigger `startup` and `variant-worktrees.chatRename.renameExistingDays=7`
+
+#### Scenario: Off is explained
+
+- **WHEN** the renamer starts with `renameExistingDays` 0
+- **THEN** the log has a `[existing-chats]` line saying existing chats are off because `<section>.renameExistingDays=0`
