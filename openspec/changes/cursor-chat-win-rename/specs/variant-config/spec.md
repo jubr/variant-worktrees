@@ -44,7 +44,7 @@ The system SHALL accept an optional `open` string on any entry of `variant.insta
 
 ### Requirement: Instance dotenv
 
-The system SHALL accept an optional `dotenv` string on any entry of `variant.instances`: the path of an environment file, relative to the instance's `dir`, that is copied for a variant and amended with that variant's values. The system SHALL offer a function that returns the amended text for an instance: the source file's lines with each given variable replaced in place and each missing one appended, other lines and comments kept, and values holding whitespace or `#` quoted. A missing source file SHALL count as empty. The function SHALL return nothing for an instance without `dotenv`. This change does not write the copy.
+The system SHALL accept an optional `dotenv` string on any entry of `variant.instances`: the path of an environment file, relative to the instance's `dir`, that is copied for a variant and amended with that variant's values. The system SHALL offer a function that returns the amended text for an instance: the source file's lines with each given variable replaced in place and each missing one appended, other lines and comments kept, and values holding whitespace or `#` quoted. When the source file is missing, `<dotenv>.example` SHALL be the source; when that is missing too, the source SHALL count as empty. The function SHALL return nothing for an instance without `dotenv`. This change does not write the copy.
 
 #### Scenario: Dotenv accepted
 
@@ -56,9 +56,14 @@ The system SHALL accept an optional `dotenv` string on any entry of `variant.ins
 - **WHEN** the source holds `PORT=3000` and `# keep`, and the variant values are `PORT=62061` and `POSTGRES_SCHEMA=v_demo`
 - **THEN** the amended text is `PORT=62061`, `# keep` and `POSTGRES_SCHEMA=v_demo`, in that order
 
+#### Scenario: Example file as source
+
+- **WHEN** `.env` does not exist and `.env.example` holds `PORT=3000`, and the variant values are `PORT=62061`
+- **THEN** the amended text is `PORT=62061`
+
 #### Scenario: Missing source
 
-- **WHEN** the source file does not exist
+- **WHEN** neither the source file nor its `.example` exists
 - **THEN** the amended text holds only the variant values
 
 #### Scenario: No dotenv
@@ -195,3 +200,23 @@ The package SHALL ship `variants.example.yaml` (and `variants.local.example.yaml
 
 - **WHEN** an option is added to the schema and not to the example
 - **THEN** the coverage test fails and names the missing option
+
+### Requirement: Example project
+
+The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed, including the `variant` CLI from `github:jubr/variant-worktrees`. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
+
+#### Scenario: Example configuration loads
+
+- **WHEN** the configuration is loaded from `example/`
+- **THEN** it validates and lists instances `fe` (Vite, `open`) and `be` (NestJS, `dotenv`)
+
+#### Scenario: Autodetection agrees
+
+- **WHEN** instances are autodetected in `example/`
+- **THEN** their kinds and directories equal those of the explicit instances
+
+#### Scenario: Seed runs on a variant database
+
+- **WHEN** `variant-api` creates variant `demo` from a copy of the example and the seed script runs with the variant's database in `SQLITE_DATABASE`
+- **THEN** the database holds the seeded rows
+
