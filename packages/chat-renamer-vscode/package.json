@@ -82,6 +82,12 @@
           ],
           "markdownDescription": "Prefixes of worktree directories (`_v` in `_v-my-slug`). A first prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. An empty list turns this off."
         },
+        "chat-renamer.renameExistingDays": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 7,
+          "markdownDescription": "How many days back to rename chats that already existed when the editor started. Chats whose first prompt matches an activation pattern or `/chat-rename` are renamed oldest first, numbered per title (`abc`, `abc2`, `abc3`), once per chat. `0` turns it off (default `7`). Changing it applies without a reload; the log lines starting with `[existing-chats]` name this setting and its value."
+        },
         "chat-renamer.hookScope": {
           "type": "string",
           "enum": [
@@ -96,6 +102,12 @@
           "markdownDescription": "Which hooks.json receives the hook when `#chat-renamer.trigger#` is `hook`."
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "chat-renamer.renameExistingChats",
+        "title": "Chat Renamer: Rename Existing Chats"
+      }
+    ]
   }
 }

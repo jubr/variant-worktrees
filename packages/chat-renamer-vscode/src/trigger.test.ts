@@ -21,9 +21,20 @@ describe("trigger", () => {
   const registerChatRenamer = (ctx: vscode.ExtensionContext, options: RegisterChatRenamerOptions) =>
     register(ctx, { homeDir, ...options });
 
-  const context = (extensionId: string) => {
+  const memento = () => {
+    const data = new Map<string, unknown>();
+    return {
+      get: <T>(key: string, fallback?: T) => (data.has(key) ? (data.get(key) as T) : fallback),
+      update: async (key: string, value: unknown) => {
+        data.set(key, value);
+      },
+    };
+  };
+
+  const context = (extensionId: string, globalState = memento()) => {
     const ctx = {
       subscriptions: [] as Disposable[],
+      globalState,
       extension: { id: extensionId, packageJSON: { identifier: { value: extensionId }, isBuiltin: false } },
       globalStorageUri: { fsPath: join(tmpdir(), "chat-renamer-test", "globalStorage", extensionId) },
     };
@@ -53,7 +64,8 @@ describe("trigger", () => {
     };
     registerUriHandler = spyOn(vscode.window, "registerUriHandler");
     registerUriHandler.mockClear();
-    configure({});
+    // Existing-chat renaming has its own listener and runs; the other suites switch it off to count only theirs.
+    configure({ renameExistingDays: 0 });
   });
 
   afterEach(() => {
@@ -260,6 +272,226 @@ describe("trigger", () => {
       const script = readFileSync(join(homeDir, ".cursor", "hooks", "wt-chat-rename.sh"), "utf8");
       const patterns = [...worktreeActivationPatterns(["_work"]), ...DEFAULT_ACTIVATION_PATTERNS];
       expect(script).toContain(Buffer.from(JSON.stringify(patterns), "utf8").toString("base64"));
+    });
+  });
+
+  describe("existing chats", () => {
+    const STARTED = Date.parse("2026-10-12T09:00:00.000Z");
+    const DAY = 86_400_000;
+    const names = { commandPrefix: "variant-worktrees", configSection: "variant-worktrees.chatRename" };
+    const SETTING = "variant-worktrees.chatRename.renameExistingDays";
+
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let catalog: Array<{ sessionId: string; title?: string }>;
+    let prompts: Record<string, { text: string; submittedAtMs?: number }>;
+    let lines: string[];
+    let commands: Record<string, (...args: unknown[]) => unknown>;
+    let configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void>;
+    let listCalls: number;
+
+    const log = {
+      info: (line: string) => lines.push(line),
+      warn: (line: string) => lines.push(line),
+      error: (line: string) => lines.push(line),
+    };
+    const emit = (change: { sessionId: string; title?: string }) => {
+      for (const listener of [...listeners]) {
+        listener(change);
+      }
+    };
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 25));
+    const aged = (text: string, ageMs: number) => ({ text, submittedAtMs: STARTED - ageMs });
+
+    const start = async (state = memento(), extensionId = "variant.variant-vscode") => {
+      const ctx = context(extensionId, state);
+      await registerChatRenamer(ctx, {
+        ...names,
+        log,
+        now: () => STARTED,
+        readFirstPrompt: async (sessionId) => prompts[sessionId],
+        existingChatsDelayMs: 0,
+      }).ready;
+      await settle();
+      return ctx;
+    };
+
+    beforeEach(() => {
+      configure({});
+      renamed = [];
+      catalog = [];
+      prompts = {};
+      lines = [];
+      commands = {};
+      configListeners = [];
+      listCalls = 0;
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => {
+        listCalls += 1;
+        return catalog;
+      };
+      spyOn(vscode.commands, "registerCommand").mockImplementation(((id: string, callback: never) => {
+        commands[id] = callback;
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.commands.registerCommand);
+      spyOn(vscode.workspace, "onDidChangeConfiguration").mockImplementation(((listener: never) => {
+        configListeners.push(listener);
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.workspace.onDidChangeConfiguration);
+      spyOn(vscode.window, "showWarningMessage").mockClear();
+      spyOn(vscode.window, "showInformationMessage").mockClear();
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+      vscodeMock.cursor.listAgentHostSessionCatalog = undefined;
+    });
+
+    const oldChats = () => {
+      catalog = [
+        { sessionId: "newest", title: "AI 3" },
+        { sessionId: "oldest", title: "AI 1" },
+        { sessionId: "middle", title: "AI 2" },
+      ];
+      prompts = {
+        newest: aged("/vw-spec-start abc", 1 * DAY),
+        oldest: aged("/vw-spec-start abc", 3 * DAY),
+        middle: aged("/vw-spec-start abc", 2 * DAY),
+      };
+    };
+
+    it("renames existing chats at startup, oldest first, by default", async () => {
+      oldChats();
+
+      await start();
+
+      expect(renamed).toEqual([
+        { sessionId: "oldest", title: "abc" },
+        { sessionId: "middle", title: "abc2" },
+        { sessionId: "newest", title: "abc3" },
+      ]);
+    });
+
+    it("logs the trigger and the exact setting the run obeys", async () => {
+      oldChats();
+
+      await start();
+
+      const started = lines.find((line) => line.includes("run started"));
+      expect(started?.startsWith("[existing-chats]")).toBe(true);
+      expect(started).toContain("startup");
+      expect(started).toContain(`${SETTING}=7`);
+      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed oldest"))).toBe(true);
+      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed 3"))).toBe(true);
+    });
+
+    it("does nothing and says why when renameExistingDays is 0", async () => {
+      configure({ renameExistingDays: 0 });
+      oldChats();
+
+      await start();
+      emit({ sessionId: "oldest", title: "AI" });
+      await settle();
+
+      expect(renamed).toEqual([]);
+      expect(listCalls).toBe(0);
+      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(true);
+    });
+
+    it("leaves chats older than the window alone", async () => {
+      catalog = [{ sessionId: "stale", title: "AI" }];
+      prompts = { stale: aged("/vw-spec-start abc", 8 * DAY) };
+
+      await start();
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("renames older chats once the window is wide enough", async () => {
+      configure({ renameExistingDays: 30 });
+      catalog = [{ sessionId: "stale", title: "AI" }];
+      prompts = { stale: aged("/vw-spec-start abc", 8 * DAY) };
+
+      await start();
+
+      expect(renamed).toEqual([{ sessionId: "stale", title: "abc" }]);
+    });
+
+    it("does not touch a chat an earlier run examined", async () => {
+      oldChats();
+      const state = memento();
+      const first = await start(state);
+      for (const disposable of (first as unknown as { subscriptions: Disposable[] }).subscriptions) {
+        disposable.dispose();
+      }
+      renamed.length = 0;
+
+      await start(state, "variant.chat-renamer-vscode");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("renames a chat the catalog only lists after the title events settle", async () => {
+      await start();
+      expect(renamed).toEqual([]);
+      catalog = [{ sessionId: "late", title: "AI" }];
+      prompts = { late: aged("/vw-spec-start abc", DAY) };
+
+      emit({ sessionId: "late", title: "AI" });
+      await settle();
+
+      expect(renamed).toEqual([{ sessionId: "late", title: "abc" }]);
+      expect(lines.some((line) => line.includes("run started") && line.includes("title events settled"))).toBe(true);
+    });
+
+    it("lets only the active instance run", async () => {
+      oldChats();
+      await start(memento(), "variant.variant-vscode");
+      await start(memento(), "variant.chat-renamer-vscode");
+
+      expect(listCalls).toBe(1);
+    });
+
+    it("reconfigures without a reload when the setting changes", async () => {
+      configure({ renameExistingDays: 0 });
+      oldChats();
+      await start();
+      expect(renamed).toEqual([]);
+
+      configure({ renameExistingDays: 7 });
+      for (const listener of configListeners) {
+        listener({ affectsConfiguration: (section) => section === names.configSection });
+      }
+      await settle();
+
+      expect(renamed).toHaveLength(3);
+      expect(lines.some((line) => line.includes("run started") && line.includes("setting changed"))).toBe(true);
+    });
+
+    it("re-examines recorded chats when the command runs", async () => {
+      oldChats();
+      await start();
+      renamed.length = 0;
+
+      await commands["variant-worktrees.renameExistingChats"]?.();
+
+      expect(renamed).toHaveLength(3);
+      expect(lines.some((line) => line.includes("run started") && line.includes("command"))).toBe(true);
+    });
+
+    it("tells the user which setting switched the command off", async () => {
+      configure({ renameExistingDays: 0 });
+      oldChats();
+      await start();
+
+      await commands["variant-worktrees.renameExistingChats"]?.();
+
+      expect(renamed).toEqual([]);
+      const warning = (vscode.window.showWarningMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls.at(
+        -1,
+      );
+      expect(String(warning?.[0])).toContain(`${SETTING}`);
     });
   });
 });

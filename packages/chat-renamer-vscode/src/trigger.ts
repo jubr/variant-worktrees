@@ -24,6 +24,7 @@ import {
 import * as vscode from "vscode";
 
 import { resolveChatRenameDeps } from "./cursor-host";
+import { EXISTING_CHATS_TAG, type ExistingChatsRunner, type ExistingChatsTrigger } from "./existing-chats";
 
 /**
  * Wires the configured rename trigger:
@@ -44,7 +45,13 @@ export type TriggerHost = {
   now?: () => number;
   /** Worktree prefixes the host adds to the `worktreePrefixes` setting, e.g. from its own project config. */
   extraWorktreePrefixes?: readonly string[];
+  /** Renames chats that existed before startup. Without it no existing-chats run is scheduled. */
+  existing?: ExistingChatsRunner;
+  /** Delay before the startup run and after the last title event. Default 3000 ms. */
+  existingChatsDelayMs?: number;
 };
+
+const DEFAULT_EXISTING_CHATS_DELAY_MS = 3000;
 
 export const startChatRenameTrigger = (
   context: vscode.ExtensionContext,
@@ -93,6 +100,50 @@ export const startChatRenameTrigger = (
   let eventSubscription: { dispose(): void } | undefined;
   let queue: Promise<void> = Promise.resolve();
 
+  // Existing chats: one run shortly after startup, and another each time the burst of title events Cursor emits while
+  // it loads old chats has died down. All of it follows `renameExistingDays`; 0 schedules nothing.
+  let existingTimer: ReturnType<typeof setTimeout> | undefined;
+  let existingSubscription: { dispose(): void } | undefined;
+  let firstApply = true;
+  const stopExisting = (): void => {
+    clearTimeout(existingTimer);
+    existingTimer = undefined;
+    existingSubscription?.dispose();
+    existingSubscription = undefined;
+  };
+  const configureExisting = (days: number, trigger: ExistingChatsTrigger): void => {
+    stopExisting();
+    const existing = host.existing;
+    if (!existing) {
+      return;
+    }
+    if (days === 0) {
+      log.info(`${EXISTING_CHATS_TAG} off: ${existing.settingName}=0, so no startup, title-event or automatic runs`);
+      return;
+    }
+    const delay = host.existingChatsDelayMs ?? DEFAULT_EXISTING_CHATS_DELAY_MS;
+    log.info(
+      `${EXISTING_CHATS_TAG} on: ${existing.settingName}=${days}; first run (${trigger}) in ${delay}ms, again after title events settle`,
+    );
+    const runAfterDelay = (reason: ExistingChatsTrigger): void => {
+      clearTimeout(existingTimer);
+      existingTimer = setTimeout(() => {
+        existingTimer = undefined;
+        void existing.run(reason);
+      }, delay);
+    };
+    runAfterDelay(trigger);
+    try {
+      existingSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), () =>
+        runAfterDelay("title events settled"),
+      );
+    } catch (error) {
+      log.warn(
+        `${EXISTING_CHATS_TAG} not listening for title events: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
+
   const apply = async (): Promise<void> => {
     eventSubscription?.dispose();
     eventSubscription = undefined;
@@ -129,44 +180,54 @@ export const startChatRenameTrigger = (
       return;
     }
 
-    if (trigger === "hook") {
-      const uriBase = `${vscode.env.uriScheme}://${context.extension.id}/chat-rename`;
-      await installChatRenameHook({
-        cursorDir: chosenDir,
-        command: hookCommand(chosenDir, workspaceRoot, names.hookScriptName),
-        script: renderHookScript(uriBase, activationPatterns, names.hookScriptName),
-        scriptName: names.hookScriptName,
-      });
-      log.info(`hook installed in ${chosenDir}`);
-      return;
-    }
-
-    const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
-    const checked = new Set<string>();
-    eventSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), (change) => {
-      // The first title event of a chat is the AI name for its first prompt. Later events are renames; skip them.
-      if (checked.has(change.sessionId)) {
+    const setUpTrigger = async (): Promise<void> => {
+      if (trigger === "hook") {
+        const uriBase = `${vscode.env.uriScheme}://${context.extension.id}/chat-rename`;
+        await installChatRenameHook({
+          cursorDir: chosenDir,
+          command: hookCommand(chosenDir, workspaceRoot, names.hookScriptName),
+          script: renderHookScript(uriBase, activationPatterns, names.hookScriptName),
+          scriptName: names.hookScriptName,
+        });
+        log.info(`hook installed in ${chosenDir}`);
         return;
       }
-      checked.add(change.sessionId);
-      const readPrompt = (sessionId: string) =>
-        readFirstPromptWithRetry(() =>
-          (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
-        );
-      void handleCatalogTitleChange(resolveChatRenameDeps(context), change, {
-        ...options,
-        readFirstPrompt: readPrompt,
-        now,
-        notBeforeMs: startedAtMs,
-      })
-        .then((handled) => {
-          log.info(
-            `title event ${change.sessionId} title=${JSON.stringify(change.title)}: ${handled ? "renamed from first prompt" : "not renamed"}`,
+
+      const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
+      const checked = new Set<string>();
+      eventSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), (change) => {
+        // The first title event of a chat is the AI name for its first prompt. Later events are renames; skip them.
+        if (checked.has(change.sessionId)) {
+          return;
+        }
+        checked.add(change.sessionId);
+        const readPrompt = (sessionId: string) =>
+          readFirstPromptWithRetry(() =>
+            (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
           );
+        void handleCatalogTitleChange(resolveChatRenameDeps(context), change, {
+          ...options,
+          readFirstPrompt: readPrompt,
+          now,
+          notBeforeMs: startedAtMs,
         })
-        .catch((error: unknown) => log.error(`title event ${change.sessionId} failed`, error));
-    });
-    log.info("listening to onDidChangeAgentHostSessionCatalogTitle");
+          .then((handled) => {
+            log.info(
+              `title event ${change.sessionId} title=${JSON.stringify(change.title)}: ${handled ? "renamed from first prompt" : "not renamed"}`,
+            );
+          })
+          .catch((error: unknown) => log.error(`title event ${change.sessionId} failed`, error));
+      });
+      log.info("listening to onDidChangeAgentHostSessionCatalogTitle");
+    };
+
+    // The trigger is set up first so its listener comes before the existing-chats one.
+    try {
+      await setUpTrigger();
+    } finally {
+      configureExisting(settings.renameExistingDays, firstApply ? "startup" : "setting changed");
+      firstApply = false;
+    }
   };
 
   const schedule = (): Promise<void> => {
@@ -186,6 +247,7 @@ export const startChatRenameTrigger = (
       }
     }),
     { dispose: () => eventSubscription?.dispose() },
+    { dispose: stopExisting },
   );
   return schedule();
 };

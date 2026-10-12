@@ -9,6 +9,7 @@ describe("extension manifest", () => {
     expect(Object.keys(manifest.contributes.configuration.properties).sort()).toEqual([
       "chat-renamer.activationPatterns",
       "chat-renamer.hookScope",
+      "chat-renamer.renameExistingDays",
       "chat-renamer.trigger",
       "chat-renamer.worktreePrefixes",
     ]);
@@ -23,6 +24,31 @@ describe("extension manifest", () => {
 
     expect(manifest.contributes.configuration.properties["chat-renamer.activationPatterns"].default).toEqual([
       ...DEFAULT_ACTIVATION_PATTERNS,
+    ]);
+  });
+
+  it("keeps the other defaults in step with the shared defaults", async () => {
+    const { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX } = await import("chat-renamer-api");
+    const properties = manifest.contributes.configuration.properties;
+
+    expect(properties["chat-renamer.worktreePrefixes"].default).toEqual([DEFAULT_WORKTREE_PREFIX]);
+    expect(properties["chat-renamer.renameExistingDays"]).toMatchObject({
+      type: "integer",
+      minimum: 0,
+      default: DEFAULT_RENAME_EXISTING_DAYS,
+    });
+  });
+
+  it("explains in the setting that 0 turns renaming of existing chats off", () => {
+    const { markdownDescription } = manifest.contributes.configuration.properties["chat-renamer.renameExistingDays"];
+
+    expect(markdownDescription).toContain("0");
+    expect(markdownDescription).toContain("off");
+  });
+
+  it("contributes the command that renames existing chats", () => {
+    expect(manifest.contributes.commands).toEqual([
+      { command: "chat-renamer.renameExistingChats", title: "Chat Renamer: Rename Existing Chats" },
     ]);
   });
 

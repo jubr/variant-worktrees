@@ -5,7 +5,7 @@ import { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX, isRenameExisting
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
 /** Shared with variant-config's `variant.worktreePrefix` through chat-renamer-config. */
-export { DEFAULT_WORKTREE_PREFIX };
+export { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIX };
 
 export type ChatRenameTrigger = "titleEvent" | "hook";
 export type HookScope = "workspace" | "user";

@@ -16,6 +16,7 @@ describe("registerChatRenamer", () => {
     expect(registerCommand.mock.calls.map((call) => call[0])).toEqual([
       "chat-renamer.renameChat",
       "chat-renamer.renameChatFromPrompt",
+      "chat-renamer.renameExistingChats",
     ]);
   });
 
@@ -32,6 +33,7 @@ describe("registerChatRenamer", () => {
     expect(registerCommand.mock.calls.map((call) => call[0])).toEqual([
       "variant-worktrees.renameChat",
       "variant-worktrees.renameChatFromPrompt",
+      "variant-worktrees.renameExistingChats",
     ]);
   });
 
