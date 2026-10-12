@@ -1,0 +1,6 @@
+# toml-language-server: $schema=https://mise.jdx.dev/schema/mise.json
+
+[tools]
+bun = "1.4.2"
+node = "22.21.1" # node:sqlite, process.loadEnvFile
+"github:jubr/variant-worktrees" = "latest" # the `variant` CLI

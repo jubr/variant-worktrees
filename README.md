@@ -25,12 +25,14 @@ variant:
   instances:
     - name: fe
       kind: vite
-      dir: packages/example-fe
+      dir: fe
       open: http://{{slug}}.vw.localhost:{{port}}
     - name: be
       kind: nestjs
-      dir: packages/example-be
+      dir: be
 ```
+
+The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite).
 
 Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
