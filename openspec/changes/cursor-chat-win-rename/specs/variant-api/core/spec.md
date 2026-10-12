@@ -2,7 +2,7 @@
 
 ### Requirement: Worktree prefix
 
-The system SHALL name worktree directories `<prefix>-<slug>` using the resolved `variant.worktreePrefix`, which defaults to `_v`.
+The system SHALL name worktree directories `<prefix><slug>` using the resolved `variant.prefix`, which defaults to `_v-` and already holds its connector.
 
 #### Scenario: Default prefix
 
@@ -11,5 +11,5 @@ The system SHALL name worktree directories `<prefix>-<slug>` using the resolved 
 
 #### Scenario: Configured prefix
 
-- **WHEN** `variant.worktreePrefix` is `_work` and `create("add-auth")` requires a worktree
+- **WHEN** `variant.prefix` is `_work-` and `create("add-auth")` requires a worktree
 - **THEN** the worktree directory is named `_work-add-auth`

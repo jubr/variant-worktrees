@@ -62,3 +62,15 @@
 ## 12. Validation of groups 8 to 11
 
 - [x] 12.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+
+## 13. Prefix rename and the chatRenamer section
+
+- [ ] 13.1 Red then green: rename `variant.worktreePrefix` to `variant.prefix` (default `_v-`, connector included, default defined in `variant-config`), `readPrefix`, `variant-api` naming `<prefix><slug>`; `chat-renamer-config` drops the single prefix. Verify with `bun test` in `variant-config` and `variant-api`.
+- [ ] 13.2 Red then green: `chat-renamer-config` owns the full option set (`trigger`, `hookScope`, `activationPatterns`, `worktreePrefixes` default `["_v-"]`, `renameExistingDays`) with `ChatRenamerConfigSchema`; the renamer's worktree patterns insert no hyphen. Verify with `bun test` in `chat-renamer-config` and `chat-renamer-api`.
+- [ ] 13.3 Red then green: top-level `chatRenamer` in `variants.yaml` and `readChatRenamerConfig`; regenerate `variants.yaml.schema.json`. Verify with `bun test` in `variant-config`.
+- [ ] 13.4 Red then green: `variants.example.yaml` with every option, validated and coverage-checked against the schema. Verify with `bun test` in `variant-config`.
+- [ ] 13.5 Red then green: editor-over-variants.yaml-over-default settings resolution in `chat-renamer-vscode`; `variant-vscode` passes `readChatRenamerConfig` and `variant.prefix`; manifest defaults and descriptions follow. Verify with the trigger, manifest and extension tests.
+
+## 14. Validation of group 13
+
+- [ ] 14.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
