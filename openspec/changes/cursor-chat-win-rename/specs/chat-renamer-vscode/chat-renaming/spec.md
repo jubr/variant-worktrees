@@ -18,9 +18,9 @@ With setting `trigger` equal to `titleEvent` (the default), the renamer SHALL li
 - **WHEN** the same chat reports a second title
 - **THEN** no rename happens
 
-### Requirement: Only chats created while the editor runs are renamed
+### Requirement: The title event trigger renames only chats created while the editor runs
 
-The title event trigger SHALL rename a chat only when its first prompt carries a timestamp, the timestamp is later than the moment the renamer started listening, and it is no more than 30 seconds old. A chat whose first prompt cannot be read, or has no timestamp, SHALL be left alone. The renamer SHALL NOT parse the title text as a fallback.
+The title event trigger SHALL rename a chat only when its first prompt carries a timestamp, the timestamp is later than the moment the renamer started listening, and it is no more than 30 seconds old. A chat whose first prompt cannot be read, or has no timestamp, SHALL be left alone. The renamer SHALL NOT parse the title text as a fallback. Chats that existed before startup are handled only by the existing-chats requirement below.
 
 #### Scenario: Existing chats reported at load
 
@@ -83,7 +83,7 @@ When several extensions in one extension host embed the renamer, exactly one SHA
 
 ### Requirement: Settings and embedding
 
-The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`) and `activationPatterns` (string array) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
+The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array, default `["_v"]`) and `renameExistingChats` (boolean, default true) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload.
 
 #### Scenario: Standalone defaults
 
@@ -99,3 +99,38 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 
 - **WHEN** the standalone manifest contributes a setting
 - **THEN** the embedding host manifest contributes the same setting under its own section
+
+### Requirement: Existing chats are renamed when enabled
+
+With setting `renameExistingChats` true (the default) the active instance SHALL rename existing chats: chats listed by Cursor whose first prompt was submitted before the renamer started, whose first prompt can be read, and which holds a rename request. The names SHALL follow the creation-order numbering of the request capability. The run SHALL happen shortly after startup, again after Cursor has reported title events for chats that existed at startup (waiting for the reports to stop), and when the command `<prefix>.renameExistingChats` runs. Each chat examined with a readable, timestamped first prompt SHALL be recorded in the extension's persistent state, and a recorded chat SHALL NOT be examined again by an automatic run, so a title the user later changes by hand stays. The command SHALL ignore the record. A chat whose first prompt cannot be read SHALL NOT be recorded. With the setting false none of this SHALL run, and changing the setting SHALL take effect without a reload.
+
+#### Scenario: Backfill orders by creation time
+
+- **WHEN** three existing chats created at 1, 2 and 3 all hold `/vw-spec-start abc`
+- **THEN** they are renamed `abc`, `abc2` and `abc3` in creation order
+
+#### Scenario: Chats created after startup are left to the realtime path
+
+- **WHEN** a listed chat's first prompt was submitted after the renamer started
+- **THEN** the existing-chats run does not rename it
+
+#### Scenario: Recorded chats are not touched again
+
+- **WHEN** a chat was examined by an earlier run and the user renamed it by hand
+- **THEN** an automatic run leaves its title alone
+
+#### Scenario: Command re-runs everything
+
+- **WHEN** the user runs `<prefix>.renameExistingChats`
+- **THEN** recorded chats are examined again
+
+#### Scenario: Unreadable prompt is retried later
+
+- **WHEN** a listed chat's first prompt cannot be read
+- **THEN** it is not renamed and not recorded
+
+#### Scenario: Switched off
+
+- **WHEN** `renameExistingChats` is false
+- **THEN** no existing chat is renamed at startup, after title events, or by the automatic runs
+
