@@ -8,6 +8,7 @@ export * from "./chat-rename-hooks";
 export * from "./chat-rename-patterns";
 export * from "./chat-rename-settings";
 export * from "./chat-rename-slash";
+export * from "./chat-renamer-claim";
 export * from "./chat-renamer-names";
 export * from "./chat-title-numbering";
 export * from "./cursor-chat-rename";
