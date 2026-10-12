@@ -1,4 +1,36 @@
+## MODIFIED Requirements
+
+### Requirement: Seed command configuration
+
+The system SHALL allow `variants.yaml` to define a seed command per variant (`variants.<slug>.seed`) or for all variants (`variant.seed`). The former top-level `seed` key SHALL no longer be accepted.
+
+#### Scenario: Global seed command
+- **WHEN** `variants.yaml` has `variant.seed: "bun run db:seed"`
+- **THEN** `variant provision` executes that command with variant environment
+
+#### Scenario: Per-variant seed override
+- **WHEN** config has `variants.main.seed = "echo skip"` and `variant.seed = "bun run db:seed"`
+- **THEN** provisioning slug `main` runs `echo skip`
+
+#### Scenario: Former top-level seed
+- **WHEN** `variants.yaml` has a top-level `seed` key
+- **THEN** loading the configuration fails validation
+
 ## ADDED Requirements
+
+### Requirement: Instance open URL
+
+The system SHALL accept an optional `open` string on each entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}` and `{{port}}`, for example `http://{{slug}}.vw.localhost:{{port}}`. The value SHALL be validated as a non-empty string and carried unchanged in the resolved configuration; this change does not launch it.
+
+#### Scenario: Open template accepted
+
+- **WHEN** an instance sets `open: http://{{slug}}.vw.localhost:{{port}}`
+- **THEN** loading succeeds and the resolved instance carries that exact string
+
+#### Scenario: Empty open template
+
+- **WHEN** an instance sets `open: ""`
+- **THEN** loading the configuration fails validation
 
 ### Requirement: Variant name prefix
 
