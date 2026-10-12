@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../packages/variant-config/variants.yaml.schema.json
+#
+# The example project: a Vite app (fe) and a NestJS app (be) on SQLite.
+db:
+  dialect: sqlite
+
+variant:
+  seed: node scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
+  instances:
+    - name: fe
+      kind: vite
+      dir: fe
+      up: bun run dev
+      watch: bun run build:watch
+      open: http://{{slug}}.vw.localhost:{{port}}
+    - name: be
+      kind: nestjs
+      dir: be
+      up: bun run start:dev
+      watch: bun run build:watch
+      dotenv: .env # copied from .env.example and amended with the variant's PORT and SQLITE_DATABASE

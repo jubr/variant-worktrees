@@ -27,14 +27,14 @@ variant:
   instances:
     - name: fe
       kind: vite # nestjs
-      dir: packages/example-fe
+      dir: fe
       up: bun run dev
       watch: bun run build:watch
       open: http://{{slug}}.vw.localhost:{{port}} # URL template, placeholders {{slug}} and {{port}}; autodetected vite instances get this default
       dotenv: .env.local # env file in dir, copied for a variant and amended with its values; most useful for nestjs
     - name: be
       kind: nestjs
-      dir: packages/example-be
+      dir: be
       up: bun run start:dev
       watch: bun run build:watch
       dotenv: .env

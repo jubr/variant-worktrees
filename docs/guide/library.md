@@ -44,11 +44,11 @@ variant:
   instances:
     - name: fe
       kind: vite
-      dir: packages/example-fe
+      dir: fe
       open: http://{{slug}}.vw.localhost:{{port}}
     - name: be
       kind: nestjs
-      dir: packages/example-be
+      dir: be
 ```
 
 Use `variant.instances` for explicit Vite/NestJS directories. `open` is a URL template

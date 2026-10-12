@@ -1,0 +1,6 @@
+{
+  "name": "variant-example",
+  "private": true,
+  "description": "Example project for variant-worktrees: a Vite app and a NestJS app on SQLite",
+  "workspaces": ["fe", "be"]
+}
