@@ -13,7 +13,6 @@ export default defineConfig({
       "/api": {
         target: `http://localhost:${process.env.VARIANT_API_PORT || 3000}`,
         changeOrigin: true,
-        ws: true,
       },
     },
   },
