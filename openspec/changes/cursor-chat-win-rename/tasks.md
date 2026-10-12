@@ -49,16 +49,16 @@
 
 ## 10. Shared config package
 
-- [ ] 10.1 Red then green: new `packages/chat-renamer-config` with the defaults entry and the `./schema` entry (prefix, activation patterns, day window). Verify with `bun test` in that package, including that the main entry does not load Zod.
-- [ ] 10.2 Red then green: `chat-renamer-api` and `variant-config` take their defaults and the prefix schema from it; root `build` and `test` scripts build it first; regenerate `variants.yaml.schema.json` if it changes. Verify with `bun test` in both packages.
+- [x] 10.1 Red then green: new `packages/chat-renamer-config` with the defaults entry and the `./schema` entry (prefix, activation patterns, day window). Verify with `bun test` in that package, including that the main entry does not load Zod.
+- [x] 10.2 Red then green: `chat-renamer-api` and `variant-config` take their defaults and the prefix schema from it; root `build` and `test` scripts build it first; regenerate `variants.yaml.schema.json` if it changes. Verify with `bun test` in both packages.
 
 ## 11. Existing chats
 
 - [x] 11.1 Red then green: pure `planExistingRenames` (grouping, creation order, literal slash titles, no-op titles). Verify with its spec.
-- [~] 11.2 Red then green: `renameExistingChats` orchestration (list, skip recorded, newer and out-of-window chats, `updatedAt` prefilter, read once, plan, rename, record). Verify with its spec.
-- [~] 11.3 Red then green: setting `renameExistingDays` (default 7, 0 = off) replaces the boolean in `readTriggerSettings`. Verify with its spec.
-- [ ] 11.4 Red then green: in `packages/chat-renamer-vscode`, global-state record, startup, debounced title-event and command triggers, `[existing-chats]` log lines naming the trigger and `<section>.renameExistingDays=<value>`, the off explanation, and the command while off; manifest and command copies in `packages/variant-vscode`. Verify with the trigger and manifest tests.
+- [x] 11.2 Red then green: `renameExistingChats` orchestration (list, skip recorded, newer and out-of-window chats, `updatedAt` prefilter, read once, plan, rename, record). Verify with its spec.
+- [x] 11.3 Red then green: setting `renameExistingDays` (default 7, 0 = off) replaces the boolean in `readTriggerSettings`. Verify with its spec.
+- [x] 11.4 Red then green: in `packages/chat-renamer-vscode`, global-state record, startup, debounced title-event and command triggers, `[existing-chats]` log lines naming the trigger and `<section>.renameExistingDays=<value>`, the off explanation, and the command while off; manifest and command copies in `packages/variant-vscode`. Verify with the trigger and manifest tests.
 
 ## 12. Validation of groups 8 to 11
 
-- [ ] 12.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+- [x] 12.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
