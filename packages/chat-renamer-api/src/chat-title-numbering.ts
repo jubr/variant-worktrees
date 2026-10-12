@@ -5,7 +5,8 @@ export const titleBase = (title: string): string => title.replace(TRAILING_NUMBE
 
 const baseOf = titleBase;
 
-const numberOf = (title: string): number => {
+/** The trailing number of a title; a title without one counts as 1. */
+export const titleNumber = (title: string): number => {
   const match = TRAILING_NUMBER.exec(title);
   return match?.[1] ? Number.parseInt(match[1], 10) : 1;
 };
@@ -24,6 +25,12 @@ export const numberedTitle = (candidate: string, peerTitles: readonly string[]):
     return candidate;
   }
   const key = base.toLowerCase();
-  const numbers = peerTitles.filter((title) => baseOf(title).toLowerCase() === key).map(numberOf);
+  const numbers = peerTitles.filter((title) => baseOf(title).toLowerCase() === key).map(titleNumber);
   return numbers.length === 0 ? candidate : `${base}${Math.max(...numbers) + 1}`;
+};
+
+/** Whether two titles share a non-empty base (trailing digits removed), compared case-insensitively. */
+export const hasSameBase = (a: string, b: string): boolean => {
+  const base = baseOf(a).toLowerCase();
+  return base.length > 0 && base === baseOf(b).toLowerCase();
 };

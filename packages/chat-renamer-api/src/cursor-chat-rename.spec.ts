@@ -247,6 +247,44 @@ describe("handleCatalogTitleChange with the first prompt", () => {
   });
 });
 
+describe("handleCatalogTitleChange when the chat already has the requested base", () => {
+  const NOW = Date.parse("2026-10-09T15:00:00.000Z");
+  const run = (title: string, text: string) => {
+    const { deps, calls } = makeDeps();
+    const handled = handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title },
+      {
+        readFirstPrompt: async () => ({ text, submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+      },
+    );
+    return { handled, calls };
+  };
+
+  it("leaves a chat alone whose title has the base of a pattern title", async () => {
+    const { handled, calls } = run("abc4", "/vw-spec-start abc");
+
+    expect(await handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("renames a chat whose title has another base", async () => {
+    const { handled, calls } = run("Fix the login", "/vw-spec-start abc");
+
+    expect(await handled).toBe(true);
+    expect(calls[0]?.title).toBe("abc");
+  });
+
+  it("does not skip a slash title", async () => {
+    const { handled, calls } = run("abc4", "/chat-rename abc");
+
+    expect(await handled).toBe(true);
+    expect(calls[0]?.title).toBe("abc");
+  });
+});
+
 describe("handleCatalogTitleChange only for chats created after the renamer started", () => {
   const NOW = Date.parse("2026-10-09T15:00:00.000Z");
   const STARTED = NOW - 10_000;
