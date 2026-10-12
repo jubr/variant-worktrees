@@ -41,6 +41,16 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { instances: [{ ...instance, open: "" }] } }).success).toBe(false);
   });
 
+  it("rejects an open URL template on a NestJS instance", () => {
+    const instance = { kind: "nestjs", dir: "server", open: "http://{{slug}}.vw.localhost:{{port}}" };
+    const result = VariantsConfigSchema.safeParse({ variant: { instances: [instance] } });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(["variant", "instances", 0, "open"]);
+    }
+  });
+
   it("accepts a chatRenamer section with every option", () => {
     const result = VariantsConfigSchema.safeParse({
       chatRenamer: {

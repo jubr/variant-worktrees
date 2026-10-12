@@ -23,15 +23,24 @@ export const VariantEntrySchema = z.strictObject({
 });
 export type VariantEntry = z.infer<typeof VariantEntrySchema>;
 
-export const VariantInstanceSchema = z.strictObject({
-  name: z.string().min(1).optional(),
-  kind: z.enum(["vite", "nestjs"]),
-  dir: z.string().min(1),
-  up: z.string().min(1).optional(),
-  watch: z.string().min(1).optional(),
-  /** URL template to open the instance; `{{slug}}` and `{{port}}` are placeholders. */
-  open: z.string().min(1).optional(),
-});
+/** Template of the URL that opens a Vite instance. `{{slug}}` and `{{port}}` are placeholders. */
+export const DEFAULT_OPEN_URL = "http://{{slug}}.vw.localhost:{{port}}";
+
+export const VariantInstanceSchema = z
+  .strictObject({
+    name: z.string().min(1).optional(),
+    kind: z.enum(["vite", "nestjs"]),
+    dir: z.string().min(1),
+    up: z.string().min(1).optional(),
+    watch: z.string().min(1).optional(),
+    /** URL template to open the instance (Vite only); `{{slug}}` and `{{port}}` are placeholders. */
+    open: z.string().min(1).optional(),
+  })
+  .superRefine((instance, context) => {
+    if (instance.open !== undefined && instance.kind !== "vite") {
+      context.addIssue({ code: "custom", path: ["open"], message: "open is only valid on a vite instance" });
+    }
+  });
 export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
 
 /**
