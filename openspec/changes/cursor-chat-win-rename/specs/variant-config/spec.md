@@ -20,17 +20,61 @@ The system SHALL allow `variants.yaml` to define a seed command per variant (`va
 
 ### Requirement: Instance open URL
 
-The system SHALL accept an optional `open` string on each entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}` and `{{port}}`, for example `http://{{slug}}.vw.localhost:{{port}}`. The value SHALL be validated as a non-empty string and carried unchanged in the resolved configuration; this change does not launch it.
+The system SHALL accept an optional `open` string on a Vite entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}` and `{{port}}`, for example `http://{{slug}}.vw.localhost:{{port}}`. `open` SHALL be rejected on any other kind of instance and SHALL NOT be an empty string. A Vite instance found by autodetection SHALL carry the default template `http://{{slug}}.vw.localhost:{{port}}`; an explicit instance carries only what it sets. The system SHALL offer a function that returns the template of an instance with both placeholders replaced, or nothing when the instance has no template. This change does not launch the URL.
 
 #### Scenario: Open template accepted
 
-- **WHEN** an instance sets `open: http://{{slug}}.vw.localhost:{{port}}`
+- **WHEN** a Vite instance sets `open: http://{{slug}}.vw.localhost:{{port}}`
 - **THEN** loading succeeds and the resolved instance carries that exact string
 
 #### Scenario: Empty open template
 
 - **WHEN** an instance sets `open: ""`
 - **THEN** loading the configuration fails validation
+
+#### Scenario: Open on a NestJS instance
+
+- **WHEN** an instance of kind `nestjs` sets `open`
+- **THEN** loading the configuration fails validation
+
+#### Scenario: Autodetected Vite instance
+
+- **WHEN** `variant.instances` is absent and a searched subdirectory contains Vite configuration
+- **THEN** the detected instance carries the default `open` template, and a detected NestJS instance carries none
+
+#### Scenario: Placeholders replaced
+
+- **WHEN** the URL of a Vite instance with the default template is requested for slug `add-auth` and the instance's port is 62060
+- **THEN** the result is `http://add-auth.vw.localhost:62060`
+
+### Requirement: Instance ports
+
+The system SHALL resolve the port of an instance of a variant from the state file `<cacheDir>/<slug>.yaml` when it names one, and otherwise pick a random free port. The state file keeps the format of existing variant tooling: `spa_port` holds the port of a Vite instance and `api_port` that of a NestJS instance, each a number or a numeric string. A missing, unreadable or invalid file, or a missing or non-numeric key, SHALL fall back to a random free port. The system SHALL NOT write the state file. `variant.cacheDir` SHALL be an optional non-empty string, resolved relative to the directory of `variants.yaml`, and SHALL default to `.cache/variants` there.
+
+#### Scenario: Assigned port
+
+- **WHEN** `<cacheDir>/demo.yaml` holds `spa_port: "62060"` and `api_port: "62061"`
+- **THEN** the port of a Vite instance of slug `demo` is 62060 and that of a NestJS instance is 62061
+
+#### Scenario: No assignment
+
+- **WHEN** no state file exists for the slug
+- **THEN** the port is a random free port between 1024 and 65535
+
+#### Scenario: Invalid state file
+
+- **WHEN** the state file is not valid YAML or holds a non-numeric `spa_port`
+- **THEN** the port is a random free port
+
+#### Scenario: Default cache directory
+
+- **WHEN** `variants.yaml` does not define `variant.cacheDir`
+- **THEN** the resolved cache directory is `.cache/variants` below the directory of `variants.yaml`
+
+#### Scenario: Custom cache directory
+
+- **WHEN** `variants.yaml` defines `variant.cacheDir: state`
+- **THEN** state files are read from `state` below the directory of `variants.yaml`
 
 ### Requirement: Variant name prefix
 

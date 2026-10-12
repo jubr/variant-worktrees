@@ -103,3 +103,13 @@
 
 - [x] 20.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 
+## 21. Vite-only open, instance ports
+
+- [ ] 21.1 Red then green: `open` is valid on Vite instances only, autodetected Vite instances carry the default template; `variants.example.yaml` and schema file follow. Verify with `bun test` in `variant-config`.
+- [ ] 21.2 Red then green: `variant.cacheDir` (default `.cache/variants`), instance port from `<cacheDir>/<slug>.yaml` (`spa_port` Vite, `api_port` NestJS) or a random free port, and `openUrlFor`. Verify with `bun test` in `variant-config`.
+- [ ] 21.3 `example-fe` follows the reference `vite.config.ts` pattern (host `0.0.0.0`, `allowedHosts`, `/api` proxy to `VARIANT_API_PORT`); the READMEs follow. Verify with `vite build` and `task check:full`.
+
+## 22. Validation of group 21
+
+- [ ] 22.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+
