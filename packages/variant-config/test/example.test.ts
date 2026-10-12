@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
-import { VariantsConfigSchema, variantsJsonSchema } from "../src/schema.js";
+import {
+  VariantsConfigSchema,
+  VariantsLocalSchema,
+  variantsJsonSchema,
+  variantsLocalJsonSchema,
+} from "../src/schema.js";
 
 type JsonSchema = {
   properties?: Record<string, JsonSchema>;
@@ -67,5 +72,25 @@ describe("variants.example.yaml", () => {
     const { chatRenamer: _omitted, ...withoutSection } = example as Record<string, unknown>;
 
     expect(missingOptions(variantsJsonSchema as JsonSchema, withoutSection, "")).toContain("chatRenamer");
+  });
+});
+
+describe("variants.local.example.yaml", () => {
+  const text = readFileSync(new URL("../variants.local.example.yaml", import.meta.url), "utf8");
+  const local: unknown = parseYaml(text);
+
+  it("validates against the local schema", () => {
+    const result = VariantsLocalSchema.safeParse(local);
+
+    expect(result.success ? [] : result.error.issues).toEqual([]);
+  });
+
+  it("specifies every option of the local schema", () => {
+    expect(missingOptions(variantsLocalJsonSchema as JsonSchema, local, "")).toEqual([]);
+  });
+
+  it("lists alternatives in end-of-line comments", () => {
+    expect(text).toMatch(/mode: watch +# .*up/);
+    expect(text).toMatch(/dialect: postgres +# .*sqlite/);
   });
 });

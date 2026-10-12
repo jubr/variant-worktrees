@@ -1,11 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { variantsJsonSchema } from "../src/schema.js";
+import { variantsJsonSchema, variantsLocalJsonSchema } from "../src/schema.js";
 
-describe("variants.yaml.schema.json", () => {
-  it("is the JSON schema the code generates", () => {
-    const committed = JSON.parse(readFileSync(new URL("../variants.yaml.schema.json", import.meta.url), "utf8"));
+const committed = (name: string): unknown => JSON.parse(readFileSync(new URL(`../${name}`, import.meta.url), "utf8"));
+const generated = (schema: unknown): unknown => JSON.parse(JSON.stringify(schema));
 
-    expect(committed).toEqual(JSON.parse(JSON.stringify(variantsJsonSchema)));
+describe("JSON schema files", () => {
+  it("variants.yaml.schema.json is the JSON schema the code generates", () => {
+    expect(committed("variants.yaml.schema.json")).toEqual(generated(variantsJsonSchema));
+  });
+
+  it("variants.local.yaml.schema.json is the JSON schema the code generates", () => {
+    expect(committed("variants.local.yaml.schema.json")).toEqual(generated(variantsLocalJsonSchema));
   });
 });

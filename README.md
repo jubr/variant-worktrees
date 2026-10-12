@@ -36,7 +36,7 @@ Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
-`open` is only valid on Vite instances (autodetected ones get `http://{{slug}}.vw.localhost:{{port}}`). `{{port}}` is the port assigned in `.cache/variants/<slug>.yaml` (`spa_port` for Vite, `api_port` for NestJS; directory set by `variant.cacheDir`), otherwise a random free port. `openUrlFor` in `variant-config` fills the template; nothing launches it yet.
+Instances take an optional `open` URL template (`{{slug}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.vw.localhost:{{port}}`) and an optional `dotenv` file, relative to `dir`, that is copied for a variant and amended with its values (`amendDotenv`, `dotenvFor`). Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `openUrlFor` fills the template and `writeRuntime` writes the section; nothing launches or writes them during `provision` yet.
 
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section

@@ -121,3 +121,6 @@ docs/api
 .task/
 mise.local.toml
 
+
+# Ephemeral per-variant runtime state (variant-config)
+variants.local.yaml
