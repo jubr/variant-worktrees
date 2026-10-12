@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "../src/index.js";
+import { loadConfig, seedCommandFor } from "../src/index.js";
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-config-"));
 
@@ -75,10 +75,27 @@ describe("loadConfig", () => {
     }
   });
 
+  it("resolves the seed command from variant.seed, which a per-variant seed overrides", () => {
+    const directory = tempDirectory();
+    try {
+      writeFileSync(
+        join(directory, "variants.yaml"),
+        "variant:\n  seed: bun run db:seed\nvariants:\n  main:\n    seed: echo skip\n",
+      );
+
+      const config = loadConfig({ cwd: directory });
+
+      expect(seedCommandFor(config, "other")).toBe("bun run db:seed");
+      expect(seedCommandFor(config, "main")).toBe("echo skip");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("resolves the default prefix _v-", () => {
     const directory = tempDirectory();
     try {
-      writeFileSync(join(directory, "variants.yaml"), "seed: ./seed.sh\n");
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  seed: ./seed.sh\n");
 
       expect(loadConfig({ cwd: directory }).variant?.prefix).toBe("_v-");
     } finally {

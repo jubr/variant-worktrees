@@ -31,7 +31,7 @@ describe("readChatRenamerConfig", () => {
 
   it("returns an empty section when the file has none", () =>
     withDirectory((directory) => {
-      writeFileSync(join(directory, "variants.yaml"), "seed: ./seed.sh\n");
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  seed: ./seed.sh\n");
 
       expect(readChatRenamerConfig(directory)).toEqual({});
     }));

@@ -40,8 +40,17 @@ db:
 variant:
   up: bun run db:migrate
   watch: bun run dev
-seed: bun run db:seed
+  seed: bun run db:seed
+  instances:
+    - name: fe
+      kind: vite
+      dir: packages/example-fe
+      open: http://{{slug}}.vw.localhost:{{port}}
+    - name: be
+      kind: nestjs
+      dir: packages/example-be
 ```
 
-Use `variant.instances` for explicit Vite/NestJS directories. If omitted,
+Use `variant.instances` for explicit Vite/NestJS directories; `open` is a URL template
+with `{{slug}}` and `{{port}}` placeholders. If omitted,
 subdirectories below the configuration file are searched automatically.

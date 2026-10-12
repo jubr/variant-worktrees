@@ -21,12 +21,15 @@ Create `variants.yaml` at workspace root:
 variant:
   up: bun run db:migrate
   watch: bun run dev
+  seed: bun run db:seed
   instances:
-    - kind: vite
-      dir: app
-    - kind: nestjs
-      dir: server
-seed: bun run db:seed
+    - name: fe
+      kind: vite
+      dir: packages/example-fe
+      open: http://{{slug}}.vw.localhost:{{port}}
+    - name: be
+      kind: nestjs
+      dir: packages/example-be
 ```
 
 Database settings load from `mise.local.toml` first, then environment

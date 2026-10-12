@@ -51,10 +51,6 @@
       },
       "additionalProperties": false
     },
-    "seed": {
-      "type": "string",
-      "minLength": 1
-    },
     "variant": {
       "type": "object",
       "properties": {
@@ -71,6 +67,10 @@
           "minLength": 1
         },
         "watch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "seed": {
           "type": "string",
           "minLength": 1
         },
@@ -99,6 +99,10 @@
                 "minLength": 1
               },
               "watch": {
+                "type": "string",
+                "minLength": 1
+              },
+              "open": {
                 "type": "string",
                 "minLength": 1
               }
