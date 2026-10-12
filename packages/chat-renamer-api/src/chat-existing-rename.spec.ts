@@ -215,6 +215,23 @@ describe("renameExistingChats", () => {
     expect(renamed).toEqual([]);
   });
 
+  it("leaves a chat alone whose title already has the base, and still records it", async () => {
+    const { deps, options, renamed, recorded } = setup(
+      [
+        { sessionId: "kept", title: "abc3" },
+        { sessionId: "next", title: "AI" },
+      ],
+      { kept: old("/vw-spec-start abc", 2_000), next: old("/vw-spec-start abc", 1_000) },
+    );
+
+    await renameExistingChats(deps, options);
+
+    expect(renamed.map(({ sessionId, title }) => ({ sessionId, title }))).toEqual([
+      { sessionId: "next", title: "abc" },
+    ]);
+    expect(recorded).toEqual([["kept", "next"]]);
+  });
+
   it("uses a slash command title literally", async () => {
     const { deps, options, renamed } = setup(
       [

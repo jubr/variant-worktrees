@@ -117,4 +117,71 @@ describe("planExistingRenames", () => {
   it("returns nothing for no chats", () => {
     expect(planExistingRenames([])).toEqual([]);
   });
+
+  describe("a chat that already has the requested base", () => {
+    it("is left alone, whatever its number", () => {
+      expect(planExistingRenames([chat("a", 1, "abc", { currentTitle: "abc3" })])).toEqual([]);
+    });
+
+    it("is left alone regardless of case", () => {
+      expect(planExistingRenames([chat("a", 1, "abc", { currentTitle: "ABC" })])).toEqual([]);
+    });
+
+    it("is not left alone for a slash title, which is literal", () => {
+      const plan = planExistingRenames([
+        chat("a", 1, "abc", { currentTitle: "abc3", request: { title: "abc", viaPattern: false } }),
+      ]);
+
+      expect(plan).toEqual([{ sessionId: "a", title: "abc" }]);
+    });
+
+    it("holds its number, so the others take the next free ones in creation order", () => {
+      const plan = planExistingRenames([
+        chat("a", 1, "abc", { currentTitle: "abc" }),
+        chat("b", 2, "abc", { currentTitle: "x" }),
+        chat("c", 3, "abc", { currentTitle: "y" }),
+      ]);
+
+      expect(plan).toEqual([
+        { sessionId: "b", title: "abc2" },
+        { sessionId: "c", title: "abc3" },
+      ]);
+    });
+
+    it("holds the plain title even when it is newer than a chat that needs a name", () => {
+      const plan = planExistingRenames([
+        chat("old", 1, "abc", { currentTitle: "x" }),
+        chat("new", 2, "abc", { currentTitle: "abc" }),
+      ]);
+
+      expect(plan).toEqual([{ sessionId: "old", title: "abc2" }]);
+    });
+
+    it("skips the numbers held by untouched chats", () => {
+      const plan = planExistingRenames([
+        chat("a", 1, "abc", { currentTitle: "x" }),
+        chat("b", 2, "abc", { currentTitle: "abc2" }),
+        chat("c", 3, "abc", { currentTitle: "y" }),
+        chat("d", 4, "abc", { currentTitle: "z" }),
+      ]);
+
+      expect(plan).toEqual([
+        { sessionId: "a", title: "abc" },
+        { sessionId: "c", title: "abc3" },
+        { sessionId: "d", title: "abc4" },
+      ]);
+    });
+
+    it("only counts chats of its own group", () => {
+      const plan = planExistingRenames([
+        chat("a", 1, "def", { currentTitle: "abc" }),
+        chat("b", 2, "abc", { currentTitle: "x" }),
+      ]);
+
+      expect(plan).toEqual([
+        { sessionId: "a", title: "def" },
+        { sessionId: "b", title: "abc" },
+      ]);
+    });
+  });
 });

@@ -1,6 +1,6 @@
 import type { FirstPrompt } from "./chat-first-prompt";
 import { findRenameRequest, type RenameRequest } from "./chat-rename-patterns";
-import { numberedTitle } from "./chat-title-numbering";
+import { hasSameBase, numberedTitle } from "./chat-title-numbering";
 
 export const BUILTIN_AGENT_HOST_ID = "anysphere.cursor-agent-host";
 
@@ -184,7 +184,7 @@ const DEFAULT_MAX_AGE_MS = 30 * 1000;
  * Title-event trigger. Cursor's title change event is the moment the first prompt has been named, so this reads the
  * chat's first prompt and, when it holds a rename request, renames the chat. A chat whose first prompt cannot be
  * read, or carries no timestamp, is left alone: without a timestamp there is no telling a new chat from an old one.
- * Ordinary and malformed requests are ignored.
+ * Ordinary and malformed requests are ignored, and so is a pattern title for a chat whose title already has its base.
  */
 export const handleCatalogTitleChange = async (
   deps: ChatRenameDeps,
@@ -204,6 +204,9 @@ export const handleCatalogTitleChange = async (
   }
   const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
   if (request.kind !== "rename") {
+    return false;
+  }
+  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
     return false;
   }
   await applyRequest(deps, change.sessionId, request, options);
