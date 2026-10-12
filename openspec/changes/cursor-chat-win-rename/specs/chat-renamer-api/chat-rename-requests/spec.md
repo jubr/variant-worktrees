@@ -90,3 +90,62 @@ A title that came from an activation pattern SHALL be made distinct from the tit
 
 - **WHEN** the prompt is `/chat-rename abc` and another open chat is titled `abc`
 - **THEN** the chat is renamed `abc`
+
+### Requirement: Dragged-in worktrees derive their slug
+
+A prompt line that is a command of the form `/<word>-spec-<word>` followed by `@` and a path whose last segment is `<prefix>-<slug>` SHALL derive the title `<slug>`, for each configured worktree prefix. The slug SHALL consist of letters, digits, `_` and `-`. A trailing `/` after the path SHALL be accepted. Only the last path segment SHALL count. A prefix SHALL match literally, whatever characters it holds. An empty prefix list SHALL turn the derivation off. Titles derived this way SHALL be numbered like other pattern titles.
+
+#### Scenario: Default prefix
+
+- **WHEN** a prompt line is `/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename`
+- **THEN** the requested title is `cursor-chat-win-rename`
+
+#### Scenario: Custom prefix
+
+- **WHEN** the configured prefixes are `_work` and a prompt line is `/vw-spec-iterate @/Users/me/vw/_work-my-slug/`
+- **THEN** the requested title is `my-slug`
+
+#### Scenario: Prefix that is not configured
+
+- **WHEN** the configured prefixes are `_v` and a prompt line is `/vw-spec-iterate @/Users/me/vw/_work-my-slug`
+- **THEN** the prompt holds no rename request
+
+#### Scenario: Last segment wins
+
+- **WHEN** a prompt line is `/vw-spec-iterate @/Users/me/_v-outer/_v-inner`
+- **THEN** the requested title is `inner`
+
+#### Scenario: Derivation switched off
+
+- **WHEN** the configured prefix list is empty
+- **THEN** `/vw-spec-iterate @/Users/me/vw/_v-my-slug` holds no rename request
+
+### Requirement: Existing chats are numbered by creation order
+
+When several existing chats yield pattern titles with the same base (case-insensitive, trailing digits removed), the plan SHALL give the oldest chat the plain base and the n-th oldest the base followed by n. Chats with equal creation times SHALL be ordered by chat id. A title that came from a slash command SHALL be used as written and SHALL NOT count toward a group. A chat whose current title already equals its planned title SHALL NOT be renamed. The plan SHALL be independent of the order in which chats are listed.
+
+#### Scenario: Oldest first
+
+- **WHEN** three chats created at 1, 2 and 3 all yield `abc` (or `abc7`, `abc`)
+- **THEN** the plan names them `abc`, `abc2` and `abc3` in creation order
+
+#### Scenario: Listing order does not matter
+
+- **WHEN** the same chats are listed newest first
+- **THEN** the plan is the same
+
+#### Scenario: Separate groups
+
+- **WHEN** one chat yields `abc` and another `def`
+- **THEN** both keep their plain titles
+
+#### Scenario: Slash titles stay literal
+
+- **WHEN** a chat yields `abc` from `/chat-rename abc` and an older one yields `abc` from a pattern
+- **THEN** the older chat is named `abc` and the slash chat keeps `abc`
+
+#### Scenario: Already named
+
+- **WHEN** a chat's current title equals its planned title
+- **THEN** it is left out of the changes
+

@@ -75,10 +75,24 @@ Cursor gates `cursor.projectAgentHostSessionTitle` (and the catalog APIs) to the
 
 Each prompt line is tried against the slash commands first (literal title), then against the activation patterns (first capture group that matched, else the whole match). Titles from patterns are numbered: strip trailing digits to get the base; peers are the other open chats' titles with the same base (case-insensitive); the result is `{base}{max + 1}`, a peer without a number counting as 1; no peers leaves the title as typed.
 
-### Realtime only
+### Realtime title events
 
 The title-event trigger acts on the first title event of a chat, and only when the chat's first prompt was submitted after the renamer started listening and no more than 30 seconds ago. Cursor re-emits title events for existing chats when it loads them, so a chat that predates the renamer must never be renamed. If the first prompt cannot be read or has no timestamp, the chat is left alone; the earlier fallback that parsed the title text is removed because it has no timestamp to check.
 
 ### One active instance
 
 Two extensions embedding the renamer each carry their own bundled copy, so the claim lives on `globalThis` under `Symbol.for("chat-renamer.owner")`, holding the claiming extension id. The first extension to activate owns the triggers (title-event listener, hook, URI handler). Another instance logs who owns it, removes any hook script it wrote earlier, and stays idle. The owner releases the claim on dispose. The commands stay registered in both because their ids differ and a user invokes them explicitly. Instances in different windows are separate processes and are not coordinated; the rename is idempotent.
+
+### Worktree path mentions
+
+A dragged-in worktree arrives as `@/abs/path/_v-my-slug`. For every configured prefix the renamer derives the pattern `/[a-z]+-spec-[a-z]+\s+@\S*/<escaped prefix>-([A-Za-z0-9_-]+)/?(?=\s|$)` and tries it before the user's own patterns; the greedy `\S*` makes the last path segment win. The prefix list is the `worktreePrefixes` setting (default `["_v"]`, empty turns the feature off) plus whatever the host adds. `variant-vscode` adds `variant.worktreePrefix` from `variants.yaml`, read with a light `readWorktreePrefix` helper so no database detection runs in the extension host. The prefix itself is a new optional `variant.worktreePrefix` key (default `_v`) in `variant-config`; `variant-api` names new worktrees with it so the config is not decorative.
+
+### Existing chats
+
+Setting `renameExistingChats` (default on). A pure planner takes, per chat, its creation time (the first human prompt's timestamp from Cursor's store) and its derived request, groups pattern titles by base (case-insensitive), orders each group oldest first, and gives the first the plain base and the n-th `{base}{n}`; slash titles stay literal. A chat is renamed only when its title differs from the plan.
+
+The orchestration lists chats through `cursor.listAgentHostSessionCatalog`, skips chats already recorded in the renamer's global state, skips chats created after startup (the realtime path owns those), reads each first prompt once (no retry), plans, renames, then records every examined chat so a title the user later changes by hand is not reverted at the next startup. Chats whose prompt cannot be read are not recorded and are retried next time. The numbering covers only the chats examined in that run; chats recorded by an earlier run keep their titles.
+
+It runs shortly after startup, again after the burst of title events Cursor emits when it finally loads existing chats (debounced), and on command `<prefix>.renameExistingChats`. The command ignores the record, since the user asked for it explicitly.
+
+Known limits: the catalog may be incomplete at startup (hence the debounced second run); the setting defaults on, so a title the user set by hand before the first run is replaced when the chat's first prompt holds a rename request; each chat costs two `sqlite3` calls.

@@ -33,7 +33,27 @@
 - [x] 6.2 Green: add the `notBeforeMs` rule, require a timestamp, drop the title-text fallback, and default `maxAgeMs` to 30 seconds. Verify the cases pass.
 - [x] 6.3 Pass the renamer start time from `packages/chat-renamer-vscode`. Verify with a trigger-level test that events for older chats rename nothing.
 
-## 7. Renamer validation
+## 7. Validation of groups 4 to 6
 
 - [x] 7.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
+
+## 8. Worktree prefix in variant-config and variant-api
+
+- [ ] 8.1 Red then green: `variant.worktreePrefix` in the schema (default `_v`, no separators), resolved on the loaded config, and a `readWorktreePrefix` reader; regenerate `variants.yaml.schema.json`. Verify with `bun test` in `packages/variant-config`.
+- [ ] 8.2 Red then green: `ensureWorktree` names worktrees with the prefix from the client context. Verify with `bun test` in `packages/variant-api`.
+
+## 9. Worktree path patterns
+
+- [ ] 9.1 Red then green: `worktreeActivationPatterns(prefixes)` in `packages/chat-renamer-api`, tried before user patterns. Verify with its spec.
+- [ ] 9.2 Red then green: setting `worktreePrefixes`, host-added prefixes, hook script gets the combined patterns, `variant-vscode` adds the prefix from `variants.yaml`. Verify with the trigger and manifest tests.
+
+## 10. Existing chats
+
+- [ ] 10.1 Red then green: pure `planExistingRenames` (grouping, creation order, literal slash titles, no-op titles). Verify with its spec.
+- [ ] 10.2 Red then green: `renameExistingChats` orchestration (list, skip recorded and newer chats, read once, plan, rename, record). Verify with its spec.
+- [ ] 10.3 Red then green: setting `renameExistingChats`, global-state record, startup, debounced title-event and command triggers in `packages/chat-renamer-vscode`, manifest copies in `packages/variant-vscode`. Verify with the trigger and manifest tests.
+
+## 11. Validation of groups 8 to 10
+
+- [ ] 11.1 Run `task format:write`, `task check:full`, and `openspec validate --all --strict --no-interactive` and verify each exits 0.
 

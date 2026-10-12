@@ -8,13 +8,17 @@ Cursor agent chat tabs are proprietary webview UI. The public VS Code extension 
 - Show the match list, or an explicit empty result, in a dedicated output channel.
 - Document that any discovered command is reverse-engineered and version-fragile. The extension does not call it.
 - Add an experimental chat renamer, extracted into `chat-renamer-api` (editor-independent logic) and `chat-renamer-vscode` (a single-purpose extension that Variant also embeds). It renames a Cursor chat from its first prompt: `/chat-rename` and `/rename-chat` commands plus user-editable activation patterns, with numbered titles so open chats stay distinct.
-- The renamer reacts only to chats created while the editor is running, and only one renamer instance acts when more than one extension embeds it.
+- The title-event trigger reacts only to chats created while the editor is running, and only one renamer instance acts when more than one extension embeds it.
+- A setting (default on) also renames chats that existed before the editor started, numbering each group of same-titled chats by creation order (oldest keeps the plain title, the next gets 2, then 3), once per chat, plus a command to run it on demand.
+- A prompt that drags in a worktree folder (`/vw-spec-iterate @/path/_v-my-slug`) derives `my-slug`. The worktree prefix (`_v`, or e.g. `_work`) is a new `variant.worktreePrefix` setting in `variants.yaml`, which `variant-api` also uses when it creates worktrees.
 
 ## Capabilities
 
 ### New Capabilities
 
 - `variant-vscode/cursor-command-probe`: read-only discovery of Cursor-internal commands that look related to chat title or rename, reported in an output channel.
+- `variant-config` (extended): `variant.worktreePrefix`.
+- `variant-api/core` (extended): worktrees are named with the configured prefix.
 - `chat-renamer-api/chat-rename-requests`: how a prompt becomes a chat title: slash commands, activation patterns, and title numbering.
 - `chat-renamer-vscode/chat-renaming`: when the extension renames: triggers, realtime-only behavior, single active instance, settings, and embedding.
 
@@ -37,7 +41,8 @@ Cursor agent chat tabs are proprietary webview UI. The public VS Code extension 
 - A public, documented, or cross-version contract for Cursor chat titles.
 - Restoring or replacing Cursor's own right-click rename UI.
 - A command id outside the `variant-worktrees.*` namespace in `variant-vscode`. The standalone renamer uses `chat-renamer.*`.
-- Renaming chats that already existed when the editor started, or renaming in several windows at once.
+- Renaming in several windows at once.
+- Renaming chats that cannot be listed (archived, subagent, background) or whose first prompt cannot be read.
 - Marketplace publication of the standalone renamer.
 
 ## Assumptions
