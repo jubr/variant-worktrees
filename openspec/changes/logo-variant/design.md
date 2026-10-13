@@ -28,7 +28,7 @@ Publish 256, 128, 32, and 16. Nothing larger: the source is 375×374, so 512 wou
 
 The source is one pixel wider than it is tall. Center-crop to 374×374 (drop one column) before resize so the output is square and the artwork is not stretched.
 
-After resize, mask with a rounded rectangle. Corner radius is one fifth of the side (`size / 5`). Pixels outside the rounded rectangle are fully transparent, including the four canvas corners. The rim may be antialiased. Inside the rounded rectangle the scaled artwork is unchanged.
+After resize, mask with a rounded rectangle. Corner radius is one quarter of the side (`size / 4`). One fifth leaves the 16×16 corner pixel antialiased (alpha 2) instead of fully transparent. One quarter clears that corner at every published size. Pixels outside the rounded rectangle are fully transparent, including the four canvas corners. The rim may be antialiased. Inside the rounded rectangle the scaled artwork is unchanged.
 
 `sharp` applies the mask with `dest-in` and an SVG rect of that `rx`/`ry`, fill white. Alternative: bake an opaque rounded rectangle on a solid background. Rejected because the corners must stay transparent on the docs logo, the README, and the extension icon.
 
