@@ -99,7 +99,7 @@ export const createExistingChatsRunner = ({
       for (const chat of result.renamed) {
         log.info(
           `${EXISTING_CHATS_TAG} renamed ${chat.sessionId}: ${JSON.stringify(chat.previousTitle ?? null)} -> ${JSON.stringify(chat.title)} ` +
-            `(created ${stamp(chat.createdAtMs)})`,
+            `(existing chats plan) (created ${stamp(chat.createdAtMs)})`,
         );
       }
       for (const failure of result.failed) {
