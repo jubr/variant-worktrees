@@ -1,0 +1,33 @@
+{
+  "name": "variant-ipc",
+  "version": "0.0.1",
+  "description": "Unix domain socket for editor requests",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build ./src/index.ts --outdir dist --target node --format esm --sourcemap=external --external zod",
+    "build:types": "tsc --emitDeclarationOnly",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "homepage": "https://github.com/jubr/variant-worktrees",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jubr/variant-worktrees.git",
+    "directory": "packages/variant-ipc"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT"
+}

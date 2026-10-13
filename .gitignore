@@ -128,3 +128,5 @@ example/**/*.sqlite
 
 # Packaged extension vsix files
 out/
+# Extension IPC socket
+.vscode/variant-worktrees.sock
