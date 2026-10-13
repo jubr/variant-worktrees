@@ -125,3 +125,6 @@ mise.local.toml
 # Ephemeral per-variant runtime state (variant-config)
 variants.local.yaml
 example/**/*.sqlite
+
+# Extension IPC socket
+.vscode/variant-worktrees.sock
