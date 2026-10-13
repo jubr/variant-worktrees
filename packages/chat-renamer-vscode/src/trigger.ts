@@ -91,6 +91,10 @@ export const startChatRenameTrigger = (
     context.subscriptions.push(
       vscode.window.registerUriHandler({
         handleUri: async (uri) => {
+          if (!readSettings(names.configSection, host.fileConfig).enabled) {
+            log.info(`chat renaming off: ${names.configSection}.enable=false`);
+            return;
+          }
           try {
             const handled = await handleChatRenameUri(resolveChatRenameDeps(context), uri, options);
             log.info(`uri ${uri.path}${uri.query ? `?${uri.query}` : ""} handled=${handled}`);
@@ -162,7 +166,31 @@ export const startChatRenameTrigger = (
     eventSubscription = undefined;
 
     const settings = readSettings(names.configSection, host.fileConfig);
-    const { trigger, hookScope } = settings;
+    const { trigger, hookScope, enabled } = settings;
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const chosenDir = resolveCursorDir(hookScope, workspaceRoot, home);
+    const otherDirs = [...new Set([resolveCursorDir("workspace", workspaceRoot, home), join(home, ".cursor")])].filter(
+      (dir) => !(claim.owned && enabled && trigger === "hook") || dir !== chosenDir,
+    );
+    const uninstallFrom = async (dirs: string[]): Promise<void> => {
+      for (const dir of dirs) {
+        try {
+          await uninstallChatRenameHook(dir, names.hookScriptName);
+        } catch (error) {
+          log.warn(`could not clean ${dir}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    };
+
+    if (!enabled) {
+      await uninstallFrom([...new Set([chosenDir, ...otherDirs])]);
+      stopExisting();
+      if (claim.owned) {
+        log.info(`chat renaming off: ${names.configSection}.enable=false`);
+      }
+      return;
+    }
+
     const activationPatterns = activationPatternSources(settings.worktreePrefixes, settings.activationPatterns);
     options.patterns = compilePatterns(activationPatterns, (source, error) =>
       log.warn(
@@ -170,19 +198,8 @@ export const startChatRenameTrigger = (
       ),
     ).patterns;
     log.info(`activation patterns: ${JSON.stringify(activationPatterns)}`);
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const chosenDir = resolveCursorDir(hookScope, workspaceRoot, home);
-    const otherDirs = [...new Set([resolveCursorDir("workspace", workspaceRoot, home), join(home, ".cursor")])].filter(
-      (dir) => !(claim.owned && trigger === "hook") || dir !== chosenDir,
-    );
 
-    for (const dir of otherDirs) {
-      try {
-        await uninstallChatRenameHook(dir, names.hookScriptName);
-      } catch (error) {
-        log.warn(`could not clean ${dir}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
+    await uninstallFrom(otherDirs);
 
     if (!claim.owned) {
       return;
