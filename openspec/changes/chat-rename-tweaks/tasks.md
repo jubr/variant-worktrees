@@ -16,12 +16,17 @@
 
 ## 4. Package output
 
-- [ ] 4.1 Point `chat-renamer-vscode`'s `vsce-package` at `../../out` with `--no-dependencies`, and ignore `out/` in the root `.gitignore`. Verify the script writes `out/chat-renamer-vscode-0.0.1.vsix` and `git check-ignore` matches `out/`.
+- [ ] 4.1 Point `chat-renamer-vscode` and `variant-vscode` `vsce-package` at `../../out/chat-renamer-${npm_package_version}.vsix` and `../../out/variant-worktrees-${npm_package_version}.vsix` with `--no-dependencies`, drop `variant-vscode`'s `files` field so `vsce` accepts `.vscodeignore`, and ignore `out/` in the root `.gitignore`. Verify the scripts write `out/chat-renamer-0.0.1.vsix` and `out/variant-worktrees-0.0.1.vsix`, and `git check-ignore` matches `out/`.
 
 ## 5. Wording
 
 - [ ] 5.1 Update the activation-pattern setting text and the chat-renamer README so they describe the path pattern and that a typed trailing number is kept. Verify the manifest default array matches `DEFAULT_ACTIVATION_PATTERNS`.
 
-## 6. Validation
+## 6. Rename action log
 
-- [ ] 6.1 Run `openspec validate chat-rename-tweaks --type change --strict --no-interactive` and the chat-renamer package tests. Verify both pass.
+- [ ] 6.1 Add failing tests: a pattern rename logs the chat id, the reason, and the final title for `abc` beside `abc` (`numbered against open chats`, `abc2`), `New Chat` + `abc7` beside `abc` (`typed trailing number kept`, `abc7`), and `New Chat` + `abc` beside `abcd` and `other` (`no shared base`, `abc`); a chat already titled `abc7` logs `current title shares the base` and `abc7` and is not renamed; `/chat-rename abc` beside `abc` logs `slash command` and `abc`; an existing-chats rename line starts with `[existing-chats]` and contains `existing chats plan` and the final title. Verify the new tests fail.
+- [ ] 6.2 Log `rename <id>: <reason>; title <json>` from the title decision, and add `existing chats plan` to the existing-chats rename line. Verify the tests from 6.1 pass.
+
+## 7. Validation
+
+- [ ] 7.1 Run `openspec validate chat-rename-tweaks --type change --strict --no-interactive` and the chat-renamer package tests. Verify both pass.
