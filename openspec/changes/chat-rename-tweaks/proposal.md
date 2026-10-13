@@ -37,7 +37,7 @@ Packaging drops each `.vsix` inside its extension package, where it shows up as 
 
 ## Assumptions
 
-- `Chat Renamer: Rename active chat` is the standalone palette title. Embedded Variant uses `Variant: Rename active chat` and command id `variant-worktrees.renameActiveChat`, matching `Variant: Rename Existing Chats`.
+- `Chat Renamer: Rename active chat` is the standalone palette title. Embedded Variant uses `Variant: Rename active chat` and command id `variant.renameActiveChat`, matching `Variant: Rename Existing Chats`.
 - The active chat is the first id from `composer.getOrderedSelectedComposerIds`.
 - "The chat is not renamed" for `abc7` beside `abc` means the renamer must not assign `abc2`. The typed title `abc7` is kept: a chat already titled `abc7` is left alone; a chat with a different title is renamed to `abc7`, not to `abc2`.
 - "The chat is not renamed" for `abc` beside `abcd` and `other` means numbering adds no suffix, and a chat already titled `abc` is left alone. A chat whose current title is not yet `abc` is still renamed to `abc`, so a unique `/vw-spec-start abc` keeps working.
