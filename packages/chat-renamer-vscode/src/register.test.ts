@@ -27,7 +27,7 @@ describe("registerChatRenamer", () => {
 
     const { names } = registerChatRenamer(context(), {
       commandPrefix: "variant",
-      configSection: "variant-worktrees.chatRename",
+      configSection: "variant",
     });
 
     expect(names.hookScriptName).toBe("variant-chat-rename.sh");

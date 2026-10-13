@@ -19,11 +19,11 @@ export const activate = (context: vscode.ExtensionContext) => {
   });
 
   context.subscriptions.push(probe);
-  // AIDEV-NOTE: command ids use the `variant.` prefix. Settings stay `variant-worktrees.chatRename` so existing user settings keep working.
+  // AIDEV-NOTE: command ids and settings use the `variant.` prefix. `variant.enable` false turns chat renaming off.
   const workspaceRoot = vscode.workspace?.workspaceFolders?.[0]?.uri.fsPath;
   registerChatRenamer(context, {
     commandPrefix: "variant",
-    configSection: "variant-worktrees.chatRename",
+    configSection: "variant",
     // The chatRenamer section of variants.yaml over `variant.prefix` as the worktree prefix; settings the user set
     // explicitly in the editor still win.
     fileConfig: chatRenamerConfigFor(workspaceRoot),
