@@ -10,6 +10,8 @@ Packaging drops each `.vsix` inside its extension package, where it shows up as 
 - When a pattern title shares no base with the other open chats and the chat already holds that title (`abc` beside `abcd` and `other`), do not rename it.
 - Add a default activation pattern for `/<word>-spec-<word> @<path>` so `@/Users/me/_v-outer/_v-inner` yields `inner` without a configured worktree prefix.
 - Log each rename action with the reason the title was chosen and the final title.
+- Read the embedded renamer's settings from `variant.*` instead of `variant-worktrees.chatRename.*`.
+- Add `variant.enable` (boolean, default true). `false` turns chat renaming off.
 
 ## Capabilities
 
@@ -17,13 +19,13 @@ Packaging drops each `.vsix` inside its extension package, where it shows up as 
 
 ### Modified Capabilities
 
-- `chat-renamer-vscode/chat-renaming`: package output path for every extension `.vsix`, the active-chat command, standalone path derivation when no worktree prefix is set, and a log line for each rename action.
+- `chat-renamer-vscode/chat-renaming`: package output path for every extension `.vsix`, the active-chat command, standalone path derivation when no worktree prefix is set, a log line for each rename action, the `variant.*` settings section, and `variant.enable`.
 - `chat-renamer-api/chat-rename-requests`: numbering outcomes for a typed trailing number and for a title with no shared base; the default path pattern.
 - `chat-renamer-config/defaults`: the default `activationPatterns` list gains the path pattern.
 
 ## Impact
 
-- `packages/chat-renamer-vscode` and `packages/variant-vscode` package scripts. `chat-renamer-vscode` manifest commands and command registration. `variant-vscode` contributes the embedded command.
+- `packages/chat-renamer-vscode` and `packages/variant-vscode` package scripts. `chat-renamer-vscode` manifest commands and command registration. `variant-vscode` contributes the embedded command and reads settings from `variant.*`, including `variant.enable`.
 - `packages/chat-renamer-api` numbering, pattern matching, and the reason attached to a rename. `packages/chat-renamer-config` default pattern list.
 - Root `.gitignore` gains `out/`.
 - No CLI, MCP, or database change.
