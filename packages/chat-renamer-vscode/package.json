@@ -71,7 +71,7 @@
             "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
             "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"
           ],
-          "markdownDescription": "JavaScript regular expressions tested against each line of the first prompt of a chat. A match renames the chat to its first capture group (or the whole match). The title is numbered against other open chats: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. `/chat-rename` and `/rename-chat` always work and are not numbered. In `hook` mode the patterns are copied into the hook script, which evaluates them with Python's `re`; change the setting to reinstall it."
+          "markdownDescription": "JavaScript regular expressions tested against each line of the first prompt of a chat. A match renames the chat to its first capture group (or the whole match). The default list is a path pattern, then a slug pattern. `/vw-spec-iterate @/Users/me/_v-outer/_v-inner` becomes `inner` (the last path segment after its leading prefix token), and `/vw-spec-start my-slug` becomes `my-slug`. A pattern title that already ends in digits is kept (`abc7` beside `abc` stays `abc7`). A title with no trailing digits is numbered against other open chats: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. `/chat-rename` and `/rename-chat` always work and are not numbered. When worktree prefixes are set, the default path pattern is left out and only those prefixes match an `@` path. In `hook` mode the patterns are copied into the hook script, which evaluates them with Python's `re`; change the setting to reinstall it."
         },
         "chat-renamer.worktreePrefixes": {
           "type": "array",
