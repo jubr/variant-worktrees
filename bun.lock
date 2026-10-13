@@ -72,6 +72,7 @@
       "name": "variant-ipc",
       "version": "0.0.1",
       "dependencies": {
+        "variant-config": "workspace:*",
         "zod": "^4.6.5",
       },
     },
