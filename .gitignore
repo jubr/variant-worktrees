@@ -125,3 +125,6 @@ mise.local.toml
 # Ephemeral per-variant runtime state (variant-config)
 variants.local.yaml
 example/**/*.sqlite
+
+# Packaged extension vsix files
+out/
