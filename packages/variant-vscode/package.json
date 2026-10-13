@@ -82,6 +82,7 @@
             "type": "string"
           },
           "default": [
+            "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
             "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"
           ],
           "markdownDescription": "JavaScript regular expressions tested against each line of the first prompt of a chat. A match renames the chat to its first capture group (or the whole match). The title is numbered against other open chats: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. `/chat-rename` and `/rename-chat` always work and are not numbered. In `hook` mode the patterns are copied into the hook script, which evaluates them with Python's `re`; change the setting to reinstall it."
