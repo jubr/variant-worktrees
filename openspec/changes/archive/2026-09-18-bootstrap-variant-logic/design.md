@@ -2,7 +2,7 @@
 
 Reference: the legacy project's `scripts/variants/*.sh` — 700+ lines of Bash managing Postgres schemas, Docker containers, nginx proxies, yq state files, git worktrees. Hard-coded to Postgres, project paths, NestJS/Vite. See proposal.md for why.
 
-Current `variant-api` is BuiltWith free endpoint client. MCP exposes `variant_free`. Pivot to DB variant lifecycle.
+Current `variant-api` is a legacy lookup endpoint client. MCP exposes a legacy lookup tool. Pivot to DB variant lifecycle.
 
 ## Goals / Non-Goals
 
@@ -94,7 +94,7 @@ worktrees should keep variant directories beside the real repository guidance fi
 **Why:** User wants abstract hooks without hard-coding Docker, Bun, or framework paths. Explicit config remains authoritative; autodetection supports conventional Vite/NestJS workspaces.
 
 **Alternatives:**
-- Built-in Docker: couples library to containers
+- Built-in container orchestration: couples library to containers
 - No hooks: variant provision incomplete
 
 ## Package structure
@@ -121,12 +121,12 @@ packages/
       slug.ts          # git worktree resolution
       state.ts         # YAML state persistence
       worktree.ts      # ensure_worktree logic
-      commands.ts      # CommandDefinition[] (rewrite from BuiltWith free)
+      commands.ts      # CommandDefinition[] (rewrite from legacy lookup)
       index.ts
     test/
   variant-mcp/
     src/
-      mcp.ts           # MCP server (rewrite from variant_free to lifecycle tools)
+      mcp.ts           # MCP server (rewrite from legacy lookup to lifecycle tools)
     test/
   variant-vscode/      # Enhance later (after CLI works)
 ```
@@ -152,13 +152,13 @@ import { describe, expect, it } from "bun:test";
 
 ## Migration Plan
 
-1. Delete existing BuiltWith code and remove its package/API references
+1. Delete existing legacy API code and remove its package/API references
 2. Install: `bun add drizzle-orm postgres mysql2 yaml smol-toml cleye zod@4`
 3. Implement packages in order: `variant-config` → `variant-api` → `variant-mcp`
 4. Port reference test cases from `variants-*.test.sh` to `bun:test`
 5. CLI smoke test: `variant config`, `variant create test`, `variant list`, `variant destroy test`
 6. MCP integration test: mock client calling lifecycle tools
-7. Update docs (VitePress user guide replaces BuiltWith docs)
+7. Update docs (VitePress user guide replaces legacy API docs)
 
 Rollback: revert PR (this is a pivot, not a feature flag)
 

@@ -5,7 +5,7 @@ Port legacy-project variant worktree infrastructure (schema isolation, watch-mod
 ## What Changes
 
 - **New package** `variant-config`: reads `variants.yaml` schema + detects mise/env connection config + `config` CLI command
-- **Rewrite `variant-api`**: remove BuiltWith API, add DB variant ops (create/destroy/list/switch schemas), multi-DB abstraction (Postgres schemas, SQLite files, prefixed tables)
+- **Rewrite `variant-api`**: remove legacy API, add DB variant ops (create/destroy/list/switch schemas), multi-DB abstraction (Postgres schemas, SQLite files, prefixed tables)
 - **Rewrite `variant-mcp`**: remove `variant_free` tool, add `variant_list`, `variant_create`, `variant_destroy`, `variant_switch`, `variant_provision`
 - **CLI library** cleye → command routing from `commands.ts` (port existing pattern from docs/cli-vscode-webview.md)
 - **VS Code extension** enhancement: auto-register commands, webview forms (future work after CLI)
@@ -24,11 +24,11 @@ Port legacy-project variant worktree infrastructure (schema isolation, watch-mod
 
 ### Modified Capabilities
 
-<!-- None — this is a pivot, not an enhancement of existing BuiltWith behavior -->
+<!-- None — this is a pivot, not an enhancement of existing behavior -->
 
 ## Impact
 
-- **Breaking**: `variant-api` public surface changes from `createClient().free(lookup)` to `createClient().create(slug)` etc
+- **Breaking**: `variant-api` public surface changes from the legacy lookup client to `createClient().create(slug)` etc
 - **Breaking**: `variant-mcp` tool `variant_free` removed, replaced with variant lifecycle tools
 - **New dependencies**: cleye (CLI), Drizzle ORM with dialect drivers, YAML/TOML parsers
 - **Config artifact**: `variants.yaml` at workspace root (user-created, JSON schema validated)

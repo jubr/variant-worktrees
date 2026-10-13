@@ -1,6 +1,6 @@
 ## 1. Setup
 
-- [x] 1.1 Delete existing BuiltWith code and remove its package/API references; verify no BuiltWith or `free` traces remain
+- [x] 1.1 Delete existing legacy API code and remove its package/API references; verify no legacy endpoint traces remain
 - [x] 1.2 Install dependencies (`drizzle-orm`, `postgres`, `mysql2`, `yaml`, `smol-toml`, `cleye`, `zod@4`) in root and verify lockfile updated
 - [x] 1.3 Create `packages/variant-config/` structure (src/, `test/config.test.ts`, package.json, tsconfig.json), start test file with `import { describe, expect, it } from "bun:test";`, and verify `bun run build` compiles
 
@@ -39,7 +39,7 @@
 
 ## 6. Command definitions
 
-- [x] 6.1 Rewrite `src/commands.ts` from BuiltWith pattern to variant lifecycle commands and verify `test/commands.test.ts` imports `describe`, `expect`, and `it` from `bun:test` and confirms `CommandDefinition[]` includes `create`, `destroy`, `list`, `switch`, `provision`, `config`
+- [x] 6.1 Rewrite `src/commands.ts` from legacy API pattern to variant lifecycle commands and verify `test/commands.test.ts` imports `describe`, `expect`, and `it` from `bun:test` and confirms `CommandDefinition[]` includes `create`, `destroy`, `list`, `switch`, `provision`, `config`
 - [x] 6.2 Add `ArgDefinition` schemas for each command (slug arg for create/destroy/switch, no args for list/config) and verify args have name/description/type/required in `test/commands.test.ts`
 
 ## 7. CLI with cleye
@@ -67,7 +67,7 @@
 
 ## 10. Documentation
 
-- [x] 10.1 Update AGENTS.md (replace BuiltWith description with variant lifecycle) and verify no BuiltWith references remain
+- [x] 10.1 Update AGENTS.md (replace legacy API description with variant lifecycle) and verify no legacy API references remain
 - [x] 10.2 Write VitePress user guide at `docs/guide.md` (workspace setup, variants.yaml config, CLI usage) and verify docs build succeeds
 - [x] 10.3 Generate TypeDoc API reference and verify public surface documented
 
