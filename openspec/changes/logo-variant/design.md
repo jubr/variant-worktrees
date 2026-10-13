@@ -60,14 +60,14 @@ Copy `openspec/changes/logo-variant/assets/source.png` to `assets/brand/source.p
 - `head` gains icon links for `/favicon-32.png` (`32x32`) and `/favicon-16.png` (`16x16`).
 - Root README embeds `packages/variant-vscode/media/icon-256.png` with a repo-relative path so GitHub renders it.
 
-### Extension `files`
+### Extension packaging
 
-Add `media/icon-256.png` to `files`. Do not add the whole `media/` directory; the 128×128 file does not need to be inside the vsix. The test asserts `icon` is covered by `files` and that packaging the extension (`vsce package`) includes that path.
+`packages/variant-vscode/package.json` has no `files` list. `.vscodeignore` ignores everything, then whitelists `dist`, the changelog, the license, and the readme. Set `icon` to `media/icon-256.png` and whitelist `!media/icon-256.png` (and the `media` directory, if the ignore rules require the parent). Do not add a `files` list. The 128×128 file stays out of the vsix. The test packages the extension and finds `media/icon-256.png` in the vsix.
 
 ## Risks / Trade-offs
 
 - [16×16 and 32×32 lose the swatch detail] → Accept. Those sizes are only the browser tab icon. 128 and 256 keep the picture.
-- [Explicit `files` list drops the icon] → List the icon path, and have the package test open the vsix.
+- [`.vscodeignore` drops the icon] → Whitelist `media/icon-256.png`, and have the package test open the vsix.
 - [Supplied artwork includes a third-party branch mark] → Ship the supplied file unchanged apart from the square crop, downscale, and rounded-rectangle mask. Do not redraw it.
 - [`sharp` native binary] → Dev dependency only. Runtime extension code does not import it.
 
@@ -75,4 +75,4 @@ Add `media/icon-256.png` to `files`. Do not add the whole `media/` directory; th
 
 Additive. No data migration.
 
-Rollback: remove `icon` and the new `files` entry, delete the PNGs and `assets/brand/source.png`, and revert the docs head, `themeConfig.logo`, and README image.
+Rollback: remove `icon` and the `.vscodeignore` whitelist, delete the PNGs and `assets/brand/source.png`, and revert the docs head, `themeConfig.logo`, and README image.
