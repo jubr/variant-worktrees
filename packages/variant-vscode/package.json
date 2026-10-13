@@ -4,6 +4,7 @@
   "description": "Variant Worktrees VS Code extension",
   "displayName": "Variant Worktrees",
   "publisher": "jubr",
+  "icon": "media/icon-256.png",
   "main": "./dist/extension.cjs",
   "dependencies": {
     "@types/vscode": "^1.86.0",

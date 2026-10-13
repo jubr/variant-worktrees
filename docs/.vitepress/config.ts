@@ -6,6 +6,8 @@ export default defineConfig({
   base: "/",
 
   head: [
+    ["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16.png" }],
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
     ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
     [
@@ -18,6 +20,7 @@ export default defineConfig({
   ],
 
   themeConfig: {
+    logo: "/logo-256.png",
     nav: [
       { text: "Library", link: "/guide/library" },
       { text: "MCP Server", link: "/mcp" },
