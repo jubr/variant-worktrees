@@ -45,10 +45,7 @@ registers `variant_<command>` tools. Tool handlers call the same
 
 ## VS Code
 
-The extension can render one webview form per command by iterating over
-`cmd.args`, mapping each argument to a VS Code input field, and posting
-`{ command: cmd.name, args }` back to the extension. The extension then calls
-the shared command definition and posts the result or error to the webview.
-
-This keeps argument labels, required fields, and command execution behavior
-consistent across interfaces.
+The CLI and the MCP server execute `config`, `create`, `destroy`, `list`,
+`switch`, and `provision` in `variant-api`. The extension does not. Requests
+that need the editor use `{name, args}` on the socket described in
+[Editor socket](./guide/ipc).
