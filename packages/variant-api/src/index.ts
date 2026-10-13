@@ -9,6 +9,7 @@ import { listVariants } from "./operations/list.js";
 import { provisionVariant } from "./operations/provision.js";
 import { switchVariant } from "./operations/switch.js";
 import type { OperationContext } from "./operations/types.js";
+import { upVariant } from "./operations/up.js";
 import { migrateJsonStates } from "./state.js";
 import type { VariantClient, VariantClientOptions } from "./types.js";
 
@@ -38,6 +39,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 
   return {
     create: (slug) => withAdapter((context) => createVariant(context, slug)),
+    up: (slug, options) => withAdapter((context) => upVariant(context, slug, options)),
     down: (slug) => withAdapter((context) => downVariant(context, slug)),
     implode: (slug) => withAdapter((context) => implodeVariant(context, slug)),
     list: () => withAdapter((context) => listVariants(context)),

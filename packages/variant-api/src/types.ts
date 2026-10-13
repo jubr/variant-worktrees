@@ -43,9 +43,22 @@ export interface DownResult {
   networks: string[];
 }
 
+/** What `up` started. */
+export interface UpResult {
+  slug: string;
+  worktree: string;
+  /** The containers that were started, in start order. */
+  containers: { key: string; name: string; port: number }[];
+  /** The rendered `open` URL of every instance that has one. */
+  urls: Record<string, string>;
+  commands: string[];
+  output: string;
+}
+
 export interface VariantClient {
   create(slug?: string): Promise<VariantRecord>;
   implode(slug?: string): Promise<{ slug: string; removed: boolean }>;
+  up(slug?: string, options?: { verbose?: boolean }): Promise<UpResult>;
   down(slug?: string): Promise<DownResult>;
   list(): Promise<VariantRecord[]>;
   switch(slug?: string): Promise<{ slug: string; worktree: string }>;

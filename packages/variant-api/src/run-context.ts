@@ -2,9 +2,9 @@ import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import {
   envSegment,
+  pickFreePort,
   type ResolvedConfig,
   renderTemplate,
-  resolveInstancePort,
   type TemplateContext,
   type VariantInstance,
 } from "variant-config";
@@ -45,6 +45,23 @@ const primaryOf = (cwd: string, worktree: string): string => {
   }
 };
 
+/** Fails when two instances are given the same port through `VARIANT_<KEY>_PORT`, naming both variables. */
+const assertDistinctOverrides = (keys: string[], env: NodeJS.ProcessEnv = process.env): void => {
+  const seen = new Map<string, string>();
+  for (const key of keys) {
+    const name = `VARIANT_${envSegment(key)}_PORT`;
+    const value = env[name];
+    if (!value) {
+      continue;
+    }
+    const other = seen.get(value);
+    if (other) {
+      throw new Error(`${other} and ${name} are both ${value}: every instance needs its own port`);
+    }
+    seen.set(value, name);
+  }
+};
+
 /** Assigns a port to every instance that has none in `ports` and renders the instance URLs. */
 export const prepareRun = async (
   context: OperationContext,
@@ -54,10 +71,14 @@ export const prepareRun = async (
 ): Promise<VariantRun> => {
   const { config } = context;
   const target = slug === "main" ? (config.db.schema ?? "public") : context.adapter.target(slug);
-  const located = { ...config, runtime: readVariantRuntime(config, worktree) };
+  const recorded = readVariantRuntime(config, worktree);
+  assertDistinctOverrides(Object.keys(config.variant.instances));
   const ports: Record<string, number> = {};
   for (const key of Object.keys(config.variant.instances)) {
-    ports[key] = assigned[key] ?? (await resolveInstancePort(located, key));
+    ports[key] =
+      assigned[key] ??
+      recorded?.instances?.[key]?.port ??
+      (await pickFreePort([...config.variant.reservedPorts, ...Object.values(ports)]));
   }
   const storage = config.variant.storage ? join(worktree, config.variant.storage.dir) : undefined;
   const primary = primaryOf(context.cwd, worktree);

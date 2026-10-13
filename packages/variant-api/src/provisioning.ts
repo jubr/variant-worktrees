@@ -17,13 +17,14 @@ export interface ProvisionResult {
   output: string;
 }
 
-interface Executed {
+export interface Executed {
   ok: boolean;
   status: number;
   output: string;
 }
 
-const execute = (command: string, cwd: string, env: NodeJS.ProcessEnv): Executed => {
+/** Runs a shell command and captures its output instead of throwing on failure. */
+export const execute = (command: string, cwd: string, env: NodeJS.ProcessEnv): Executed => {
   try {
     const output = execFileSync("sh", ["-c", command], {
       cwd,

@@ -171,10 +171,11 @@ export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } fr
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
-export { openUrlFor, resolveInstancePort } from "./ports.js";
+export { openUrlFor, pickFreePort, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
+  InstanceContainer,
   ResolvedConfig,
   ResolvedRuntime,
   Runtime,
