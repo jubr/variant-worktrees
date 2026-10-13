@@ -1,5 +1,5 @@
 {
-  "name": "variant-vscode",
+  "name": "variant-worktrees",
   "version": "0.0.1",
   "description": "Variant Worktrees VS Code extension",
   "displayName": "Variant Worktrees",
@@ -7,7 +7,7 @@
   "main": "./dist/extension.cjs",
   "dependencies": {
     "@types/vscode": "^1.86.0",
-    "chat-renamer-vscode": "workspace:*",
+    "chat-renamer": "workspace:*",
     "variant-config": "workspace:*"
   },
   "devDependencies": {

@@ -33,10 +33,10 @@ A host extension can supply the same options from elsewhere (Variant reads the `
 
 ## Using it inside another extension
 
-Import `registerChatRenamer` from `chat-renamer-vscode` in `activate`:
+Import `registerChatRenamer` from `chat-renamer` in `activate`:
 
 ```ts
-import { registerChatRenamer } from "chat-renamer-vscode";
+import { registerChatRenamer } from "chat-renamer";
 
 registerChatRenamer(context, {
   commandPrefix: "my-ext", // commands: my-ext.renameChat, my-ext.renameChatFromPrompt
@@ -47,7 +47,7 @@ registerChatRenamer(context, {
 
 The host manifest must contribute the three settings under `configSection` and list `onStartupFinished` and `onUri` as activation events. The editor-independent logic lives in the `chat-renamer-api` package.
 
-If this extension and a host that embeds it are both installed in one window, only the one that starts first runs the triggers (title listener, hook, URI handler). The other logs which extension owns renaming, removes any hook script it wrote earlier, and stays idle; its commands still work. Ownership passes on when the owner is disposed.
+If this extension and Variant Worktrees are both installed in one window, this one stays idle: it detects `variant-worktrees` and does not start the triggers. Otherwise, when two copies are installed, only the one that starts first runs the triggers (title listener, hook, URI handler). The other logs which extension owns renaming, removes any hook script it wrote earlier, and stays idle; its commands still work. Ownership passes on when the owner is disposed.
 
 ## Development
 

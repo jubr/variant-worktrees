@@ -31,7 +31,8 @@ import { type HostSettings, readSettings } from "./settings";
  *  - titleEvent (default): on cursor.onDidChangeAgentHostSessionCatalogTitle, read the chat's first prompt from Cursor's
  *    on-disk store and rename when it holds a rename request. Only chats whose first prompt was sent after startup are renamed.
  *  - hook: install a beforeSubmitPrompt hook that sends /chat-rename prompts to this extension's URI handler.
- * Only one extension per host runs a trigger: the first to start owns renaming (see claimRenamer). Any other one
+ * Only one extension per host runs a trigger. Variant Worktrees wins when it is installed: Chat Renamer
+ * stays idle. Otherwise the first to start owns renaming (see claimRenamer). Any other one
  * registers no listener, hook or URI handler and removes the hook script it wrote earlier.
  * The owner's URI handler is always registered. Switching the setting uninstalls the hook we wrote.
  * Resolves when the first setup pass is done.
@@ -53,6 +54,14 @@ export type TriggerHost = {
 
 const DEFAULT_EXISTING_CHATS_DELAY_MS = 3000;
 
+const isExtension = (id: string, name: string): boolean => id === name || id.endsWith(`.${name}`);
+
+/** Standalone Chat Renamer yields when Variant Worktrees is installed in this editor. */
+const variantWorktreesHost = (selfId: string): string | undefined => {
+  const installed = vscode.extensions?.all ?? [];
+  return installed.find((extension) => extension.id !== selfId && isExtension(extension.id, "variant-worktrees"))?.id;
+};
+
 export const startChatRenameTrigger = (
   context: vscode.ExtensionContext,
   log: Logger,
@@ -68,9 +77,13 @@ export const startChatRenameTrigger = (
     return Promise.resolve();
   }
 
-  const claim = claimRenamer(context.extension.id);
+  const extensionId = context.extension.id;
+  const variantHost = isExtension(extensionId, "chat-renamer") ? variantWorktreesHost(extensionId) : undefined;
+  const claim = variantHost ? { owned: false, owner: variantHost, release: () => {} } : claimRenamer(extensionId);
   context.subscriptions.push({ dispose: claim.release });
-  if (!claim.owned) {
+  if (variantHost) {
+    log.info(`${variantHost} is installed; this instance stays idle`);
+  } else if (!claim.owned) {
     log.info(`${claim.owner} already runs chat renaming; this instance stays idle`);
   }
 

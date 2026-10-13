@@ -60,6 +60,7 @@ describe("trigger", () => {
     vscodeMock.extensions.getExtension = () => ({
       packageJSON: { identifier: { value: "anysphere.cursor-agent-host" }, isBuiltin: true, enabledApiProposals: [] },
     });
+    vscodeMock.extensions.all = [];
     vscodeMock.cursor.onDidChangeAgentHostSessionCatalogTitle = (listener) => {
       listeners.push(listener);
       return { dispose: () => {} };
@@ -112,6 +113,22 @@ describe("trigger", () => {
 
       expect(listeners).toHaveLength(1);
       expect(registerUriHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves chat-renamer idle when variant-worktrees is installed", async () => {
+      vscodeMock.extensions.all = [{ id: "jubr.variant-worktrees" }];
+      const lines: string[] = [];
+      const log = { info: (line: string) => lines.push(line), warn: () => {}, error: () => {} };
+
+      await registerChatRenamer(context("jubr.chat-renamer"), { log }).ready;
+
+      expect(listeners).toHaveLength(0);
+      expect(registerUriHandler).not.toHaveBeenCalled();
+      expect(lines.some((line) => line.includes("jubr.variant-worktrees") && line.includes("idle"))).toBe(true);
+
+      await registerChatRenamer(context("jubr.variant-worktrees"), { log: quiet }).ready;
+
+      expect(listeners).toHaveLength(1);
     });
 
     it("registers rename active chat on the idle instance too", async () => {
