@@ -270,6 +270,78 @@ describe("handleCatalogTitleChange when the chat already has the requested base"
     expect(calls).toHaveLength(0);
   });
 
+  it("does not rename a chat already titled with a typed trailing number", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "abc7" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc7", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abc"],
+      },
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("renames another title to the typed trailing number", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "New Chat" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc7", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abc"],
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(calls[0]?.title).toBe("abc7");
+  });
+
+  it("does not rename a chat already titled with a unique pattern title", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "abc" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abcd", "other"],
+      },
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("renames another title to a unique pattern title", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "New Chat" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abcd", "other"],
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(calls[0]?.title).toBe("abc");
+  });
+
   it("renames a chat whose title has another base", async () => {
     const { handled, calls } = run("Fix the login", "/vw-spec-start abc");
 
