@@ -1,28 +1,30 @@
 ## Context
 
-See proposal.md for why. Numbering lives in `numberedTitle` (`packages/chat-renamer-api/src/chat-title-numbering.ts`). It strips trailing digits from the candidate, so `abc7` beside `abc` becomes `abc2`. Same-base skips already happen in `handleCatalogTitleChange` before that call. Default patterns are the one slug regex in `chat-renamer-config`. `@` paths are separate patterns from `worktreeActivationPatterns`, and an empty prefix list emits none. Palette commands are `contributes.commands` plus `registerRenameChatCommands`. `vsce package` writes beside `packages/chat-renamer-vscode/package.json` and fails `npm list` on workspace packages unless `--no-dependencies` is set, because esbuild already bundles them into `extension.cjs`.
+See proposal.md for why. Numbering lives in `numberedTitle` (`packages/chat-renamer-api/src/chat-title-numbering.ts`). It strips trailing digits from the candidate, so `abc7` beside `abc` becomes `abc2`. Same-base skips already happen in `handleCatalogTitleChange` before that call. Default patterns are the one slug regex in `chat-renamer-config`. `@` paths are separate patterns from `worktreeActivationPatterns`, and an empty prefix list emits none. Palette commands are `contributes.commands` plus `registerRenameChatCommands`. `vsce package` writes beside each extension's `package.json`. Both `chat-renamer-vscode` and `variant-vscode` have a `vsce-package` script. `vsce package` fails `npm list` on workspace packages unless `--no-dependencies` is set, because esbuild already bundles them into `extension.cjs`. `variant-vscode` also has both a `files` field and `.vscodeignore`, which `vsce` refuses together.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- One package script that actually writes the vsix under repo `out/`, gitignored.
+- Both extension package scripts write their vsix under repo `out/`, gitignored.
 - Peer numbering that keeps a typed trailing number.
 - Default `@` path matching when no worktree prefix is configured, without letting that pattern bypass a non-empty prefix list.
 - One palette command that renames the selected chat from its first prompt, ignoring the new-chat age window.
+- One log line per rename action: the chat id, why that title was chosen, and the final title.
 
 **Non-Goals:**
 
 - `planExistingRenames` and the creation-order plan. A candidate `def3` beside `def3` and `def5` stays `def3` in `numberedTitle`; the existing-chats plan still groups by base.
-- `variant-vscode`'s `vsce-package` script.
 
 ## Decisions
 
 ### Vsix path
 
-`packages/chat-renamer-vscode` script `vsce-package` becomes `mkdir -p ../../out && vsce package --no-dependencies --out ../../out`. `--no-dependencies` is required for the script to produce a file in this workspace. `--out` as a directory keeps vsce's `chat-renamer-vscode-<version>.vsix` name. Root `.gitignore` gains `out/`.
+Both package scripts pass `--out` as a file, not a directory. A directory would keep vsce's `<package name>-<version>.vsix`. `chat-renamer-vscode` uses `mkdir -p ../../out && vsce package --no-dependencies --out ../../out/chat-renamer-${npm_package_version}.vsix`. `variant-vscode` uses the same command with `../../out/variant-worktrees-${npm_package_version}.vsix`. Bun sets `npm_package_version` when it runs the script, so the version stays the `package.json` version. `--no-dependencies` is required for either script to produce a file in this workspace. Root `.gitignore` gains `out/`.
 
-Alternative: gitignore `*.vsix` in the package directory. Rejected because the file should not sit in the package tree.
+`variant-vscode` drops the `files` field. `.vscodeignore` already whitelists `dist`, the README, the changelog, and the license, and `vsce` will not run when both `files` and `.vscodeignore` exist.
+
+Alternative: gitignore `*.vsix` in each package directory. Rejected because the files should not sit in the package tree.
 
 ### Typed trailing number
 
@@ -48,16 +50,36 @@ The handler takes the first id from `composer.getOrderedSelectedComposerIds`. No
 
 Alternative: an input box for a title. Rejected; the command uses the first prompt.
 
+### Rename action log
+
+`RenameOptions` gains an optional `log`. When it is set, `applyRequest` writes one info line after it has chosen the title and before it writes it:
+
+`rename <sessionId>: <reason>; title <json>`
+
+The reason is chosen from the request, not from the log text:
+
+- not via a pattern → `slash command`
+- `titleBase(candidate)` is empty → `all digits`; the title is the candidate
+- `titleBase(candidate)` is shorter than the candidate → `typed trailing number kept`; the title is the candidate
+- `numberedTitle` differs from the candidate → `numbered against open chats`
+- otherwise → `no shared base`
+
+`handleCatalogTitleChange` writes the same shape and does not rename when the current title already shares the base. The reason is `current title shares the base` and the title is the current title. The extension passes its output-channel logger on `options.log` from `registerChatRenamer`, so the title-event path, the URI handler, `renameChatFromPrompt`, and the active-chat command all use it. No logger means no line.
+
+The explicit `renameChat` command logs `explicit title` with the title the caller passed.
+
+Existing-chats lines keep the `[existing-chats]` prefix. Each rename line also includes the reason `existing chats plan` and the final title. `planExistingRenames` stays as it is; the reason is that fixed phrase, not a second numbering explanation.
+
 ## Risks / Trade-offs
 
 - [Path regex differs between JS and Python] → Keep the same constructs as `worktreeActivationPatterns` (`\s`, `\S`, a trailing lookahead). A pattern test covers the nested path and the trailing slash.
-- [`vsce package` without `--no-dependencies` still fails `npm list`] → The script always passes `--no-dependencies`.
+- [`vsce package` without `--no-dependencies` still fails `npm list`] → Both scripts always pass `--no-dependencies`.
 - [Dropping the path pattern by source string misses a hand-edited copy] → Compare to the exported constant. A different user regex can still match an `@` path; the spec case is the default source plus a non-empty prefix list.
 - [`numberedTitle("def3", …)` no longer climbs to `def6`] → Accepted. The existing-chats plan is a separate function and stays.
 
 ## Migration Plan
 
-No stored data changes. Rollback is reverting the change. An already built vsix inside `packages/chat-renamer-vscode/` can be deleted by hand; new builds go to `out/`.
+No stored data changes. Rollback is reverting the change. An already built vsix inside either extension package can be deleted by hand; new builds go to `out/`.
 
 ## Open Questions
 

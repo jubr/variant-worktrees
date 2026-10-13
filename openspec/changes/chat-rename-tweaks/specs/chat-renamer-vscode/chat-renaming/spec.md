@@ -24,14 +24,54 @@ The standalone extension SHALL contribute command `chat-renamer.renameActiveChat
 - **WHEN** the standalone extension and Variant each contribute the command
 - **THEN** the palette shows `Chat Renamer: Rename active chat` and `Variant: Rename active chat`
 
+### Requirement: Rename actions are logged with a reason and the final title
+
+Whenever the renamer renames a chat, the log SHALL include the chat id, the reason the title was chosen, and the final title. The line SHALL be `rename <chat id>: <reason>; title <json title>`. The reason SHALL be `slash command` for a slash-command title, `all digits` for a title that is only digits, `typed trailing number kept` when the pattern title already ends in digits, `numbered against open chats` when peer numbering changes the title, `no shared base` when a pattern title is used as typed, and `explicit title` when the caller passes the title to the rename command. When a pattern request is not applied because the chat's current title already shares that base, the log SHALL use the same line with reason `current title shares the base` and the current title, and the chat SHALL NOT be renamed. An existing-chats rename SHALL keep the `[existing-chats]` prefix and SHALL include the reason `existing chats plan` and the final title.
+
+#### Scenario: Numbered pattern title
+
+- **WHEN** a pattern title `abc` is applied and another open chat is titled `abc`
+- **THEN** the log contains the chat id, `numbered against open chats`, and the title `abc2`
+
+#### Scenario: Typed trailing number
+
+- **WHEN** a chat titled `New Chat` has pattern title `abc7` and another open chat is titled `abc`
+- **THEN** the log contains `typed trailing number kept` and the title `abc7`
+
+#### Scenario: No shared base
+
+- **WHEN** a chat titled `New Chat` has pattern title `abc` and the other open chats are titled `abcd` and `other`
+- **THEN** the log contains `no shared base` and the title `abc`
+
+#### Scenario: Current title already shares the base
+
+- **WHEN** a chat titled `abc7` has pattern title `abc7` and another open chat is titled `abc`
+- **THEN** the log contains `current title shares the base` and the title `abc7`
+- **AND** the chat is not renamed
+
+#### Scenario: Slash command
+
+- **WHEN** the prompt is `/chat-rename abc` and another open chat is titled `abc`
+- **THEN** the log contains `slash command` and the title `abc`
+
+#### Scenario: Existing chats
+
+- **WHEN** the existing-chats run renames a chat to `abc`
+- **THEN** the log has a `[existing-chats]` line that contains `existing chats plan` and the title `abc`
+
 ### Requirement: Packaged vsix is written to the repository out directory
 
-The `chat-renamer-vscode` package script SHALL write its `.vsix` into the repository-root `out/` directory, under the name `chat-renamer-vscode-<version>.vsix`. The repository `.gitignore` SHALL ignore `out/`.
+Every extension package script that produces a `.vsix` SHALL write it into the repository-root `out/` directory. `chat-renamer-vscode` SHALL write `out/chat-renamer-<version>.vsix`. `variant-vscode` SHALL write `out/variant-worktrees-<version>.vsix`. The repository `.gitignore` SHALL ignore `out/`.
 
-#### Scenario: Package output is ignored
+#### Scenario: Chat renamer package output is ignored
 
-- **WHEN** the package script runs for version `0.0.1`
-- **THEN** the file `out/chat-renamer-vscode-0.0.1.vsix` exists at the repository root and git ignores `out/`
+- **WHEN** the `chat-renamer-vscode` package script runs for version `0.0.1`
+- **THEN** the file `out/chat-renamer-0.0.1.vsix` exists at the repository root and git ignores `out/`
+
+#### Scenario: Variant package output is ignored
+
+- **WHEN** the `variant-vscode` package script runs for version `0.0.1`
+- **THEN** the file `out/variant-worktrees-0.0.1.vsix` exists at the repository root and git ignores `out/`
 
 ## MODIFIED Requirements
 
