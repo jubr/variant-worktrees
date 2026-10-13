@@ -55,6 +55,7 @@ export default defineConfig({
             { text: "Introduction", link: "/guide/" },
             { text: "Installation", link: "/guide/installation" },
             { text: "Library", link: "/guide/library" },
+            { text: "Editor socket", link: "/guide/ipc" },
             { text: "MCP Server", link: "/mcp" },
           ],
         },

@@ -68,6 +68,14 @@
         "zod": "^4.6.5",
       },
     },
+    "packages/variant-ipc": {
+      "name": "variant-ipc",
+      "version": "0.0.1",
+      "dependencies": {
+        "variant-config": "workspace:*",
+        "zod": "^4.6.5",
+      },
+    },
     "packages/variant-mcp": {
       "name": "variant-mcp",
       "version": "0.0.1",
@@ -88,6 +96,7 @@
         "@types/vscode": "^1.86.0",
         "chat-renamer": "workspace:*",
         "variant-config": "workspace:*",
+        "variant-ipc": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -973,6 +982,8 @@
     "variant-api": ["variant-api@workspace:packages/variant-api"],
 
     "variant-config": ["variant-config@workspace:packages/variant-config"],
+
+    "variant-ipc": ["variant-ipc@workspace:packages/variant-ipc"],
 
     "variant-mcp": ["variant-mcp@workspace:packages/variant-mcp"],
 
