@@ -7,12 +7,20 @@ interface WorktreeEntry {
   branch?: string;
 }
 
-export const sanitizeSlug = (value: string): string => {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/^refs\/heads\//, "")
-    .replace(/^(feat|feature|fix)\//, "")
+/** The prefixes of a variant branch when `variant.branchPrefixes` is not configured. */
+export const DEFAULT_BRANCH_PREFIXES: readonly string[] = ["feat/", "fix/"];
+
+/** A branch name with `refs/heads/`, `feature/` and every configured branch prefix removed. */
+const stripBranchPrefix = (value: string, branchPrefixes: readonly string[]): string => {
+  const unqualified = value.replace(/^refs\/heads\//, "");
+  const prefix = ["feature/", ...branchPrefixes.map((entry) => entry.toLowerCase())].find((entry) =>
+    unqualified.startsWith(entry),
+  );
+  return prefix === undefined ? unqualified : unqualified.slice(prefix.length);
+};
+
+export const sanitizeSlug = (value: string, branchPrefixes: readonly string[] = DEFAULT_BRANCH_PREFIXES): string => {
+  const slug = stripBranchPrefix(value.trim().toLowerCase(), branchPrefixes)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   if (!slug) {
@@ -54,9 +62,13 @@ export const worktreeEntries = (cwd = process.cwd()): WorktreeEntry[] => {
 
 export const gitRoot = (cwd = process.cwd()): string => resolve(git(cwd, ["rev-parse", "--show-toplevel"]));
 
-export const resolveSlug = (explicitSlug?: string, cwd = process.cwd()): string => {
+export const resolveSlug = (
+  explicitSlug?: string,
+  cwd = process.cwd(),
+  branchPrefixes: readonly string[] = DEFAULT_BRANCH_PREFIXES,
+): string => {
   if (explicitSlug !== undefined) {
-    return sanitizeSlug(explicitSlug);
+    return sanitizeSlug(explicitSlug, branchPrefixes);
   }
 
   const root = realpathSync(gitRoot(cwd));
@@ -77,5 +89,5 @@ export const resolveSlug = (explicitSlug?: string, cwd = process.cwd()): string 
   if (!branch) {
     throw new Error("Unable to derive variant slug from current git worktree; pass -s/--slug");
   }
-  return sanitizeSlug(branch);
+  return sanitizeSlug(branch, branchPrefixes);
 };

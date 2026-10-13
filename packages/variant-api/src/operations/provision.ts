@@ -24,10 +24,10 @@ export const provisionVariant = async (
   context: OperationContext,
   requestedSlug?: string,
 ): Promise<{ slug: string; commands: string[]; output: string }> => {
-  const slug = resolveSlug(requestedSlug, context.cwd);
+  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes);
   const worktree =
     context.useWorktree && slug !== "main"
-      ? ensureWorktree(slug, context.cwd, context.variantRoot, context.config.variant?.prefix)
+      ? ensureWorktree(slug, context.cwd, context.variantRoot, context.config.variant.prefix, context.config.variant)
       : context.cwd;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
   const environment: NodeJS.ProcessEnv = {

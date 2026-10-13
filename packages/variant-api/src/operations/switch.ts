@@ -6,7 +6,13 @@ export const switchVariant = (
   context: OperationContext,
   requestedSlug?: string,
 ): { slug: string; worktree: string } => {
-  const slug = resolveSlug(requestedSlug, context.cwd);
-  const worktree = switchWorktree(slug, context.cwd, context.variantRoot, context.config.variant?.prefix);
+  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes);
+  const worktree = switchWorktree(
+    slug,
+    context.cwd,
+    context.variantRoot,
+    context.config.variant.prefix,
+    context.config.variant,
+  );
   return { slug, worktree };
 };

@@ -5,11 +5,11 @@ import { ensureWorktree } from "../worktree.js";
 import type { OperationContext } from "./types.js";
 
 export const createVariant = async (context: OperationContext, requestedSlug?: string): Promise<VariantRecord> => {
-  const slug = resolveSlug(requestedSlug, context.cwd);
+  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes);
   const existing = readState(context.stateDir, slug);
   const worktree =
     context.useWorktree && slug !== "main"
-      ? ensureWorktree(slug, context.cwd, context.variantRoot, context.config.variant?.prefix)
+      ? ensureWorktree(slug, context.cwd, context.variantRoot, context.config.variant.prefix, context.config.variant)
       : undefined;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
 

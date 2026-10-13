@@ -6,7 +6,7 @@ export const destroyVariant = async (
   context: OperationContext,
   requestedSlug?: string,
 ): Promise<{ slug: string; removed: boolean }> => {
-  const slug = resolveSlug(requestedSlug, context.cwd);
+  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes);
   if (slug === "main") {
     throw new Error("Refusing to destroy main variant");
   }
