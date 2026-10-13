@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { dirname, join, parse as parsePath, relative, resolve } from "node:path";
+import { basename, dirname, join, parse as parsePath, relative, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
-import { type DbConfig, type DbDialect, DEFAULT_OPEN_URL, type VariantInstance } from "./schema.js";
+import { type DbConfig, type DbDialect, DEFAULT_OPEN_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
 
 const MISE_FILENAMES = ["mise.local.toml", "mise.toml"] as const;
 const ENV_KEYS = [
@@ -233,8 +233,16 @@ const shouldSkip = (name: string): boolean =>
   name === "build" ||
   name.startsWith(".");
 
-export const detectInstances = (configDir: string): VariantInstance[] => {
-  const result: VariantInstance[] = [];
+/** The key of an autodetected instance: its directory's base name, or its kind for the configuration directory. */
+const instanceKeyFor = (instance: VariantInstance): string => {
+  const base = instance.dir === "." ? instance.kind : basename(instance.dir);
+  const plain = base.replace(/[^A-Za-z0-9_-]/g, "-");
+  return INSTANCE_KEY.test(plain) ? plain : `${instance.kind}-${plain}`;
+};
+
+/** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
+export const detectInstances = (configDir: string): Record<string, VariantInstance> => {
+  const found: VariantInstance[] = [];
   const visited = new Set<string>();
   const walk = (directory: string): void => {
     const resolved = resolve(directory);
@@ -251,7 +259,7 @@ export const detectInstances = (configDir: string): VariantInstance[] => {
       const kind = detectKind(child);
       if (kind) {
         const dir = relative(configDir, child) || ".";
-        result.push(kind === "vite" ? { kind, dir, open: DEFAULT_OPEN_URL } : { kind, dir });
+        found.push(kind === "vite" ? { kind, dir, open: DEFAULT_OPEN_URL } : { kind, dir });
       }
       walk(child);
     }
@@ -260,7 +268,16 @@ export const detectInstances = (configDir: string): VariantInstance[] => {
   if (existsSync(configDir) && statSync(configDir).isDirectory()) {
     walk(configDir);
   }
-  return result.sort((left, right) => left.dir.localeCompare(right.dir));
+  const instances: Record<string, VariantInstance> = {};
+  for (const instance of found.sort((left, right) => left.dir.localeCompare(right.dir))) {
+    const base = instanceKeyFor(instance);
+    let key = base;
+    for (let suffix = 2; key in instances; suffix += 1) {
+      key = `${base}-${suffix}`;
+    }
+    instances[key] = instance;
+  }
+  return instances;
 };
 
 export const inferConfigRoot = (path: string): string => parsePath(resolve(path)).dir;

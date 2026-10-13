@@ -7,13 +7,13 @@ db:
 variant:
   seed: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
   instances:
-    - name: fe
+    fe:
       kind: vite
       dir: fe
       up: bun run dev
       watch: bun run build:watch
       open: http://{{slug}}.vw.localhost:{{port}}
-    - name: be
+    be:
       kind: nestjs
       dir: be
       up: bun run start:dev

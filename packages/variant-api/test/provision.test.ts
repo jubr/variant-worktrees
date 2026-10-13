@@ -20,8 +20,8 @@ describe("provision", () => {
           "variant:",
           "  seed: pwd > seed.out",
           "  instances:",
-          "    - { name: fe, kind: vite, dir: fe, up: pwd > ../fe.out }",
-          "    - { name: be, kind: nestjs, dir: be, up: pwd > ../be.out }",
+          "    fe: { kind: vite, dir: fe, up: pwd > ../fe.out }",
+          "    be: { kind: nestjs, dir: be, up: pwd > ../be.out }",
           "",
         ].join("\n"),
       );

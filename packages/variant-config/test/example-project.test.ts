@@ -37,25 +37,26 @@ describe("the example project", () => {
 
     expect(config.db.dialect).toBe("sqlite");
     expect(config.variant?.seed).toBe("bun scripts/seed.mjs");
-    expect(config.variant?.instances).toMatchObject([
-      { name: "fe", kind: "vite", dir: "fe", open: DEFAULT_OPEN_URL },
-      { name: "be", kind: "nestjs", dir: "be", dotenv: ".env" },
-    ]);
+    expect(config.variant.instances).toMatchObject({
+      fe: { kind: "vite", dir: "fe", open: DEFAULT_OPEN_URL },
+      be: { kind: "nestjs", dir: "be", dotenv: ".env" },
+    });
+    expect(Object.keys(config.variant.instances)).toEqual(["fe", "be"]);
   });
 
   it("autodetects the same instances the config lists", () => {
-    const explicit = (loadConfig({ cwd: exampleDirectory }).variant?.instances ?? []).map(({ kind, dir }) => ({
+    const explicit = Object.values(loadConfig({ cwd: exampleDirectory }).variant.instances).map(({ kind, dir }) => ({
       kind,
       dir,
     }));
-    const detected = detectInstances(exampleDirectory).map(({ kind, dir }) => ({ kind, dir }));
+    const detected = Object.values(detectInstances(exampleDirectory)).map(({ kind, dir }) => ({ kind, dir }));
 
     expect(detected).toEqual([...explicit].sort((left, right) => left.dir.localeCompare(right.dir)));
   });
 
   it("derives be's dotenv from .env.example with the variant's values", () => {
     const config = loadConfig({ cwd: exampleDirectory });
-    const be = config.variant?.instances?.find((instance) => instance.name === "be");
+    const be = config.variant.instances.be;
     if (!be) {
       throw new Error("example has no be instance");
     }
@@ -69,10 +70,9 @@ describe("the example project", () => {
     withExampleCopy(async (directory) => {
       writeRuntime(directory, { slug: "demo", instances: { fe: { port: 62060 }, be: { port: 62061 } } });
       const config = loadConfig({ cwd: directory });
-      const [fe, be] = config.variant?.instances ?? [];
 
-      expect(fe && (await openUrlFor(config, "demo", fe))).toBe("http://demo.vw.localhost:62060");
-      expect(be && (await openUrlFor(config, "demo", be))).toBeUndefined();
+      expect(await openUrlFor(config, "demo", "fe")).toBe("http://demo.vw.localhost:62060");
+      expect(await openUrlFor(config, "demo", "be")).toBeUndefined();
     }));
 
   it("declares bun and the variant CLI in mise.toml", () => {

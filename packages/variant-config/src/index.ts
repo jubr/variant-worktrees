@@ -4,8 +4,18 @@ import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
 import { readRuntime } from "./local.js";
-import type { DbConfig, ResolvedConfig, VariantInstance, VariantsConfig } from "./schema.js";
-import { DEFAULT_PREFIX, VariantsConfigSchema, variantsJsonSchema } from "./schema.js";
+import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
+import {
+  DEFAULT_BASE_BRANCH,
+  DEFAULT_BRANCH_PREFIXES,
+  DEFAULT_MAX_DIFF_LINES,
+  DEFAULT_PREFIX,
+  DEFAULT_RESERVED_PORTS,
+  DEFAULT_STORAGE_DIR,
+  DEFAULT_STORAGE_ENV,
+  VariantsConfigSchema,
+  variantsJsonSchema,
+} from "./schema.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -45,16 +55,47 @@ const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbCo
   ...explicit,
 });
 
-const resolveInstances = (config: VariantsConfig, configDir: string): VariantInstance[] => {
-  if (config.variant?.instances !== undefined) {
-    return config.variant.instances;
-  }
-  return detectInstances(configDir);
+const resolveInstances = (config: VariantsConfig, configDir: string): Record<string, VariantInstance> =>
+  config.variant?.instances ?? detectInstances(configDir);
+
+/** `variant.open`, unless `VARIANT_OPEN=0` turns opening off. */
+const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
+  env.VARIANT_OPEN === "0" ? false : (configured ?? true);
+
+const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
+  const { storage, supervise, implode, ...variant } = config.variant ?? {};
+  return {
+    ...variant,
+    root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir),
+    prefix: variant.prefix ?? DEFAULT_PREFIX,
+    instances: resolveInstances(config, configDir),
+    baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
+    branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
+    open: resolveOpen(variant.open, env),
+    reservedPorts: variant.reservedPorts ?? [...DEFAULT_RESERVED_PORTS],
+    ...(storage
+      ? { storage: { dir: storage.dir ?? DEFAULT_STORAGE_DIR, env: storage.env ?? DEFAULT_STORAGE_ENV } }
+      : {}),
+    supervise: {
+      startDelaySeconds: supervise?.startDelaySeconds ?? 2,
+      readyTimeoutSeconds: supervise?.readyTimeoutSeconds ?? 180,
+      checkoutPollSeconds: supervise?.checkoutPollSeconds ?? 5,
+    },
+    implode: {
+      preRm: implode?.preRm ?? [],
+      restore: implode?.restore ?? [],
+      untracked: implode?.untracked ?? [],
+      requireMerged: implode?.requireMerged ?? true,
+      maxDiffLines: implode?.maxDiffLines ?? DEFAULT_MAX_DIFF_LINES,
+    },
+  };
 };
 
 export interface LoadConfigOptions {
   cwd?: string;
   configPath?: string;
+  /** Environment for `VARIANT_*` overrides and `{{NAME}}` templates; the process environment by default. */
+  env?: NodeJS.ProcessEnv;
 }
 
 export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
@@ -68,14 +109,9 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const detected = detectConnection(configDir);
   const db = mergeDbConfig(detected.config, config.db);
   const source = config.db ? "config" : detected.source;
-  const variant = {
-    ...config.variant,
-    root: config.variant?.root ? resolve(configDir, config.variant.root) : detectVariantRoot(configDir),
-    prefix: config.variant?.prefix ?? DEFAULT_PREFIX,
-    instances: resolveInstances(config, configDir),
-  };
-
-  const runtime = readRuntime(configDir);
+  const env = options.env ?? process.env;
+  const variant = resolveVariant(config, configDir, env);
+  const runtime = readRuntime(configDir, env, Object.keys(variant.instances));
 
   return {
     ...config,
@@ -89,13 +125,13 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
 };
 
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
-  config.variants?.[slug]?.seed ?? config.variant?.seed;
+  config.variants?.[slug]?.seed ?? config.variant.seed;
 
 export const runtimeCommandFor = (
   config: ResolvedConfig,
   kind: "up" | "watch",
   instance?: VariantInstance,
-): string | undefined => instance?.[kind] ?? config.variant?.[kind];
+): string | undefined => instance?.[kind] ?? config.variant[kind];
 
 /**
  * Only the variant name prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
@@ -133,8 +169,9 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
-export { readRuntime, writeRuntime } from "./local.js";
-export { instanceKey, openUrlFor, resolveInstancePort } from "./ports.js";
+export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
+export { readRuntime, readRuntimes, writeRuntime } from "./local.js";
+export { openUrlFor, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
@@ -156,5 +193,6 @@ export {
   variantsJsonSchema,
   variantsLocalJsonSchema,
 } from "./schema.js";
+export { renderTemplate, type TemplateContext } from "./template.js";
 export { resolveMainVscodeDir } from "./vscode-dir.js";
 export type { ChatRenamerConfig };

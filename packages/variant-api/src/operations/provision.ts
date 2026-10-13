@@ -43,7 +43,7 @@ export const provisionVariant = async (
     environment.SQLITE_DATABASE = target;
   }
 
-  const instanceSteps = (context.config.variant?.instances ?? []).flatMap((instance) => {
+  const instanceSteps = Object.values(context.config.variant.instances).flatMap((instance) => {
     const command = runtimeCommandFor(context.config, "up", instance);
     return command ? [{ command, cwd: resolve(worktree, instance.dir) }] : [];
   });

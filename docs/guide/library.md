@@ -42,18 +42,20 @@ variant:
   watch: bun run dev
   seed: bun run db:seed
   instances:
-    - name: fe
+    fe:
       kind: vite
       dir: fe
       open: http://{{slug}}.vw.localhost:{{port}}
-    - name: be
+    be:
       kind: nestjs
       dir: be
 ```
 
-Use `variant.instances` for explicit Vite/NestJS directories. `open` is a URL template
+Use `variant.instances` for explicit Vite/NestJS directories, keyed by instance name (the key is the
+name in runtime state, templates such as `{{port.be}}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
+environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `open` is a URL template
 with `{{slug}}` and `{{port}}` placeholders; `dotenv` names an env file, relative to `dir`, that is
-copied for a variant and amended with its values. The port is `runtime.instances.<name>.port`
+copied for a variant and amended with its values. The port is `VARIANT_<KEY>_PORT`, else `runtime.instances.<key>.port`
 from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
-port. If `variant.instances` is omitted, subdirectories below the configuration file are
+port that is not in `variant.reservedPorts` (default 3000, 4200, 5432). If `variant.instances` is omitted, subdirectories below the configuration file are
 searched automatically.

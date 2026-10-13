@@ -16,10 +16,13 @@ describe("runtime instance discovery", () => {
       writeFileSync(join(directory, "app", "vite.config.ts"), "export default {};\n");
       writeFileSync(join(directory, "server", "nest-cli.json"), "{}\n");
 
-      expect(detectInstances(directory)).toEqual([
-        { kind: "vite", dir: "app", open: DEFAULT_OPEN_URL },
-        { kind: "nestjs", dir: "server" },
-      ]);
+      const instances = detectInstances(directory);
+
+      expect(instances).toEqual({
+        app: { kind: "vite", dir: "app", open: DEFAULT_OPEN_URL },
+        server: { kind: "nestjs", dir: "server" },
+      });
+      expect(Object.keys(instances)).toEqual(["app", "server"]);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -32,10 +35,12 @@ describe("runtime instance discovery", () => {
       writeFileSync(join(directory, "autodetected", "vite.config.ts"), "export default {};\n");
       writeFileSync(
         join(directory, "variants.yaml"),
-        "variant:\n  instances:\n    - kind: vite\n      dir: configured-app\n",
+        "variant:\n  instances:\n    app:\n      kind: vite\n      dir: configured-app\n",
       );
 
-      expect(loadConfig({ cwd: directory }).variant?.instances).toEqual([{ kind: "vite", dir: "configured-app" }]);
+      expect(loadConfig({ cwd: directory }).variant?.instances).toEqual({
+        app: { kind: "vite", dir: "configured-app" },
+      });
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

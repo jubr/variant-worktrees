@@ -1,5 +1,5 @@
 import { createServer } from "node:net";
-import type { ResolvedConfig, VariantInstance } from "./schema.js";
+import type { ResolvedConfig } from "./schema.js";
 
 /** A port the operating system reports as free right now, always in the unprivileged range. */
 const freePort = (): Promise<number> =>
@@ -13,25 +13,34 @@ const freePort = (): Promise<number> =>
     });
   });
 
-/** The key of an instance in the runtime state: its name, or its kind when it has none. */
-export const instanceKey = (instance: VariantInstance): string => instance.name ?? instance.kind;
+/** A free port that is not in `reserved`; `candidate` produces the free ports to try. */
+export const pickFreePort = async (
+  reserved: readonly number[],
+  candidate: () => Promise<number> = freePort,
+): Promise<number> => {
+  for (;;) {
+    const port = await candidate();
+    if (!reserved.includes(port)) {
+      return port;
+    }
+  }
+};
 
 /**
- * The port of one instance: `runtime.instances.<name>.port` of the local runtime state, otherwise a random free port.
- * Nothing is written, so a random port is not stable between calls; `writeRuntime` records one.
+ * The port of the instance with the given key: `VARIANT_<KEY>_PORT` or `runtime.instances.<key>.port` of the local
+ * runtime state (`loadConfig` has merged the two), otherwise a random free port that is not in `variant.reservedPorts`.
+ * Nothing is written, so a random port is not stable between calls; `writeRuntime` records one. A reserved port that is
+ * assigned explicitly is kept: reservation limits only picked ports.
  */
-export const resolveInstancePort = async (config: ResolvedConfig, instance: VariantInstance): Promise<number> =>
-  config.runtime?.instances?.[instanceKey(instance)]?.port ?? (await freePort());
+export const resolveInstancePort = async (config: ResolvedConfig, key: string): Promise<number> =>
+  config.runtime?.instances?.[key]?.port ?? (await pickFreePort(config.variant.reservedPorts));
 
-/** The `open` template of an instance with `{{slug}}` and `{{port}}` replaced, or nothing when it has none. */
-export const openUrlFor = async (
-  config: ResolvedConfig,
-  slug: string,
-  instance: VariantInstance,
-): Promise<string | undefined> => {
-  if (instance.open === undefined) {
+/** The `open` template of the instance with the given key, `{{slug}}` and `{{port}}` replaced, or nothing without one. */
+export const openUrlFor = async (config: ResolvedConfig, slug: string, key: string): Promise<string | undefined> => {
+  const template = config.variant.instances[key]?.open;
+  if (template === undefined) {
     return undefined;
   }
-  const port = await resolveInstancePort(config, instance);
-  return instance.open.replaceAll("{{slug}}", slug).replaceAll("{{port}}", String(port));
+  const port = await resolveInstancePort(config, key);
+  return template.replaceAll("{{slug}}", slug).replaceAll("{{port}}", String(port));
 };

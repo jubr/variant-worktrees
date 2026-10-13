@@ -3,6 +3,7 @@
 # Ephemeral state of one variant, kept next to variants.yaml in the variant's own worktree (_v-<slug>/variants.local.yaml)
 # and git-ignored. Every option is listed with an illustrative value; alternatives follow `#` on the same line.
 # `{{NAME}}` in any string is replaced by the environment variable NAME when the file is read.
+# VARIANT_<KEY>_PORT, VARIANT_<KEY>_URL and VARIANT_<KEY>_PID (VARIANT_BE_PORT for `be`) override the instance values.
 # A test keeps this file in step with variants.local.yaml.schema.json.
 
 runtime:
@@ -20,7 +21,7 @@ runtime:
     schema: v_demo_embody_assume_user # also in POSTGRES_SCHEMA
     filename: ./app.sqlite # sqlite only
     ssl: false # true
-  instances: # keyed by instance name (by kind when an instance has no name)
+  instances: # keyed by the key of the entry in variant.instances
     fe:
       port: 62060
       pid: 123

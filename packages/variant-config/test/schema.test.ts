@@ -37,20 +37,22 @@ describe("VariantsConfigSchema", () => {
   it("accepts an open URL template on an instance and rejects an empty one", () => {
     const instance = { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" };
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: [instance] } }).success).toBe(true);
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: [{ ...instance, open: "" }] } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: { ...instance, open: "" } } } }).success).toBe(
+      false,
+    );
   });
 
   it("accepts an open URL template and a dotenv file on a NestJS instance", () => {
     const instance = { kind: "nestjs", dir: "server", open: "http://{{slug}}.vw.localhost:{{port}}", dotenv: ".env" };
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: [instance] } }).success).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(true);
   });
 
   it("rejects an empty dotenv path", () => {
     const instance = { kind: "nestjs", dir: "server", dotenv: "" };
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: [instance] } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(false);
   });
 
   it("accepts a chatRenamer section with every option", () => {

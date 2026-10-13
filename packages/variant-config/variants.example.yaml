@@ -21,23 +21,82 @@ db:
 variant:
   root: .. # directory that holds the variant worktrees; default: detected from the git checkout
   prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
+  baseBranch: main # new variant branches start here, and a variant must be merged here before `implode`
+  branchPrefixes: # the first prefixes a new branch; all of them are dropped from a branch name to get a slug
+    - feat/
+    - fix/
+  containerEngine: docker # podman; CONTAINER_ENGINE wins. Absent: docker if installed, else podman
+  open: true # false; open URLs in the browser after `up` and `watch`. VARIANT_OPEN=0 turns it off
+  reservedPorts: # ports that are never picked for an instance; an explicit VARIANT_<KEY>_PORT may still use them
+    - 3000
+    - 4200
+    - 5432
+  storage: # per-variant data directory; absent: none
+    dir: .storage # relative to the worktree
+    env: STORAGE_ROOT # variable that carries the absolute directory to commands
+  steps: # run in order between the `up` commands and the seed command
+    - name: migrations # unique
+      run: bun run migrate # shell commands
+      dir: be # relative to the worktree; default: the worktree root
+      env: # templated values; win over everything else the command sees
+        JWT_SECRET: '{{JWT_SECRET:-variant-local-{{slug}}}}' # {{NAME}} and {{NAME:-default}} read the environment
+      unlessEnv: # skip the step when every variable has this value
+        SEED_DEMO_USER: 'false'
+      show: '^Migration ' # print only the output lines that match; --verbose and failures print everything
+  supervise: # `up` and `watch` timing
+    startDelaySeconds: 2 # wait between starting two instances
+    readyTimeoutSeconds: 180 # wait for the instances that set `ready`
+    checkoutPollSeconds: 5 # how often an attached watch checks that the worktree still exists; 0 turns it off
+  implode: # `variant implode` removes the variant and its worktree
+    preRm: # directory names removed below each instance directory
+      - dist
+      - node_modules
+    restore: # tracked files whose local changes are discarded
+      - bun.lock
+    untracked: # glob patterns of untracked files to delete; {{slug}} is replaced
+      - openspec/changes/{{slug}}/pr*-demo.webm
+    requireMerged: true # false; refuse to implode a variant that is not merged into baseBranch
+    maxDiffLines: 200 # the report holds the full diff up to this many lines
   seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
   up: bun run dev # command that starts a variant; an instance's own `up` wins
   watch: bun run watch # command that rebuilds a variant; an instance's own `watch` wins
-  instances:
-    - name: fe
+  instances: # keyed by instance name: runtime state, templates ({{port.be}}), containers and VARIANT_BE_PORT use the key
+    fe:
       kind: vite # nestjs
       dir: fe
       up: bun run dev
       watch: bun run build:watch
       open: http://{{slug}}.vw.localhost:{{port}} # URL template, placeholders {{slug}} and {{port}}; autodetected vite instances get this default
       dotenv: .env.local # env file in dir, copied for a variant and amended with its values; most useful for nestjs
-    - name: be
+      env: # templated values for the instance's commands and the dotenv copy when it is created
+        VITE_API_URL: http://{{slug}}.vw.localhost:{{port.be}}
+      envAlways: # like env, and written into the dotenv copy again on every run
+        PUBLIC_BASE_URL: '{{url}}'
+      dotenvSource: ~/secrets/fe.env # env file copied instead of the primary worktree's; absolute, or relative to the primary worktree
+      install: bun install --frozen-lockfile # runs in dir when dir has no node_modules
+      ready: /index.html # URL path that answers with a success status when the instance serves
+      container: # how `up` runs the instance
+        image: nginx:alpine # an application container needs image or dockerfile; a static site defaults to nginx:alpine
+        dockerfile: fe/Dockerfile # relative to the worktree, built with the worktree as context
+        build: bunx vite build # runs in dir before the container starts
+        static: dist # directory, relative to dir, whose files are served
+        port: 80 # port inside the container; 80 for a static site
+        proxy: # forward requests below path to another instance that has container.port
+          path: /api/
+          to: be
+        volumes: # host:container mounts, templated
+          - '{{worktree}}/fe/public:/usr/share/nginx/html/public:ro'
+        env: # templated environment of the container
+          NGINX_HOST: '{{slug}}.vw.localhost'
+    be:
       kind: nestjs
       dir: be
       up: bun run start:dev
       watch: bun run build:watch
       dotenv: .env
+      container:
+        dockerfile: be/Dockerfile
+        port: 3000
 
 # Per-variant overrides, keyed by slug.
 variants:
