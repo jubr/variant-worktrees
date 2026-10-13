@@ -1,5 +1,7 @@
 # variant-worktrees
 
+![variant-worktrees](./packages/variant-vscode/media/icon-256.png)
+
 Typed database variants for git worktrees, exposed through a TypeScript library,
 CLI, and MCP server.
 
