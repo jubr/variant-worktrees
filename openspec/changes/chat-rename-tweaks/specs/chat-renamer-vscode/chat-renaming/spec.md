@@ -77,7 +77,7 @@ Every extension package script that produces a `.vsix` SHALL write it into the r
 
 ### Requirement: Settings and embedding
 
-The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array of prefixes including their connector, default empty) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to supply the same options, for example from `variants.yaml` (`chatRenamer`). When embedded in Variant, `worktreePrefixes` SHALL default to the workspace's `variant.prefix`, so the prefix is defined once; an explicit `chatRenamer.worktreePrefixes` replaces that default rather than adding to it. An option the user set explicitly in the editor settings SHALL win over the host-supplied value, which SHALL win over the default. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload. When `worktreePrefixes` is empty, the default path pattern SHALL derive a title from a dragged-in path. When `worktreePrefixes` is non-empty, only those prefixes SHALL match `@` paths.
+The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array of prefixes including their connector, default empty) and `renameExistingDays` (non-negative integer, default 7, 0 = off) from a configurable section, falling back to defaults for unknown values; an empty `activationPatterns` array SHALL turn patterns off. A host extension SHALL be able to supply the same options, for example from `variants.yaml` (`chatRenamer`). When embedded in Variant, `worktreePrefixes` SHALL default to the workspace's `variant.prefix`, so the prefix is defined once; an explicit `chatRenamer.worktreePrefixes` replaces that default rather than adding to it. An option the user set explicitly in the editor settings SHALL win over the host-supplied value, which SHALL win over the default. A host extension SHALL be able to choose the command prefix and settings section, and SHALL contribute the settings in its own manifest. Changing the settings SHALL reconfigure the trigger without a reload. When `worktreePrefixes` is empty, the default path pattern SHALL derive a title from a dragged-in path. When `worktreePrefixes` is non-empty, only those prefixes SHALL match `@` paths. When embedded in Variant, those settings SHALL be read from section `variant` (`variant.trigger`, `variant.hookScope`, `variant.activationPatterns`, `variant.worktreePrefixes`, `variant.renameExistingDays`). That section SHALL also contribute `variant.enable`, a boolean that defaults to true and is not a `variants.yaml` field. When `variant.enable` is false, the embedded renamer SHALL NOT rename: it SHALL NOT listen for title events, SHALL NOT install a hook, SHALL uninstall a hook it wrote earlier, and SHALL NOT rename existing chats. Palette commands SHALL stay registered and, when `variant.enable` is false, SHALL NOT rename and SHALL tell the user that `variant.enable` is false. A settings section with no `enable` key SHALL leave renaming on. Changing `variant.enable` SHALL apply without a reload.
 
 #### Scenario: Standalone defaults
 
@@ -87,7 +87,7 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 #### Scenario: Embedded in Variant
 
 - **WHEN** `variant-vscode` activates
-- **THEN** commands `variant.renameChat`, `variant.renameChatFromPrompt` and `variant.renameActiveChat` are registered and settings are read from `variant-worktrees.chatRename.*`
+- **THEN** commands `variant.renameChat`, `variant.renameChatFromPrompt` and `variant.renameActiveChat` are registered and settings are read from `variant.*`
 
 #### Scenario: Variant prefix is recognised without repeating it
 
@@ -117,4 +117,34 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 #### Scenario: Manifest copy stays in step
 
 - **WHEN** the standalone manifest contributes a setting
-- **THEN** the embedding host manifest contributes the same setting under its own section
+- **THEN** the embedding host manifest contributes the same setting under `variant.*`
+
+#### Scenario: Variant enable defaults on
+
+- **WHEN** `variant-vscode` activates and `variant.enable` is unset
+- **THEN** chat renaming runs
+
+#### Scenario: Variant enable switches renaming off
+
+- **WHEN** `variant.enable` is false
+- **THEN** a title event does not rename, existing chats are not renamed, no hook is installed, and `variant.renameActiveChat` does not rename
+- **AND** the user is told that `variant.enable` is false
+
+#### Scenario: Variant enable applies without a reload
+
+- **WHEN** `variant.enable` changes from false to true
+- **THEN** chat renaming starts without a reload
+
+### Requirement: Existing-chats activity is clearly logged
+
+Every log line about renaming existing chats SHALL start with `[existing-chats]`. A run SHALL log what triggered it (`startup`, `title events settled`, `setting changed` or `command`) together with the setting it obeys, written as `<section>.renameExistingDays=<value>`, and the start of the window. When the setting is 0 the log SHALL say the feature is off and name the setting. Each rename SHALL log the chat id, old title, new title and creation time, and the run SHALL end with a summary of listed, examined, renamed and failed chats.
+
+#### Scenario: Startup run
+
+- **WHEN** the startup run begins with `renameExistingDays` 7 in section `variant`
+- **THEN** the log has a `[existing-chats]` line naming trigger `startup` and `variant.renameExistingDays=7`
+
+#### Scenario: Off is explained
+
+- **WHEN** the renamer starts with `renameExistingDays` 0
+- **THEN** the log has a `[existing-chats]` line saying existing chats are off because `<section>.renameExistingDays=0`
