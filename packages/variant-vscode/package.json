@@ -13,7 +13,8 @@
   "dependencies": {
     "@types/vscode": "^1.86.0",
     "chat-renamer-vscode": "workspace:*",
-    "variant-config": "workspace:*"
+    "variant-config": "workspace:*",
+    "variant-ipc": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",
