@@ -45,6 +45,10 @@ describe("embedded chat renamer manifest", () => {
       command: "variant-worktrees.renameExistingChats",
       title: "Variant: Rename Existing Chats",
     });
+    expect(variant.contributes.commands).toContainEqual({
+      command: "variant-worktrees.renameActiveChat",
+      title: "Variant: Rename active chat",
+    });
   });
 
   it("has the activation events the renamer needs", () => {

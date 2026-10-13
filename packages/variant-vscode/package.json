@@ -58,6 +58,10 @@
       {
         "command": "variant-worktrees.renameExistingChats",
         "title": "Variant: Rename Existing Chats"
+      },
+      {
+        "command": "variant-worktrees.renameActiveChat",
+        "title": "Variant: Rename active chat"
       }
     ],
     "configuration": {

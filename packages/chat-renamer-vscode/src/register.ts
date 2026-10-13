@@ -65,7 +65,7 @@ export const registerChatRenamer = (
     readFirstPrompt,
     fileConfig,
   });
-  context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names, existing));
+  context.subscriptions.push(...registerRenameChatCommands(context, logger, options, names, existing, readFirstPrompt));
   const ready = startChatRenameTrigger(context, logger, options, names, {
     homeDir,
     readFirstPrompt,

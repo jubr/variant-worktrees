@@ -17,6 +17,7 @@ describe("registerChatRenamer", () => {
       "chat-renamer.renameChat",
       "chat-renamer.renameChatFromPrompt",
       "chat-renamer.renameExistingChats",
+      "chat-renamer.renameActiveChat",
     ]);
   });
 
@@ -34,6 +35,7 @@ describe("registerChatRenamer", () => {
       "variant-worktrees.renameChat",
       "variant-worktrees.renameChatFromPrompt",
       "variant-worktrees.renameExistingChats",
+      "variant-worktrees.renameActiveChat",
     ]);
   });
 

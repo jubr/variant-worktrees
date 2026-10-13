@@ -8,6 +8,7 @@ describe("chatRenamerNames", () => {
       renameChat: "chat-renamer.renameChat",
       renameChatFromPrompt: "chat-renamer.renameChatFromPrompt",
       renameExistingChats: "chat-renamer.renameExistingChats",
+      renameActiveChat: "chat-renamer.renameActiveChat",
       configSection: "chat-renamer",
       hookScriptName: "chat-renamer-chat-rename.sh",
     });
@@ -20,6 +21,7 @@ describe("chatRenamerNames", () => {
       renameChat: "variant-worktrees.renameChat",
       renameChatFromPrompt: "variant-worktrees.renameChatFromPrompt",
       renameExistingChats: "variant-worktrees.renameExistingChats",
+      renameActiveChat: "variant-worktrees.renameActiveChat",
       configSection: "variant-worktrees.chatRename",
       hookScriptName: "variant-worktrees-chat-rename.sh",
     });
