@@ -16,6 +16,8 @@ Bun workspace monorepo:
 - **`variant-mcp`** — MCP server exposing variant lifecycle tools.
 - **`variant-vscode`** — VS Code extension in the same workspace, included in the root build.
 
+Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts. Do not route the rest through the extension.
+
 Tech: Bun, TypeScript strict ESM, Zod v4, Drizzle ORM, Biome, VitePress + TypeDoc. Database connection settings autodetect from `mise.local.toml`, then environment variables.
 
 ## Command execution
