@@ -61,6 +61,14 @@ describe("default path pattern", () => {
     });
   });
 
+  it("derives the slug from a short @_work- mention", () => {
+    expect(findRenameRequest("/vw-spec-start @_work-my-slug", defaults)).toEqual({
+      kind: "rename",
+      title: "my-slug",
+      viaPattern: true,
+    });
+  });
+
   it("does not let the default path pattern bypass a configured prefix", () => {
     const patterns = compilePatterns(activationPatternSources(["_v-"], [...DEFAULT_ACTIVATION_PATTERNS])).patterns;
 
@@ -127,6 +135,13 @@ describe("worktree path patterns", () => {
     });
   });
 
+  it("derives the slug from a short mention of that prefix", () => {
+    expect(findRenameRequest("/vw-spec-start @_work-my-slug", forPrefixes("_work-"))).toMatchObject({
+      kind: "rename",
+      title: "my-slug",
+    });
+  });
+
   it("ignores a prefix that is not configured", () => {
     expect(findRenameRequest("/vw-spec-iterate @/Users/me/vw/_work-my-slug", forPrefixes("_v-"))).toEqual({
       kind: "none",
@@ -161,6 +176,6 @@ describe("worktree path patterns", () => {
   });
 
   it("lists each prefix once", () => {
-    expect(worktreeActivationPatterns(["_v-", "_v-"])).toHaveLength(1);
+    expect(worktreeActivationPatterns(["_v-", "_v-"])).toHaveLength(2);
   });
 });

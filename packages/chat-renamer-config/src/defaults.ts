@@ -11,9 +11,13 @@ export const DEFAULT_HOOK_SCOPE: HookScope = "workspace";
 /** Prompt lines that name a chat. The first capture group is the title. */
 export const DEFAULT_PATH_ACTIVATION_PATTERN = "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)";
 
-/** The path pattern is first so `@<path>` wins over the slug pattern on the same line. */
+/** `/<word>-spec-<word> @_work-slug` with no path. The capture group is the slug after `_work-`. */
+export const DEFAULT_SHORT_ACTIVATION_PATTERN = "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)";
+
+/** The path pattern is first so `@<path>` wins over the short and slug patterns on the same line. */
 export const DEFAULT_ACTIVATION_PATTERNS: readonly string[] = [
   DEFAULT_PATH_ACTIVATION_PATTERN,
+  DEFAULT_SHORT_ACTIVATION_PATTERN,
   "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)",
 ];
 

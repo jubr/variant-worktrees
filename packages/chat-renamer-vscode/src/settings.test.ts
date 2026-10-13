@@ -24,6 +24,7 @@ describe("readSettings", () => {
       hookScope: "workspace",
       activationPatterns: [
         "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+        "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)",
         "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)",
       ],
       worktreePrefixes: [],
