@@ -95,7 +95,7 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 #### Scenario: Embedded in Variant
 
 - **WHEN** `variant-vscode` activates
-- **THEN** commands `variant-worktrees.renameChat` and `variant-worktrees.renameChatFromPrompt` are registered and settings are read from `variant-worktrees.chatRename.*`
+- **THEN** commands `variant.renameChat` and `variant.renameChatFromPrompt` are registered and settings are read from `variant-worktrees.chatRename.*`
 
 #### Scenario: Variant prefix is recognised without repeating it
 

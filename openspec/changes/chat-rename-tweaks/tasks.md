@@ -11,7 +11,7 @@
 
 ## 3. Active chat command
 
-- [x] 3.1 Add failing tests: manifests contribute `chat-renamer.renameActiveChat` titled `Chat Renamer: Rename active chat` and `variant-worktrees.renameActiveChat` titled `Variant: Rename active chat`; both ids are registered, including on an idle instance; a selected chat whose first prompt is `/vw-spec-start abc` and older than 30 seconds is renamed `abc` even when `renameExistingDays` is 0; no selected chat and a prompt of `fix the build` do not rename and tell the user. Verify the new tests fail.
+- [x] 3.1 Add failing tests: manifests contribute `chat-renamer.renameActiveChat` titled `Chat Renamer: Rename active chat` and `variant.renameActiveChat` titled `Variant: Rename active chat`; both ids are registered, including on an idle instance; a selected chat whose first prompt is `/vw-spec-start abc` and older than 30 seconds is renamed `abc` even when `renameExistingDays` is 0; no selected chat and a prompt of `fix the build` do not rename and tell the user. Verify the new tests fail.
 - [x] 3.2 Register `renameActiveChat`, resolve the selected chat as the first `composer.getOrderedSelectedComposerIds` id, and run the title-event path with no age window. Verify the tests from 3.1 pass.
 
 ## 4. Package output
