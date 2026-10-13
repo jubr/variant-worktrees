@@ -22,9 +22,11 @@ export interface CommandDefinition {
 }
 ```
 
-Commands include `config`, `create`, `destroy`, `list`, `switch`, and
-`provision`. Adding a command updates CLI and MCP registration from the same
-source.
+Commands include `config`, `create`, `list`, `switch`, `provision`, `up`,
+`down`, `watch`, and `implode`. Every command takes an optional boolean
+`verbose`; `watch` also takes `detach` and `implode` takes `force`. A command
+may set `mcpFixed` arguments (`watch` always passes `detach: true` to MCP). Adding
+a command updates CLI and MCP registration from the same source.
 
 ## CLI
 
@@ -35,7 +37,12 @@ The CLI uses `cleye` to expose each command. Slug commands accept positional
 variant create -s preview-one
 variant list
 variant provision -s preview-one
+variant watch -s preview-one --detach
+variant implode preview-one --force
 ```
+
+An attached `variant watch` sets the process exit code from the result: 130
+after an interrupt, 1 when an instance ended or the worktree disappeared.
 
 ## MCP
 
@@ -45,7 +52,7 @@ registers `variant_<command>` tools. Tool handlers call the same
 
 ## VS Code
 
-The CLI and the MCP server execute `config`, `create`, `destroy`, `list`,
-`switch`, and `provision` in `variant-api`. The extension does not. Requests
+The CLI and the MCP server execute `config`, `create`, `list`, `switch`,
+`provision`, `up`, `down`, `watch`, and `implode` in `variant-api`. The extension does not. Requests
 that need the editor use `{name, args}` on the socket described in
 [Editor socket](./guide/ipc).

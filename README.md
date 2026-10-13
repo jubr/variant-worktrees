@@ -25,22 +25,23 @@ variant:
   watch: bun run dev
   seed: bun run db:seed
   instances:
-    - name: fe
+    fe:
       kind: vite
       dir: fe
       open: http://{{slug}}.vw.localhost:{{port}}
-    - name: be
+    be:
       kind: nestjs
       dir: be
 ```
 
-The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite).
+The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite). The
+[guide to replacing shell scripts](./docs/guide/scripts.md) lists every runtime option.
 
 Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
-Instances take an optional `open` URL template (`{{slug}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.vw.localhost:{{port}}`) and an optional `dotenv` file, relative to `dir`, that is copied for a variant and amended with its values (`amendDotenv`, `dotenvFor`). Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `openUrlFor` fills the template and `writeRuntime` writes the section; nothing launches or writes them during `provision` yet.
+Instances take an optional `open` URL template (`{{slug}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.vw.localhost:{{port}}`) and an optional `dotenv` file, relative to `dir`, that is copied for a variant and amended with its values (`amendDotenv`, `dotenvFor`). Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list` and `down` read it.
 
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
@@ -55,7 +56,10 @@ variant config
 variant create -s preview-one
 variant list
 variant provision -s preview-one
-variant destroy -s preview-one
+variant up -s preview-one              # instances as containers on a fresh database
+variant watch -s preview-one --detach  # instances as host processes
+variant down -s preview-one            # stop them, keep the data
+variant implode -s preview-one         # tear down and remove the worktree
 ```
 
 Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
@@ -77,8 +81,9 @@ Configure an MCP client to run:
 }
 ```
 
-Tools: `variant_config`, `variant_create`, `variant_destroy`, `variant_list`,
-`variant_switch`, and `variant_provision`.
+Tools: `variant_config`, `variant_create`, `variant_list`, `variant_switch`,
+`variant_provision`, `variant_up`, `variant_down`, `variant_watch` (always
+detached), and `variant_implode`.
 
 ## Development
 

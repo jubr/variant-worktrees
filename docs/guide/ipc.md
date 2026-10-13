@@ -1,7 +1,7 @@
 # Editor socket
 
-`config`, `create`, `destroy`, `list`, `switch`, and `provision` run in
-`variant-api`. The CLI and the MCP server call that logic in-process. Those
+`config`, `create`, `list`, `switch`, `provision`, `up`, `down`, `watch`, and
+`implode` run in `variant-api`. The CLI and the MCP server call that logic in-process. Those
 commands are not sent to the VS Code extension.
 
 Requests that need the editor are the socket traffic. Each request line is one

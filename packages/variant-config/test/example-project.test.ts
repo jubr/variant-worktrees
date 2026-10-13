@@ -41,7 +41,29 @@ describe("the example project", () => {
       fe: { kind: "vite", dir: "fe", open: DEFAULT_OPEN_URL },
       be: { kind: "nestjs", dir: "be", dotenv: ".env" },
     });
-    expect(Object.keys(config.variant.instances)).toEqual(["fe", "be"]);
+    expect(Object.keys(config.variant.instances)).toEqual(["be", "fe"]);
+  });
+
+  it("uses the options for storage, steps, implode, readiness, environment and containers", () => {
+    const { variant } = loadConfig({ cwd: exampleDirectory });
+
+    expect(variant.storage).toEqual({ dir: ".storage", env: "STORAGE_ROOT" });
+    expect(variant.steps?.map((step) => step.name)).toEqual(["storage"]);
+    expect(variant.implode).toMatchObject({ preRm: ["dist", "node_modules", ".cache", "out"], restore: ["bun.lock"] });
+    expect(variant.instances.be).toMatchObject({
+      ready: "/api",
+      env: { PORT: "{{port}}", SQLITE_DATABASE: "{{schema}}" },
+      container: { dockerfile: "be/Dockerfile", port: 3000 },
+    });
+    expect(variant.instances.fe).toMatchObject({
+      ready: "/",
+      env: { VARIANT_API_PORT: "{{port.be}}" },
+      container: { static: "dist", proxy: { path: "/api/", to: "be" } },
+    });
+  });
+
+  it("ships the Dockerfile that the be container builds", () => {
+    expect(existsSync(join(exampleDirectory, "be/Dockerfile"))).toBe(true);
   });
 
   it("autodetects the same instances the config lists", () => {

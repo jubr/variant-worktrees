@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,40 @@ describe("the example project", () => {
         { env: { ...process.env, DB: created.target }, encoding: "utf8" },
       );
       expect(JSON.parse(rows)).toEqual([{ text: "hello from the seed" }, { text: "variant: demo" }]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("provisions a variant: storage, the step and the seed", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "variant-example-provision-"));
+    try {
+      cpSync(exampleDirectory, directory, {
+        recursive: true,
+        filter: (source) => !/(^|\/)(node_modules|dist)(\/|$)/.test(source.slice(exampleDirectory.length)),
+      });
+      const client = createClient({
+        config: loadConfig({ cwd: directory, env: {} }),
+        cwd: directory,
+        stateDir: join(directory, ".cache", "variants"),
+        worktree: false,
+      });
+      const created = await client.create("demo");
+
+      const result = await client.provision("demo");
+
+      expect(result.output).toContain(`Preparing demo with storage in ${join(directory, ".storage")}`);
+      expect(existsSync(join(directory, ".storage"))).toBe(true);
+      expect(result.commands).toContain("bun scripts/seed.mjs");
+      const rows = execFileSync(
+        process.execPath,
+        [
+          "-e",
+          'const { Database } = require("bun:sqlite"); console.log(new Database(process.env.DB).query("SELECT COUNT(*) AS n FROM notes").get().n);',
+        ],
+        { env: { ...process.env, DB: created.target }, encoding: "utf8" },
+      );
+      expect(Number(rows)).toBe(2);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

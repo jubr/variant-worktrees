@@ -34,6 +34,7 @@ export default defineConfig({
           items: [
             { text: "Installation", link: "/guide/installation" },
             { text: "Quick Start", link: "/guide/library" },
+            { text: "Replacing shell scripts", link: "/guide/scripts" },
           ],
         },
         {
@@ -58,6 +59,7 @@ export default defineConfig({
             { text: "Introduction", link: "/guide/" },
             { text: "Installation", link: "/guide/installation" },
             { text: "Library", link: "/guide/library" },
+            { text: "Replacing shell scripts", link: "/guide/scripts" },
             { text: "Editor socket", link: "/guide/ipc" },
             { text: "MCP Server", link: "/mcp" },
           ],
