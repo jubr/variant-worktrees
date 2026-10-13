@@ -15,15 +15,13 @@ describe("chatRenamerNames", () => {
   });
 
   it("lets a host extension keep its own prefix and settings section", () => {
-    expect(
-      chatRenamerNames({ commandPrefix: "variant-worktrees", configSection: "variant-worktrees.chatRename" }),
-    ).toEqual({
-      renameChat: "variant-worktrees.renameChat",
-      renameChatFromPrompt: "variant-worktrees.renameChatFromPrompt",
-      renameExistingChats: "variant-worktrees.renameExistingChats",
-      renameActiveChat: "variant-worktrees.renameActiveChat",
+    expect(chatRenamerNames({ commandPrefix: "variant", configSection: "variant-worktrees.chatRename" })).toEqual({
+      renameChat: "variant.renameChat",
+      renameChatFromPrompt: "variant.renameChatFromPrompt",
+      renameExistingChats: "variant.renameExistingChats",
+      renameActiveChat: "variant.renameActiveChat",
       configSection: "variant-worktrees.chatRename",
-      hookScriptName: "variant-worktrees-chat-rename.sh",
+      hookScriptName: "variant-chat-rename.sh",
     });
   });
 });

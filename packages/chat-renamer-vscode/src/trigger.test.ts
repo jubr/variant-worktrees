@@ -89,6 +89,23 @@ describe("trigger", () => {
       expect(registerUriHandler).toHaveBeenCalledTimes(1);
     });
 
+    it("still listens when the agent host extension is not enumerable", async () => {
+      vscodeMock.extensions.getExtension = () => undefined;
+      const errors: unknown[][] = [];
+      const warnings: string[] = [];
+      const log = {
+        info: () => {},
+        warn: (line: string) => warnings.push(line),
+        error: (...args: unknown[]) => errors.push(args),
+      };
+
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
+
+      expect(listeners).toHaveLength(1);
+      expect(errors).toEqual([]);
+      expect(warnings.join("\n")).not.toContain("is not installed");
+    });
+
     it("keeps a second extension idle while the first one is active", async () => {
       await registerChatRenamer(context("variant.variant-vscode"), { log: quiet }).ready;
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
@@ -102,12 +119,12 @@ describe("trigger", () => {
       try {
         await registerChatRenamer(context("variant.variant-vscode"), {
           log: quiet,
-          commandPrefix: "variant-worktrees",
+          commandPrefix: "variant",
         }).ready;
         await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
 
         const ids = registerCommand.mock.calls.map((call) => call[0]);
-        expect(ids).toContain("variant-worktrees.renameActiveChat");
+        expect(ids).toContain("variant.renameActiveChat");
         expect(ids).toContain("chat-renamer.renameActiveChat");
       } finally {
         registerCommand.mockRestore();
@@ -401,7 +418,7 @@ describe("trigger", () => {
   describe("existing chats", () => {
     const STARTED = Date.parse("2026-10-12T09:00:00.000Z");
     const DAY = 86_400_000;
-    const names = { commandPrefix: "variant-worktrees", configSection: "variant-worktrees.chatRename" };
+    const names = { commandPrefix: "variant", configSection: "variant-worktrees.chatRename" };
     const SETTING = "variant-worktrees.chatRename.renameExistingDays";
 
     let renamed: Array<{ sessionId: string; title: string }>;
@@ -603,7 +620,7 @@ describe("trigger", () => {
       await start();
       renamed.length = 0;
 
-      await commands["variant-worktrees.renameExistingChats"]?.();
+      await commands["variant.renameExistingChats"]?.();
 
       expect(renamed).toHaveLength(3);
       expect(lines.some((line) => line.includes("run started") && line.includes("command"))).toBe(true);
@@ -614,7 +631,7 @@ describe("trigger", () => {
       oldChats();
       await start();
 
-      await commands["variant-worktrees.renameExistingChats"]?.();
+      await commands["variant.renameExistingChats"]?.();
 
       expect(renamed).toEqual([]);
       const warning = (vscode.window.showWarningMessage as unknown as { mock: { calls: unknown[][] } }).mock.calls.at(

@@ -26,16 +26,16 @@ describe("registerChatRenamer", () => {
     registerCommand.mockClear();
 
     const { names } = registerChatRenamer(context(), {
-      commandPrefix: "variant-worktrees",
+      commandPrefix: "variant",
       configSection: "variant-worktrees.chatRename",
     });
 
-    expect(names.hookScriptName).toBe("variant-worktrees-chat-rename.sh");
+    expect(names.hookScriptName).toBe("variant-chat-rename.sh");
     expect(registerCommand.mock.calls.map((call) => call[0])).toEqual([
-      "variant-worktrees.renameChat",
-      "variant-worktrees.renameChatFromPrompt",
-      "variant-worktrees.renameExistingChats",
-      "variant-worktrees.renameActiveChat",
+      "variant.renameChat",
+      "variant.renameChatFromPrompt",
+      "variant.renameExistingChats",
+      "variant.renameActiveChat",
     ]);
   });
 

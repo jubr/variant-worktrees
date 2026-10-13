@@ -7,7 +7,6 @@ import { activate } from "./extension.ts";
 const registerCommand = spyOn(vscode.commands, "registerCommand");
 const getCommands = spyOn(vscode.commands, "getCommands");
 const executeCommand = spyOn(vscode.commands, "executeCommand");
-const showInformationMessage = spyOn(vscode.window, "showInformationMessage");
 const createOutputChannel = spyOn(vscode.window, "createOutputChannel");
 
 const extensionContext: vscode.ExtensionContext = {
@@ -16,7 +15,7 @@ const extensionContext: vscode.ExtensionContext = {
 
 const probeCallback = () => {
   activate(extensionContext);
-  const call = registerCommand.mock.calls.find((entry) => entry[0] === "variant-worktrees.probeCursorCommands");
+  const call = registerCommand.mock.calls.find((entry) => entry[0] === "variant.probeCursorCommands");
   if (!call) {
     throw new Error("probe command was not registered");
   }
@@ -53,7 +52,6 @@ describe("extension", () => {
     registerCommand.mockClear();
     getCommands.mockClear();
     executeCommand.mockClear();
-    showInformationMessage.mockClear();
     createOutputChannel.mockClear();
     extensionContext.subscriptions.length = 0;
   });
@@ -63,15 +61,15 @@ describe("extension", () => {
       activate(extensionContext);
 
       const ids = registerCommand.mock.calls.map((entry) => entry[0]);
-      expect(ids).toContain("variant-worktrees.renameChat");
-      expect(ids).toContain("variant-worktrees.renameChatFromPrompt");
+      expect(ids).toContain("variant.renameChat");
+      expect(ids).toContain("variant.renameChatFromPrompt");
     });
 
     it("registers the Cursor command probe", () => {
       activate(extensionContext);
 
       const ids = registerCommand.mock.calls.map((call) => call[0]);
-      expect(ids).toContain("variant-worktrees.probeCursorCommands");
+      expect(ids).toContain("variant.probeCursorCommands");
     });
 
     it("reports matching command ids in Cursor Command Probe", async () => {
@@ -115,26 +113,18 @@ describe("extension", () => {
         activationEvents: string[];
         contributes: { commands: { command: string; title: string }[] };
       };
-      const command = manifest.contributes.commands.find(
-        (entry) => entry.command === "variant-worktrees.probeCursorCommands",
-      );
+      const command = manifest.contributes.commands.find((entry) => entry.command === "variant.probeCursorCommands");
 
       // VS Code activates on every contributed command, so no onCommand events are listed.
       expect(manifest.activationEvents.filter((event) => event.startsWith("onCommand:"))).toEqual([]);
       expect(command?.title).toEqual("Variant: Probe Cursor Chat Commands");
     });
 
-    it("registers the Variant hello world command", () => {
+    it("does not register a hello world command", () => {
       activate(extensionContext);
 
-      expect(registerCommand).toHaveBeenCalled();
-      const [command, callback] = registerCommand.mock.calls[0] as [string, () => void];
-
-      expect(command).toEqual("variant-worktrees.helloworld");
-
-      expect(showInformationMessage).not.toHaveBeenCalled();
-      callback();
-      expect(showInformationMessage).toHaveBeenCalledWith("Hello from Variant!");
+      const ids = registerCommand.mock.calls.map((entry) => entry[0]);
+      expect(ids).not.toContain("variant-worktrees.helloworld");
     });
   });
 });

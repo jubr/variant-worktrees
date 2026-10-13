@@ -1,8 +1,8 @@
 {
   "name": "variant-vscode",
   "version": "0.0.1",
-  "description": "Variant VS Code extension",
-  "displayName": "Variant",
+  "description": "Variant Worktrees VS Code extension",
+  "displayName": "Variant Worktrees",
   "publisher": "jubr",
   "main": "./dist/extension.cjs",
   "dependencies": {
@@ -43,19 +43,15 @@
   "contributes": {
     "commands": [
       {
-        "command": "variant-worktrees.helloworld",
-        "title": "Variant: Hello World"
-      },
-      {
-        "command": "variant-worktrees.probeCursorCommands",
+        "command": "variant.probeCursorCommands",
         "title": "Variant: Probe Cursor Chat Commands"
       },
       {
-        "command": "variant-worktrees.renameExistingChats",
+        "command": "variant.renameExistingChats",
         "title": "Variant: Rename Existing Chats"
       },
       {
-        "command": "variant-worktrees.renameActiveChat",
+        "command": "variant.renameActiveChat",
         "title": "Variant: Rename active chat"
       }
     ],
