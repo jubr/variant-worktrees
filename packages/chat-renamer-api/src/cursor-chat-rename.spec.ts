@@ -518,6 +518,68 @@ describe("activation patterns with numbering", () => {
     await expect(renameChatFromPrompt(deps, "chat-1", "fix the build", peers("abc"))).resolves.toBe(false);
     expect(calls).toHaveLength(0);
   });
+
+  const linesOf = () => {
+    const lines: string[] = [];
+    const log = { info: (message: string) => lines.push(message), warn: () => {}, error: () => {} };
+    return { lines, log };
+  };
+
+  it("logs a numbered pattern title with the reason and the final title", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/vw-spec-start abc", { ...peers("abc"), log });
+
+    expect(lines).toEqual(['rename chat-1: numbered against open chats; title "abc2"']);
+  });
+
+  it("logs a typed trailing number that is kept", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/vw-spec-start abc7", { ...peers("abc"), log });
+
+    expect(lines).toEqual(['rename chat-1: typed trailing number kept; title "abc7"']);
+  });
+
+  it("logs a pattern title that shares no base", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/vw-spec-start abc", { ...peers("abcd", "other"), log });
+
+    expect(lines).toEqual(['rename chat-1: no shared base; title "abc"']);
+  });
+
+  it("logs a slash command title literally", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/chat-rename abc", { ...peers("abc"), log });
+
+    expect(lines).toEqual(['rename chat-1: slash command; title "abc"']);
+  });
+
+  it("logs a same-base skip and does not rename", async () => {
+    const { deps, calls } = makeDeps();
+    const { lines, log } = linesOf();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "abc7" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc7", submittedAtMs: 1_000 }),
+        now: () => 2_000,
+        ...peers("abc"),
+        log,
+      },
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+    expect(lines).toEqual(['rename chat-1: current title shares the base; title "abc7"']);
+  });
 });
 
 describe("listPeerTitles", () => {
