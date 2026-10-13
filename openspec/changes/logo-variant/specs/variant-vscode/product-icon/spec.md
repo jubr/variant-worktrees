@@ -6,7 +6,7 @@ Present the supplied variant-worktrees artwork as the extension icon, the docs s
 
 ### Requirement: Extension icon
 
-The variant-vscode extension manifest SHALL set `icon` to a PNG that is 256×256 pixels and is a square downscale of the supplied source artwork. The packaged extension SHALL contain that file.
+The variant-vscode extension manifest SHALL set `icon` to a PNG that is 256×256 pixels and is a square downscale of the supplied source artwork, masked to a rounded rectangle. The packaged extension SHALL contain that file.
 
 #### Scenario: Manifest icon is 256 pixels
 
@@ -20,17 +20,21 @@ The variant-vscode extension manifest SHALL set `icon` to a PNG that is 256×256
 
 ### Requirement: Published icon sizes
 
-The product SHALL publish square PNG downscales of the supplied source artwork at 256, 128, 32, and 16 pixels. Each file SHALL be that artwork scaled to the square, not a different image and not an upscale of the source.
+The product SHALL publish square PNG downscales of the supplied source artwork at 256, 128, 32, and 16 pixels. Each file SHALL be that artwork scaled to the square and then masked to a rounded rectangle whose corner radius is one fifth of the side. Pixels whose centers lie outside that rounded rectangle SHALL be fully transparent. Pixels whose centers lie inside it SHALL be the scaled artwork. The result SHALL NOT be an upscale of the source and SHALL NOT be a different picture.
 
 #### Scenario: 128 pixel icon
 
 - **WHEN** the 128-pixel icon is read
-- **THEN** it is a PNG whose width and height are both 128 and whose pixels are the supplied artwork scaled to 128×128
+- **THEN** it is a PNG whose width and height are both 128
+- **AND** its corner pixels are fully transparent
+- **AND** pixels inside the rounded rectangle are the supplied artwork scaled to 128×128
 
 #### Scenario: 32 and 16 pixel icons
 
 - **WHEN** the 32-pixel icon and the 16-pixel icon are read
-- **THEN** each is a PNG whose width and height equal that size and whose pixels are the supplied artwork scaled to that square
+- **THEN** each is a PNG whose width and height equal that size
+- **AND** its corner pixels are fully transparent
+- **AND** pixels inside the rounded rectangle are the supplied artwork scaled to that square
 
 ### Requirement: Docs logo and favicon
 
