@@ -19,14 +19,14 @@ const published = [
   { file: "docs/public/favicon-16.png", size: 16 },
 ] as const;
 
-/** Inside / outside a centered rounded rect whose side is 4/5 of the icon. Corner radius is 1/4 of that side. */
+/** Inside / outside a rounded rect flush to the icon. Corner radius is 1/10 of the side. */
 const region = (x: number, y: number, size: number): "in" | "out" | "edge" => {
-  const rectSide = (size * 4) / 5;
-  const radius = rectSide / 4;
-  const px = x + 0.5 - size / 2;
-  const py = y + 0.5 - size / 2;
-  const qx = Math.abs(px) - (rectSide / 2 - radius);
-  const qy = Math.abs(py) - (rectSide / 2 - radius);
+  const radius = size / 10;
+  const half = size / 2;
+  const px = x + 0.5 - half;
+  const py = y + 0.5 - half;
+  const qx = Math.abs(px) - (half - radius);
+  const qy = Math.abs(py) - (half - radius);
   const distance = Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - radius;
   if (distance < -1) {
     return "in";
@@ -105,14 +105,6 @@ describe("product icon", () => {
       expect(info.height).toBe(size);
 
       const artwork = await scaledArtwork(size);
-      for (const [x, y] of [
-        [0, 0],
-        [size - 1, 0],
-        [0, size - 1],
-        [size - 1, size - 1],
-      ] as const) {
-        expect(data[(y * size + x) * 4 + 3]).toBe(0);
-      }
 
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {

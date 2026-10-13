@@ -22,21 +22,21 @@ The variant-vscode extension manifest SHALL set `icon` to a PNG that is 256×256
 
 ### Requirement: Published icon sizes
 
-The product SHALL publish square PNG downscales of the supplied source artwork at 256, 128, 32, and 16 pixels. Each file SHALL be that artwork scaled to the square and then masked to a rounded rectangle centered on the icon. The rounded rectangle's side SHALL be four fifths of the icon side, and its corner radius SHALL be one quarter of that rounded rectangle. Pixels whose centers lie outside that rounded rectangle SHALL be fully transparent. Pixels whose centers lie inside it SHALL be the scaled artwork. The result SHALL NOT be an upscale of the source and SHALL NOT be a different picture.
+The product SHALL publish square PNG downscales of the supplied source artwork at 256, 128, 32, and 16 pixels. Each file SHALL be that artwork scaled to the square and then masked to a rounded rectangle flush with the icon sides. The corner radius SHALL be one tenth of the icon side. Pixels whose centers lie outside that rounded rectangle SHALL be fully transparent. Pixels whose centers lie inside it SHALL be the scaled artwork. The result SHALL NOT be an upscale of the source and SHALL NOT be a different picture.
 
 #### Scenario: 128 pixel icon
 
 - **WHEN** the 128-pixel icon is read
 - **THEN** it is a PNG whose width and height are both 128
-- **AND** its corner pixels are fully transparent
 - **AND** pixels inside the rounded rectangle are the supplied artwork scaled to 128×128
+- **AND** pixels outside that rounded rectangle are fully transparent
 
 #### Scenario: 32 and 16 pixel icons
 
 - **WHEN** the 32-pixel icon and the 16-pixel icon are read
 - **THEN** each is a PNG whose width and height equal that size
-- **AND** its corner pixels are fully transparent
 - **AND** pixels inside the rounded rectangle are the supplied artwork scaled to that square
+- **AND** pixels outside that rounded rectangle are fully transparent
 
 ### Requirement: Docs logo and favicon
 
