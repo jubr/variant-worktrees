@@ -13,11 +13,12 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build ./src/index.ts --outdir dist --target node --format esm --sourcemap=external --external zod",
+    "build:js": "bun build ./src/index.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external variant-config",
     "build:types": "tsc --emitDeclarationOnly",
     "test": "bun test"
   },
   "dependencies": {
+    "variant-config": "workspace:*",
     "zod": "^4.6.5"
   },
   "homepage": "https://github.com/jubr/variant-worktrees",
