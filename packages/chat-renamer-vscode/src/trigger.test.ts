@@ -97,6 +97,23 @@ describe("trigger", () => {
       expect(registerUriHandler).toHaveBeenCalledTimes(1);
     });
 
+    it("registers rename active chat on the idle instance too", async () => {
+      const registerCommand = spyOn(vscode.commands, "registerCommand");
+      try {
+        await registerChatRenamer(context("variant.variant-vscode"), {
+          log: quiet,
+          commandPrefix: "variant-worktrees",
+        }).ready;
+        await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
+
+        const ids = registerCommand.mock.calls.map((call) => call[0]);
+        expect(ids).toContain("variant-worktrees.renameActiveChat");
+        expect(ids).toContain("chat-renamer.renameActiveChat");
+      } finally {
+        registerCommand.mockRestore();
+      }
+    });
+
     it("tells the log which extension owns renaming", async () => {
       const lines: string[] = [];
       const log = { info: (line: string) => lines.push(line), warn: () => {}, error: () => {} };
@@ -288,6 +305,96 @@ describe("trigger", () => {
       const script = readFileSync(join(homeDir, ".cursor", "hooks", "wt-chat-rename.sh"), "utf8");
       const patterns = activationPatternSources(["_work-"], [...DEFAULT_ACTIVATION_PATTERNS]);
       expect(script).toContain(Buffer.from(JSON.stringify(patterns), "utf8").toString("base64"));
+    });
+  });
+
+  describe("rename active chat", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let commands: Record<string, (...args: unknown[]) => unknown>;
+    let warnings: unknown[][];
+    let selected: unknown;
+    let executeCommand: { mockRestore(): void };
+    let registerCommand: { mockRestore(): void };
+    let showWarningMessage: { mockRestore(): void };
+
+    const start = (prompt: string) =>
+      registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: quiet,
+        now: () => STARTED,
+        readFirstPrompt: async () => ({ text: prompt, submittedAtMs: STARTED - 60_000 }),
+      }).ready;
+
+    beforeEach(() => {
+      renamed = [];
+      commands = {};
+      warnings = [];
+      selected = ["chat-1"];
+      configure({ renameExistingDays: 0 });
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      registerCommand = spyOn(vscode.commands, "registerCommand").mockImplementation(((id: string, callback: never) => {
+        commands[id] = callback;
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.commands.registerCommand);
+      executeCommand = spyOn(vscode.commands, "executeCommand").mockImplementation((async (command: string) => {
+        if (command === "composer.getOrderedSelectedComposerIds") {
+          return selected;
+        }
+        return undefined;
+      }) as typeof vscode.commands.executeCommand);
+      showWarningMessage = spyOn(vscode.window, "showWarningMessage").mockImplementation((async (
+        ...args: unknown[]
+      ) => {
+        warnings.push(args);
+        return undefined;
+      }) as typeof vscode.window.showWarningMessage);
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+      vscodeMock.cursor.listAgentHostSessionCatalog = undefined;
+      registerCommand.mockRestore();
+      executeCommand.mockRestore();
+      showWarningMessage.mockRestore();
+    });
+
+    it("renames a selected chat from an old pattern prompt when existing chats are off", async () => {
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "chat-1", title: "abc" }]);
+    });
+
+    it("tells the user when no chat is selected", async () => {
+      selected = undefined;
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([]);
+      expect(warnings).toHaveLength(1);
+    });
+
+    it("tells the user when the first prompt holds no rename request", async () => {
+      await start("fix the build");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([]);
+      expect(warnings).toHaveLength(1);
+    });
+
+    it("does not warn when the current title already shares the base", async () => {
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => [{ sessionId: "chat-1", title: "abc" }];
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([]);
+      expect(warnings).toEqual([]);
     });
   });
 

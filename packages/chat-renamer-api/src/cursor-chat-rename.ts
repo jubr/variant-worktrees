@@ -180,38 +180,46 @@ export type TitleChangeOptions = RenameOptions & {
 
 const DEFAULT_MAX_AGE_MS = 30 * 1000;
 
+export type CatalogTitleOutcome = "renamed" | "same-base" | "ignored";
+
 /**
  * Title-event trigger. Cursor's title change event is the moment the first prompt has been named, so this reads the
  * chat's first prompt and, when it holds a rename request, renames the chat. A chat whose first prompt cannot be
  * read, or carries no timestamp, is left alone: without a timestamp there is no telling a new chat from an old one.
  * Ordinary and malformed requests are ignored, and so is a pattern title for a chat whose title already has its base.
  */
+export const catalogTitleOutcome = async (
+  deps: ChatRenameDeps,
+  change: CatalogTitleChange,
+  options: TitleChangeOptions = {},
+): Promise<CatalogTitleOutcome> => {
+  const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
+  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
+    return "ignored";
+  }
+  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
+    return "ignored";
+  }
+  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
+  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
+    return "ignored";
+  }
+  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
+  if (request.kind !== "rename") {
+    return "ignored";
+  }
+  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
+    return "same-base";
+  }
+  await applyRequest(deps, change.sessionId, request, options);
+  return "renamed";
+};
+
 export const handleCatalogTitleChange = async (
   deps: ChatRenameDeps,
   change: CatalogTitleChange,
   options: TitleChangeOptions = {},
-): Promise<boolean> => {
-  const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
-  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
-    return false;
-  }
-  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
-    return false;
-  }
-  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
-  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
-    return false;
-  }
-  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
-  if (request.kind !== "rename") {
-    return false;
-  }
-  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
-    return false;
-  }
-  await applyRequest(deps, change.sessionId, request, options);
-  return true;
-};
+): Promise<boolean> => (await catalogTitleOutcome(deps, change, options)) === "renamed";
 
 export const subscribeCatalogTitleChanges = (
   deps: ChatRenameDeps,

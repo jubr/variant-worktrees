@@ -106,6 +106,10 @@
       {
         "command": "chat-renamer.renameExistingChats",
         "title": "Chat Renamer: Rename Existing Chats"
+      },
+      {
+        "command": "chat-renamer.renameActiveChat",
+        "title": "Chat Renamer: Rename active chat"
       }
     ]
   }

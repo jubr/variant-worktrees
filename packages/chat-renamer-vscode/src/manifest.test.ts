@@ -49,6 +49,7 @@ describe("extension manifest", () => {
   it("contributes the command that renames existing chats", () => {
     expect(manifest.contributes.commands).toEqual([
       { command: "chat-renamer.renameExistingChats", title: "Chat Renamer: Rename Existing Chats" },
+      { command: "chat-renamer.renameActiveChat", title: "Chat Renamer: Rename active chat" },
     ]);
   });
 
