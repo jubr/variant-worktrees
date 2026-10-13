@@ -54,7 +54,7 @@ export const registerChatRenamer = (
 ): { names: ChatRenamerNames; ready: Promise<void> } => {
   const names = chatRenamerNames(nameInput);
   const logger = log ?? createExtensionLog(context);
-  const options: RenameOptions = {};
+  const options: RenameOptions = { log: logger };
   logger.info(`chat renamer starting (commands ${names.renameChat}, settings ${names.configSection}.*)`);
   const existing = createExistingChatsRunner({
     context,

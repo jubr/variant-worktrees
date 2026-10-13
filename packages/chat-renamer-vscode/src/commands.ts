@@ -53,7 +53,10 @@ export const registerRenameChatCommands = (
   return [
     vscode.commands.registerCommand(
       names.renameChat,
-      logged(log, "renameChat", (id: string, title: string) => renameChat(resolveChatRenameDeps(context), id, title)),
+      logged(log, "renameChat", async (id: string, title: string) => {
+        log.info(`rename ${id}: explicit title; title ${JSON.stringify(title)}`);
+        return renameChat(resolveChatRenameDeps(context), id, title);
+      }),
     ),
     vscode.commands.registerCommand(
       names.renameChatFromPrompt,
@@ -103,7 +106,6 @@ export const registerRenameChatCommands = (
           },
         );
         if (outcome === "same-base") {
-          log.info(`rename ${id}: current title shares the base; title ${JSON.stringify(title)}`);
           return false;
         }
         if (outcome !== "renamed") {

@@ -1,6 +1,7 @@
 import type { FirstPrompt } from "./chat-first-prompt";
 import { findRenameRequest, type RenameRequest } from "./chat-rename-patterns";
-import { hasSameBase, numberedTitle } from "./chat-title-numbering";
+import { hasSameBase, numberedTitle, titleBase } from "./chat-title-numbering";
+import type { Logger } from "./log";
 
 export const BUILTIN_AGENT_HOST_ID = "anysphere.cursor-agent-host";
 
@@ -86,6 +87,26 @@ export type RenameOptions = {
   patterns?: readonly RegExp[];
   /** Titles of the other open chats. When given, titles that came from a pattern are numbered to stay distinct. */
   peerTitles?: (sessionId: string) => Promise<string[]>;
+  /** When set, each rename action is logged with its reason and final title. */
+  log?: Logger;
+};
+
+const renameReason = (viaPattern: boolean, candidate: string, title: string): string => {
+  if (!viaPattern) {
+    return "slash command";
+  }
+  const base = titleBase(candidate);
+  if (base.length === 0) {
+    return "all digits";
+  }
+  if (base.length < candidate.length) {
+    return "typed trailing number kept";
+  }
+  return title === candidate ? "no shared base" : "numbered against open chats";
+};
+
+const logRename = (log: Logger | undefined, id: string, reason: string, title: string): void => {
+  log?.info(`rename ${id}: ${reason}; title ${JSON.stringify(title)}`);
 };
 
 const applyRequest = async (
@@ -98,6 +119,7 @@ const applyRequest = async (
     request.viaPattern && options.peerTitles
       ? numberedTitle(request.title, await options.peerTitles(id))
       : request.title;
+  logRename(options.log, id, renameReason(request.viaPattern, request.title, title), title);
   await renameChat(deps, id, title);
 };
 
@@ -209,6 +231,7 @@ export const catalogTitleOutcome = async (
     return "ignored";
   }
   if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
+    logRename(options.log, change.sessionId, "current title shares the base", change.title);
     return "same-base";
   }
   await applyRequest(deps, change.sessionId, request, options);

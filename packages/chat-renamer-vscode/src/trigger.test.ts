@@ -507,6 +507,12 @@ describe("trigger", () => {
       expect(started).toContain(`${SETTING}=7`);
       expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed oldest"))).toBe(true);
       expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed 3"))).toBe(true);
+      expect(
+        lines.some(
+          (line) =>
+            line.startsWith("[existing-chats]") && line.includes("existing chats plan") && line.includes('"abc"'),
+        ),
+      ).toBe(true);
     });
 
     it("does nothing and says why when renameExistingDays is 0", async () => {
