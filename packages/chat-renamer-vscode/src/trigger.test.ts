@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_ACTIVATION_PATTERNS, installChatRenameHook, worktreeActivationPatterns } from "chat-renamer-api";
+import { activationPatternSources, DEFAULT_ACTIVATION_PATTERNS, installChatRenameHook } from "chat-renamer-api";
 import * as vscode from "vscode";
 
 import { vscodeMock } from "../test/vscode-mock";
@@ -239,8 +239,14 @@ describe("trigger", () => {
       vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
     });
 
-    it("derives nothing by default, since no prefix is known", async () => {
-      await run("/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename");
+    it("derives the last path segment when no prefix is configured", async () => {
+      await run("/vw-spec-iterate @/Users/me/_v-outer/_v-inner");
+
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "inner" }]);
+    });
+
+    it("ignores a prefix the host did not configure", async () => {
+      await run("/vw-spec-iterate @/Users/me/vw/_v-my-slug", { fileConfig: { worktreePrefixes: ["_work-"] } });
 
       expect(renamed).toEqual([]);
     });
@@ -267,12 +273,12 @@ describe("trigger", () => {
       expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
     });
 
-    it("derives nothing when the editor empties the prefix list", async () => {
+    it("uses the default path pattern when the editor empties the prefix list", async () => {
       configure({ worktreePrefixes: [] });
 
       await run("/vw-spec-iterate @/Users/me/vw/_wt-my-slug", { fileConfig: { worktreePrefixes: ["_wt-"] } });
 
-      expect(renamed).toEqual([]);
+      expect(renamed).toEqual([{ sessionId: "fresh", title: "my-slug" }]);
     });
 
     it("copies the worktree patterns into the hook script", async () => {
@@ -280,7 +286,7 @@ describe("trigger", () => {
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { commandPrefix: "wt", log: quiet }).ready;
 
       const script = readFileSync(join(homeDir, ".cursor", "hooks", "wt-chat-rename.sh"), "utf8");
-      const patterns = [...worktreeActivationPatterns(["_work-"]), ...DEFAULT_ACTIVATION_PATTERNS];
+      const patterns = activationPatternSources(["_work-"], [...DEFAULT_ACTIVATION_PATTERNS]);
       expect(script).toContain(Buffer.from(JSON.stringify(patterns), "utf8").toString("base64"));
     });
   });

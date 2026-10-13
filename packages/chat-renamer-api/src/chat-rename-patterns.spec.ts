@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as shared from "chat-renamer-config";
 
 import {
+  activationPatternSources,
   compilePatterns,
   DEFAULT_ACTIVATION_PATTERNS,
   findRenameRequest,
@@ -43,6 +44,27 @@ describe("default activation pattern", () => {
 
   it.each(["vw-spec-start slug", "/vw-start slug", "/vw-spec-start", "fix the build"])("ignores %p", (prompt) => {
     expect(findRenameRequest(prompt, defaults)).toEqual({ kind: "none" });
+  });
+});
+
+describe("default path pattern", () => {
+  it("captures the slug of the last path segment after its prefix token", () => {
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/_v-outer/_v-inner", defaults)).toEqual({
+      kind: "rename",
+      title: "inner",
+      viaPattern: true,
+    });
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename/", defaults)).toEqual({
+      kind: "rename",
+      title: "cursor-chat-win-rename",
+      viaPattern: true,
+    });
+  });
+
+  it("does not let the default path pattern bypass a configured prefix", () => {
+    const patterns = compilePatterns(activationPatternSources(["_v-"], [...DEFAULT_ACTIVATION_PATTERNS])).patterns;
+
+    expect(findRenameRequest("/vw-spec-iterate @/Users/me/vw/_work-my-slug", patterns)).toEqual({ kind: "none" });
   });
 });
 

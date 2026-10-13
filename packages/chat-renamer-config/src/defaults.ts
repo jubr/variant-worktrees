@@ -9,7 +9,13 @@ export type HookScope = (typeof HOOK_SCOPES)[number];
 export const DEFAULT_HOOK_SCOPE: HookScope = "workspace";
 
 /** Prompt lines that name a chat. The first capture group is the title. */
-export const DEFAULT_ACTIVATION_PATTERNS: readonly string[] = ["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"];
+export const DEFAULT_PATH_ACTIVATION_PATTERN = "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)";
+
+/** The path pattern is first so `@<path>` wins over the slug pattern on the same line. */
+export const DEFAULT_ACTIVATION_PATTERNS: readonly string[] = [
+  DEFAULT_PATH_ACTIVATION_PATTERN,
+  "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)",
+];
 
 /**
  * Prefixes of worktree directories whose dragged-in path names a chat. Each carries its leading character and
