@@ -29,6 +29,7 @@ describe("readSettings", () => {
       ],
       worktreePrefixes: [],
       renameExistingDays: 7,
+      enabled: true,
     });
   });
 
@@ -67,11 +68,25 @@ describe("readSettings", () => {
     expect(settings.activationPatterns).toEqual([]);
   });
 
+  it("treats enable as on unless it is boolean false", () => {
+    configure({});
+    expect(readSettings("variant").enabled).toBe(true);
+
+    configure({ enable: { globalValue: false } });
+    expect(readSettings("variant").enabled).toBe(false);
+
+    configure({}, { enable: false });
+    expect(readSettings("variant").enabled).toBe(false);
+
+    configure({ enable: { globalValue: "no" } });
+    expect(readSettings("variant").enabled).toBe(true);
+  });
+
   it("asks the editor for the section it was given", () => {
     const spy = configure({});
 
-    readSettings("variant-worktrees.chatRename");
+    readSettings("variant");
 
-    expect(spy.mock.calls.at(-1)?.[0]).toBe("variant-worktrees.chatRename");
+    expect(spy.mock.calls.at(-1)?.[0]).toBe("variant");
   });
 });
