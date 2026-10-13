@@ -31,7 +31,7 @@ const server = new McpServer({ name: "variant", version });
 
 for (const command of commands) {
   const shape: Record<string, z.ZodType> = {};
-  for (const arg of command.args) {
+  for (const arg of command.args.filter((entry) => !(entry.name in (command.mcpFixed ?? {})))) {
     let schema: z.ZodType = z.string().describe(arg.description);
     if (arg.type === "number") {
       schema = z.number().describe(arg.description);
@@ -43,7 +43,7 @@ for (const command of commands) {
 
   server.tool(`variant_${command.name}`, command.description, shape, async (params) => {
     try {
-      const result = await command.execute(client, params);
+      const result = await command.execute(client, { ...params, ...command.mcpFixed });
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
       };

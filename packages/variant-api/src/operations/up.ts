@@ -17,7 +17,7 @@ import { commandEnvironment, expandEnv, templateContext, type VariantRun, varian
 import { writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
-import type { UpOptions, UpResult } from "../types.js";
+import type { InstanceReport, UpOptions, UpResult } from "../types.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 
@@ -52,6 +52,24 @@ export const runtimeOf = (
     ),
   };
 };
+
+/** The port, URL, process id and container of every instance, for results. */
+export const instanceReports = (
+  run: VariantRun,
+  pids: Readonly<Record<string, number>> = {},
+  containers: Readonly<Record<string, string>> = {},
+): Record<string, InstanceReport> =>
+  Object.fromEntries(
+    [...new Set([...Object.keys(run.ports), ...Object.keys(pids)])].map((key) => [
+      key,
+      {
+        ...(run.ports[key] !== undefined ? { port: run.ports[key] } : {}),
+        ...(run.urls[key] ? { url: run.urls[key] } : {}),
+        ...(pids[key] !== undefined ? { pid: pids[key] } : {}),
+        ...(containers[key] ? { container: containers[key] } : {}),
+      },
+    ]),
+  );
 
 /** The image a container instance runs and, for a `dockerfile`, the build that produces it. */
 const imageOf = (key: string, slug: string, container: InstanceContainer): { image: string; build: boolean } => {
@@ -199,7 +217,10 @@ export const upVariant = async (
   await announce(context, run, options);
   return {
     slug,
+    mode: "up",
     worktree: run.worktree,
+    target: run.target,
+    instances: instanceReports(run, {}, Object.fromEntries(started.map(({ key, name }) => [key, name]))),
     containers: started,
     urls: run.urls,
     commands: [...provisioned.commands, ...commands],

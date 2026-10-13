@@ -60,10 +60,26 @@ export interface WatchOptions extends UpOptions {
   signal?: AbortSignal;
 }
 
+/** What is known about one instance of a started variant. */
+export interface InstanceReport {
+  /** The assigned port; the variant-wide process has none. */
+  port?: number;
+  /** The rendered `open` URL, when the instance has a template. */
+  url?: string;
+  /** The process id of an instance that runs as a host process. */
+  pid?: number;
+  /** The name of the container of an instance that runs as one. */
+  container?: string;
+}
+
 /** What `watch` started and how it ended. */
 export interface WatchResult {
   slug: string;
+  mode: "watch";
   worktree: string;
+  /** The database target of the variant. */
+  target: string;
+  instances: Record<string, InstanceReport>;
   /** The host processes that were started, in start order, with the command that runs. */
   processes: { key: string; pid: number; command: string }[];
   urls: Record<string, string>;
@@ -96,7 +112,11 @@ export interface ImplodeResult {
 /** What `up` started. */
 export interface UpResult {
   slug: string;
+  mode: "up";
   worktree: string;
+  /** The database target of the variant. */
+  target: string;
+  instances: Record<string, InstanceReport>;
   /** The containers that were started, in start order. */
   containers: { key: string; name: string; port: number }[];
   /** The rendered `open` URL of every instance that has one. */

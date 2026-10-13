@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { cli, command } from "cleye";
+import { collectArgs } from "./cli-args.js";
 import { type CommandDefinition, commands } from "./commands.js";
 import { createClient } from "./index.js";
 import { formatTable } from "./table.js";
@@ -50,13 +51,7 @@ const runCommand = (definition: CommandDefinition) =>
     async (argv) => {
       const flags = argv.flags as Record<string, unknown>;
       const positional = (argv._ as unknown as { slug?: string }).slug;
-      const args: Record<string, unknown> = {};
-      for (const arg of definition.args) {
-        const value = arg.name === "slug" ? (flags.slug ?? positional) : flags[arg.name];
-        if (value !== undefined) {
-          args[arg.name] = value;
-        }
-      }
+      const args = collectArgs(definition, flags, positional);
       const client = createClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       const result = await definition.execute(client, args);
       if (flags.table === true && definition.name === "list") {
@@ -64,6 +59,10 @@ const runCommand = (definition: CommandDefinition) =>
         return;
       }
       console.log(JSON.stringify(redacted(result), null, 2));
+      const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
+      if (typeof exitCode === "number" && exitCode !== 0) {
+        process.exitCode = exitCode;
+      }
     },
   );
 

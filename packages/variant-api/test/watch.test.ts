@@ -263,6 +263,21 @@ describe("watch starts host processes", () => {
       BASE.replace("kind: nestjs, dir: be,", "kind: nestjs, dir: be, container: { image: app, port: 3000 },"),
     ));
 
+  it("fails naming the directory when a process cannot be started and stops the ones already running", () =>
+    withProject(
+      async ({ watch, directory }) => {
+        const failure = await watch({ detach: true }).catch((error: Error) => error);
+
+        expect((failure as Error).message).toContain(join(directory, "gone"));
+        await sleep(200);
+        const marker = join(directory, "be", "started-be.txt");
+        if (existsSync(marker)) {
+          await untilDead(Number(readFileSync(marker, "utf8")));
+        }
+      },
+      BASE.replace("    fe: { kind: vite, dir: fe,", "    fe: { kind: vite, dir: gone,"),
+    ));
+
   it("never touches the database target of main", () =>
     withProject(async ({ watch, database }) => {
       await watch({ detach: true }, "main");

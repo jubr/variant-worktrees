@@ -10,7 +10,7 @@ import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
-import { runtimeOf } from "./up.js";
+import { instanceReports, runtimeOf } from "./up.js";
 
 /** The key of the one process that runs `variant.watch` when no instance has a command of its own. */
 const VARIANT_KEY = "variant";
@@ -63,8 +63,10 @@ const spawnProcess = (launch: Launch, detach: boolean): Started => {
     detached: true,
     stdio: detach ? "ignore" : "inherit",
   });
+  // a spawn failure is also reported as an event, which must not end the process
+  child.on("error", () => {});
   if (!child.pid) {
-    throw new Error(`Could not start ${launch.key}: ${launch.command}`);
+    throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
   }
   if (detach) {
     child.unref();
@@ -138,14 +140,22 @@ export const watchVariant = async (
       await sleep(delay);
     }
     log(`[${launch.key}] ${launch.command}`);
-    started.push(spawnProcess(launch, options.detach === true));
+    try {
+      started.push(spawnProcess(launch, options.detach === true));
+    } catch (error) {
+      await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
+      throw error;
+    }
   }
   const pids = Object.fromEntries(started.map(({ key, pid }) => [key, pid]));
   writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "watch", pids));
 
   const result: WatchResult = {
     slug,
+    mode: "watch",
     worktree: run.worktree,
+    target: run.target,
+    instances: instanceReports(run, pids),
     processes: started.map(({ key, pid, command }) => ({ key, pid, command })),
     urls: run.urls,
     exitCode: 0,

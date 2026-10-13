@@ -45,6 +45,34 @@ describe("variant CLI", () => {
     expect(destroy.exitCode).not.toBe(0);
   });
 
+  it("lists the runtime commands with their descriptions", async () => {
+    const help = (await runCli(["--help"])).stdout;
+
+    for (const name of ["up", "down", "watch", "implode"]) {
+      expect(help).toMatch(new RegExp(`^\\s+${name}\\s+\\S`, "m"));
+    }
+  });
+
+  it("takes --detach, --force and --verbose", async () => {
+    expect((await runCli(["watch", "--help"])).stdout).toContain("--detach");
+    expect((await runCli(["implode", "--help"])).stdout).toContain("--force");
+    expect((await runCli(["provision", "--help"])).stdout).toContain("--verbose");
+  });
+
+  it("sets the exit code of an attached watch from its result", async () => {
+    const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
+    const configPath = join(directory, "variants.yaml");
+    writeFileSync(configPath, "db:\n  dialect: sqlite\nvariant:\n  watch: exit 0\n  open: false\n");
+    try {
+      const result = await runCli(["watch", "-s", "demo"], { VARIANT_CONFIG: configPath });
+
+      expect(JSON.parse(result.stdout).exitCode).toBe(1);
+      expect(result.exitCode).toBe(1);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("prints detected config as JSON", async () => {
     const result = await runCli(["config"]);
     expect(result.exitCode).toBe(0);
