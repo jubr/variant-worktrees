@@ -20,7 +20,7 @@ The variant-vscode extension manifest SHALL set `icon` to a PNG that is 256×256
 
 ### Requirement: Published icon sizes
 
-The product SHALL publish square PNG downscales of the supplied source artwork at 256, 128, 32, and 16 pixels. Each file SHALL be that artwork scaled to the square and then masked to a rounded rectangle whose corner radius is one fifth of the side. Pixels whose centers lie outside that rounded rectangle SHALL be fully transparent. Pixels whose centers lie inside it SHALL be the scaled artwork. The result SHALL NOT be an upscale of the source and SHALL NOT be a different picture.
+The product SHALL publish square PNG downscales of the supplied source artwork at 256, 128, 32, and 16 pixels. Each file SHALL be that artwork scaled to the square and then masked to a rounded rectangle whose corner radius is one quarter of the side. Pixels whose centers lie outside that rounded rectangle SHALL be fully transparent. Pixels whose centers lie inside it SHALL be the scaled artwork. The result SHALL NOT be an upscale of the source and SHALL NOT be a different picture.
 
 #### Scenario: 128 pixel icon
 
