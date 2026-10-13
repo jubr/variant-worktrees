@@ -35,18 +35,16 @@ describe("embedded chat renamer manifest", () => {
     );
   });
 
-  it("contributes the renamer's commands under the variant-worktrees prefix", () => {
-    const expected = renamer.contributes.commands.map(({ command }) =>
-      command.replace("chat-renamer.", "variant-worktrees."),
-    );
+  it("contributes the renamer's commands under the variant prefix", () => {
+    const expected = renamer.contributes.commands.map(({ command }) => command.replace("chat-renamer.", "variant."));
 
     expect(variant.contributes.commands.map(({ command }) => command)).toEqual(expect.arrayContaining(expected));
     expect(variant.contributes.commands).toContainEqual({
-      command: "variant-worktrees.renameExistingChats",
+      command: "variant.renameExistingChats",
       title: "Variant: Rename Existing Chats",
     });
     expect(variant.contributes.commands).toContainEqual({
-      command: "variant-worktrees.renameActiveChat",
+      command: "variant.renameActiveChat",
       title: "Variant: Rename active chat",
     });
   });
