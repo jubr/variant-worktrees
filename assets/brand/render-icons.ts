@@ -12,9 +12,11 @@ const render = async (size: number): Promise<Buffer> => {
   const crop = Math.min(width, height);
   const left = Math.floor((width - crop) / 2);
   const top = Math.floor((height - crop) / 2);
-  const radius = size / 4;
+  const rectSide = (size * 4) / 5;
+  const inset = (size - rectSide) / 2;
+  const radius = rectSide / 4;
   const mask = Buffer.from(
-    `<svg width="${size}" height="${size}"><rect x="0" y="0" width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="white"/></svg>`,
+    `<svg width="${size}" height="${size}"><rect x="${inset}" y="${inset}" width="${rectSide}" height="${rectSide}" rx="${radius}" ry="${radius}" fill="white"/></svg>`,
   );
   return sharp(source)
     .extract({ left, top, width: crop, height: crop })
