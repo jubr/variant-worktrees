@@ -1,9 +1,20 @@
-import { DEFAULT_ACTIVATION_PATTERNS } from "chat-renamer-config";
+import { DEFAULT_ACTIVATION_PATTERNS, DEFAULT_PATH_ACTIVATION_PATTERN } from "chat-renamer-config";
 
 import { parseChatRenameSlash } from "./chat-rename-slash";
 
 /** Matches e.g. `/vw-spec-start my-slug`; the capture group is the title. Applied per prompt line. */
-export { DEFAULT_ACTIVATION_PATTERNS };
+export { DEFAULT_ACTIVATION_PATTERNS, DEFAULT_PATH_ACTIVATION_PATTERN };
+
+/**
+ * Sources the renamer compiles. Worktree-prefix patterns go first. A non-empty prefix list drops the default
+ * path pattern so an unconfigured prefix cannot still yield a title.
+ */
+export const activationPatternSources = (prefixes: readonly string[], patterns: readonly string[]): string[] => {
+  const prefixPatterns = worktreeActivationPatterns(prefixes);
+  const rest =
+    prefixPatterns.length > 0 ? patterns.filter((source) => source !== DEFAULT_PATH_ACTIVATION_PATTERN) : patterns;
+  return [...prefixPatterns, ...rest];
+};
 
 const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -13,8 +24,12 @@ const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g
  * since the hook script evaluates them too. A prefix holds its own leading character and connector (`_v-`).
  */
 export const worktreeActivationPatterns = (prefixes: readonly string[]): string[] =>
-  [...new Set(prefixes.filter((prefix) => typeof prefix === "string" && prefix.trim().length > 0))].map(
-    (prefix) => `/[a-z]+-spec-[a-z]+\\s+@\\S*/${escapeRegex(prefix)}([A-Za-z0-9_-]+)/?(?=\\s|$)`,
+  [...new Set(prefixes.filter((prefix) => typeof prefix === "string" && prefix.trim().length > 0))].flatMap(
+    (prefix) => {
+      const escaped = escapeRegex(prefix);
+      const slug = "([A-Za-z0-9_-]+)/?(?=\\s|$)";
+      return [`/[a-z]+-spec-[a-z]+\\s+@\\S*/${escaped}${slug}`, `/[a-z]+-spec-[a-z]+\\s+@${escaped}${slug}`];
+    },
   );
 
 export type RenameRequest =

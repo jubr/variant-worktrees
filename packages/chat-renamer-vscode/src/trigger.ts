@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  activationPatternSources,
   type ChatRenamerNames,
   claimRenamer,
   compilePatterns,
@@ -18,7 +19,6 @@ import {
   resolveCursorDir,
   subscribeCatalogTitleChanges,
   uninstallChatRenameHook,
-  worktreeActivationPatterns,
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
@@ -31,7 +31,8 @@ import { type HostSettings, readSettings } from "./settings";
  *  - titleEvent (default): on cursor.onDidChangeAgentHostSessionCatalogTitle, read the chat's first prompt from Cursor's
  *    on-disk store and rename when it holds a rename request. Only chats whose first prompt was sent after startup are renamed.
  *  - hook: install a beforeSubmitPrompt hook that sends /chat-rename prompts to this extension's URI handler.
- * Only one extension per host runs a trigger: the first to start owns renaming (see claimRenamer). Any other one
+ * Only one extension per host runs a trigger. Variant Worktrees wins when it is installed: Chat Renamer
+ * stays idle. Otherwise the first to start owns renaming (see claimRenamer). Any other one
  * registers no listener, hook or URI handler and removes the hook script it wrote earlier.
  * The owner's URI handler is always registered. Switching the setting uninstalls the hook we wrote.
  * Resolves when the first setup pass is done.
@@ -53,6 +54,14 @@ export type TriggerHost = {
 
 const DEFAULT_EXISTING_CHATS_DELAY_MS = 3000;
 
+const isExtension = (id: string, name: string): boolean => id === name || id.endsWith(`.${name}`);
+
+/** Standalone Chat Renamer yields when Variant Worktrees is installed in this editor. */
+const variantWorktreesHost = (selfId: string): string | undefined => {
+  const installed = vscode.extensions?.all ?? [];
+  return installed.find((extension) => extension.id !== selfId && isExtension(extension.id, "variant-worktrees"))?.id;
+};
+
 export const startChatRenameTrigger = (
   context: vscode.ExtensionContext,
   log: Logger,
@@ -68,9 +77,13 @@ export const startChatRenameTrigger = (
     return Promise.resolve();
   }
 
-  const claim = claimRenamer(context.extension.id);
+  const extensionId = context.extension.id;
+  const variantHost = isExtension(extensionId, "chat-renamer") ? variantWorktreesHost(extensionId) : undefined;
+  const claim = variantHost ? { owned: false, owner: variantHost, release: () => {} } : claimRenamer(extensionId);
   context.subscriptions.push({ dispose: claim.release });
-  if (!claim.owned) {
+  if (variantHost) {
+    log.info(`${variantHost} is installed; this instance stays idle`);
+  } else if (!claim.owned) {
     log.info(`${claim.owner} already runs chat renaming; this instance stays idle`);
   }
 
@@ -78,6 +91,10 @@ export const startChatRenameTrigger = (
     context.subscriptions.push(
       vscode.window.registerUriHandler({
         handleUri: async (uri) => {
+          if (!readSettings(names.configSection, host.fileConfig).enabled) {
+            log.info(`chat renaming off: ${names.configSection}.enable=false`);
+            return;
+          }
           try {
             const handled = await handleChatRenameUri(resolveChatRenameDeps(context), uri, options);
             log.info(`uri ${uri.path}${uri.query ? `?${uri.query}` : ""} handled=${handled}`);
@@ -149,31 +166,40 @@ export const startChatRenameTrigger = (
     eventSubscription = undefined;
 
     const settings = readSettings(names.configSection, host.fileConfig);
-    const { trigger, hookScope } = settings;
-    // Worktree patterns are more specific, so they go first.
-    const activationPatterns = [
-      ...worktreeActivationPatterns(settings.worktreePrefixes),
-      ...settings.activationPatterns,
-    ];
+    const { trigger, hookScope, enabled } = settings;
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const chosenDir = resolveCursorDir(hookScope, workspaceRoot, home);
+    const otherDirs = [...new Set([resolveCursorDir("workspace", workspaceRoot, home), join(home, ".cursor")])].filter(
+      (dir) => !(claim.owned && enabled && trigger === "hook") || dir !== chosenDir,
+    );
+    const uninstallFrom = async (dirs: string[]): Promise<void> => {
+      for (const dir of dirs) {
+        try {
+          await uninstallChatRenameHook(dir, names.hookScriptName);
+        } catch (error) {
+          log.warn(`could not clean ${dir}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    };
+
+    if (!enabled) {
+      await uninstallFrom([...new Set([chosenDir, ...otherDirs])]);
+      stopExisting();
+      if (claim.owned) {
+        log.info(`chat renaming off: ${names.configSection}.enable=false`);
+      }
+      return;
+    }
+
+    const activationPatterns = activationPatternSources(settings.worktreePrefixes, settings.activationPatterns);
     options.patterns = compilePatterns(activationPatterns, (source, error) =>
       log.warn(
         `ignoring invalid activation pattern ${JSON.stringify(source)}: ${error instanceof Error ? error.message : String(error)}`,
       ),
     ).patterns;
     log.info(`activation patterns: ${JSON.stringify(activationPatterns)}`);
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const chosenDir = resolveCursorDir(hookScope, workspaceRoot, home);
-    const otherDirs = [...new Set([resolveCursorDir("workspace", workspaceRoot, home), join(home, ".cursor")])].filter(
-      (dir) => !(claim.owned && trigger === "hook") || dir !== chosenDir,
-    );
 
-    for (const dir of otherDirs) {
-      try {
-        await uninstallChatRenameHook(dir, names.hookScriptName);
-      } catch (error) {
-        log.warn(`could not clean ${dir}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
+    await uninstallFrom(otherDirs);
 
     if (!claim.owned) {
       return;

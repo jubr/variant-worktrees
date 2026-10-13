@@ -1,6 +1,7 @@
 import type { FirstPrompt } from "./chat-first-prompt";
 import { findRenameRequest, type RenameRequest } from "./chat-rename-patterns";
-import { hasSameBase, numberedTitle } from "./chat-title-numbering";
+import { hasSameBase, numberedTitle, titleBase } from "./chat-title-numbering";
+import type { Logger } from "./log";
 
 export const BUILTIN_AGENT_HOST_ID = "anysphere.cursor-agent-host";
 
@@ -86,6 +87,26 @@ export type RenameOptions = {
   patterns?: readonly RegExp[];
   /** Titles of the other open chats. When given, titles that came from a pattern are numbered to stay distinct. */
   peerTitles?: (sessionId: string) => Promise<string[]>;
+  /** When set, each rename action is logged with its reason and final title. */
+  log?: Logger;
+};
+
+const renameReason = (viaPattern: boolean, candidate: string, title: string): string => {
+  if (!viaPattern) {
+    return "slash command";
+  }
+  const base = titleBase(candidate);
+  if (base.length === 0) {
+    return "all digits";
+  }
+  if (base.length < candidate.length) {
+    return "typed trailing number kept";
+  }
+  return title === candidate ? "no shared base" : "numbered against open chats";
+};
+
+const logRename = (log: Logger | undefined, id: string, reason: string, title: string): void => {
+  log?.info(`rename ${id}: ${reason}; title ${JSON.stringify(title)}`);
 };
 
 const applyRequest = async (
@@ -98,6 +119,7 @@ const applyRequest = async (
     request.viaPattern && options.peerTitles
       ? numberedTitle(request.title, await options.peerTitles(id))
       : request.title;
+  logRename(options.log, id, renameReason(request.viaPattern, request.title, title), title);
   await renameChat(deps, id, title);
 };
 
@@ -180,38 +202,47 @@ export type TitleChangeOptions = RenameOptions & {
 
 const DEFAULT_MAX_AGE_MS = 30 * 1000;
 
+export type CatalogTitleOutcome = "renamed" | "same-base" | "ignored";
+
 /**
  * Title-event trigger. Cursor's title change event is the moment the first prompt has been named, so this reads the
  * chat's first prompt and, when it holds a rename request, renames the chat. A chat whose first prompt cannot be
  * read, or carries no timestamp, is left alone: without a timestamp there is no telling a new chat from an old one.
  * Ordinary and malformed requests are ignored, and so is a pattern title for a chat whose title already has its base.
  */
+export const catalogTitleOutcome = async (
+  deps: ChatRenameDeps,
+  change: CatalogTitleChange,
+  options: TitleChangeOptions = {},
+): Promise<CatalogTitleOutcome> => {
+  const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
+  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
+    return "ignored";
+  }
+  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
+    return "ignored";
+  }
+  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
+  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
+    return "ignored";
+  }
+  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
+  if (request.kind !== "rename") {
+    return "ignored";
+  }
+  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
+    logRename(options.log, change.sessionId, "current title shares the base", change.title);
+    return "same-base";
+  }
+  await applyRequest(deps, change.sessionId, request, options);
+  return "renamed";
+};
+
 export const handleCatalogTitleChange = async (
   deps: ChatRenameDeps,
   change: CatalogTitleChange,
   options: TitleChangeOptions = {},
-): Promise<boolean> => {
-  const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
-  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
-    return false;
-  }
-  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
-    return false;
-  }
-  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
-  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
-    return false;
-  }
-  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
-  if (request.kind !== "rename") {
-    return false;
-  }
-  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
-    return false;
-  }
-  await applyRequest(deps, change.sessionId, request, options);
-  return true;
-};
+): Promise<boolean> => (await catalogTitleOutcome(deps, change, options)) === "renamed";
 
 export const subscribeCatalogTitleChanges = (
   deps: ChatRenameDeps,

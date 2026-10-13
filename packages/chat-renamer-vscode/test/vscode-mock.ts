@@ -6,6 +6,7 @@ export const vscodeMock = {
   env: { appName: undefined as string | undefined, uriScheme: "cursor" },
   extensions: {
     getExtension: (_id: string): { packageJSON: unknown } | undefined => undefined,
+    all: [] as { id: string }[],
   },
   /** Cursor's private API object. A test installs the members it needs. */
   cursor: {} as {

@@ -8,20 +8,20 @@ describe("chatRenamerNames", () => {
       renameChat: "chat-renamer.renameChat",
       renameChatFromPrompt: "chat-renamer.renameChatFromPrompt",
       renameExistingChats: "chat-renamer.renameExistingChats",
+      renameActiveChat: "chat-renamer.renameActiveChat",
       configSection: "chat-renamer",
       hookScriptName: "chat-renamer-chat-rename.sh",
     });
   });
 
   it("lets a host extension keep its own prefix and settings section", () => {
-    expect(
-      chatRenamerNames({ commandPrefix: "variant-worktrees", configSection: "variant-worktrees.chatRename" }),
-    ).toEqual({
-      renameChat: "variant-worktrees.renameChat",
-      renameChatFromPrompt: "variant-worktrees.renameChatFromPrompt",
-      renameExistingChats: "variant-worktrees.renameExistingChats",
-      configSection: "variant-worktrees.chatRename",
-      hookScriptName: "variant-worktrees-chat-rename.sh",
+    expect(chatRenamerNames({ commandPrefix: "variant", configSection: "variant" })).toEqual({
+      renameChat: "variant.renameChat",
+      renameChatFromPrompt: "variant.renameChatFromPrompt",
+      renameExistingChats: "variant.renameExistingChats",
+      renameActiveChat: "variant.renameActiveChat",
+      configSection: "variant",
+      hookScriptName: "variant-chat-rename.sh",
     });
   });
 });

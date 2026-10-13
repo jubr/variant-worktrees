@@ -22,9 +22,14 @@ describe("readSettings", () => {
     expect(readSettings("section")).toEqual({
       trigger: "titleEvent",
       hookScope: "workspace",
-      activationPatterns: ["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"],
+      activationPatterns: [
+        "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+        "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+        "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)",
+      ],
       worktreePrefixes: [],
       renameExistingDays: 7,
+      enabled: true,
     });
   });
 
@@ -63,11 +68,25 @@ describe("readSettings", () => {
     expect(settings.activationPatterns).toEqual([]);
   });
 
+  it("treats enable as on unless it is boolean false", () => {
+    configure({});
+    expect(readSettings("variant").enabled).toBe(true);
+
+    configure({ enable: { globalValue: false } });
+    expect(readSettings("variant").enabled).toBe(false);
+
+    configure({}, { enable: false });
+    expect(readSettings("variant").enabled).toBe(false);
+
+    configure({ enable: { globalValue: "no" } });
+    expect(readSettings("variant").enabled).toBe(true);
+  });
+
   it("asks the editor for the section it was given", () => {
     const spy = configure({});
 
-    readSettings("variant-worktrees.chatRename");
+    readSettings("variant");
 
-    expect(spy.mock.calls.at(-1)?.[0]).toBe("variant-worktrees.chatRename");
+    expect(spy.mock.calls.at(-1)?.[0]).toBe("variant");
   });
 });

@@ -14,14 +14,15 @@ export const titleNumber = (title: string): number => {
 /**
  * Makes a title unique among the titles of other open chats by numbering it.
  *
- * The trailing number is removed from the candidate to get its base. Peers with the same base (case-insensitive)
- * count by their trailing number, a peer without one counting as 1. With peers the result is `{base}{max + 1}`:
- * `abc` with peers `abc` gives `abc2`; `def` with peers `def3`, `def5` gives `def6`.
- * Without peers the candidate is returned as typed.
+ * A candidate that already ends in digits is returned as typed and peers are not consulted: `abc7` beside `abc`
+ * stays `abc7`. A candidate that is only digits is returned as typed. Otherwise the trailing number is removed
+ * to get the base. Peers with the same base (case-insensitive) count by their trailing number, a peer without
+ * one counting as 1. With peers the result is `{base}{max + 1}`: `abc` with peers `abc` gives `abc2`; `def`
+ * with peers `def3`, `def5` gives `def6`. Without peers the candidate is returned as typed.
  */
 export const numberedTitle = (candidate: string, peerTitles: readonly string[]): string => {
   const base = baseOf(candidate);
-  if (base.length === 0) {
+  if (base.length === 0 || base.length < candidate.length) {
     return candidate;
   }
   const key = base.toLowerCase();

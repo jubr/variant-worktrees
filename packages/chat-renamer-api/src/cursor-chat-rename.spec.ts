@@ -270,6 +270,78 @@ describe("handleCatalogTitleChange when the chat already has the requested base"
     expect(calls).toHaveLength(0);
   });
 
+  it("does not rename a chat already titled with a typed trailing number", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "abc7" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc7", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abc"],
+      },
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("renames another title to the typed trailing number", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "New Chat" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc7", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abc"],
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(calls[0]?.title).toBe("abc7");
+  });
+
+  it("does not rename a chat already titled with a unique pattern title", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "abc" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abcd", "other"],
+      },
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("renames another title to a unique pattern title", async () => {
+    const { deps, calls } = makeDeps();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "New Chat" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 }),
+        patterns: compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns,
+        now: () => NOW,
+        peerTitles: async () => ["abcd", "other"],
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(calls[0]?.title).toBe("abc");
+  });
+
   it("renames a chat whose title has another base", async () => {
     const { handled, calls } = run("Fix the login", "/vw-spec-start abc");
 
@@ -445,6 +517,68 @@ describe("activation patterns with numbering", () => {
 
     await expect(renameChatFromPrompt(deps, "chat-1", "fix the build", peers("abc"))).resolves.toBe(false);
     expect(calls).toHaveLength(0);
+  });
+
+  const linesOf = () => {
+    const lines: string[] = [];
+    const log = { info: (message: string) => lines.push(message), warn: () => {}, error: () => {} };
+    return { lines, log };
+  };
+
+  it("logs a numbered pattern title with the reason and the final title", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/vw-spec-start abc", { ...peers("abc"), log });
+
+    expect(lines).toEqual(['rename chat-1: numbered against open chats; title "abc2"']);
+  });
+
+  it("logs a typed trailing number that is kept", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/vw-spec-start abc7", { ...peers("abc"), log });
+
+    expect(lines).toEqual(['rename chat-1: typed trailing number kept; title "abc7"']);
+  });
+
+  it("logs a pattern title that shares no base", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/vw-spec-start abc", { ...peers("abcd", "other"), log });
+
+    expect(lines).toEqual(['rename chat-1: no shared base; title "abc"']);
+  });
+
+  it("logs a slash command title literally", async () => {
+    const { deps } = makeDeps();
+    const { lines, log } = linesOf();
+
+    await renameChatFromPrompt(deps, "chat-1", "/chat-rename abc", { ...peers("abc"), log });
+
+    expect(lines).toEqual(['rename chat-1: slash command; title "abc"']);
+  });
+
+  it("logs a same-base skip and does not rename", async () => {
+    const { deps, calls } = makeDeps();
+    const { lines, log } = linesOf();
+
+    const handled = await handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "abc7" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc7", submittedAtMs: 1_000 }),
+        now: () => 2_000,
+        ...peers("abc"),
+        log,
+      },
+    );
+
+    expect(handled).toBe(false);
+    expect(calls).toHaveLength(0);
+    expect(lines).toEqual(['rename chat-1: current title shares the base; title "abc7"']);
   });
 });
 
