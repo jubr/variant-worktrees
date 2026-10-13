@@ -16,4 +16,4 @@
 
 ## 4. Smaller rounded rectangle
 
-- [ ] 4.1 Replace `assets/source.png` with the new supplied artwork and shrink the rounded rectangle to four fifths of the icon side, centered, corner radius one quarter of that side. Verify the product-icon pixel test passes.
+- [x] 4.1 Replace `assets/source.png` with the new supplied artwork and shrink the rounded rectangle to four fifths of the icon side, centered, corner radius one quarter of that side. Verify the product-icon pixel test passes.
