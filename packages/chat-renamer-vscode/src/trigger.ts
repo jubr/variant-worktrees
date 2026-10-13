@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  activationPatternSources,
   type ChatRenamerNames,
   claimRenamer,
   compilePatterns,
@@ -18,7 +19,6 @@ import {
   resolveCursorDir,
   subscribeCatalogTitleChanges,
   uninstallChatRenameHook,
-  worktreeActivationPatterns,
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
@@ -150,11 +150,7 @@ export const startChatRenameTrigger = (
 
     const settings = readSettings(names.configSection, host.fileConfig);
     const { trigger, hookScope } = settings;
-    // Worktree patterns are more specific, so they go first.
-    const activationPatterns = [
-      ...worktreeActivationPatterns(settings.worktreePrefixes),
-      ...settings.activationPatterns,
-    ];
+    const activationPatterns = activationPatternSources(settings.worktreePrefixes, settings.activationPatterns);
     options.patterns = compilePatterns(activationPatterns, (source, error) =>
       log.warn(
         `ignoring invalid activation pattern ${JSON.stringify(source)}: ${error instanceof Error ? error.message : String(error)}`,

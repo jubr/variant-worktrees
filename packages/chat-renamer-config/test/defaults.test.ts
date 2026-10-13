@@ -7,7 +7,10 @@ describe("defaults", () => {
   it("exports the five renamer defaults", () => {
     expect(defaults.DEFAULT_TRIGGER).toBe("titleEvent");
     expect(defaults.DEFAULT_HOOK_SCOPE).toBe("workspace");
-    expect(defaults.DEFAULT_ACTIVATION_PATTERNS).toEqual(["/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"]);
+    expect(defaults.DEFAULT_ACTIVATION_PATTERNS).toEqual([
+      "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+      "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)",
+    ]);
     expect(defaults.DEFAULT_WORKTREE_PREFIXES).toEqual([]);
     expect(defaults.DEFAULT_RENAME_EXISTING_DAYS).toBe(7);
   });
