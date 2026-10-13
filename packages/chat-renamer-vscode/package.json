@@ -24,7 +24,7 @@
   "scripts": {
     "build": "bun run ./scripts/build-with-esbuild.ts",
     "watch": "bun run ./scripts/watch-with-esbuild.ts",
-    "vsce-package": "vsce package",
+    "vsce-package": "mkdir -p ../../out && vsce package --no-dependencies --out ../../out/chat-renamer-${npm_package_version}.vsix",
     "package": "bun run build && bun run vsce-package",
     "clean": "rm -rf ./dist",
     "test": "bun test"
