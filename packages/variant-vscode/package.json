@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Variant VS Code extension",
   "displayName": "Variant",
-  "publisher": "variant",
+  "publisher": "jubr",
   "main": "./dist/extension.cjs",
   "dependencies": {
     "@types/vscode": "^1.86.0",
