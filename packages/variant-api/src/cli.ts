@@ -2,6 +2,8 @@
 import { cli, command } from "cleye";
 import { type CommandDefinition, commands } from "./commands.js";
 import { createClient } from "./index.js";
+import { formatTable } from "./table.js";
+import type { VariantRecord } from "./types.js";
 
 const redacted = (value: unknown): unknown => {
   if (Array.isArray(value)) {
@@ -17,27 +19,49 @@ const redacted = (value: unknown): unknown => {
   return copy;
 };
 
+/** Flags that only the CLI has: they change how a result is printed, not what a command does. */
+const CLI_ONLY_FLAGS: Record<string, Record<string, { type: BooleanConstructor; description: string }>> = {
+  list: { table: { type: Boolean, description: "Print a table instead of JSON" } },
+};
+
+const flagTypes = { string: String, number: Number, boolean: Boolean } as const;
+
+const flagsFor = (definition: CommandDefinition) =>
+  Object.fromEntries([
+    ...definition.args.map((arg) => [
+      arg.name,
+      {
+        type: flagTypes[arg.type],
+        ...(arg.short ? { alias: arg.short } : {}),
+        description: arg.name === "slug" ? "Explicit variant slug; overrides git detection" : arg.description,
+      },
+    ]),
+    ...Object.entries(CLI_ONLY_FLAGS[String(definition.name)] ?? {}),
+  ]);
+
 const runCommand = (definition: CommandDefinition) =>
   command(
     {
       name: String(definition.name),
       parameters: definition.args.some((arg) => arg.name === "slug") ? ["[slug]"] : [],
-      flags: definition.args.some((arg) => arg.name === "slug")
-        ? {
-            slug: {
-              type: String,
-              alias: "s",
-              description: "Explicit variant slug; overrides git detection",
-            },
-          }
-        : {},
+      flags: flagsFor(definition),
     },
     async (argv) => {
+      const flags = argv.flags as Record<string, unknown>;
       const positional = (argv._ as unknown as { slug?: string }).slug;
-      const flags = argv.flags as { slug?: string };
-      const explicit = flags.slug ?? positional;
+      const args: Record<string, unknown> = {};
+      for (const arg of definition.args) {
+        const value = arg.name === "slug" ? (flags.slug ?? positional) : flags[arg.name];
+        if (value !== undefined) {
+          args[arg.name] = value;
+        }
+      }
       const client = createClient();
-      const result = await definition.execute(client, explicit === undefined ? {} : { slug: explicit });
+      const result = await definition.execute(client, args);
+      if (flags.table === true && definition.name === "list") {
+        console.log(formatTable(result as VariantRecord[], client.config().variant.root));
+        return;
+      }
       console.log(JSON.stringify(redacted(result), null, 2));
     },
   );

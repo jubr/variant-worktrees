@@ -170,7 +170,7 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
-export { readRuntime, readRuntimes, writeRuntime } from "./local.js";
+export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
 export { openUrlFor, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,

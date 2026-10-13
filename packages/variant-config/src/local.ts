@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
@@ -112,6 +112,22 @@ export const writeRuntime = (configDir: string, runtime: Runtime): void => {
   const existing: unknown = existsSync(path) ? parseYaml(readFileSync(path, "utf8")) : {};
   const others = typeof existing === "object" && existing !== null ? existing : {};
   writeFileSync(path, stringifyYaml({ ...others, runtime: RuntimeSchema.parse(runtime) }));
+};
+
+/** Removes the `runtime` section of `<configDir>/variants.local.yaml`, keeping other keys; a file left empty is removed. */
+export const clearRuntime = (configDir: string): void => {
+  const path = join(configDir, LOCAL_FILENAME);
+  if (!existsSync(path)) {
+    return;
+  }
+  const existing: unknown = parseYaml(readFileSync(path, "utf8"));
+  const { runtime: _removed, ...others } =
+    typeof existing === "object" && existing !== null ? (existing as Record<string, unknown>) : {};
+  if (Object.keys(others).length === 0) {
+    rmSync(path);
+  } else {
+    writeFileSync(path, stringifyYaml(others));
+  }
 };
 
 export interface ReadRuntimesOptions {

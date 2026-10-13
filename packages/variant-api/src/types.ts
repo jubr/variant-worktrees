@@ -9,8 +9,21 @@ export interface VariantState {
   createdAt: string;
 }
 
+/** What is known about one instance of a running variant. `alive` is set when a pid is recorded. */
+export interface InstanceFacts {
+  port?: number;
+  pid?: number;
+  url?: string;
+  alive?: boolean;
+}
+
 export interface VariantRecord extends VariantState {
   exists: boolean;
+  /** `up` or `watch`, from the runtime state of the variant. */
+  mode?: "up" | "watch";
+  /** The URL of the first instance that has one. */
+  url?: string;
+  instances?: Record<string, InstanceFacts>;
 }
 
 export interface VariantClientOptions {

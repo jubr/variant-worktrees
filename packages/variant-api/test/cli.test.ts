@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const runCli = async (
@@ -58,5 +58,48 @@ describe("variant CLI", () => {
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+
+  describe("list --table", () => {
+    const withVariants = async (run: (environment: Record<string, string>) => Promise<void>): Promise<void> => {
+      const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-table-")));
+      try {
+        writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+        mkdirSync(join(directory, ".cache", "variants"), { recursive: true });
+        writeFileSync(join(directory, ".cache", "variants", "beta.db"), "");
+        writeFileSync(join(directory, ".cache", "variants", "alpha.db"), "");
+        mkdirSync(join(directory, "_v-alpha"));
+        writeFileSync(
+          join(directory, "_v-alpha", "variants.local.yaml"),
+          "runtime:\n  slug: alpha\n  instances:\n    fe: { url: 'http://alpha.vw.localhost:62060' }\n",
+        );
+        await run({ VARIANT_CONFIG: join(directory, "variants.yaml") });
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    };
+
+    it("prints a header and one row per variant sorted by slug, with - for missing values", () =>
+      withVariants(async (environment) => {
+        const result = await runCli(["list", "--table"], environment);
+        const rows = result.stdout
+          .trim()
+          .split("\n")
+          .map((line) => line.trim().split(/\s{2,}/));
+
+        expect(result.exitCode).toBe(0);
+        expect(rows[0]).toEqual(["slug", "dir", "url", "schema"]);
+        expect(rows[1]?.slice(0, 3)).toEqual(["alpha", "_v-alpha", "http://alpha.vw.localhost:62060"]);
+        expect(rows[1]?.[3]).toEndWith("alpha.db");
+        expect(rows[2]?.slice(0, 3)).toEqual(["beta", "-", "-"]);
+        expect(rows).toHaveLength(3);
+      }));
+
+    it("keeps JSON as the default output", () =>
+      withVariants(async (environment) => {
+        const result = await runCli(["list"], environment);
+
+        expect(JSON.parse(result.stdout).map((record: { slug: string }) => record.slug)).toEqual(["alpha", "beta"]);
+      }));
   });
 });

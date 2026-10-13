@@ -9,6 +9,7 @@ import {
   type VariantInstance,
 } from "variant-config";
 import type { OperationContext } from "./operations/types.js";
+import { readVariantRuntime } from "./runtime-state.js";
 import { primaryWorktree } from "./worktree.js";
 
 /** Everything the commands of one variant run need to know: where it lives and which ports its instances use. */
@@ -53,9 +54,10 @@ export const prepareRun = async (
 ): Promise<VariantRun> => {
   const { config } = context;
   const target = slug === "main" ? (config.db.schema ?? "public") : context.adapter.target(slug);
+  const located = { ...config, runtime: readVariantRuntime(config, worktree) };
   const ports: Record<string, number> = {};
   for (const key of Object.keys(config.variant.instances)) {
-    ports[key] = assigned[key] ?? (await resolveInstancePort(config, key));
+    ports[key] = assigned[key] ?? (await resolveInstancePort(located, key));
   }
   const storage = config.variant.storage ? join(worktree, config.variant.storage.dir) : undefined;
   const primary = primaryOf(context.cwd, worktree);

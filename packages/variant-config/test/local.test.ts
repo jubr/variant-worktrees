@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { loadConfig, readRuntime, writeRuntime } from "../src/index.js";
+import { clearRuntime, loadConfig, readRuntime, writeRuntime } from "../src/index.js";
 import { VariantsLocalSchema } from "../src/schema.js";
 
 const withProject = (local: string | undefined, run: (directory: string) => void): void => {
@@ -97,5 +97,28 @@ describe("writeRuntime", () => {
   it("refuses an invalid runtime section", () =>
     withProject(undefined, (directory) => {
       expect(() => writeRuntime(directory, { instances: { fe: { pid: 0 } } })).toThrow();
+    }));
+});
+
+describe("clearRuntime", () => {
+  it("removes the runtime section and keeps other top-level keys", () =>
+    withProject("other: kept\nruntime:\n  slug: demo\n", (directory) => {
+      clearRuntime(directory);
+
+      expect(parseYaml(readFileSync(join(directory, "variants.local.yaml"), "utf8"))).toEqual({ other: "kept" });
+    }));
+
+  it("removes a file that held only the runtime section", () =>
+    withProject("runtime:\n  slug: demo\n", (directory) => {
+      clearRuntime(directory);
+
+      expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
+    }));
+
+  it("does nothing without a file", () =>
+    withProject(undefined, (directory) => {
+      clearRuntime(directory);
+
+      expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
     }));
 });
