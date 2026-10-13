@@ -70,6 +70,12 @@ The explicit `renameChat` command logs `explicit title` with the title the calle
 
 Existing-chats lines keep the `[existing-chats]` prefix. Each rename line also includes the reason `existing chats plan` and the final title. `planExistingRenames` stays as it is; the reason is that fixed phrase, not a second numbering explanation.
 
+### Variant settings section
+
+`variant-vscode` uses configuration section `variant`, the same string as its command prefix. Manifest keys are `variant.trigger`, `variant.hookScope`, `variant.activationPatterns`, `variant.worktreePrefixes`, `variant.renameExistingDays` and `variant.enable`. `variant.enable` is a boolean, default `true`, and is not a `variants.yaml` field. When it is `false`, setup uninstalls any hook this extension wrote, subscribes to no title events, and schedules no existing-chats run. Palette commands stay registered, read the setting when they run, and when it is `false` they do not rename and tell the user that `variant.enable` is false. A host whose section has no `enable` key, including standalone Chat Renamer, stays on. Unknown values fall back to on. Changing the setting reconfigures without a reload, same as the other keys.
+
+Alternative: keep `variant-worktrees.chatRename` so saved user settings keep working. Rejected; the settings should sit under `variant.*` with the commands.
+
 ## Risks / Trade-offs
 
 - [Path regex differs between JS and Python] → Keep the same constructs as `worktreeActivationPatterns` (`\s`, `\S`, a trailing lookahead). A pattern test covers the nested path and the trailing slash.
@@ -79,7 +85,7 @@ Existing-chats lines keep the `[existing-chats]` prefix. Each rename line also i
 
 ## Migration Plan
 
-No stored data changes. Rollback is reverting the change. An already built vsix inside either extension package can be deleted by hand; new builds go to `out/`.
+No stored data changes. Rollback is reverting the change. An already built vsix inside either extension package can be deleted by hand; new builds go to `out/`. Settings previously saved under `variant-worktrees.chatRename.*` are not copied.
 
 ## Open Questions
 
