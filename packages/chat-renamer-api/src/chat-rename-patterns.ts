@@ -24,8 +24,12 @@ const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g
  * since the hook script evaluates them too. A prefix holds its own leading character and connector (`_v-`).
  */
 export const worktreeActivationPatterns = (prefixes: readonly string[]): string[] =>
-  [...new Set(prefixes.filter((prefix) => typeof prefix === "string" && prefix.trim().length > 0))].map(
-    (prefix) => `/[a-z]+-spec-[a-z]+\\s+@\\S*/${escapeRegex(prefix)}([A-Za-z0-9_-]+)/?(?=\\s|$)`,
+  [...new Set(prefixes.filter((prefix) => typeof prefix === "string" && prefix.trim().length > 0))].flatMap(
+    (prefix) => {
+      const escaped = escapeRegex(prefix);
+      const slug = "([A-Za-z0-9_-]+)/?(?=\\s|$)";
+      return [`/[a-z]+-spec-[a-z]+\\s+@\\S*/${escaped}${slug}`, `/[a-z]+-spec-[a-z]+\\s+@${escaped}${slug}`];
+    },
   );
 
 export type RenameRequest =

@@ -9,6 +9,7 @@ describe("defaults", () => {
     expect(defaults.DEFAULT_HOOK_SCOPE).toBe("workspace");
     expect(defaults.DEFAULT_ACTIVATION_PATTERNS).toEqual([
       "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+      "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)",
       "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)",
     ]);
     expect(defaults.DEFAULT_WORKTREE_PREFIXES).toEqual([]);
