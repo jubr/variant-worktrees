@@ -57,7 +57,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
         await adapter.close();
       }
     },
-    provision: (slug) => withAdapter((context) => provisionVariant(context, slug)),
+    provision: (slug, options) => withAdapter((context) => provisionVariant(context, slug, options)),
     config: () => config,
   };
 };

@@ -187,6 +187,7 @@ export type {
 export {
   DEFAULT_OPEN_URL,
   DEFAULT_PREFIX,
+  envSegment,
   LOCAL_FILENAME,
   VariantsConfigSchema,
   VariantsLocalSchema,

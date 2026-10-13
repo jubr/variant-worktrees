@@ -26,7 +26,10 @@ export interface VariantClient {
   destroy(slug?: string): Promise<{ slug: string; removed: boolean }>;
   list(): Promise<VariantRecord[]>;
   switch(slug?: string): Promise<{ slug: string; worktree: string }>;
-  provision(slug?: string): Promise<{ slug: string; commands: string[]; output: string }>;
+  provision(
+    slug?: string,
+    options?: { verbose?: boolean },
+  ): Promise<{ slug: string; commands: string[]; output: string }>;
   config(): ResolvedConfig;
 }
 
