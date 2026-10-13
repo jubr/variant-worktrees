@@ -6,6 +6,7 @@ variant-worktrees has no product icon. The VS Code extension manifest has no `ic
 
 - Adopt the supplied square artwork (red branch badge over a color-swatch fan, 375×374 PNG at `assets/source.png` in this change) as the variant-worktrees icon.
 - Produce downscaled PNGs at the sizes the current surfaces actually use: 256, 128, 32, and 16.
+- Mask each PNG to a rounded rectangle whose corner radius is one fifth of the side. Pixels outside that rounded rectangle are fully transparent.
 - Point the `variant-vscode` extension manifest at the 256×256 PNG and include that file in the packaged extension.
 - Use the same artwork for the VitePress nav logo and favicon, and show the 256×256 PNG in the repository README.
 

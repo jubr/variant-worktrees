@@ -28,6 +28,10 @@ Publish 256, 128, 32, and 16. Nothing larger: the source is 375×374, so 512 wou
 
 The source is one pixel wider than it is tall. Center-crop to 374×374 (drop one column) before resize so the output is square and the artwork is not stretched.
 
+After resize, mask with a rounded rectangle. Corner radius is one fifth of the side (`size / 5`). Pixels outside the rounded rectangle are fully transparent, including the four canvas corners. The rim may be antialiased. Inside the rounded rectangle the scaled artwork is unchanged.
+
+`sharp` applies the mask with `dest-in` and an SVG rect of that `rx`/`ry`, fill white. Alternative: bake an opaque rounded rectangle on a solid background. Rejected because the corners must stay transparent on the docs logo, the README, and the extension icon.
+
 | File | Pixels | Surface |
 | --- | --- | --- |
 | `packages/variant-vscode/media/icon-256.png` | 256 | extension `icon`, README |
@@ -42,7 +46,7 @@ Alternative: one SVG trace. Rejected because the source is a raster composite; a
 
 ### Resize with sharp, commit the PNGs
 
-Use `sharp` (lanczos3) as a dev dependency to resize. Commit the PNGs. The test decodes the source, repeats that crop and resize, and expects the committed files to match. That locks "this artwork" without calling the packager.
+Use `sharp` (lanczos3) as a dev dependency to resize, then apply the rounded-rectangle mask. Commit the PNGs. The test builds the unmasked scale itself and checks geometry on its own: pixels more than one pixel outside the rounded rectangle have alpha 0, and pixels more than one pixel inside match the unmasked scale. That locks the artwork and the transparent corners without sharing the generator.
 
 Alternative: ImageMagick or `sips` in a script. Rejected because CI does not provide them. Alternative: commit PNGs and assert only IHDR dimensions. Rejected because any 256×256 PNG would pass.
 
@@ -64,7 +68,7 @@ Add `media/icon-256.png` to `files`. Do not add the whole `media/` directory; th
 
 - [16×16 and 32×32 lose the swatch detail] → Accept. Those sizes are only the browser tab icon. 128 and 256 keep the picture.
 - [Explicit `files` list drops the icon] → List the icon path, and have the package test open the vsix.
-- [Supplied artwork includes a third-party branch mark] → Ship the supplied file unchanged apart from the square crop and downscale. Do not redraw it.
+- [Supplied artwork includes a third-party branch mark] → Ship the supplied file unchanged apart from the square crop, downscale, and rounded-rectangle mask. Do not redraw it.
 - [`sharp` native binary] → Dev dependency only. Runtime extension code does not import it.
 
 ## Migration Plan
