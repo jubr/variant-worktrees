@@ -4078,6 +4078,10 @@ export const commands = {
   executeCommand: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
+export const workspace: {
+  workspaceFolders?: Array<{ uri: { fsPath: string } }>;
+} = {};
+
 export const window = {
   showInformationMessage: () => {},
   createOutputChannel: (_name: string) => ({

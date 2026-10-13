@@ -156,4 +156,5 @@ export {
   variantsJsonSchema,
   variantsLocalJsonSchema,
 } from "./schema.js";
+export { resolveMainVscodeDir } from "./vscode-dir.js";
 export type { ChatRenamerConfig };
