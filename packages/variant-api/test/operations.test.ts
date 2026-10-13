@@ -27,7 +27,11 @@ describe("variant client operations", () => {
       expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);
 
-      expect(await client.implode("test-feature")).toEqual({ slug: "test-feature", removed: true });
+      expect(await client.implode("test-feature")).toMatchObject({
+        slug: "test-feature",
+        removed: true,
+        worktreeRemoved: false,
+      });
       expect(await client.list()).toEqual([]);
     } finally {
       rmSync(directory, { recursive: true, force: true });

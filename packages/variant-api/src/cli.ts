@@ -57,7 +57,7 @@ const runCommand = (definition: CommandDefinition) =>
           args[arg.name] = value;
         }
       }
-      const client = createClient();
+      const client = createClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       const result = await definition.execute(client, args);
       if (flags.table === true && definition.name === "list") {
         console.log(formatTable(result as VariantRecord[], client.config().variant.root));

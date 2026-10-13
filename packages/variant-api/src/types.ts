@@ -73,6 +73,26 @@ export interface WatchResult {
   output: string;
 }
 
+export interface ImplodeOptions {
+  /** Implode even when the work is not merged, and remove a worktree that has local changes. */
+  force?: boolean;
+  /** Receives the report of what the worktree held; the default writes to stderr. */
+  log?: (line: string) => void;
+}
+
+/** What `implode` removed. */
+export interface ImplodeResult {
+  slug: string;
+  /** Whether a database target or a state file existed. */
+  removed: boolean;
+  /** Whether a git worktree was removed; a variant may have none. */
+  worktreeRemoved: boolean;
+  /** The directory of the removed worktree. */
+  worktree?: string;
+  /** `git status`, `git diff --stat` and the short diff of the worktree as it was before it was removed. */
+  report?: string;
+}
+
 /** What `up` started. */
 export interface UpResult {
   slug: string;
@@ -87,7 +107,7 @@ export interface UpResult {
 
 export interface VariantClient {
   create(slug?: string): Promise<VariantRecord>;
-  implode(slug?: string): Promise<{ slug: string; removed: boolean }>;
+  implode(slug?: string, options?: ImplodeOptions): Promise<ImplodeResult>;
   up(slug?: string, options?: UpOptions): Promise<UpResult>;
   watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
   down(slug?: string): Promise<DownResult>;
