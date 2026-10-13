@@ -7,7 +7,7 @@ import { createClient } from "../src/index.js";
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-operations-"));
 
 describe("variant client operations", () => {
-  it("creates, lists, and destroys an isolated SQLite variant", async () => {
+  it("creates, lists, and implodes an isolated SQLite variant", async () => {
     const directory = tempDirectory();
     try {
       const baseConfig = loadConfig({ cwd: directory });
@@ -27,14 +27,14 @@ describe("variant client operations", () => {
       expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);
 
-      expect(await client.destroy("test-feature")).toEqual({ slug: "test-feature", removed: true });
+      expect(await client.implode("test-feature")).toEqual({ slug: "test-feature", removed: true });
       expect(await client.list()).toEqual([]);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
 
-  it("protects the main variant from destruction", async () => {
+  it("protects the main variant from implosion", async () => {
     const directory = tempDirectory();
     try {
       const baseConfig = loadConfig({ cwd: directory });
@@ -44,7 +44,7 @@ describe("variant client operations", () => {
         stateDir: join(directory, ".cache", "variants"),
         worktree: false,
       });
-      await expect(client.destroy("main")).rejects.toThrow("Refusing to destroy main variant");
+      await expect(client.implode("main")).rejects.toThrow("Refusing to implode main");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

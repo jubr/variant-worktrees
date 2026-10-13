@@ -43,6 +43,7 @@ const runCommand = (definition: CommandDefinition) =>
   command(
     {
       name: String(definition.name),
+      help: { description: definition.description },
       parameters: definition.args.some((arg) => arg.name === "slug") ? ["[slug]"] : [],
       flags: flagsFor(definition),
     },
@@ -68,6 +69,10 @@ const runCommand = (definition: CommandDefinition) =>
 
 try {
   const args = process.argv.slice(2);
+  const requested = args.find((arg) => !arg.startsWith("-"));
+  if (requested !== undefined && !commands.some((definition) => definition.name === requested)) {
+    throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
+  }
   await cli(
     {
       name: "variant",

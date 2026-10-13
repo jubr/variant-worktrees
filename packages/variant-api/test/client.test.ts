@@ -11,7 +11,7 @@ describe("createClient", () => {
       const config = loadConfig({ cwd: directory });
       const client = createClient({ config, cwd: directory, worktree: false });
       expect(typeof client.create).toBe("function");
-      expect(typeof client.destroy).toBe("function");
+      expect(typeof client.implode).toBe("function");
       expect(typeof client.list).toBe("function");
       expect(client.config()).toBe(config);
     } finally {

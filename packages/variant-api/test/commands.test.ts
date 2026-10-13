@@ -7,10 +7,11 @@ describe("command registry", () => {
     expect(commands.map((command) => command.name)).toEqual([
       "config",
       "create",
-      "destroy",
       "list",
       "switch",
       "provision",
+      "down",
+      "implode",
     ]);
   });
 

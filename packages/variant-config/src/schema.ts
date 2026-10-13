@@ -289,8 +289,8 @@ export type ResolvedRuntime = Omit<Runtime, "db"> & { db?: DbConfig };
 
 export const LOCAL_FILENAME = "variants.local.yaml";
 
-/** `variants.local.yaml`, git-ignored, next to variants.yaml in each variant's worktree. */
-export const VariantsLocalSchema = z.strictObject({ runtime: RuntimeSchema.optional() });
+/** `variants.local.yaml`, git-ignored, next to variants.yaml in each variant's worktree. Other top-level keys are kept. */
+export const VariantsLocalSchema = z.looseObject({ runtime: RuntimeSchema.optional() });
 export type VariantsLocal = z.infer<typeof VariantsLocalSchema>;
 
 /** `variant` as resolved by `loadConfig`: defaults applied, instances always a record. */

@@ -34,9 +34,19 @@ export interface VariantClientOptions {
   worktree?: boolean;
 }
 
+/** What `down` stopped. */
+export interface DownResult {
+  slug: string;
+  /** Host processes that were terminated, with the instance key they belong to. */
+  processes: { key: string; pid: number }[];
+  containers: string[];
+  networks: string[];
+}
+
 export interface VariantClient {
   create(slug?: string): Promise<VariantRecord>;
-  destroy(slug?: string): Promise<{ slug: string; removed: boolean }>;
+  implode(slug?: string): Promise<{ slug: string; removed: boolean }>;
+  down(slug?: string): Promise<DownResult>;
   list(): Promise<VariantRecord[]>;
   switch(slug?: string): Promise<{ slug: string; worktree: string }>;
   provision(

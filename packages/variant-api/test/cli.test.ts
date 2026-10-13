@@ -36,6 +36,15 @@ describe("variant CLI", () => {
     expect(noArgs.stderr).toBe(explicitHelp.stderr);
   });
 
+  it("has no destroy command; implode replaces it", async () => {
+    const help = await runCli(["--help"]);
+    const destroy = await runCli(["destroy"]);
+
+    expect(help.stdout).toContain("implode");
+    expect(help.stdout).not.toContain("destroy");
+    expect(destroy.exitCode).not.toBe(0);
+  });
+
   it("prints detected config as JSON", async () => {
     const result = await runCli(["config"]);
     expect(result.exitCode).toBe(0);
@@ -45,7 +54,7 @@ describe("variant CLI", () => {
     expect(config.db.password).not.toBe("pnv_password");
   });
 
-  it("runs the config, create, list, destroy smoke sequence", async () => {
+  it("runs the config, create, list, implode smoke sequence", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-"));
     const configPath = join(directory, "variants.yaml");
     writeFileSync(configPath, "db:\n  dialect: sqlite\n");
@@ -54,7 +63,7 @@ describe("variant CLI", () => {
       expect((await runCli(["config"], environment)).exitCode).toBe(0);
       expect((await runCli(["create", "-s", "test-feature"], environment)).exitCode).toBe(0);
       expect((await runCli(["list"], environment)).stdout).toContain("test-feature");
-      expect((await runCli(["destroy", "-s", "test-feature"], environment)).exitCode).toBe(0);
+      expect((await runCli(["implode", "-s", "test-feature"], environment)).exitCode).toBe(0);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

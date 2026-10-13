@@ -37,12 +37,6 @@ export const commands: CommandDefinition[] = [
     execute: (client, args) => client.create(args.slug as string | undefined),
   },
   {
-    name: "destroy",
-    description: "Destroy a database variant and its state",
-    args: [slugArg],
-    execute: (client, args) => client.destroy(args.slug as string | undefined),
-  },
-  {
     name: "list",
     description: "List known database variants",
     args: [],
@@ -59,5 +53,17 @@ export const commands: CommandDefinition[] = [
     description: "Run configured variant runtime and seed commands",
     args: [slugArg],
     execute: (client, args) => client.provision(args.slug as string | undefined),
+  },
+  {
+    name: "down",
+    description: "Stop the processes and containers of a variant and keep its data",
+    args: [slugArg],
+    execute: (client, args) => client.down(args.slug as string | undefined),
+  },
+  {
+    name: "implode",
+    description: "Stop a variant, drop its database and storage, and remove its state",
+    args: [slugArg],
+    execute: (client, args) => client.implode(args.slug as string | undefined),
   },
 ];

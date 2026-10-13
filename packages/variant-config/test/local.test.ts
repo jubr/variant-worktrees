@@ -38,6 +38,11 @@ describe("VariantsLocalSchema", () => {
     expect(parse({ db: { nope: 1 } }).success).toBe(false);
   });
 
+  it("tolerates other top-level keys, which writeRuntime keeps, while the runtime section stays strict", () => {
+    expect(VariantsLocalSchema.safeParse({ other: "kept", runtime: { slug: "demo" } }).success).toBe(true);
+    expect(VariantsLocalSchema.safeParse({ other: "kept", runtime: { nope: 1 } }).success).toBe(false);
+  });
+
   it("rejects a non-numeric port string, a zero pid, an unknown mode and an unknown key", () => {
     expect(parse({ db: { port: "soon" } }).success).toBe(false);
     expect(parse({ instances: { fe: { pid: 0 } } }).success).toBe(false);

@@ -182,6 +182,33 @@ describe("extension socket", () => {
     expect(body.error?.message?.length).toBeGreaterThan(0);
   });
 
+  it.each([
+    "up",
+    "down",
+    "watch",
+    "implode",
+  ])("refuses %s as a lifecycle command without calling variant-api", async (name) => {
+    const layout = singleRepoLayout();
+    roots.push(layout.root);
+    useFolders(layout.worktree);
+    await activate(context());
+
+    const line = await exchange(layout.socketFile, JSON.stringify({ name, args: { slug: "test-feature" } }));
+    const body = JSON.parse(line) as { error?: { message?: string } };
+    expect(body.error?.message).toBe(`${name} is not handled on the extension socket`);
+  });
+
+  it("does not know destroy as a lifecycle command any more", async () => {
+    const layout = singleRepoLayout();
+    roots.push(layout.root);
+    useFolders(layout.worktree);
+    await activate(context());
+
+    const line = await exchange(layout.socketFile, JSON.stringify({ name: "destroy", args: {} }));
+    const body = JSON.parse(line) as { error?: { message?: string } };
+    expect(body.error?.message).toBe("unsupported editor request: destroy");
+  });
+
   it("removes the socket it bound when the extension deactivates", async () => {
     const layout = linkedLayout();
     roots.push(layout.root);

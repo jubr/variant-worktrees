@@ -3,7 +3,8 @@ import { join, resolve } from "node:path";
 import { loadConfig } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
 import { createVariant } from "./operations/create.js";
-import { destroyVariant } from "./operations/destroy.js";
+import { downVariant } from "./operations/down.js";
+import { implodeVariant } from "./operations/implode.js";
 import { listVariants } from "./operations/list.js";
 import { provisionVariant } from "./operations/provision.js";
 import { switchVariant } from "./operations/switch.js";
@@ -37,7 +38,8 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 
   return {
     create: (slug) => withAdapter((context) => createVariant(context, slug)),
-    destroy: (slug) => withAdapter((context) => destroyVariant(context, slug)),
+    down: (slug) => withAdapter((context) => downVariant(context, slug)),
+    implode: (slug) => withAdapter((context) => implodeVariant(context, slug)),
     list: () => withAdapter((context) => listVariants(context)),
     switch: async (slug) => {
       const adapter = createDatabaseAdapter(config.db, stateDir);

@@ -61,18 +61,20 @@ describe("MCP server", () => {
       expect(names).toEqual([
         "variant_config",
         "variant_create",
-        "variant_destroy",
         "variant_list",
         "variant_switch",
         "variant_provision",
+        "variant_down",
+        "variant_implode",
       ]);
       expect(names).not.toContain("variant_free");
+      expect(names).not.toContain("variant_destroy");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
 
-  it("creates, lists, and destroys a variant through MCP", async () => {
+  it("creates, lists, and implodes a variant through MCP", async () => {
     const directory = tempDirectory();
     const configPath = configFile(directory);
     try {
@@ -99,19 +101,19 @@ describe("MCP server", () => {
       );
       expect(JSON.parse(list.lines.at(-1) ?? "{}").result.content[0].text).toContain("test-feature");
 
-      const destroy = await mcp(
+      const implode = await mcp(
         [
           ...initMessages(),
           {
             jsonrpc: "2.0",
             id: 5,
             method: "tools/call",
-            params: { name: "variant_destroy", arguments: { slug: "test-feature" } },
+            params: { name: "variant_implode", arguments: { slug: "test-feature" } },
           },
         ],
         configPath,
       );
-      expect(JSON.parse(destroy.lines.at(-1) ?? "{}").result.isError).not.toBe(true);
+      expect(JSON.parse(implode.lines.at(-1) ?? "{}").result.isError).not.toBe(true);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

@@ -65,7 +65,7 @@ packages/
       index.ts       — createClient() and lifecycle operations
       commands.ts    — command definitions shared by CLI/MCP
       db/             — Drizzle-backed database adapters
-      operations/     — create/destroy/list/switch/provision
+      operations/     — create/implode/up/down/watch/list/switch/provision
       state.ts        — YAML variant state
       slug.ts         — explicit and git-derived slug resolution
       worktree.ts     — _v-* worktree management
