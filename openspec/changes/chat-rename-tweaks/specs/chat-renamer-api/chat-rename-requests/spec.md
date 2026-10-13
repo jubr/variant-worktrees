@@ -2,7 +2,7 @@
 
 ### Requirement: Activation patterns derive a title
 
-The renamer SHALL test each line of a prompt against a list of JavaScript regular expressions. A match SHALL produce a title equal to the first capture group that matched with text, or the whole match when there is none, trimmed. Slash commands SHALL win over patterns on the same prompt, and the first line that yields a request SHALL decide. An entry that is blank, not a string, or not a valid regular expression SHALL be skipped. The default list SHALL be `/[a-z]+-spec-[a-z]+\s+@\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\s|$)` and `/[a-z]+-spec-[a-z]+\s+([A-Za-z0-9_-]+)`, in that order. The first pattern SHALL capture the slug of the last path segment after its leading prefix token, and SHALL NOT hardcode a worktree prefix.
+The renamer SHALL test each line of a prompt against a list of JavaScript regular expressions. A match SHALL produce a title equal to the first capture group that matched with text, or the whole match when there is none, trimmed. Slash commands SHALL win over patterns on the same prompt, and the first line that yields a request SHALL decide. An entry that is blank, not a string, or not a valid regular expression SHALL be skipped. The default list SHALL be `/[a-z]+-spec-[a-z]+\s+@\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\s|$)`, `/[a-z]+-spec-[a-z]+\s+@_work-([A-Za-z0-9_-]+)/?(?=\s|$)`, and `/[a-z]+-spec-[a-z]+\s+([A-Za-z0-9_-]+)`, in that order. The first pattern SHALL capture the slug of the last path segment after its leading prefix token, and SHALL NOT hardcode a worktree prefix. The second SHALL capture the slug of a short `@_work-<slug>` mention.
 
 #### Scenario: Default pattern
 
@@ -18,6 +18,11 @@ The renamer SHALL test each line of a prompt against a list of JavaScript regula
 
 - **WHEN** a prompt line is `/vw-spec-iterate @/Users/me/vw/_v-cursor-chat-win-rename/`
 - **THEN** the requested title is `cursor-chat-win-rename`
+
+#### Scenario: Short work prefix
+
+- **WHEN** the default patterns are in use and a prompt line is `/vw-spec-start @_work-my-slug`
+- **THEN** the requested title is `my-slug`
 
 #### Scenario: Pattern on a later line
 
@@ -80,7 +85,7 @@ A title that came from an activation pattern SHALL be made distinct from the tit
 
 ### Requirement: Dragged-in worktrees derive their slug
 
-A prompt line that is a command of the form `/<word>-spec-<word>` followed by `@` and a path whose last segment is `<prefix><slug>` SHALL derive the title `<slug>`, for each configured worktree prefix. A prefix holds its own leading character and connector (`_v-`), so nothing is inserted between it and the slug. The slug SHALL consist of letters, digits, `_` and `-`. A trailing `/` after the path SHALL be accepted. Only the last path segment SHALL count. A prefix SHALL match literally, whatever characters it holds. An empty prefix list SHALL turn prefix-specific derivation off. The default path pattern SHALL still derive a title from such a line when the prefix list is empty. A non-empty prefix list SHALL be the only matcher for `@` paths: a prefix that is not in the list SHALL produce no title. Titles derived this way SHALL be numbered like other pattern titles.
+A prompt line that is a command of the form `/<word>-spec-<word>` followed by `@` and a path whose last segment is `<prefix><slug>` SHALL derive the title `<slug>`, for each configured worktree prefix. The same command followed by `@<prefix><slug>` with no path SHALL derive `<slug>` as well. A prefix holds its own leading character and connector (`_v-`), so nothing is inserted between it and the slug. The slug SHALL consist of letters, digits, `_` and `-`. A trailing `/` after the path SHALL be accepted. Only the last path segment SHALL count. A prefix SHALL match literally, whatever characters it holds. An empty prefix list SHALL turn prefix-specific derivation off. The default path pattern SHALL still derive a title from a path line when the prefix list is empty, and the default patterns SHALL derive a title from `@_work-<slug>` with no path. A non-empty prefix list SHALL be the only matcher for `@` paths: a prefix that is not in the list SHALL produce no title. Titles derived this way SHALL be numbered like other pattern titles.
 
 #### Scenario: Configured prefix
 
@@ -90,6 +95,11 @@ A prompt line that is a command of the form `/<word>-spec-<word>` followed by `@
 #### Scenario: Custom prefix
 
 - **WHEN** the configured prefixes are `_work-` and a prompt line is `/vw-spec-iterate @/Users/me/vw/_work-my-slug/`
+- **THEN** the requested title is `my-slug`
+
+#### Scenario: Short configured prefix
+
+- **WHEN** the configured prefixes are `_work-` and a prompt line is `/vw-spec-start @_work-my-slug`
 - **THEN** the requested title is `my-slug`
 
 #### Scenario: Prefix that is not configured

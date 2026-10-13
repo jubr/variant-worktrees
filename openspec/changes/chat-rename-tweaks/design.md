@@ -38,9 +38,9 @@ Add this source as the first `DEFAULT_ACTIVATION_PATTERNS` entry, exported from 
 
 `/[a-z]+-spec-[a-z]+\s+@\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\s|$)`
 
-`\S+` backtracks to the last slash, so `@/Users/me/_v-outer/_v-inner` captures `inner` and `@/Users/me/vw/_v-cursor-chat-win-rename/` captures `cursor-chat-win-rename`. The lookahead is valid in JavaScript and in Python `re`, which the hook script uses. The pattern does not contain `_v-`.
+`\S+` backtracks to the last slash, so `@/Users/me/_v-outer/_v-inner` captures `inner` and `@/Users/me/vw/_v-cursor-chat-win-rename/` captures `cursor-chat-win-rename`. The lookahead is valid in JavaScript and in Python `re`, which the hook script uses. The pattern does not contain `_v-`. A second default source matches the short form `/<word>-spec-<word> @_work-<slug>` and captures `<slug>`. It stays when a prefix list drops the path pattern.
 
-When `worktreePrefixes` is non-empty, drop that exact source from the compiled list and keep the generated prefix patterns in front. A line of the form `/<word>-spec-<word> @...` that matches no configured prefix then produces no title, including `_work-my-slug` while prefixes are `_v-`. When the prefix list is empty, the default path pattern stays. An empty `activationPatterns` array still turns patterns off.
+When `worktreePrefixes` is non-empty, drop that exact path source from the compiled list and keep the generated prefix patterns in front. Each prefix contributes a path pattern and a short `@<prefix><slug>` pattern. A path that matches no configured prefix then produces no title, including `_work-my-slug` while prefixes are `_v-`. When the prefix list is empty, the default path pattern stays. An empty `activationPatterns` array still turns patterns off.
 
 ### Active chat command
 
