@@ -2,7 +2,7 @@
 
 ### Requirement: Rename the active chat on command
 
-The standalone extension SHALL contribute command `chat-renamer.renameActiveChat` with palette title `Chat Renamer: Rename active chat`. When embedded in Variant, the command SHALL be `variant-worktrees.renameActiveChat` with palette title `Variant: Rename active chat`. Running it SHALL rename the chat the user currently has selected, using that chat's first prompt and the same request, numbering, and same-base rules as a title event. It SHALL NOT apply the limit that a chat must have been created while the editor runs, and it SHALL NOT apply the 30-second age limit. It SHALL run when `renameExistingDays` is 0. When no chat is selected, or the first prompt holds no rename request, the command SHALL NOT rename and SHALL tell the user. The command SHALL stay registered while the instance is idle.
+The standalone extension SHALL contribute command `chat-renamer.renameActiveChat` with palette title `Chat Renamer: Rename active chat`. When embedded in Variant, the command SHALL be `variant.renameActiveChat` with palette title `Variant: Rename active chat`. Running it SHALL rename the chat the user currently has selected, using that chat's first prompt and the same request, numbering, and same-base rules as a title event. It SHALL NOT apply the limit that a chat must have been created while the editor runs, and it SHALL NOT apply the 30-second age limit. It SHALL run when `renameExistingDays` is 0. When no chat is selected, or the first prompt holds no rename request, the command SHALL NOT rename and SHALL tell the user. The command SHALL stay registered while the instance is idle.
 
 #### Scenario: Active chat with an old pattern prompt
 
@@ -87,7 +87,7 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 #### Scenario: Embedded in Variant
 
 - **WHEN** `variant-vscode` activates
-- **THEN** commands `variant-worktrees.renameChat`, `variant-worktrees.renameChatFromPrompt` and `variant-worktrees.renameActiveChat` are registered and settings are read from `variant-worktrees.chatRename.*`
+- **THEN** commands `variant.renameChat`, `variant.renameChatFromPrompt` and `variant.renameActiveChat` are registered and settings are read from `variant-worktrees.chatRename.*`
 
 #### Scenario: Variant prefix is recognised without repeating it
 
