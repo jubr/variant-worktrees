@@ -11,18 +11,18 @@ import {
   runEngine,
 } from "../containers.js";
 import { hostOf, STATIC_ROOT, staticSiteConfig } from "../nginx.js";
-import { execute, type ProvisionOptions } from "../provisioning.js";
+import { execute } from "../provisioning.js";
+import { announce } from "../ready.js";
 import { commandEnvironment, expandEnv, templateContext, type VariantRun, variantVariables } from "../run-context.js";
 import { writeVariantRuntime } from "../runtime-state.js";
+import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
-import type { UpResult } from "../types.js";
+import type { UpOptions, UpResult } from "../types.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 
 const STATIC_IMAGE = "nginx:alpine";
 const NGINX_CONF_TARGET = "/etc/nginx/conf.d/default.conf";
-
-export const sleep = (milliseconds: number): Promise<void> => new Promise((done) => setTimeout(done, milliseconds));
 
 /** The runtime state of a variant, with the process ids of the instances that run as host processes. */
 export const runtimeOf = (
@@ -41,10 +41,10 @@ export const runtimeOf = (
       ...(db.dialect === "sqlite" ? { filename: run.target } : { schema: run.target }),
     },
     instances: Object.fromEntries(
-      Object.keys(config.variant.instances).map((key) => [
+      [...new Set([...Object.keys(config.variant.instances), ...Object.keys(pids)])].map((key) => [
         key,
         {
-          port: run.ports[key],
+          ...(run.ports[key] !== undefined ? { port: run.ports[key] } : {}),
           ...(run.urls[key] ? { url: run.urls[key] } : {}),
           ...(pids[key] !== undefined ? { pid: pids[key] } : {}),
         },
@@ -188,7 +188,7 @@ const startContainers = async (
 export const upVariant = async (
   context: OperationContext,
   requestedSlug?: string,
-  options: ProvisionOptions = {},
+  options: UpOptions = {},
 ): Promise<UpResult> => {
   const { config } = context;
   const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
@@ -196,6 +196,7 @@ export const upVariant = async (
   const { run, provisioned } = await prepareVariant(context, slug, "up", options);
   const { started, output, commands } = await startContainers(context, run, engine);
   writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "up"));
+  await announce(context, run, options);
   return {
     slug,
     worktree: run.worktree,

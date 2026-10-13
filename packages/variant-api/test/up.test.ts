@@ -131,7 +131,7 @@ const withProject = async (
       engine,
       database,
       context,
-      up: (slug = "demo") => upVariant(context, slug),
+      up: (slug = "demo") => upVariant(context, slug, { opener: async () => {}, log: () => {} }),
       localFile,
       runtime: () => (parseYaml(readFileSync(localFile, "utf8")) as { runtime: Record<string, unknown> }).runtime,
     });
@@ -461,6 +461,23 @@ describe("up mode switch and runtime state", () => {
       },
       FE_BE,
       { "variants.local.yaml": "custom: kept\n" },
+    ));
+});
+
+describe("up opening", () => {
+  it("opens the URL of an instance with an open template after the start", () =>
+    withProject(
+      async ({ context }) => {
+        const opened: string[] = [];
+        const lines: string[] = [];
+
+        await upVariant(context, "demo", { opener: (url) => void opened.push(url), log: (line) => lines.push(line) });
+
+        expect(opened).toEqual(["http://demo.vw.localhost:62060"]);
+        expect(lines).toContain("fe: http://demo.vw.localhost:62060");
+      },
+      FE_BE,
+      { "variants.local.yaml": "runtime:\n  instances:\n    fe: { port: 62060 }\n" },
     ));
 });
 

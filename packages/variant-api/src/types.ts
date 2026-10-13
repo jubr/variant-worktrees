@@ -43,6 +43,36 @@ export interface DownResult {
   networks: string[];
 }
 
+/** How `up` and `watch` talk to the person running them. */
+export interface UpOptions {
+  /** Print the full output of steps that set `show`. */
+  verbose?: boolean;
+  /** Opens a URL in the browser; the default launches the system browser. */
+  opener?: (url: string) => void | Promise<void>;
+  /** Receives progress lines; the default writes to stderr. */
+  log?: (line: string) => void;
+}
+
+export interface WatchOptions extends UpOptions {
+  /** Start the processes detached from the console and return without waiting. */
+  detach?: boolean;
+  /** Ends an attached watch as an interrupt (exit code 130), like SIGINT. */
+  signal?: AbortSignal;
+}
+
+/** What `watch` started and how it ended. */
+export interface WatchResult {
+  slug: string;
+  worktree: string;
+  /** The host processes that were started, in start order, with the command that runs. */
+  processes: { key: string; pid: number; command: string }[];
+  urls: Record<string, string>;
+  /** 0 for a detached watch, 130 when interrupted, 1 when an instance ended or the worktree disappeared. */
+  exitCode: 0 | 1 | 130;
+  commands: string[];
+  output: string;
+}
+
 /** What `up` started. */
 export interface UpResult {
   slug: string;
@@ -58,7 +88,8 @@ export interface UpResult {
 export interface VariantClient {
   create(slug?: string): Promise<VariantRecord>;
   implode(slug?: string): Promise<{ slug: string; removed: boolean }>;
-  up(slug?: string, options?: { verbose?: boolean }): Promise<UpResult>;
+  up(slug?: string, options?: UpOptions): Promise<UpResult>;
+  watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
   down(slug?: string): Promise<DownResult>;
   list(): Promise<VariantRecord[]>;
   switch(slug?: string): Promise<{ slug: string; worktree: string }>;
