@@ -8,7 +8,7 @@
   "main": "./dist/extension.cjs",
   "dependencies": {
     "@types/vscode": "^1.86.0",
-    "chat-renamer-vscode": "workspace:*",
+    "chat-renamer": "workspace:*",
     "variant-config": "workspace:*",
     "variant-ipc": "workspace:*"
   },

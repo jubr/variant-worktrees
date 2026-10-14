@@ -1,4 +1,4 @@
-import { createExtensionLog, registerChatRenamer } from "chat-renamer-vscode";
+import { createExtensionLog, registerChatRenamer } from "chat-renamer";
 import { createListener, type SocketListener, socketPath } from "variant-ipc";
 import * as vscode from "vscode";
 import { formatProbeReport } from "./cursor-command-probe.ts";
