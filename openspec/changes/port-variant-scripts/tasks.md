@@ -74,3 +74,10 @@
 - [x] 11.1 Run `openspec validate --all --strict --no-interactive` and verify `port-variant-scripts` is valid.
 - [x] 11.2 Run `task lint`, `task test` and `task build` and verify all pass.
 - [x] 11.3 Manually check `up` and `watch` for `example/` against a real container engine and a real browser, and note the result in the pull request description (not a CI gate).
+
+## 12. Command echo
+
+- [x] 12.1 Add failing tests: provisioning prints `$ <command>` through `log` for install, `up`, steps and seed in order and before each runs, prints nothing for a skipped step, and prints without `verbose`; `up` and `down` print build, network and container engine commands with `-e NAME=***` masking and no `inspect` calls. Verify they fail before implementation.
+- [x] 12.2 Add `log` to the provisioning options and the `provision` client call, echo the commands, thread `log` through `up`, `watch`'s preparation and the container stop used by `down` and `implode` (default standard error), and verify the tests from 12.1 and the existing suites pass.
+- [x] 12.3 Document the printed command lines in the scripts guide and verify the docs build; commit the task group.
+
