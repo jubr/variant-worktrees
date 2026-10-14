@@ -58,11 +58,11 @@ describe("provisioning command echo", () => {
       await client.provision("demo", { log: (line) => log.push(line) });
 
       expect(log).toEqual([
-        "$ echo up",
-        "$ echo one",
-        "$ echo skipped",
-        `$ echo two > ${directory}/two.txt`,
-        "$ echo seed",
+        "+ echo up",
+        "+ echo one",
+        "+ echo skipped",
+        `+ echo two > ${directory}/two.txt`,
+        "+ echo seed",
       ]);
     }));
 
@@ -74,8 +74,8 @@ describe("provisioning command echo", () => {
       await client.provision("demo", { log: (line) => log.push(line) });
       delete process.env.VARIANT_ECHO_SKIP;
 
-      expect(log).not.toContain("$ echo skipped");
-      expect(log).toContain("$ echo one");
+      expect(log).not.toContain("+ echo skipped");
+      expect(log).toContain("+ echo one");
     }));
 
   it("prints the command of a step before it fails", () =>
@@ -90,7 +90,7 @@ describe("provisioning command echo", () => {
           .catch((error: Error) => error);
 
         expect(failure).toBeInstanceOf(Error);
-        expect(log).toEqual(["$ echo boom; exit 3"]);
+        expect(log).toEqual(["+ echo boom; exit 3"]);
       },
     ));
 });
@@ -113,10 +113,10 @@ describe("container command echo", () => {
 
         await client.up("demo", { opener: async () => {}, log: (line) => log.push(line) });
 
-        const echoed = log.filter((line) => line.startsWith("$ "));
-        expect(echoed[0]).toBe("$ echo building");
-        expect(echoed[1]).toBe("$ docker network create v-net-demo");
-        expect(echoed[2]).toStartWith("$ docker run -d --name v-be-demo --network v-net-demo");
+        const echoed = log.filter((line) => line.startsWith("+ "));
+        expect(echoed[0]).toBe("+ echo building");
+        expect(echoed[1]).toBe("+ docker network create v-net-demo");
+        expect(echoed[2]).toStartWith("+ docker run -d --name v-be-demo --network v-net-demo");
         expect(echoed.some((line) => line.includes("inspect"))).toBe(false);
       },
     ));
@@ -137,7 +137,7 @@ describe("container command echo", () => {
 
         await client.up("demo", { opener: async () => {}, log: (line) => log.push(line) });
 
-        const run = log.find((line) => line.startsWith("$ docker run")) as string;
+        const run = log.find((line) => line.startsWith("+ docker run")) as string;
         expect(run).toContain("-e TOKEN=***");
         expect(run).toContain("-e VARIANT_SLUG=***");
         expect(log.join("\n")).not.toContain("hunter2");
@@ -153,7 +153,7 @@ describe("container command echo", () => {
 
         await client.down("demo", { log: (line) => log.push(line) });
 
-        expect(log).toEqual(["$ docker rm -f v-be-demo", "$ docker network rm v-net-demo"]);
+        expect(log).toEqual(["+ docker rm -f v-be-demo", "+ docker network rm v-net-demo"]);
       },
     ));
 });

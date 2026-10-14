@@ -104,7 +104,7 @@ A step has a unique `name`, a shell command `run`, an optional `dir` (relative t
 `unlessEnv` (skip the step when every listed variable has that value) and `show` (a regular expression: only
 matching output lines are printed; `--verbose` and failures print everything).
 
-Every command runs after a `$ <command>` line on standard error: the install, `up`, step and seed commands, a
+Every command runs after a `+ <command>` line on standard error: the install, `up`, step and seed commands, a
 `container.build`, and the container engine calls of `up`, `down` and the stop before `watch`. The values of the
 `-e NAME=value` arguments of the engine are printed as `***`. A skipped step prints no command line.
 
