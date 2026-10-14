@@ -141,12 +141,12 @@ The system SHALL create the variant's storage directory (`variant.storage.dir` b
 
 ### Requirement: Command echo
 
-The system SHALL print the line `$ <command>` to the progress log before it runs each provisioning command: an instance `install`, an `up` command, a step and the seed command. The line SHALL hold the command text as it runs and SHALL be printed whether or not verbose output is requested. A step skipped through `unlessEnv` SHALL print no command line. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error, so results on standard output are unchanged.
+The system SHALL print the line `+ <command>` to the progress log before it runs each provisioning command: an instance `install`, an `up` command, a step and the seed command. The line SHALL hold the command text as it runs and SHALL be printed whether or not verbose output is requested. A step skipped through `unlessEnv` SHALL print no command line. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error, so results on standard output are unchanged.
 
 #### Scenario: Commands are printed before they run
 
 - **WHEN** a variant has `variant.up`, one step and a seed command and is provisioned
-- **THEN** the progress log receives `$ <up command>`, `$ <step command>` and `$ <seed command>` in that order, each before that command runs
+- **THEN** the progress log receives `+ <up command>`, `+ <step command>` and `+ <seed command>` in that order, each before that command runs
 
 #### Scenario: Skipped step prints no command
 

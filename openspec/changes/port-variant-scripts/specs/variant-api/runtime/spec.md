@@ -223,12 +223,12 @@ The system SHALL provide `down` for a slug that stops every recorded host proces
 
 ### Requirement: Container command echo
 
-The system SHALL print the line `$ <command>` to the progress log before it runs each command of the container runtime that changes state: an instance `container.build`, an image build, a network create or remove, and a container remove or run. The engine commands SHALL be printed as the engine name followed by its arguments, and the value of every `-e NAME=value` argument SHALL be printed as `-e NAME=***`. Read-only `inspect` calls SHALL NOT be printed. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error. This applies to `up`, to `down` and to the stop that `watch`, `up` and `implode` run first.
+The system SHALL print the line `+ <command>` to the progress log before it runs each command of the container runtime that changes state: an instance `container.build`, an image build, a network create or remove, and a container remove or run. The engine commands SHALL be printed as the engine name followed by its arguments, and the value of every `-e NAME=value` argument SHALL be printed as `-e NAME=***`. Read-only `inspect` calls SHALL NOT be printed. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error. This applies to `up`, to `down` and to the stop that `watch`, `up` and `implode` run first.
 
 #### Scenario: Up prints its engine commands
 
 - **WHEN** `up` starts an instance with a `container.build` and an image
-- **THEN** the progress log receives the build command, then `$ <engine> network create`, then `$ <engine> run ...`
+- **THEN** the progress log receives the build command, then `+ <engine> network create`, then `+ <engine> run ...`
 
 #### Scenario: Environment values are hidden
 
@@ -238,5 +238,5 @@ The system SHALL print the line `$ <command>` to the progress log before it runs
 #### Scenario: Down prints its engine commands
 
 - **WHEN** `down` removes a container and its network
-- **THEN** the progress log receives `$ <engine> rm -f <container>` and `$ <engine> network rm <network>`
+- **THEN** the progress log receives `+ <engine> rm -f <container>` and `+ <engine> network rm <network>`
 
