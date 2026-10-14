@@ -34,11 +34,12 @@ const teardownVariant = async (
   context: OperationContext,
   slug: string,
   worktree: string | undefined,
+  log?: (line: string) => void,
 ): Promise<boolean> => {
   if (worktree) {
     await stopHostProcesses(context, worktree);
   }
-  stopContainers(context, slug);
+  stopContainers(context, slug, log);
   const state = readState(context.stateDir, slug);
   const removed = await context.adapter.destroy(slug);
   const storage = context.config.variant.storage;
@@ -98,7 +99,7 @@ export const implodeVariant = async (
     }
   }
 
-  const removed = await teardownVariant(context, slug, located);
+  const removed = await teardownVariant(context, slug, located, options.log);
   if (!removable) {
     return { slug, removed, worktreeRemoved: false };
   }

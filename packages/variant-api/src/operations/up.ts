@@ -10,9 +10,10 @@ import {
   resolveContainerEngine,
   runEngine,
 } from "../containers.js";
+import { echoCommand } from "../echo.js";
 import { hostOf, STATIC_ROOT, staticSiteConfig } from "../nginx.js";
 import { execute } from "../provisioning.js";
-import { announce } from "../ready.js";
+import { announce, logToStderr } from "../ready.js";
 import { commandEnvironment, expandEnv, templateContext, type VariantRun, variantVariables } from "../run-context.js";
 import { writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
@@ -149,6 +150,7 @@ const startContainers = async (
   context: OperationContext,
   run: VariantRun,
   engine: string,
+  log: (line: string) => void,
 ): Promise<{ started: UpResult["containers"]; output: string; commands: string[] }> => {
   const { config } = context;
   const started: UpResult["containers"] = [];
@@ -168,6 +170,7 @@ const startContainers = async (
     const directory = resolve(run.worktree, instance.dir);
     if (container.build) {
       commands.push(container.build);
+      echoCommand(container.build, log);
       const result = execute(container.build, directory, commandEnvironment(config, run, instance.env, key));
       if (!result.ok) {
         throw new Error(`Build of ${key} failed (${result.status}): ${container.build}\n${result.output}`);
@@ -176,24 +179,22 @@ const startContainers = async (
     }
     const { image, build } = imageOf(key, run.slug, container);
     if (build) {
-      runEngine(engine, [
-        "build",
-        "-f",
-        resolve(run.worktree, container.dockerfile as string),
-        "-t",
-        image,
-        run.worktree,
-      ]);
+      runEngine(
+        engine,
+        ["build", "-f", resolve(run.worktree, container.dockerfile as string), "-t", image, run.worktree],
+        undefined,
+        log,
+      );
     }
     if (!engineHas(engine, "network", network)) {
-      runEngine(engine, ["network", "create", network]);
+      runEngine(engine, ["network", "create", network], undefined, log);
     }
     const name = containerName(key, run.slug);
     if (engineHas(engine, "container", name)) {
-      runEngine(engine, ["rm", "-f", name]);
+      runEngine(engine, ["rm", "-f", name], undefined, log);
     }
     const siteConfig = container.static !== undefined ? writeSiteConfig(context, run, key, container) : undefined;
-    runEngine(engine, runArguments(context, run, key, image, siteConfig));
+    runEngine(engine, runArguments(context, run, key, image, siteConfig), undefined, log);
     started.push({ key, name, port: run.ports[key] as number });
   }
   return { started, output, commands };
@@ -212,7 +213,7 @@ export const upVariant = async (
   const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
   const engine = resolveContainerEngine(config);
   const { run, provisioned } = await prepareVariant(context, slug, "up", options);
-  const { started, output, commands } = await startContainers(context, run, engine);
+  const { started, output, commands } = await startContainers(context, run, engine, options.log ?? logToStderr);
   writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "up"));
   await announce(context, run, options);
   return {

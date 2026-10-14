@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { accessSync, constants } from "node:fs";
 import { delimiter, join } from "node:path";
 import type { ResolvedConfig } from "variant-config";
+import { echoCommand, engineCommandLine, type ProgressLog } from "./echo.js";
 
 export type ContainerEngine = string;
 
@@ -40,8 +41,14 @@ export const resolveContainerEngine = (
   return engine;
 };
 
-/** Runs the engine with arguments (never through a shell) and returns its output; throws with the output on failure. */
-export const runEngine = (engine: ContainerEngine, args: string[], cwd?: string): string => {
+/**
+ * Runs the engine with arguments (never through a shell) and returns its output; throws with the output on failure.
+ * A `log` receives the command line first, with the values of `-e` arguments hidden.
+ */
+export const runEngine = (engine: ContainerEngine, args: string[], cwd?: string, log?: ProgressLog): string => {
+  if (log) {
+    echoCommand(engineCommandLine(engine, args), log);
+  }
   try {
     return execFileSync(engine, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (error) {

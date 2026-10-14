@@ -26,7 +26,7 @@ export const prepareVariant = async (
     await stopHostProcesses(context, earlier);
   }
   if (mode === "watch") {
-    stopContainers(context, slug);
+    stopContainers(context, slug, options.log);
   }
 
   let worktree: string;

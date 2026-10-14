@@ -34,6 +34,12 @@ export interface VariantClientOptions {
   worktree?: boolean;
 }
 
+/** How `down` talks to the person running it. */
+export interface DownOptions {
+  /** Receives the engine commands that run; the default writes to stderr. */
+  log?: (line: string) => void;
+}
+
 /** What `down` stopped. */
 export interface DownResult {
   slug: string;
@@ -130,12 +136,12 @@ export interface VariantClient {
   implode(slug?: string, options?: ImplodeOptions): Promise<ImplodeResult>;
   up(slug?: string, options?: UpOptions): Promise<UpResult>;
   watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
-  down(slug?: string): Promise<DownResult>;
+  down(slug?: string, options?: DownOptions): Promise<DownResult>;
   list(): Promise<VariantRecord[]>;
   switch(slug?: string): Promise<{ slug: string; worktree: string }>;
   provision(
     slug?: string,
-    options?: { verbose?: boolean },
+    options?: { verbose?: boolean; log?: (line: string) => void },
   ): Promise<{ slug: string; commands: string[]; output: string }>;
   config(): ResolvedConfig;
 }

@@ -2,12 +2,15 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { amendDotenv, runtimeCommandFor, seedCommandFor, type VariantInstance } from "variant-config";
+import { echoCommand, type ProgressLog } from "./echo.js";
 import type { OperationContext } from "./operations/types.js";
 import { commandEnvironment, expandEnv, type VariantRun } from "./run-context.js";
 
 export interface ProvisionOptions {
   /** Print the full output of steps that set `show`. */
   verbose?: boolean;
+  /** Receives progress lines, such as the command about to run; the default writes to stderr. */
+  log?: ProgressLog;
 }
 
 export interface ProvisionResult {
@@ -95,6 +98,7 @@ export const runProvisioning = (
 
   const command = (text: string, cwd: string, env: NodeJS.ProcessEnv, label = text): void => {
     commands.push(text);
+    echoCommand(text, options.log);
     const result = execute(text, cwd, env);
     if (!result.ok) {
       throw new Error(`${label} failed (${result.status}): ${text}\n${result.output}`);
@@ -140,6 +144,7 @@ export const runProvisioning = (
       continue;
     }
     commands.push(step.run);
+    echoCommand(step.run, options.log);
     const result = execute(step.run, resolve(run.worktree, step.dir ?? "."), commandEnvironment(config, run, step.env));
     if (!result.ok) {
       throw new Error(`Step ${step.name} failed (${result.status}): ${step.run}\n${result.output}`);

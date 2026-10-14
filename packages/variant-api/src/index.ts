@@ -42,7 +42,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     create: (slug) => withAdapter((context) => createVariant(context, slug)),
     up: (slug, options) => withAdapter((context) => upVariant(context, slug, options)),
     watch: (slug, options) => withAdapter((context) => watchVariant(context, slug, options)),
-    down: (slug) => withAdapter((context) => downVariant(context, slug)),
+    down: (slug, options) => withAdapter((context) => downVariant(context, slug, options)),
     implode: (slug, options) => withAdapter((context) => implodeVariant(context, slug, options)),
     list: () => withAdapter((context) => listVariants(context)),
     switch: async (slug) => {
