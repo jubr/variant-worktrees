@@ -9,10 +9,18 @@ tasks:
   install:
     desc: "Install workspace dependencies (bun install)"
     run: once
-    cmds: ["bun install --no-summary"]
+    cmds:
+      - bun install --no-summary
+      - task: bin:bun-shebang
   install:ci:
     desc: "Install workspace dependencies from the committed lockfile"
-    cmds: ["bun install --frozen-lockfile"]
+    cmds:
+      - bun install --frozen-lockfile
+      - task: bin:bun-shebang
+
+  bin:bun-shebang:
+    desc: "Make node_modules/.bin/variant run under bun (no-op until variant-api is built)"
+    cmds: ["scripts/bun-shebang.sh"]
 
   bootstrap:
     desc: "mise trust/install, then bun install"
@@ -54,7 +62,9 @@ tasks:
 
   build:
     desc: "Build variant-config, variant-api, then variant-mcp"
-    cmds: ["bun run build"]
+    cmds:
+      - bun run build
+      - task: bin:bun-shebang
 
   test:
     desc: "Run workspace bun:test suites"
