@@ -14,4 +14,20 @@ describe("PostgresAdapter", () => {
       await adapter.close();
     }
   });
+
+  it("keeps server notices off standard output", async () => {
+    const adapter = new PostgresAdapter({ dialect: "postgres", host: "127.0.0.1", database: "variants" });
+    const logged: unknown[] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]) => void logged.push(args);
+    try {
+      const { onnotice } = (adapter as unknown as { client: { options: { onnotice: (notice: object) => void } } })
+        .client.options;
+      onnotice({ message: 'schema "v_demo" already exists, skipping' });
+    } finally {
+      console.log = original;
+      await adapter.close();
+    }
+    expect(logged).toEqual([]);
+  });
 });

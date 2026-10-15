@@ -28,6 +28,8 @@ export class PostgresAdapter implements DatabaseAdapter {
   constructor(config: DbConfig) {
     this.client = postgres(connectionUrl(config), {
       ssl: config.ssl ? "require" : undefined,
+      // AIDEV-NOTE: postgres.js prints notices (e.g. "schema already exists") with console.log, which would corrupt the JSON on stdout.
+      onnotice: () => {},
     });
     this.db = drizzle(this.client);
   }
