@@ -363,6 +363,30 @@ The system SHALL read ephemeral per-variant state from `variants.local.yaml` nex
 - **WHEN** the runtime section is written to a directory whose `variants.local.yaml` has other top-level keys
 - **THEN** the file holds the new `runtime` and the other keys unchanged
 
+### Requirement: Example project
+
+The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed (`bun`) and names the `variant` CLI from `github:jubr/variant-worktrees` in a commented-out line, because inside this repository the CLI comes from the workspace. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
+
+#### Scenario: Example configuration loads
+
+- **WHEN** the configuration is loaded from `example/`
+- **THEN** it validates and lists instances `fe` (Vite, `open`) and `be` (NestJS, `dotenv`)
+
+#### Scenario: Autodetection agrees
+
+- **WHEN** instances are autodetected in `example/`
+- **THEN** their kinds and directories equal those of the explicit instances
+
+#### Scenario: Seed runs on a variant database
+
+- **WHEN** `variant-api` creates variant `demo` from a copy of the example and the seed script runs with the variant's database in `SQLITE_DATABASE`
+- **THEN** the database holds the seeded rows
+
+#### Scenario: Tools in mise.toml
+
+- **WHEN** `example/mise.toml` is read
+- **THEN** its active tools are `bun` and a commented-out line names `github:jubr/variant-worktrees`
+
 ## REMOVED Requirements
 
 ### Requirement: Instance ports
