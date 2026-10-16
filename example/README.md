@@ -22,6 +22,8 @@ variant up demo               # fe and be as containers (needs docker or podman;
 variant implode demo          # remove the variant, its database and its worktree
 ```
 
+- The dev servers keep the console across rebuilds (`clearScreen: false` in `fe/vite.config.ts`, `--no-clear-screen` in
+  `be`'s `start:dev`, `preserveWatchOutput` in `be/tsconfig.json`), so the output of both stays readable in one terminal.
 - `fe` proxies `/api` to `be` (`VARIANT_API_PORT`, default 3000) and listens on `PORT` (default 5173).
 - `be` reads `PORT` and `SQLITE_DATABASE` from its environment, falling back to `be/.env`; `be/.env.example`
   is the template that `dotenv: .env` in `variants.yaml` copies for a variant.

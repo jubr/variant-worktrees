@@ -105,6 +105,20 @@ describe("the example project", () => {
     expect(text).toMatch(/^\s*#?\s*"github:jubr\/variant-worktrees"\s*=/m);
   });
 
+  it("keeps the console across rebuilds in the dev servers of fe and be", () => {
+    const vite = readFileSync(join(exampleDirectory, "fe/vite.config.ts"), "utf8");
+    const be = JSON.parse(readFileSync(join(exampleDirectory, "be/package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    const tsconfig = JSON.parse(readFileSync(join(exampleDirectory, "be/tsconfig.json"), "utf8")) as {
+      compilerOptions: Record<string, unknown>;
+    };
+
+    expect(vite).toMatch(/clearScreen:\s*false/);
+    expect(be.scripts["start:dev"]).toContain("--no-clear-screen");
+    expect(tsconfig.compilerOptions.preserveWatchOutput).toBe(true);
+  });
+
   it("ships be/.env.example with SQLite settings and a seed script", () => {
     expect(readFileSync(join(exampleDirectory, "be/.env.example"), "utf8")).toContain("SQLITE_DATABASE=");
     expect(existsSync(join(exampleDirectory, "scripts/seed.mjs"))).toBe(true);

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "bun build src/main.ts --outdir dist --target bun --packages external",
     "build:watch": "bun build src/main.ts --outdir dist --target bun --packages external --watch",
-    "start:dev": "bun --watch src/main.ts"
+    "start:dev": "bun --watch --no-clear-screen src/main.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
