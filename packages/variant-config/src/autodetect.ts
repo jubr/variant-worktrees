@@ -225,6 +225,56 @@ const detectKind = (path: string): VariantInstance["kind"] | undefined => {
   return undefined;
 };
 
+/** The scripts of the `package.json` in `path`. */
+const packageScripts = (path: string): Record<string, string> => {
+  try {
+    const packageJson = JSON.parse(readFileSync(join(path, "package.json"), "utf8")) as Record<string, unknown>;
+    const scripts = packageJson.scripts;
+    return isRecord(scripts)
+      ? Object.fromEntries(
+          Object.entries(scripts).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+        )
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Whether the first Vite config file in `path` sets `clearScreen`, which then owns the behavior. */
+const viteConfigSetsClearScreen = (path: string): boolean =>
+  readdirSync(path)
+    .filter((name) => /^vite\.config\.(js|mjs|ts|mts|cjs|cts)$/.test(name))
+    .some((name) => /\bclearScreen\s*:/.test(readFileSync(join(path, name), "utf8")));
+
+/** Whether `tsconfig.json` in `path` sets `preserveWatchOutput`, which then owns the behavior. */
+const tsconfigPreservesWatchOutput = (path: string): boolean => {
+  try {
+    return /"preserveWatchOutput"\s*:\s*true/.test(readFileSync(join(path, "tsconfig.json"), "utf8"));
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The command that watches an application without clearing the console, so the output of several instances stays
+ * readable in one terminal. A project's own setting (`clearScreen` in the Vite config, `preserveWatchOutput` in
+ * `tsconfig.json`) is left to the project; otherwise the flag is added to the command line. A `bun --watch` or
+ * `--hot` script gets `--no-clear-screen` inside its own command, because flags after the file would reach the app.
+ */
+const detectWatch = (kind: NonNullable<VariantInstance["kind"]>, path: string): string => {
+  const scripts = packageScripts(path);
+  if (kind === "vite") {
+    const base = scripts.dev ? "bun run dev" : "bunx --bun vite";
+    return viteConfigSetsClearScreen(path) ? base : `${base} --clearScreen false`;
+  }
+  const script = scripts["start:dev"];
+  if (script && /^bun\s+(--watch|--hot)\b/.test(script)) {
+    return script.replace(/^bun\s+(--watch|--hot)\b/, "bun $1 --no-clear-screen");
+  }
+  const base = script ? "bun run start:dev" : "bunx nest start --watch";
+  return tsconfigPreservesWatchOutput(path) ? base : `${base} --preserveWatchOutput`;
+};
+
 const shouldSkip = (name: string): boolean =>
   name === "node_modules" ||
   name === ".git" ||
@@ -259,7 +309,8 @@ export const detectInstances = (configDir: string): Record<string, VariantInstan
       const kind = detectKind(child);
       if (kind) {
         const dir = relative(configDir, child) || ".";
-        found.push(kind === "vite" ? { kind, dir, open: DEFAULT_OPEN_URL } : { kind, dir });
+        const watch = detectWatch(kind, child);
+        found.push(kind === "vite" ? { kind, dir, open: DEFAULT_OPEN_URL, watch } : { kind, dir, watch });
       }
       walk(child);
     }

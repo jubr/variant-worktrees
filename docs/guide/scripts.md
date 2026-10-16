@@ -84,6 +84,20 @@ Every command also sees `VARIANT_SLUG`, `VARIANT_TARGET`, the database settings 
 `SQLITE_DATABASE`), the storage variable, and the port and URL of every instance as `VARIANT_<KEY>_PORT` and
 `VARIANT_<KEY>_URL`.
 
+## Instances without a configuration
+
+Without `variant.instances`, Vite and NestJS applications below the configuration directory are detected, and each
+gets a `watch` command that keeps the console across rebuilds, so several dev servers share one terminal:
+
+| Application | `watch`                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------- |
+| Vite        | `bun run dev --clearScreen false` (`bunx --bun vite ...` without a `dev` script)                      |
+| NestJS      | `bun run start:dev --preserveWatchOutput` (`bunx nest start --watch ...` without a `start:dev` script) |
+| `bun --watch` script | the script with `--no-clear-screen` after `--watch` or `--hot`                               |
+
+The flag is left out when the project sets it: `clearScreen` in the Vite configuration file, `preserveWatchOutput` in
+`tsconfig.json`. Instances you list in `variants.yaml` keep exactly the `watch` you give them.
+
 ## Options
 
 ### `variant`
