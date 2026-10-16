@@ -92,3 +92,8 @@
 - [x] 14.1 Add failing tests that `watch` warns, naming `watch` and `variant.watch`, when no process is started, and does not warn when one is. Verify they fail before implementation.
 - [x] 14.2 Print the warning and verify the tests and the existing suites pass; commit the task group.
 
+## 15. Console-keeping watch commands
+
+- [x] 15.1 Add failing `variant-config` tests that autodetected instances get a `watch` command with `--clearScreen false`, `--preserveWatchOutput` or an inserted `--no-clear-screen`, and none when the project's own setting owns it. Verify they fail before implementation.
+- [x] 15.2 Derive the `watch` command in autodetection, adjust the suites that relied on autodetected instances without commands, document it in the scripts guide, and commit the task group.
+

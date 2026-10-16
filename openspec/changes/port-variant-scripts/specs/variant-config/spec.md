@@ -322,6 +322,30 @@ The system SHALL resolve the port of an instance, by its key, from the first of:
 - **WHEN** `VARIANT_BE_PORT` is 3000 and 3000 is reserved
 - **THEN** its port is 3000, because reservation limits only picked ports
 
+### Requirement: Autodetected watch commands
+
+The system SHALL give every autodetected instance a `watch` command that keeps the console across rebuilds, so the output of several instances stays readable in one terminal. For a Vite instance the command SHALL be `bun run dev` when its `package.json` has a `dev` script, otherwise `bunx --bun vite`, followed by `--clearScreen false` unless a Vite configuration file of the instance sets `clearScreen`. For a NestJS instance the command SHALL be `bun run start:dev` when its `package.json` has a `start:dev` script, otherwise `bunx nest start --watch`, followed by `--preserveWatchOutput` unless the `tsconfig.json` of the instance sets `preserveWatchOutput` to `true`. When the `start:dev` script of a NestJS instance starts with `bun --watch` or `bun --hot`, the command SHALL be that script with `--no-clear-screen` inserted after the watch flag and nothing appended. Explicit instances SHALL keep exactly the `watch` they configure.
+
+#### Scenario: Vite flag added
+
+- **WHEN** a Vite application has a `dev` script and a configuration file without `clearScreen`
+- **THEN** its autodetected `watch` is `bun run dev --clearScreen false`
+
+#### Scenario: Project setting respected
+
+- **WHEN** the Vite configuration file sets `clearScreen`, or the `tsconfig.json` of a NestJS application sets `preserveWatchOutput` to `true`
+- **THEN** the autodetected `watch` has no console flag
+
+#### Scenario: Nest without a script
+
+- **WHEN** a NestJS application has no `start:dev` script and its `tsconfig.json` does not set `preserveWatchOutput`
+- **THEN** its autodetected `watch` is `bunx nest start --watch --preserveWatchOutput`
+
+#### Scenario: Bun watch script
+
+- **WHEN** the `start:dev` script of a NestJS application is `bun --watch src/main.ts`
+- **THEN** its autodetected `watch` is `bun --watch --no-clear-screen src/main.ts`
+
 ## MODIFIED Requirements
 
 ### Requirement: Local runtime state
