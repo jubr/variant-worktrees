@@ -96,4 +96,9 @@ describe("autodetected watch commands keep the console", () => {
     expect(watchOf({ ...NEST, "package.json": scripts({ "start:dev": "bun --watch src/main.ts" }) })).toBe(
       "bun --watch --no-clear-screen src/main.ts",
     ));
+
+  it("keeps a Bun watch script that already passes --no-clear-screen", () =>
+    expect(
+      watchOf({ ...NEST, "package.json": scripts({ "start:dev": "bun --watch --no-clear-screen src/main.ts" }) }),
+    ).toBe("bun --watch --no-clear-screen src/main.ts"));
 });

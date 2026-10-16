@@ -269,7 +269,9 @@ const detectWatch = (kind: NonNullable<VariantInstance["kind"]>, path: string): 
   }
   const script = scripts["start:dev"];
   if (script && /^bun\s+(--watch|--hot)\b/.test(script)) {
-    return script.replace(/^bun\s+(--watch|--hot)\b/, "bun $1 --no-clear-screen");
+    return /--no-clear-screen\b/.test(script)
+      ? script
+      : script.replace(/^bun\s+(--watch|--hot)\b/, "bun $1 --no-clear-screen");
   }
   const base = script ? "bun run start:dev" : "bunx nest start --watch";
   return tsconfigPreservesWatchOutput(path) ? base : `${base} --preserveWatchOutput`;
