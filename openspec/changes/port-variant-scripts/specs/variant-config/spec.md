@@ -365,7 +365,7 @@ The system SHALL read ephemeral per-variant state from `variants.local.yaml` nex
 
 ### Requirement: Example project
 
-The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed (`bun`) and names the `variant` CLI from `github:jubr/variant-worktrees` in a commented-out line, because inside this repository the CLI comes from the workspace. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
+The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed (`bun`) and names the `variant` CLI from `github:jubr/variant-worktrees`, either as an active tool or in a commented-out line, because inside this repository the CLI comes from the workspace. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
 
 #### Scenario: Example configuration loads
 
@@ -385,7 +385,7 @@ The repository SHALL ship a runnable example project in `example/`, outside the 
 #### Scenario: Tools in mise.toml
 
 - **WHEN** `example/mise.toml` is read
-- **THEN** its active tools are `bun` and a commented-out line names `github:jubr/variant-worktrees`
+- **THEN** its other active tools are exactly `bun`, and `github:jubr/variant-worktrees` appears as an active tool or in a commented-out line
 
 ## REMOVED Requirements
 
