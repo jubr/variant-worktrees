@@ -21,7 +21,7 @@
     "mcp": "bun run src/mcp.ts",
     "mcp:inspect": "npx @modelcontextprotocol/inspector node dist/mcp.js",
     "prepublishOnly": "bun run build",
-    "test": "bun test"
+    "test": "VARIANT_OPEN=0 bun test"
   },
   "homepage": "https://github.com/jubr/variant-worktrees",
   "repository": {

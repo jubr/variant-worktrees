@@ -227,7 +227,7 @@ describe("up preparation", () => {
       database.run("create table keep (id integer)");
       database.close();
 
-      await client.up("demo");
+      await client.up("demo", { opener: async () => {}, log: () => {} });
 
       const reopened = new Database(record.target);
       expect(reopened.query("select name from sqlite_master").all()).toEqual([]);

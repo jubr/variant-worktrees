@@ -23,7 +23,7 @@
     "build:js": "bun build ./src/index.ts ./src/cli.ts ./src/commands.ts --outdir dist --target node --format esm --sourcemap=external --external yaml --external drizzle-orm --external postgres --external mysql2 --external variant-config",
     "build:types": "tsc --emitDeclarationOnly",
     "prepublishOnly": "bun run build",
-    "test": "bun test"
+    "test": "VARIANT_OPEN=0 bun test"
   },
   "homepage": "https://github.com/jubr/variant-worktrees",
   "repository": {
