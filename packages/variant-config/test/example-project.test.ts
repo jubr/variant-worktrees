@@ -97,12 +97,12 @@ describe("the example project", () => {
       expect(await openUrlFor(config, "demo", "be")).toBeUndefined();
     }));
 
-  it("declares bun and the variant CLI in mise.toml", () => {
-    const mise = parseToml(readFileSync(join(exampleDirectory, "mise.toml"), "utf8")) as {
-      tools: Record<string, string>;
-    };
+  it("declares bun in mise.toml and names the variant CLI in a commented-out line", () => {
+    const text = readFileSync(join(exampleDirectory, "mise.toml"), "utf8");
+    const mise = parseToml(text) as { tools: Record<string, string> };
 
-    expect(Object.keys(mise.tools)).toEqual(["bun", "github:jubr/variant-worktrees"]);
+    expect(Object.keys(mise.tools)).toEqual(["bun"]);
+    expect(text).toMatch(/^\s*#\s*"github:jubr\/variant-worktrees"\s*=/m);
   });
 
   it("ships be/.env.example with SQLite settings and a seed script", () => {
