@@ -158,3 +158,21 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 - **WHEN** a step exits non-zero
 - **THEN** its command line was printed before the run and the error names the step
 
+### Requirement: Project directory
+
+The system SHALL resolve every relative path of the configuration against the project directory: the directory of `variants.yaml` re-based onto the worktree of the variant. This covers instance `dir`, step `dir`, dotenv files and `dotenvSource`, the `container.dockerfile`, `container.static`, the image build context, `preRm` directories, and the working directory of the `up`, `watch`, seed and step commands that have no `dir`. When `variants.yaml` is in the root of the checkout, the project directory SHALL be the worktree itself. When it is in a subdirectory, the project directory SHALL be the same subdirectory of the worktree. A variant for `main` or without a worktree SHALL use the root of the git checkout that holds the current directory as its worktree, or the current directory outside a git repository, so running from any directory of the project gives the same result. The `{{worktree}}` placeholder and the storage directory SHALL stay relative to the worktree.
+
+#### Scenario: Configuration in a subdirectory
+
+- **WHEN** `app/variants.yaml` sets `seed: bun scripts/seed.mjs`, an instance `be` has `dir: be`, and the variant is provisioned from `app`
+- **THEN** the seed command runs in `<checkout>/app` and the instance commands run in `<checkout>/app/be`
+
+#### Scenario: Configuration in a subdirectory of a variant worktree
+
+- **WHEN** the same variant `demo` has its own worktree `/w/_v-demo`
+- **THEN** the seed command runs in `/w/_v-demo/app`
+
+#### Scenario: Configuration in the checkout root
+
+- **WHEN** `variants.yaml` is in the checkout root
+- **THEN** commands run in the worktree root as before

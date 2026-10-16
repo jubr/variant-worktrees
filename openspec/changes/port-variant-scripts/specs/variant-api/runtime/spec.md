@@ -240,3 +240,16 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 - **WHEN** `down` removes a container and its network
 - **THEN** the progress log receives `+ <engine> rm -f <container>` and `+ <engine> network rm <network>`
 
+### Requirement: Watch without commands
+
+The system SHALL print a warning to the progress log when `watch` starts no process because no instance has a `watch` command and `variant.watch` is not set. The warning SHALL say that nothing was started and name `watch` on an instance and `variant.watch` as the ways to set a command. The command SHALL otherwise behave as before.
+
+#### Scenario: Nothing to start
+
+- **WHEN** `watch` runs for instances that have no `watch` command and `variant.watch` is not set
+- **THEN** the progress log receives a warning that no process was started and names `watch` and `variant.watch`
+
+#### Scenario: Commands present
+
+- **WHEN** at least one instance has a `watch` command
+- **THEN** no such warning is printed

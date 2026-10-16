@@ -81,3 +81,14 @@
 - [x] 12.2 Add `log` to the provisioning options and the `provision` client call, echo the commands, thread `log` through `up`, `watch`'s preparation and the container stop used by `down` and `implode` (default standard error), and verify the tests from 12.1 and the existing suites pass.
 - [x] 12.3 Document the printed command lines in the scripts guide and verify the docs build; commit the task group.
 
+## 13. Project directory
+
+- [x] 13.1 Add failing tests with a real git repository whose `variants.yaml` is in `app/`: seed, steps, `up` commands, dotenv and `watch` commands run in the project directory of the checkout and of a variant worktree, `main` run from `app` and from the repository root agree, and a configuration in the checkout root still runs in the worktree root. Verify they fail before implementation.
+- [x] 13.2 Resolve every relative path against the project directory (`variantConfigDir`) and the no-worktree case against the checkout root, including `implode`'s `preRm` directories, then verify the tests from 13.1 and the existing suites pass.
+- [x] 13.3 Run the example from `example/` in place (seed and dev commands start in `example/`), tidy the example README and commit the task group.
+
+## 14. Watch without commands
+
+- [x] 14.1 Add failing tests that `watch` warns, naming `watch` and `variant.watch`, when no process is started, and does not warn when one is. Verify they fail before implementation.
+- [x] 14.2 Print the warning and verify the tests and the existing suites pass; commit the task group.
+
