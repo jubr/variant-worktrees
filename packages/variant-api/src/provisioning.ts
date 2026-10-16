@@ -47,9 +47,9 @@ const lineEnd = (text: string): string => (text === "" || text.endsWith("\n") ? 
 /** The source of an instance's dotenv copy: the override, the primary worktree's file, then its `.example`. */
 const dotenvSources = (run: VariantRun, instance: VariantInstance, dotenv: string): string[] => {
   const override = process.env.VARIANT_ENV_SOURCE || instance.dotenvSource;
-  const inPrimary = join(run.primary, instance.dir, dotenv);
+  const inPrimary = join(run.primaryProjectDir, instance.dir, dotenv);
   return [
-    ...(override ? [isAbsolute(override) ? override : resolve(run.primary, override)] : []),
+    ...(override ? [isAbsolute(override) ? override : resolve(run.primaryProjectDir, override)] : []),
     inPrimary,
     `${inPrimary}.example`,
   ];
@@ -60,7 +60,7 @@ const prepareDotenv = (run: VariantRun, key: string, instance: VariantInstance):
   if (instance.dotenv === undefined) {
     return "";
   }
-  const path = join(run.worktree, instance.dir, instance.dotenv);
+  const path = join(run.projectDir, instance.dir, instance.dotenv);
   const always = expandEnv(instance.envAlways, run, key);
   if (existsSync(path)) {
     const current = readFileSync(path, "utf8");
@@ -112,7 +112,7 @@ export const runProvisioning = (
   const instances = Object.entries(config.variant.instances);
 
   for (const [key, instance] of instances) {
-    const dir = resolve(run.worktree, instance.dir);
+    const dir = resolve(run.projectDir, instance.dir);
     if (instance.install && !existsSync(join(dir, "node_modules"))) {
       command(instance.install, dir, commandEnvironment(config, run, instance.env, key), "Install");
     }
@@ -124,7 +124,7 @@ export const runProvisioning = (
   const upCommands = instances.flatMap(([key, instance]) => {
     const text = runtimeCommandFor(config, "up", instance);
     return text
-      ? [{ text, cwd: resolve(run.worktree, instance.dir), env: commandEnvironment(config, run, instance.env, key) }]
+      ? [{ text, cwd: resolve(run.projectDir, instance.dir), env: commandEnvironment(config, run, instance.env, key) }]
       : [];
   });
   const variantUp = runtimeCommandFor(config, "up");
@@ -132,7 +132,7 @@ export const runProvisioning = (
   for (const up of upCommands.length > 0
     ? upCommands
     : variantUp
-      ? [{ text: variantUp, cwd: run.worktree, env: plainEnv }]
+      ? [{ text: variantUp, cwd: run.projectDir, env: plainEnv }]
       : []) {
     command(up.text, up.cwd, up.env, "Command");
   }
@@ -145,7 +145,11 @@ export const runProvisioning = (
     }
     commands.push(step.run);
     echoCommand(step.run, options.log);
-    const result = execute(step.run, resolve(run.worktree, step.dir ?? "."), commandEnvironment(config, run, step.env));
+    const result = execute(
+      step.run,
+      resolve(run.projectDir, step.dir ?? "."),
+      commandEnvironment(config, run, step.env),
+    );
     if (!result.ok) {
       throw new Error(`Step ${step.name} failed (${result.status}): ${step.run}\n${result.output}`);
     }
@@ -164,7 +168,7 @@ export const runProvisioning = (
 
   const seed = seedCommandFor(config, run.slug);
   if (seed) {
-    command(seed, run.worktree, plainEnv);
+    command(seed, run.projectDir, plainEnv);
   }
   return { commands, output };
 };

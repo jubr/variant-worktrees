@@ -1,8 +1,17 @@
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { OperationContext } from "./operations/types.js";
-import { sanitizeSlug, worktreeEntries } from "./slug.js";
+import { gitRoot, sanitizeSlug, worktreeEntries } from "./slug.js";
 import { primaryWorktree } from "./worktree.js";
+
+/** The root of the git checkout that holds `cwd`, or `cwd` itself outside a git repository. */
+export const checkoutRoot = (cwd: string): string => {
+  try {
+    return realpathSync(gitRoot(cwd));
+  } catch {
+    return cwd;
+  }
+};
 
 /**
  * The directory of the variant's worktree if it has one: the primary checkout for `main`, the current directory when
@@ -17,7 +26,7 @@ export const locateWorktree = (context: OperationContext, slug: string): string 
     }
   }
   if (!context.useWorktree) {
-    return context.cwd;
+    return checkoutRoot(context.cwd);
   }
   const { branchPrefixes, prefix } = context.config.variant;
   try {

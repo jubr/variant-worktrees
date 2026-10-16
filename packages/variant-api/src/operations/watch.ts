@@ -37,7 +37,7 @@ const launches = (context: OperationContext, run: VariantRun): Launch[] => {
           {
             key,
             command: instance.watch,
-            cwd: resolve(run.worktree, instance.dir),
+            cwd: resolve(run.projectDir, instance.dir),
             env: commandEnvironment(config, run, instance.env, key),
           },
         ]
@@ -50,7 +50,7 @@ const launches = (context: OperationContext, run: VariantRun): Launch[] => {
     {
       key: VARIANT_KEY,
       command: config.variant.watch,
-      cwd: run.worktree,
+      cwd: run.projectDir,
       env: commandEnvironment(config, run, undefined),
     },
   ];
@@ -135,7 +135,14 @@ export const watchVariant = async (
 
   const delay = config.variant.supervise.startDelaySeconds * 1000;
   const started: Started[] = [];
-  for (const launch of launches(context, run)) {
+  const toStart = launches(context, run);
+  if (toStart.length === 0) {
+    log(
+      "Warning: nothing was started: no instance has a watch command and variant.watch is not set. " +
+        "Set `watch` on an instance or `variant.watch` in variants.yaml.",
+    );
+  }
+  for (const launch of toStart) {
     if (started.length > 0 && delay > 0) {
       await sleep(delay);
     }

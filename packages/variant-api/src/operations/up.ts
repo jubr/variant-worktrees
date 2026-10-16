@@ -130,7 +130,7 @@ const runArguments = (
     args.push("-e", `${name}=${value}`);
   }
   if (container.static !== undefined) {
-    args.push("-v", `${resolve(run.worktree, instance?.dir ?? ".", container.static)}:${STATIC_ROOT}:ro`);
+    args.push("-v", `${resolve(run.projectDir, instance?.dir ?? ".", container.static)}:${STATIC_ROOT}:ro`);
     if (siteConfig) {
       args.push("-v", `${siteConfig}:${NGINX_CONF_TARGET}:ro`);
     }
@@ -167,7 +167,7 @@ const startContainers = async (
     if (started.length > 0 && delay > 0) {
       await sleep(delay);
     }
-    const directory = resolve(run.worktree, instance.dir);
+    const directory = resolve(run.projectDir, instance.dir);
     if (container.build) {
       commands.push(container.build);
       echoCommand(container.build, log);
@@ -181,7 +181,7 @@ const startContainers = async (
     if (build) {
       runEngine(
         engine,
-        ["build", "-f", resolve(run.worktree, container.dockerfile as string), "-t", image, run.worktree],
+        ["build", "-f", resolve(run.projectDir, container.dockerfile as string), "-t", image, run.projectDir],
         undefined,
         log,
       );

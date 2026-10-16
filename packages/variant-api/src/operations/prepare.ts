@@ -1,4 +1,4 @@
-import { locateWorktree } from "../locate.js";
+import { checkoutRoot, locateWorktree } from "../locate.js";
 import { type ProvisionOptions, type ProvisionResult, runProvisioning } from "../provisioning.js";
 import { prepareRun, type VariantRun } from "../run-context.js";
 import { createVariant } from "./create.js";
@@ -36,7 +36,7 @@ export const prepareVariant = async (
     if (mode === "up") {
       await context.adapter.destroy(slug);
     }
-    worktree = (await createVariant(context, slug)).worktree ?? context.cwd;
+    worktree = (await createVariant(context, slug)).worktree ?? checkoutRoot(context.cwd);
   }
 
   const run = await prepareRun(context, slug, worktree);

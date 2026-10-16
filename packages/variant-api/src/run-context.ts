@@ -9,7 +9,7 @@ import {
   type VariantInstance,
 } from "variant-config";
 import type { OperationContext } from "./operations/types.js";
-import { readVariantRuntime } from "./runtime-state.js";
+import { readVariantRuntime, variantConfigDir } from "./runtime-state.js";
 import { primaryWorktree } from "./worktree.js";
 
 /** Everything the commands of one variant run need to know: where it lives and which ports its instances use. */
@@ -21,6 +21,13 @@ export interface VariantRun {
   /** Whether `worktree` is the primary checkout. */
   isPrimary: boolean;
   primary: string;
+  /**
+   * The project directory: the directory of `variants.yaml` re-based onto `worktree`. Relative paths of the
+   * configuration and the working directory of its commands start here; it is `worktree` when the file is in the root.
+   */
+  projectDir: string;
+  /** The project directory of the primary checkout. */
+  primaryProjectDir: string;
   /** The assigned port of every instance, by key. */
   ports: Record<string, number>;
   /** The rendered `open` URL of every instance that has a template, by key. */
@@ -88,6 +95,8 @@ export const prepareRun = async (
     worktree,
     isPrimary: realpathOrSelf(worktree) === primary,
     primary,
+    projectDir: variantConfigDir(config, worktree),
+    primaryProjectDir: variantConfigDir(config, primary),
     ports,
     urls: {},
     ...(storage ? { storage } : {}),

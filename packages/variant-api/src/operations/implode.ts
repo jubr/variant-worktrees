@@ -10,7 +10,7 @@ import {
 } from "../cleanup.js";
 import { locateWorktree } from "../locate.js";
 import { logToStderr } from "../ready.js";
-import { clearVariantRuntime } from "../runtime-state.js";
+import { clearVariantRuntime, variantConfigDir } from "../runtime-state.js";
 import { resolveSlug, worktreeEntries } from "../slug.js";
 import { readState, removeState } from "../state.js";
 import type { ImplodeOptions, ImplodeResult } from "../types.js";
@@ -107,7 +107,9 @@ export const implodeVariant = async (
   removeUntracked(removable, untracked, slug);
   const instances = Object.values(config.variant.instances);
   removeDirectories(
-    instances.length > 0 ? instances.map((instance) => resolve(removable, instance.dir)) : [removable],
+    instances.length > 0
+      ? instances.map((instance) => resolve(variantConfigDir(config, removable), instance.dir))
+      : [removable],
     preRm,
   );
   const report = worktreeReport(removable, maxDiffLines);

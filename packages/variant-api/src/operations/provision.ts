@@ -1,3 +1,4 @@
+import { checkoutRoot, locateWorktree } from "../locate.js";
 import { type ProvisionOptions, type ProvisionResult, runProvisioning } from "../provisioning.js";
 import { prepareRun } from "../run-context.js";
 import { resolveSlug } from "../slug.js";
@@ -14,7 +15,7 @@ export const provisionVariant = async (
   const worktree =
     context.useWorktree && slug !== "main"
       ? ensureWorktree(slug, context.cwd, context.variantRoot, config.variant.prefix, config.variant)
-      : context.cwd;
+      : (locateWorktree(context, slug) ?? checkoutRoot(context.cwd));
   const run = await prepareRun(context, slug, worktree);
   return { slug, ...runProvisioning(context, run, options) };
 };
