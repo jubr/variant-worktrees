@@ -24,6 +24,24 @@ Before writing tests or editing production code, **Read** each file below **in f
 
 **Violation**: starting implementation without those Reads complete.
 
+### Size check — run before the Reads, again before `Done`
+
+The hard gate reads `openspec/changes/$slug/` in full, so its size is a token cost paid every session. Measure it first (excludes `archive/`):
+
+```bash
+find openspec/changes/$slug -type f -exec wc -c {} + | sort -n | tail -n 6
+```
+
+Estimate tokens ≈ bytes / 4. Thresholds on the `total` line:
+
+| Total bytes | ≈ Tokens | Action                                                                                                          |
+| ----------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| < 60 000    | < 15k    | OK. Silent.                                                                                                     |
+| 60 000+     | 15k+     | **WARN** in chat: `⚠ openspec/changes/$slug is ~Nk tokens (X KB). Expensive to read in full.` List 3 biggest files. |
+| 120 000+    | 30k+     | **STRONG WARN**: same message, and propose to split the change or trim/merge bloated spec files before continuing. |
+
+On warn: still do the full Reads (gate is not waived), but tell the user and suggest the cheapest fix (split slice into smaller changes, archive finished tasks, dedupe spec/design prose). Never silently trim artifacts — scope changes go through OpenSpec propose/amend.
+
 **Conflict resolution:** When behavioral evidence conflicts, resolve by: observable runtime/deployed contracts → automated tests → application code → historical prose.
 
 **Scope changes:** Expand scope only via OpenSpec artifacts (propose/amend). Do not silently widen the change.
@@ -60,6 +78,7 @@ Phases: **Orient** (AGENTS.md / change artifacts) → **Implement** (skills `tdd
 - Feature work is committed in logical Conventional Commits on the feature branch — **code/tests only**.
 - `task format:write` has run and `task check:full` succeed locally.
 - Run `openspec validate --all --strict` and fix any anomalies.
+- Re-run the **Size check**; report final size (and any growth since start) in the hand-off.
 - After all possible tasks complete: commit possible remaining `openspec/changes/$slug` changes.
 
 ## Hand-off
