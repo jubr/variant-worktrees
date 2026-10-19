@@ -47,10 +47,17 @@ set into the TypeScript library, CLI and MCP server, and moves every project-spe
   supervision, readiness and browser opening, runtime state in `variants.local.yaml`.
 - `variant-api/implode`: removing a variant together with its worktree, with a merge gate and configurable cleanup.
 
+- `variant-config/cfg-instances`: instances as a keyed record, instance runtime options and container, autodetected
+  watch commands.
+- `variant-config/cfg-runtime`: environment overrides of runtime state, runtime-state discovery across worktrees,
+  reserved ports in instance port resolution.
+- `variant-config/cfg-settings`: branch naming, container engine and opening, storage, supervision and implode options.
+- `variant-config/cfg-provisioning`: provisioning steps and command templates.
+
 ### Modified Capabilities
 
-- `variant-config`: the new `variants.yaml` options and templates, instances as a keyed record, environment overrides
-  of runtime state, runtime-state discovery across worktrees, and reserved ports in instance port resolution.
+- `variant-config`: local runtime state (`variants.local.yaml`), the example project, and removal of the superseded
+  instance ports requirement.
 - `variant-api/core`: `destroy` renamed to `implode` as the full teardown, list with runtime facts, branch prefixes in slug resolution, and the
   configurable base branch for new worktrees.
 - `variant-api/commands`: the lifecycle command set (without `destroy`) and the flags of the new commands.
