@@ -154,7 +154,7 @@ The system SHALL accept an optional `dotenv` string on any entry of `variant.ins
 
 ### Requirement: Local runtime state
 
-The system SHALL read ephemeral per-variant state from `variants.local.yaml` next to `variants.yaml`, in the variant's own worktree (`<prefix><slug>/variants.local.yaml`), and carry it as `runtime` in the resolved configuration. The file holds one optional `runtime` section with `slug`, `mode` (`up` or `watch`), `dir`, `db` and `instances`. `db` SHALL reuse the database settings schema, except that `port` MAY also be a string: digits, or a `{{NAME}}` template. `instances` SHALL be a record keyed by instance name; each entry holds optional `port`, `pid` and `url`. Every `{{NAME}}` in a string SHALL be replaced by the environment variable `NAME` when the file is read; an unset variable leaves the template unchanged, and a `db.port` that is then not numeric SHALL be left out of the resolved state. Unknown keys SHALL fail validation. A missing file SHALL mean no runtime state. The system SHALL offer a function that writes the `runtime` section, validated, keeping any other top-level keys, and the repository SHALL git-ignore `variants.local.yaml`. A JSON schema file `variants.local.yaml.schema.json` and `variants.local.example.yaml` SHALL ship next to the main ones under the same rules.
+The system SHALL read ephemeral per-variant state from `variants.local.yaml` next to `variants.yaml`, in the variant's own worktree (`<prefix><slug>/variants.local.yaml`), and carry it as `runtime` in the resolved configuration. The file holds one optional `runtime` section with `slug`, `mode` (`up` or `watch`), `dir`, `db` and `instances`. `db` SHALL reuse the database settings schema, except that `port` MAY also be a string: digits, or a `{{NAME}}` template. `instances` SHALL be a record keyed by instance key (the key of the entry in `variant.instances`); each entry holds optional `port`, `pid` and `url`. Every `{{NAME}}` in a string SHALL be replaced by the environment variable `NAME` when the file is read; an unset variable leaves the template unchanged, and a `db.port` that is then not numeric SHALL be left out of the resolved state. Unknown keys SHALL fail validation. A missing file SHALL mean no runtime state. The system SHALL offer a function that writes the `runtime` section, validated, keeping any other top-level keys, and the repository SHALL git-ignore `variants.local.yaml`. A JSON schema file `variants.local.yaml.schema.json` and `variants.local.example.yaml` SHALL ship next to the main ones under the same rules.
 
 #### Scenario: Runtime read
 
@@ -190,25 +190,6 @@ The system SHALL read ephemeral per-variant state from `variants.local.yaml` nex
 
 - **WHEN** the runtime section is written to a directory whose `variants.local.yaml` has other top-level keys
 - **THEN** the file holds the new `runtime` and the other keys unchanged
-
-### Requirement: Instance ports
-
-The system SHALL resolve the port of an instance from `runtime.instances.<name>.port` in the local runtime state, and otherwise pick a random free port between 1024 and 65535. An instance is keyed by its `name`, or by its `kind` when it has none. The system SHALL NOT write the state when resolving.
-
-#### Scenario: Assigned port
-
-- **WHEN** `runtime.instances.fe.port` is 62060 and the instance is named `fe`
-- **THEN** its port is 62060
-
-#### Scenario: Unnamed instance
-
-- **WHEN** an instance of kind `vite` has no name and `runtime.instances.vite.port` is 62060
-- **THEN** its port is 62060
-
-#### Scenario: No assignment
-
-- **WHEN** the runtime state holds no port for the instance
-- **THEN** the port is a random free port between 1024 and 65535
 
 ### Requirement: Variant name prefix
 
@@ -284,7 +265,7 @@ The package SHALL ship `variants.example.yaml` (and `variants.local.example.yaml
 
 ### Requirement: Example project
 
-The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed, including the `variant` CLI from `github:jubr/variant-worktrees`. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
+The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed (`bun`) and names the `variant` CLI from `github:jubr/variant-worktrees`, either as an active tool or in a commented-out line, because inside this repository the CLI comes from the workspace. Its dev servers SHALL keep the console across rebuilds, so the output of several instances stays readable in one terminal: the Vite configuration sets `clearScreen: false`, the `be` watch command passes `--no-clear-screen` to `bun --watch`, and the `be` `tsconfig.json` sets `preserveWatchOutput`. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
 
 #### Scenario: Example configuration loads
 
@@ -300,6 +281,16 @@ The repository SHALL ship a runnable example project in `example/`, outside the 
 
 - **WHEN** `variant-api` creates variant `demo` from a copy of the example and the seed script runs with the variant's database in `SQLITE_DATABASE`
 - **THEN** the database holds the seeded rows
+
+#### Scenario: Dev servers keep the console
+
+- **WHEN** the example's Vite configuration, `be` watch script and `be` `tsconfig.json` are read
+- **THEN** `clearScreen` is `false`, the script passes `--no-clear-screen` and `preserveWatchOutput` is `true`
+
+#### Scenario: Tools in mise.toml
+
+- **WHEN** `example/mise.toml` is read
+- **THEN** its other active tools are exactly `bun`, and `github:jubr/variant-worktrees` appears as an active tool or in a commented-out line
 
 ### Requirement: Main .vscode directory
 

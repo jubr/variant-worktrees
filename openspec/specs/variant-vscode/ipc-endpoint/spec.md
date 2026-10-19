@@ -38,7 +38,7 @@ When the extension activates, it SHALL listen on `{resolveMainVscodeDir}/variant
 
 ### Requirement: Lifecycle commands are not handled here
 
-The extension SHALL NOT execute `config`, `create`, `destroy`, `list`, `switch`, or `provision`. A socket request with one of those names SHALL fail and SHALL NOT call `variant-api`.
+The extension SHALL NOT execute `config`, `create`, `list`, `switch`, `provision`, `up`, `down`, `watch`, or `implode`. A socket request with one of those names SHALL fail and SHALL NOT call `variant-api`.
 
 #### Scenario: Create is refused
 
@@ -51,6 +51,18 @@ The extension SHALL NOT execute `config`, `create`, `destroy`, `list`, `switch`,
 - **WHEN** a client sends `{"name":"list","args":{}}` to the extension socket
 - **THEN** the response line has a non-empty `error.message`
 - **AND** `variant-api` list does not run
+
+#### Scenario: Implode is refused
+
+- **WHEN** a client sends `{"name":"implode","args":{"slug":"test-feature"}}` to the extension socket
+- **THEN** the response line has a non-empty `error.message`
+- **AND** `variant-api` implode does not run
+
+#### Scenario: Watch is refused
+
+- **WHEN** a client sends `{"name":"watch","args":{}}` to the extension socket
+- **THEN** the response line has a non-empty `error.message`
+- **AND** `variant-api` watch does not run
 
 ### Requirement: Deactivation removes sockets this activation bound
 
