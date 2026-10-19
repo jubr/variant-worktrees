@@ -9,14 +9,9 @@ The system SHALL accept `variant.instances` as a record whose keys are the insta
 - **WHEN** `variant.instances` is `{ fe: { kind: vite, dir: fe }, be: { kind: nestjs, dir: be } }`
 - **THEN** loading succeeds and the instances are `fe` then `be`
 
-#### Scenario: List refused
+#### Scenario: List or name setting refused
 
-- **WHEN** `variant.instances` is a list of instance settings
-- **THEN** loading the configuration fails validation
-
-#### Scenario: Name setting refused
-
-- **WHEN** an instance sets `name: api`
+- **WHEN** `variant.instances` is a list of instance settings, or an instance sets `name: api`
 - **THEN** loading the configuration fails validation
 
 #### Scenario: Colliding environment segments
@@ -296,11 +291,6 @@ The system SHALL resolve the port of an instance, by its key, from the first of:
 
 - **WHEN** `runtime.instances.fe.port` is 62060 and the instance key is `fe`
 - **THEN** its port is 62060
-
-#### Scenario: Environment port
-
-- **WHEN** `VARIANT_FE_PORT` is 62070 and `runtime.instances.fe.port` is 62060
-- **THEN** its port is 62070
 
 #### Scenario: No assignment
 
