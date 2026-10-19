@@ -50,7 +50,7 @@ const childSegment = (root: string, start: string): string | undefined => {
 };
 
 /**
- * Specification: openspec/specs/variant-config/spec.md
+ * Specification: openspec/specs/variant-config/core/spec.md
  */
 export const resolveMainVscodeDir = (startDir: string): string => {
   const start = resolve(startDir);

@@ -1,4 +1,4 @@
-# variant-config Specification
+# variant-config/core Specification
 
 ## Purpose
 

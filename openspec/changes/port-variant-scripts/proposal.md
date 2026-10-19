@@ -56,7 +56,7 @@ set into the TypeScript library, CLI and MCP server, and moves every project-spe
 
 ### Modified Capabilities
 
-- `variant-config`: local runtime state (`variants.local.yaml`), the example project, and removal of the superseded
+- `variant-config/core`: local runtime state (`variants.local.yaml`), the example project, and removal of the superseded
   instance ports requirement.
 - `variant-api/core`: `destroy` renamed to `implode` as the full teardown, list with runtime facts, branch prefixes in slug resolution, and the
   configurable base branch for new worktrees.
