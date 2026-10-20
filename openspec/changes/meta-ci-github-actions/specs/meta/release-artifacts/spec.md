@@ -34,13 +34,13 @@ The release workflow SHALL run for pushes to `main` and SHALL build and publish 
 
 ### Requirement: Release contents
 
-A release SHALL be a GitHub Release tagged `v<version>` at the built commit. It SHALL contain the variant-worktrees `.vsix`, the chat-renamer `.vsix`, one `variant` single-file executable per supported platform, and a SHA-256 checksum file covering every attached file. Supported platforms SHALL be Linux x64, Linux arm64, macOS x64, macOS arm64, and Windows x64. Each executable SHALL bundle the Bun runtime and the CLI's dependencies, and SHALL NOT need Bun or Node.js installed.
+A release SHALL be a GitHub Release tagged `v<version>` at the built commit. It SHALL contain the variant-worktrees `.vsix`, the chat-renamer `.vsix`, one `variant` single-file executable per supported platform, and a SHA-256 checksum file covering every attached file. Supported platforms SHALL be Linux x64, Linux arm64, macOS x64, macOS arm64, Windows x64, and Windows arm64. Each executable SHALL bundle the Bun runtime and the CLI's dependencies, and SHALL NOT need Bun or Node.js installed.
 
 #### Scenario: Assets present
 
 - **WHEN** release `v1.2.3` is published
 - **THEN** its assets include `variant-worktrees-1.2.3.vsix` and `chat-renamer-1.2.3.vsix`
-- **AND** a `variant` executable for each of the five platforms, named with the version and platform
+- **AND** a `variant` executable for each of the six platforms, named with the version and platform
 - **AND** a checksum file listing every asset
 
 #### Scenario: Checksums verify

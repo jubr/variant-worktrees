@@ -26,12 +26,13 @@ The CI workflow SHALL run on every push to a branch and on every pull request ta
 
 ### Requirement: Packaging proven on feature branches
 
-The CI workflow SHALL, in the same run, package both extensions as `.vsix` files and compile the `variant` CLI to a single-file executable for the runner's platform, and SHALL execute that executable to confirm it starts. It SHALL attach these files to the run as downloadable artifacts.
+The CI workflow SHALL, in the same run, package both extensions as `.vsix` files and compile the `variant` CLI to a single-file executable for macOS arm64 only (the pre-release binary; no other platform is built on feature branches). It SHALL build that executable on a macOS arm64 runner and execute it to confirm it starts. It SHALL attach these files to the run as downloadable artifacts.
 
 #### Scenario: Packages build
 
 - **WHEN** the CI workflow succeeds
-- **THEN** the run has artifacts containing the variant-worktrees `.vsix`, the chat-renamer `.vsix`, and the `variant` executable
+- **THEN** the run has artifacts containing the variant-worktrees `.vsix`, the chat-renamer `.vsix`, and a `variant` executable for macOS arm64
+- **AND** the run has no `variant` executable for any other platform
 
 #### Scenario: Executable starts
 
