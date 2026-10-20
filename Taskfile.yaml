@@ -60,6 +60,10 @@ tasks:
     aliases: ["format:write", "format"]
     cmds: ["bun run lint:fix"]
 
+  lint:workflows:
+    desc: "Lint GitHub Actions workflows (actionlint)"
+    cmds: ["actionlint"]
+
   build:
     desc: "Build variant-config, variant-api, then variant-mcp"
     run: once
