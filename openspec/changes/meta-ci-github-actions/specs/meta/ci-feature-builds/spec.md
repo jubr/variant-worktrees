@@ -6,7 +6,7 @@ Define what a feature-branch or pull-request build verifies, so a reviewer can t
 
 ### Requirement: Full gate run on feature branches
 
-The CI workflow SHALL run on every push to a branch and on every pull request targeting `main`. It SHALL run the repository's complete check gate (install from the frozen lockfile, lint, build, test, commit message lint over the range since `main`, and docs build) by invoking the same `task` targets a contributor runs locally.
+The CI workflow SHALL run on every push to a branch other than `main` and on every pull request targeting `main`. Pushes to `main` run the same workflow through the release workflow, so the gate runs once per `main` push. It SHALL run the repository's complete check gate (install from the frozen lockfile, lint, build, test, commit message lint over the range since `main`, and docs build) by invoking the same `task` targets a contributor runs locally.
 
 #### Scenario: Push to a feature branch
 
