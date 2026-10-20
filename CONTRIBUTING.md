@@ -121,10 +121,29 @@ list as the verification checklist for that work.
 
 GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 
-- `ci.yml` — install, lint, build, test
+- `ci-branch.yaml` — every branch push (not `main`) and PR to `main`: `task check:full`
+  (install, lint, build, test, commitlint, docs build), `task lint:workflows`,
+  both `.vsix` packages, and a macOS arm64 pre-release `variant` executable
+  (`task package:vsix`, `task package:cli`). Also called by the release workflow.
+- `ci-release.yaml` — push to `main`: runs `ci-branch.yaml`, then builds both `.vsix`
+  files and `variant` single-file executables (`bun build --compile`) for
+  linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
+  `v<version>`. No release when that tag already exists. Manual dispatch with
+  `dry-run` (default) builds the assets without releasing.
+- `publish-extensions.yaml` — manual dispatch only: publishes the `.vsix` files of a
+  chosen release tag to the Visual Studio Marketplace and/or Open VSX.
 - `docs.yml` — TypeDoc + VitePress to GitHub Pages (main)
 
 When adding a gate, expose it as a `task` and call that task from the workflow.
+
+### Releasing
+
+The root package, `variant-api`, `variant-vscode` and `chat-renamer-vscode` share one
+version (`task release:version` fails when they differ). Bump all four, merge to
+`main`; a green build tags and releases that version. To publish to the registries,
+dispatch `publish-extensions.yaml` with the tag; a reviewer approves the `marketplace`
+environment first. One-time repo setup: environment `marketplace` with required
+reviewers and secrets `VSCE_PAT` (Visual Studio Marketplace) and `OVSX_PAT` (Open VSX).
 
 ## Review and delivery
 
