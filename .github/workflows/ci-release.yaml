@@ -1,0 +1,98 @@
+name: Release
+
+# Specification: openspec/specs/meta/release-artifacts/spec.md
+# Green main -> build both .vsix + `variant` executables -> GitHub Release v<version>.
+# A version whose tag already exists is not released again. Registry upload is a
+# separate, manual workflow (publish-extensions.yaml).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Build and upload run artifacts only; do not create a release"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-branch.yaml
+
+  version:
+    name: Resolve version
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      exists: ${{ steps.resolve.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: bun task
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(task --silent release:version)"
+          if gh release view "v${version}" >/dev/null 2>&1; then
+            exists=true
+            echo "v${version} is already released; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+          else
+            exists=false
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "exists=${exists}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build release assets
+    needs: version
+    # A dry run always builds, so the path can be exercised before the first release.
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: task install:ci
+      - run: task package:vsix
+      - run: task package:cli:all
+      - name: Smoke test Linux x64 executable
+        run: |
+          bin=(out/variant-*-linux-x64)
+          "${bin[0]}" --help
+      - name: Checksums
+        working-directory: out
+        run: sha256sum -- * > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [version, build]
+    if: >-
+      github.ref == 'refs/heads/main'
+      && needs.version.outputs.exists == 'false'
+      && !(github.event_name == 'workflow_dispatch' && inputs.dry-run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: out
+      - run: gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --generate-notes out/*
