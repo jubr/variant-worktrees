@@ -1,5 +1,6 @@
 {
   "name": "variant-worktrees",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -10,7 +11,7 @@
     "build": "bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-api build && bun run --filter chat-renamer-api build && bun run --filter variant-mcp build && bun run --filter variant-ipc build && bun run --filter ./packages/chat-renamer-vscode build && bun run --filter ./packages/variant-vscode build",
     "lint": "biome check packages/",
     "lint:fix": "biome check --write packages/",
-    "test": "VARIANT_OPEN=0 bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-api build && bun run --filter variant-ipc build && bun run --filter chat-renamer-api build && bun run --filter '*' test",
+    "test": "VARIANT_OPEN=0 bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-api build && bun run --filter variant-ipc build && bun run --filter chat-renamer-api build && bun run --filter '*' test && bun test scripts",
     "clean": "rm -rf packages/*/dist",
     "docs:api": "bun run --filter chat-renamer-config build && bun run --filter variant-config build && typedoc",
     "docs:dev": "bun run docs:api && vitepress dev docs",

@@ -70,6 +70,10 @@ tasks:
     desc: "Run workspace bun:test suites"
     cmds: ["bun run test"]
 
+  release:version:
+    desc: "Print the lockstep release version (fails when package versions differ)"
+    cmds: ["bun scripts/release-version.ts"]
+
   clean:
     desc: "Remove package dist directories"
     cmds: ["bun run clean"]
