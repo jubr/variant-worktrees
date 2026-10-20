@@ -380,7 +380,8 @@ describe("up containers", () => {
       const bin = join(directory, "only-podman");
       mkdirSync(bin);
       symlinkSync(join(engine.bin, "docker"), join(bin, "podman"));
-      process.env.PATH = `${bin}:/usr/bin:/bin`;
+      // AIDEV-NOTE: PATH is only this directory; /usr/bin may hold a real docker (GitHub runners).
+      process.env.PATH = bin;
 
       await up();
 
