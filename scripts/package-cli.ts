@@ -3,7 +3,7 @@
  *
  * Specification: openspec/specs/meta/release-artifacts/spec.md (Release contents)
  *
- * Usage: bun scripts/package-cli.ts [bun-target]   (default: the host platform)
+ * Usage: bun scripts/package-cli.ts [bun-target|all]   (default: the host platform)
  * Output: out/variant-<version>-<os>-<arch>[.exe]
  */
 import { mkdirSync, readFileSync } from "node:fs";
@@ -30,13 +30,9 @@ export const assetName = (version: string, target: string): string => {
 
 const hostTarget = (): string => `bun-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
 
-if (import.meta.main) {
-  const root = resolve(import.meta.dir, "..");
-  const target = process.argv[2] ?? hostTarget();
-  const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version as string;
+/** Compile the CLI for one target and return the written file path. Exits the process on failure. */
+const compile = (root: string, version: string, target: string): string => {
   const outfile = join(root, "out", assetName(version, target));
-
-  mkdirSync(join(root, "out"), { recursive: true });
   const proc = Bun.spawnSync(
     ["bun", "build", join(root, "packages/variant-api/src/cli.ts"), "--compile", `--target=${target}`, "--outfile", outfile],
     { stdout: "inherit", stderr: "inherit" },
@@ -44,5 +40,17 @@ if (import.meta.main) {
   if (proc.exitCode !== 0) {
     process.exit(proc.exitCode ?? 1);
   }
-  console.log(outfile);
+  return outfile;
+};
+
+if (import.meta.main) {
+  const root = resolve(import.meta.dir, "..");
+  const arg = process.argv[2] ?? hostTarget();
+  const targets = arg === "all" ? RELEASE_TARGETS : [arg];
+  const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version as string;
+
+  mkdirSync(join(root, "out"), { recursive: true });
+  for (const target of targets) {
+    console.log(compile(root, version, target));
+  }
 }

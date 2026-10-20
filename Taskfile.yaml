@@ -88,6 +88,12 @@ tasks:
       - task: build
       - bun scripts/package-cli.ts {{.TARGET}}
 
+  package:cli:all:
+    desc: "Compile the variant CLI for every release platform into out/"
+    cmds:
+      - task: build
+      - bun scripts/package-cli.ts all
+
   release:version:
     desc: "Print the lockstep release version (fails when package versions differ)"
     cmds: ["bun scripts/release-version.ts"]
