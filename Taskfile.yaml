@@ -62,6 +62,7 @@ tasks:
 
   build:
     desc: "Build variant-config, variant-api, then variant-mcp"
+    run: once
     cmds:
       - bun run build
       - task: bin:bun-shebang
@@ -69,6 +70,19 @@ tasks:
   test:
     desc: "Run workspace bun:test suites"
     cmds: ["bun run test"]
+
+  package:vsix:
+    desc: "Build, then package variant-worktrees and chat-renamer into out/*.vsix"
+    cmds:
+      - task: build
+      - bun run --filter ./packages/variant-vscode vsce-package
+      - bun run --filter ./packages/chat-renamer-vscode vsce-package
+
+  package:cli:
+    desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host)"
+    cmds:
+      - task: build
+      - bun scripts/package-cli.ts {{.TARGET}}
 
   release:version:
     desc: "Print the lockstep release version (fails when package versions differ)"
