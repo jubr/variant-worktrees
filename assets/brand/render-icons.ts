@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import sharp from "sharp";
 
 const repoRoot = join(import.meta.dirname, "../..");
-const source = readFileSync(join(repoRoot, "assets/brand/source.png"));
+const source = readFileSync(join(repoRoot, "assets/brand/variant-worktrees.png"));
 
 const render = async (size: number): Promise<Buffer> => {
   const meta = await sharp(source).metadata();
