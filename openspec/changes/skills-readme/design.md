@@ -28,7 +28,7 @@ Adopt the reference close-out shape.
 
 - `bkt` stays `gh`. `_work-$slug` stays `_v-$slug`.
 - No demo recording steps and no stop-watch step. `vw-spec-start` does not start `variant:watch`.
-- Worktree removal stays `git worktree remove` once the primary checkout's `main` contains the merge. Do not add a Taskfile task that calls product `variant implode`.
+- After the pull request is merged and the primary checkout's `main` has it, wrapup runs `variant implode -s $slug` from that checkout. `--force` only when the user explicitly allows it. Pipeline does not merge the pull request and does not implode. Do not add a Taskfile task that wraps implode.
 - `[skip ci]` only when both are true: a run for this branch is already in progress or green, and the push contains only the sync-archive commit. A push that also contains product code runs CI.
 - `gh pr merge` only when the user explicitly asked and the product-code run succeeded. Otherwise the human reviewer merges.
 - Fast-forward the primary checkout only after the pull request is merged. Inspect status first. If fast-forward would drop local commits or uncommitted work, stop and ask. Do not reset that checkout.
@@ -39,8 +39,8 @@ Alternative considered: keep the `archive-$slug` pull request so `[skip ci]` rid
 
 - `vw-spec-start`: keep chat rename, fetch and fast-forward `main`, `_v-$slug`, `task install`, `gh auth status`, propose, and the single OpenSpec commit. Change the hand-off sentence so close-out is same-branch sync-archive in `vw-spec-wrapup`. Do not add watch, `bkt`, or a `demo.md` skeleton.
 - `vw-spec-iterate`: keep the size check and `task test`, `task lint`, `task build`, `task check:changed`, `task check:full`, `task format:write`. State that iterate does not sync-archive, and that `tasks.md` checkbox edits stay dirty until wrapup. Do not add `variant:watch` or `app:` / `server:` task names. Leave the conflict-resolution line on "application code"; `AGENTS.md` does not mention migrations.
-- `vw-spec-pipeline`: keep `gh pr create`, `gh run watch`, and `gh run view --log-failed`. Add: ask before committing non-trivial uncommitted work; product-code pushes do not use `[skip ci]`; when the pull request is not mergeable, merge `origin/main`, fix, and push; leave `caffeinate` running when wrapup follows immediately; point the sync-archive `[skip ci]` rule at wrapup. Do not copy the Bitbucket mergeability API, a paused deploy step, or a narrated demo.
-- `vw-spec-wrapup`: replace the body with the translated sequence. Default action is sync now, then the archive move, on `$type/$slug`. Tasks commit first when change-dir checkbox edits are dirty. Push to the existing pull request and note the sync-archive in the body.
+- `vw-spec-pipeline`: keep `gh pr create`, `gh run watch`, and `gh run view --log-failed`. Add: ask before committing non-trivial uncommitted work; product-code pushes do not use `[skip ci]`; when the pull request is not mergeable, merge `origin/main`, fix, and push; leave `caffeinate` running when wrapup follows immediately; point sync-archive `[skip ci]`, `gh pr merge`, and `variant implode` at wrapup. Do not copy the Bitbucket mergeability API, a paused deploy step, or a narrated demo.
+- `vw-spec-wrapup`: replace the body with the translated sequence. Default action is sync now, then the archive move, on `$type/$slug`. Tasks commit first when change-dir checkbox edits are dirty. Push to the existing pull request and note the sync-archive in the body. Then `gh pr merge` only on an explicit request, fast-forward the primary checkout, and `variant implode -s $slug` from that checkout.
 - `openspec-apply-change`: one sentence. On completion, point at `vw-spec-wrapup` for sync-archive (sync deltas, then archive). Do not name the reference skill.
 - `tdd`, `git-scripted-rebase`, the rules file, identical OpenSpec skills, and `AGENTS.md`: no edit.
 - `CONTRIBUTING.md`: in the citing section, call the close-out day sync-archive. In Review and delivery, replace the single end commit with the split (spec commit, code commits, tasks commit when dirty, then a separate sync-archive commit) on the same feature branch, and the explicit-request merge rule. Leave Outside-in TDD, Tool execution, Verification, Continuous integration, and Releasing as they are.
@@ -78,4 +78,4 @@ After the prose edit, list every `task` name the skills and `CONTRIBUTING.md` ci
 
 ## Open Questions
 
-None. Host translation (`gh`, `_v-`, no watch, no demo, no Taskfile implode) is settled.
+None. Host translation (`gh`, `_v-`, no watch, no demo, CLI `variant implode` rather than a Taskfile task) is settled.

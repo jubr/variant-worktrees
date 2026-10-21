@@ -39,4 +39,4 @@ None. Chat-renamer, the CLI, and the published docs site keep their current requ
 - Rewrite `AGENTS.md`. Its project overview, file structure, and GitHub Actions section stay; the reference diff replaces them with another product's layout.
 - Change chat-renamer runtime behavior or its specs.
 - Rewrite VitePress `docs/`.
-- Add `task variant:implode`. `variant implode` tears down a consumer variant. Feature worktrees of this repo are removed with `git worktree remove`.
+- Add a Taskfile task named `variant:implode`. Wrapup calls the `variant implode` CLI after the pull request is merged.
