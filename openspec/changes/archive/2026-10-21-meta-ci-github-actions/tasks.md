@@ -12,17 +12,17 @@
 ## 3. Feature-branch CI
 
 - [x] 3.1 Add `actionlint` to `mise.toml` and a `task lint:workflows`. Verify it passes on the current workflows and fails on a deliberately broken one.
-- [~] 3.2 Replace `.github/workflows/ci.yml` with `.github/workflows/ci-branch.yaml` (`git mv`) per [specs/meta/ci-feature-builds](../../specs/meta/ci-feature-builds/spec.md): triggers `push`, `pull_request` to `main`, and `workflow_call`; mise setup; `fetch-depth: 0`; concurrency cancel off `main`; `task check:full`, `task lint:workflows`, `task package:vsix`; a separate `macos-14` job runs `task package:cli` for `bun-darwin-arm64` only plus a `--help` smoke; `upload-artifact`. Verify with `lint:workflows` and a green run on this branch's PR with both `.vsix` and only the darwin-arm64 executable attached.
-- [ ] 3.3 Verify a deliberately failing gate on a throwaway commit turns the run red, then drop that commit.
+- [x] 3.2 Replace `.github/workflows/ci.yml` with `.github/workflows/ci-branch.yaml` (`git mv`) per [specs/meta/ci-feature-builds](../../specs/meta/ci-feature-builds/spec.md): triggers `push`, `pull_request` to `main`, and `workflow_call`; mise setup; `fetch-depth: 0`; concurrency cancel off `main`; `task check:full`, `task lint:workflows`, `task package:vsix`; a separate `macos-14` job runs `task package:cli` for `bun-darwin-arm64` only plus a `--help` smoke; `upload-artifact`. Verify with `lint:workflows` and a green run on this branch's PR with both `.vsix` and only the darwin-arm64 executable attached.
+- [x] 3.3 Verify a deliberately failing gate on a throwaway commit turns the run red, then drop that commit.
 
 ## 4. Release workflow
 
 - [x] 4.1 Add `.github/workflows/ci-release.yaml` per [specs/meta/release-artifacts](../../specs/meta/release-artifacts/spec.md): `ci` → `version`/exists check → `build` (vsix, six CLI targets, `SHA256SUMS`) → `release` with least-privilege permissions and non-cancelling concurrency. Verify `lint:workflows` passes.
-- [ ] 4.2 Verify the release path with a dry run on the PR branch (`workflow_dispatch` input `dry-run` builds assets and stops before `gh release create`), and verify the generated `SHA256SUMS` matches the assets locally.
+- [x] 4.2 Verify the release path with a dry run on the PR branch (`workflow_dispatch` input `dry-run` builds assets and stops before `gh release create`), and verify the generated `SHA256SUMS` matches the assets locally.
 
 ## 5. Registry publication workflow
 
-- [~] 5.1 Add `.github/workflows/publish-extensions.yaml`: `workflow_dispatch` with `tag` and `registry`, environment `marketplace`, asset validation, `vsce publish --packagePath`, `ovsx publish`. Verify `lint:workflows` passes and a dispatch with a bogus tag fails before any registry call.
+- [x] 5.1 Add `.github/workflows/publish-extensions.yaml`: `workflow_dispatch` with `tag` and `registry`, environment `marketplace`, asset validation, `vsce publish --packagePath`, `ovsx publish`. Verify `lint:workflows` passes and a dispatch with a bogus tag fails before any registry call.
 
 ## 6. Docs and validation
 
