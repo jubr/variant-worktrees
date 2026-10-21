@@ -5,6 +5,28 @@
 Typed database variants for git worktrees, exposed through a TypeScript library,
 CLI, and MCP server.
 
+## Getting started
+
+From a checkout of this repo:
+
+```bash
+mise x -- task bootstrap
+mise x -- task build
+```
+
+`task bootstrap` trusts mise, installs the pinned tools, and installs workspace dependencies.
+
+To run a variant, use [`example/`](./example) (Vite, NestJS, and SQLite). Seed, ports, and containers are in [`example/README.md`](./example/README.md).
+
+```bash
+cd example
+variant config
+variant create demo
+variant watch demo --detach
+```
+
+Every option is in [Configuration](#configuration) and the [guide to replacing shell scripts](./docs/guide/scripts.md). Checks for this repo stay under [Development](#development).
+
 ## Packages
 
 - [`variant-config`](./packages/variant-config) — `variants.yaml` schema and
@@ -14,6 +36,17 @@ CLI, and MCP server.
 - [`variant-mcp`](./packages/variant-mcp) — MCP tools for variant lifecycle
   operations.
 - [`variant-vscode`](./packages/variant-vscode) — VS Code extension package.
+  Embeds chat renamer.
+- [`chat-renamer-api`](./packages/chat-renamer-api) — parse a Cursor chat rename
+  request.
+- [`chat-renamer-config`](./packages/chat-renamer-config) — schema for the
+  `chatRenamer` section of `variants.yaml`.
+- [`chat-renamer-vscode`](./packages/chat-renamer-vscode) — Cursor extension that
+  renames a chat from its first prompt.
+
+## Chat renamer
+
+[`chat-renamer-vscode`](./packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](#configuration)). An editor setting you set explicitly wins.
 
 ## Configuration
 
