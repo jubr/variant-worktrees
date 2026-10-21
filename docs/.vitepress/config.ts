@@ -1,9 +1,28 @@
-import { defineConfig } from "vitepress";
+import { defineConfig, type HeadConfig } from "vitepress";
+
+const pagesBase = "/variant-worktrees/";
+
+const withPagesBase = (head: HeadConfig[]): HeadConfig[] => {
+  for (const tag of head) {
+    const attrs = tag[1];
+    if (!attrs) continue;
+    for (const key of ["href", "src"] as const) {
+      const value = attrs[key];
+      if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) continue;
+      if (value.startsWith(pagesBase)) continue;
+      attrs[key] = `${pagesBase}${value.slice(1)}`;
+    }
+  }
+  return [];
+};
 
 export default defineConfig({
   title: "variant-worktrees",
   description: "Typed database variants through the Variant API, CLI, and MCP server.",
-  base: "/",
+  base: pagesBase,
+  transformHead({ head }) {
+    return withPagesBase(head);
+  },
 
   head: [
     ["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" }],
