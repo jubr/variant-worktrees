@@ -10,7 +10,8 @@ The theme extends the default theme, then replaces the layout to inject a fixed 
 
 - One `base` for dev, preview, and Pages.
 - Keep the product-icon assertions on logo and favicon config strings green.
-- Use the default document chrome (sidebar, local search, outline, code copy, appearance toggle) with the existing terracotta accent on a dark navy page.
+- Use the default document chrome (sidebar, local search, outline, code copy, dark/light switch) with badge red `#EC0000` on neutral page surfaces.
+- Top navigation: Guide, Configuration, CLI, MCP, the GitHub repository, and the package version linking to releases.
 - Remove the custom layout slot and the sidebar-less home.
 
 **Non-Goals:**
@@ -46,7 +47,25 @@ Replace the three sidebar maps with one sidebar shown on every page:
 - Getting Started: Introduction (`/guide/`), Installation, Library, Replacing shell scripts, Editor socket, MCP Server
 - Reference: API Reference (`/api/`)
 
-Enable local search. Keep the existing top nav and GitHub social link. Do not add installation tabs; the default fenced-code header and copy control are the code chrome.
+Enable local search. Do not add installation tabs; the default fenced-code header and copy control are the code chrome.
+
+### Top navigation
+
+Replace the current Library / MCP Server / API Reference items with:
+
+| Label | Target |
+| --- | --- |
+| Guide | `/guide/` |
+| Configuration | `/guide/library#configuration` |
+| CLI | `/cli-vscode-webview#cli` |
+| MCP | `/mcp` |
+| `v` + root `package.json` `version` | `https://github.com/jubr/variant-worktrees/releases` |
+
+Read the version from the repository root `package.json` when the config loads. Do not hardcode it.
+
+Keep the GitHub social link `https://github.com/jubr/variant-worktrees`. The API reference stays in the sidebar Reference group, not in the top bar.
+
+`appearance: 'dark'` already renders the dark/light switch in that bar. Local search renders the search control there. No custom switch or search component.
 
 ### Landing page is a document
 
@@ -54,7 +73,18 @@ Remove `layout: page`, `sidebar: false`, and the custom home component. Write th
 
 ### Palette
 
-Keep the light tokens already in `custom.css` (`#FAFAF8` page, `#C45D3E` accent). In the dark scheme set the page background to `#12151c` and keep the accent at `#C45D3E`. Do not adopt the reference site's green.
+The product artwork's badge is `#EC0000` (`assets/brand/source.png`, the flat red field). Use that as `--vp-c-brand-1`. Derive the pressed brand steps from it: `#D00000`, `#B80000`, and a 14% red wash for the soft token.
+
+Keep the other surfaces neutral so the red is the only accent:
+
+| Token | Light | Dark |
+| --- | --- | --- |
+| page background | `#F7F7F7` | `#141414` |
+| soft background | `#EFEFEF` | `#1C1C1C` |
+| muted background | `#E4E4E4` | `#262626` |
+| primary text | `#1A1A1A` | `#F4F4F4` |
+| secondary text | `#5C5C5C` | `#A1A1A1` |
+| divider | `#E4E4E4` | `#2C2C2C` |
 
 Delete the fixed-footer rules with the layout slot.
 

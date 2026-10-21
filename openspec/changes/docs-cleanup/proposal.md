@@ -5,7 +5,8 @@ The GitHub Pages project site serves the VitePress build under the repository pa
 ## What Changes
 
 - Build the docs site with a base path equal to the GitHub Pages project path so styles, favicons, and the product logo resolve on the published site.
-- Present guide, MCP, API, and the landing page in a dark VitePress doc shell: left sidebar, top navigation with the product logo and local search, right-hand outline, and fenced code with a copy control. The appearance toggle stays, and the initial appearance is dark. The accent stays the existing terracotta brand color.
+- Present guide, MCP, API, and the landing page in a dark VitePress doc shell: left sidebar, right-hand outline, and fenced code with a copy control. The initial appearance is dark. The accent is the badge red from the product artwork (`#EC0000`). Page surfaces are neutral so that red stays the accent.
+- Top navigation carries Guide, Configuration, CLI, and MCP, a search control, a dark/light switch, a link to the GitHub repository, and the root package version linking to GitHub releases.
 - Remove the fixed corner statue and every `zach.dev` reference from `docs/`.
 - Stop opting the landing page out of the sidebar.
 
@@ -13,7 +14,7 @@ The GitHub Pages project site serves the VitePress build under the repository pa
 
 ### New Capabilities
 
-- `docs/site`: the published VitePress site loads its own styles and product logo, uses the dark doc shell, and does not embed the remote statue or link to `zach.dev`.
+- `docs/site`: the published VitePress site loads its own styles and product logo, uses the dark doc shell and the top navigation, and does not embed the remote statue or link to `zach.dev`.
 
 ### Modified Capabilities
 
@@ -21,7 +22,7 @@ None. `variant-vscode/product-icon` already requires the 256×256 icon as the na
 
 ## Impact
 
-- `docs/.vitepress/config.ts` (`base`, appearance, search, sidebar on the landing page).
+- `docs/.vitepress/config.ts` (`base`, appearance, search, top navigation, sidebar on the landing page).
 - `docs/.vitepress/theme/` (layout slot, homepage, custom CSS).
 - `docs/index.md` landing layout.
 - The GitHub Pages artifact produced by the existing docs workflow. The workflow file stays as it is.
