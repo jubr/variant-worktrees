@@ -1,4 +1,13 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type HeadConfig } from "vitepress";
+
+const packageVersion = (
+  JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../package.json"), "utf8")) as {
+    version: string;
+  }
+).version;
 
 const pagesBase = "/variant-worktrees/";
 
@@ -38,54 +47,36 @@ export default defineConfig({
     ],
   ],
 
+  appearance: "dark",
+
   themeConfig: {
     logo: "/logo-256.png",
+    search: { provider: "local" },
     nav: [
-      { text: "Library", link: "/guide/library" },
-      { text: "MCP Server", link: "/mcp" },
-      { text: "API Reference", link: "/api/" },
+      { text: "Guide", link: "/guide/", activeMatch: "^/guide/" },
+      { text: "Configuration", link: "/guide/library#configuration" },
+      { text: "CLI", link: "/cli-vscode-webview#cli" },
+      { text: "MCP", link: "/mcp", activeMatch: "^/mcp" },
+      { text: `v${packageVersion}`, link: "https://github.com/jubr/variant-worktrees/releases" },
     ],
 
-    sidebar: {
-      "/guide/library": [
-        {
-          text: "Getting Started",
-          items: [
-            { text: "Installation", link: "/guide/installation" },
-            { text: "Quick Start", link: "/guide/library" },
-            { text: "Replacing shell scripts", link: "/guide/scripts" },
-          ],
-        },
-        {
-          text: "API",
-          items: [{ text: "Lifecycle", link: "/guide/library#lifecycle" }],
-        },
-      ],
-      "/mcp": [
-        {
-          text: "Setup",
-          items: [{ text: "Configuration", link: "/mcp#setup" }],
-        },
-        {
-          text: "Tools",
-          items: [{ text: "Variant tools", link: "/mcp#available-tools" }],
-        },
-      ],
-      "/": [
-        {
-          text: "Getting Started",
-          items: [
-            { text: "Introduction", link: "/guide/" },
-            { text: "Installation", link: "/guide/installation" },
-            { text: "Library", link: "/guide/library" },
-            { text: "Replacing shell scripts", link: "/guide/scripts" },
-            { text: "Editor socket", link: "/guide/ipc" },
-            { text: "MCP Server", link: "/mcp" },
-          ],
-        },
-        { text: "API Reference", link: "/api/" },
-      ],
-    },
+    sidebar: [
+      {
+        text: "Getting Started",
+        items: [
+          { text: "Introduction", link: "/guide/" },
+          { text: "Installation", link: "/guide/installation" },
+          { text: "Library", link: "/guide/library" },
+          { text: "Replacing shell scripts", link: "/guide/scripts" },
+          { text: "Editor socket", link: "/guide/ipc" },
+          { text: "MCP Server", link: "/mcp" },
+        ],
+      },
+      {
+        text: "Reference",
+        items: [{ text: "API Reference", link: "/api/" }],
+      },
+    ],
 
     socialLinks: [{ icon: "github", link: "https://github.com/jubr/variant-worktrees" }],
     footer: {
