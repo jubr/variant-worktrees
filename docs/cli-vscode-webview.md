@@ -30,7 +30,7 @@ a command updates CLI and MCP registration from the same source.
 
 ## CLI
 
-The CLI uses `cleye` to expose each command. Slug commands accept positional
+The CLI exposes each command. Slug commands accept positional
 `slug` and `-s`/`--slug`; the flag takes precedence over git detection.
 
 ```bash

@@ -39,8 +39,8 @@ resolves with an `exitCode` when it ends: 130 after an interrupt (pass an
 `up` and `watch` accept `opener` and `log` to replace the browser launcher and
 the stderr progress lines.
 
-The runtime commands, templates and every option are described in
-[Replacing shell scripts](./scripts).
+The commands are in [Core](./core). Templates and every option are in
+[Configuration](./configuration).
 
 ## Configuration
 

@@ -1,33 +1,54 @@
-# Introduction
+# Getting Started
 
-**variant-worktrees** provides typed database variants for isolated git
-worktrees through a TypeScript library, CLI, and MCP server.
+Variant Worktrees manages git worktrees, database schemas, watches, environment variables, and implodes. It comes as a CLI, an MCP server, a VS Code extension, and a library.
 
-## Quick start
+It complements the agentic workflow, where several agents work in their own variants while you watch the progress live.
+
+## How it works
+
+A variant is a worktree with its own database target. `watch` creates it and runs the project there. You, or an agent, do the work inside it. `implode` stops what is running and removes the worktree.
+
+### Agent
+
+An agent names the variant and stays in its own directory:
 
 ```bash
-variant config
-variant create -s preview-one
-variant list
-variant watch -s preview-one --detach
-variant down -s preview-one
-variant implode -s preview-one
+variant watch -s feature-forty-two
+# do the work
+variant implode -s feature-forty-two
 ```
 
-Use `-s`/`--slug` to override git detection. Without it, the current
-worktree branch determines the variant slug.
+`watch` creates the worktree `_v-feature-forty-two`, starts the dev processes, and keeps them up so you can see the progress. `implode` stops them and removes the worktree.
 
-## MCP
+### Human
 
-Configure `variant-mcp` with the workspace `variants.yaml`. It exposes tools for
-configuration, creation, listing, switching, provisioning, running (`up`,
-`watch`), stopping (`down`), and removal (`implode`).
+You step into the worktree and work there yourself:
 
-Projects with their own shell scripts can port them: see
-[Replacing shell scripts](./scripts).
+```bash
+variant create -s feature-forty-two
+cd _v-feature-forty-two
+variant watch
+# browse, edit, commit, and push
+variant implode # implies down
+```
+
+`create` makes the worktree. After `cd`, the slug comes from the branch, so `watch` and `implode` need no `-s`. `implode` includes `down`: it stops the processes, drops the database and storage, and removes the worktree.
+
+`-s`/`--slug` overrides git detection. Without it, the current worktree branch determines the slug. Every command is explained in [Core](./core).
+
+## In another project
+
+[mise](https://mise.jdx.dev) installs the tools a project asks for and puts them on your `PATH` when you enter that directory. Add the CLI there:
+
+```bash
+mise use github:jubr/variant-worktrees
+```
+
+`variant` is then available in that project. A checkout of this repository builds the CLI instead: see [Building](/development/building).
+
+What `watch` runs, which ports it picks, and which database it uses live in `variants.yaml`. Instances, templates, and every option are in [Configuration](./configuration). Database settings load from `mise.local.toml`, then environment variables.
 
 ## Requirements
 
-- Bun
-- PostgreSQL, MySQL, or SQLite
-- `mise.local.toml` or matching database environment variables
+- the `variant` CLI
+- PostgreSQL, MySQL, or SQLite, each optional

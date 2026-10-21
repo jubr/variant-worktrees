@@ -25,7 +25,7 @@ variant create demo
 variant watch demo --detach
 ```
 
-Every option is in [Configuration](#configuration) and the [guide to replacing shell scripts](./docs/guide/scripts.md). Checks for this repo stay under [Development](#development).
+Every option is in [Configuration](#configuration) and the [configuration guide](./docs/guide/configuration.md). Checks for this repo stay under [Development](#development).
 
 ## Packages
 
@@ -46,7 +46,7 @@ Every option is in [Configuration](#configuration) and the [guide to replacing s
 
 ## Chat renamer
 
-[`chat-renamer-vscode`](./packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](#configuration)). An editor setting you set explicitly wins.
+[`chat-renamer-vscode`](./packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](#configuration) and [Chat Renamer](./docs/chat-renamer/index.md)). An editor setting you set explicitly wins.
 
 ## Configuration
 
@@ -68,7 +68,7 @@ variant:
 ```
 
 The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite). The
-[guide to replacing shell scripts](./docs/guide/scripts.md) lists every runtime option.
+[configuration guide](./docs/guide/configuration.md) lists every runtime option.
 
 Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
