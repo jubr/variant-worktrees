@@ -138,3 +138,22 @@ describe("dark document shell and top navigation", () => {
     expect(html).toContain("logo-256.png");
   });
 });
+
+describe("remote personal-site attribution", () => {
+  test("tracked docs omit the forbidden host and image", () => {
+    const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
+    const files = listed.stdout.split("\n").filter(Boolean);
+    const hits = files.filter((file) => {
+      const text = readFileSync(join(root, file), "utf8");
+      return text.includes("zach.dev") || text.includes("statue.png");
+    });
+    expect(hits).toEqual([]);
+  });
+
+  test("built home page omits the forbidden host, image, and fixed corner", () => {
+    const html = readFileSync(join(dist, "index.html"), "utf8");
+    expect(html).not.toContain("zach.dev");
+    expect(html).not.toContain("statue.png");
+    expect(html).not.toContain("zach-footer-logo");
+  });
+});
