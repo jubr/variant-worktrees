@@ -139,7 +139,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! You can archive this change with `$openspec-archive-change (Codex) or /openspec-archive-change (other agents)`.
+All tasks complete! You can **sync-archive** this change with skill `vw-spec-wrapup` (sync deltas, then `$openspec-archive-change` / `/openspec-archive-change`).
 ```
 
 **Output On Pause (Issue Encountered)**
