@@ -34,12 +34,12 @@ Stop caffeinate when the pipeline is SUCCESS (or the user aborts). If wrapup fol
 2. Open PR if missing: `gh pr create --base main --title '…' --body '…'` with summary + test plan. If a PR already exists for the branch, reuse it (`gh pr view --json url`). Note the PR URL in chat asap.
 3. Find the Actions run for the tip commit (`gh run list --branch <branch>`). Prefer `gh run watch <id>`.
 4. On **failure**: pull job logs (`gh run view <id> --log-failed`), fix root cause (follow `vw-spec-iterate` / `tdd`), commit, push, wait again. Do not put `[skip ci]` on a product-code push.
-5. While a run is in progress, if the pull request is not mergeable, merge `origin/main` into the branch, fix conflicts, commit, and push. Do not use `[skip ci]` on that push. Then wait on the new run.
+5. While a run is in progress, if the pull request is not mergeable, merge `origin/main` into the branch, fix conflicts, commit, and push. Do not use `[skip ci]` on that push. Then wait on the new run. Bringing `main` in is not `gh pr merge`.
 6. Repeat until overall result is **success** (lint, build, test, and other default gates green).
-7. Report the pull request URL and the green run number. Hand off to `vw-spec-wrapup` when the user wants sync-archive or cleanup.
+7. Report the pull request URL and the green run number. Do not `gh pr merge` here and do not `variant implode` here. Hand off to `vw-spec-wrapup` for sync-archive, then merge and implode.
 
 ## Notes
 
 - Default workflows run on branch push and pull_request against `main`. Treat the CI workflow as the gate.
 - Keep the pull request description updated if scope shifted during CI fixes.
-- Sync-archive `[skip ci]` belongs to `vw-spec-wrapup`, not this skill.
+- Sync-archive `[skip ci]`, `gh pr merge`, and `variant implode` belong to `vw-spec-wrapup`, not this skill.
