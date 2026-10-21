@@ -13,10 +13,10 @@
 Source comments, documentation, and specs cite the **published** location under
 `openspec/specs/<capability-path>/spec.md`, never the change directory a delta
 was drafted in. A change directory moves to `openspec/changes/archive/` when the
-change is archived, so a citation pointing at it goes stale on archive day. Cite
-where the requirement will live, not where it was written — the path is the same
-capability path the delta declares, so it is known before the change is
-archived.
+change is sync-archived, so a citation pointing at it goes stale on sync-archive
+day. Cite where the requirement will live, not where it was written — the path
+is the same capability path the delta declares, so it is known before the change
+is sync-archived.
 
 In markdown use a relative link, labelled by capability:
 
@@ -148,13 +148,15 @@ reviewers and secrets `VSCE_PAT` (Visual Studio Marketplace) and `OVSX_PAT` (Ope
 ## Review and delivery
 
 - Use Conventional Commits (`type(scope): summary`) and keep commits focused.
-- OpenSpec history is two artifact commits plus code in between: one spec-change commit at the start (`openspec/changes/$slug/` only), code/test commits while implementing, one sync+archive commit at the end. Do not mix specs or `tasks.md` with product code.
+- OpenSpec history is artifact commits plus code in between: one spec-change commit at the start (`openspec/changes/$slug/` only), code/test commits while implementing, a `tasks.md` checkbox commit at wrapup if those edits are still dirty, then a separate **sync-archive** commit (sync deltas into `openspec/specs/`, then move the change under `openspec/changes/archive/`). Do not mix specs or `tasks.md` with product code. Do not mix the tasks commit with the sync-archive commit.
+- Sync-archive on the same feature branch as the product pull request. Do not open a second branch or a second pull request for the archive.
 - Work on a short-lived feature branch based on `main` unless the repository
   owner explicitly directs a different documentation-only flow.
 - Keep the branch current and open a GitHub pull request for human review (`gh`).
-- Agents may prepare and push a branch when asked, but must not merge it or
-  delete it. The human reviewer owns the merge.
-- Archive an OpenSpec change only after its tasks and strict validation pass.
+- Agents may prepare and push a branch when asked. They must not delete it.
+  They must not merge it unless the user **explicitly** requested a merge and
+  the GitHub Actions result is success. The human reviewer owns the merge by default.
+- Sync-archive an OpenSpec change only after its tasks and strict validation pass.
 
 Never commit credentials or temporary environment state. Do not publish values
 from local handover notes; extract only stable, non-sensitive facts into durable

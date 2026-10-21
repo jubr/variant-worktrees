@@ -79,8 +79,8 @@ Phases: **Orient** (AGENTS.md / change artifacts) → **Implement** (skills `tdd
 - `task format:write` has run and `task check:full` succeed locally.
 - Run `openspec validate --all --strict` and fix any anomalies.
 - Re-run the **Size check**; report final size (and any growth since start) in the hand-off.
-- After all possible tasks complete: commit possible remaining `openspec/changes/$slug` changes.
+- After all possible tasks complete: commit leftover `openspec/changes/$slug` artifact edits other than checkbox state. Do not sync-archive here. Checkbox edits stay dirty until `vw-spec-wrapup`.
 
 ## Hand-off
 
-Next: skill `vw-spec-pipeline`. Wrap/archive: skill `vw-spec-wrapup`.
+Next: skill `vw-spec-pipeline`. Sync-archive: skill `vw-spec-wrapup`.

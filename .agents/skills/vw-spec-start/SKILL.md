@@ -41,10 +41,10 @@ If scope is unclear before proposing, MUST read skill `openspec-explore` first.
 5. **Tooling.** `mise install` if needed. Ensure workspace deps exist (`task install`).
 6. **GitHub CLI.** Ensure `gh` is authenticated before later PR/pipeline work: `gh auth status`. Do not commit tokens.
 7. **Propose.** Follow skill `openspec-propose` with change name `$slug`. Wait for an explicit apply/iterate request before coding.
-8. **Commit the change.** One Conventional Commit containing only `openspec/changes/$slug/` (proposal, design, delta specs, `tasks.md` as planned). No product code. This is the first OpenSpec commit. The final one will be `vw-spec-wrapup` syncs deltas into `openspec/specs/` and archives.
+8. **Commit the change.** One Conventional Commit containing only `openspec/changes/$slug/` (proposal, design, delta specs, `tasks.md` as planned). No product code. This is the first OpenSpec commit. Wrapup later commits leftover `tasks.md` checkboxes if needed, then a separate **sync-archive** commit on this **same** feature branch.
 
 Report in chat contains markdown links that open the [proposal.md](http://proposal.md) & friends in the editor in the correct worktree.
 
 ## Hand-off
 
-Next: skill `vw-spec-iterate`. Pipeline/PR is skill `vw-spec-pipeline`. Archive/cleanup is skill `vw-spec-wrapup`.
+Next: skill `vw-spec-iterate`. Pipeline/PR is skill `vw-spec-pipeline`. Sync-archive and cleanup are skill `vw-spec-wrapup` on this same feature branch.
