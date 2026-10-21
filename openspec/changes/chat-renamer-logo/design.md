@@ -7,13 +7,13 @@ See proposal.md for why. Variant-worktrees already publishes icons from `assets/
 **Goals:**
 
 - Two named source files under `assets/brand/`. The renderer and the variant-worktrees pixel test read `variant-worktrees.png`.
-- One checked-in 128×128 chat-renamer PNG, masked the same way, referenced by the manifest and the package README.
+- Checked-in 256 and 128 chat-renamer PNGs from the same renderer, without a mask. The manifest points at 256 for VS Code. Every shown mark uses 128.
 
 **Non-Goals:**
 
-- Regenerating the variant-worktrees PNGs. The source bytes do not change.
+- Regenerating the variant-worktrees PNGs. The source bytes do not change, and that product keeps its mask.
 - A second image library. `sharp` is already a workspace dev dependency.
-- Docs logo or favicon entries for chat-renamer.
+- Docs logo, favicon, 32, or 16 entries for chat-renamer.
 
 ## Decisions
 
@@ -23,35 +23,38 @@ See proposal.md for why. Variant-worktrees already publishes icons from `assets/
 
 Alternative: keep the generic `source.png` and add `chat-renamer.png` beside it. Rejected because the generic name stops saying which product it is once two sources exist.
 
-### 128, not 256
+### Same renderer, mask only for variant-worktrees
 
-The source is 218×218. [specs/variant-vscode/product-icon](../../specs/variant-vscode/product-icon/spec.md) forbids an upscale, and 256 is larger than 218. 128 is the largest size that spec publishes which is still a downscale, and it is the smallest icon VS Code accepts. The manifest points at `packages/chat-renamer-vscode/media/icon-128.png`.
+`render-icons.ts` takes a source path, a size, and whether to mask. Variant-worktrees outputs pass `mask: true` and stay on the current `dest-in` rect (`rx` = `size / 10`). Chat-renamer outputs pass `mask: false`: center-crop (a no-op on a square), lanczos3, `ensureAlpha`, no composite. Cache by source, size, and mask flag so a masked 256 and an unmasked 256 stay distinct.
 
-Alternative: upscale to 256 so a retina display is not scaling a 128 icon. Rejected because that violates the no-upscale rule. Alternative: mask the native 218 square and ship that. Rejected because the established sizes are 256, 128, 32, and 16, and 128 is the one that fits the source and the editor minimum.
-
-### Same mask, second source
-
-One render function takes a source path and a size. Call it for the existing variant-worktrees outputs and once more for `packages/chat-renamer-vscode/media/icon-128.png` from `assets/brand/chat-renamer.png`. Center-crop (a no-op on a square), lanczos3, `dest-in` rect at `(0,0)` with `rx` of `size / 10`.
-
-Inside the rounded rectangle the scaled artwork is unchanged, alpha included. The variant-worktrees test expects alpha 255 there because that source is opaque. The chat-renamer test compares inside pixels to the unmasked scale, including alpha, and expects alpha 0 more than one pixel outside the rounded rectangle. The rim may be antialiased.
+| File | Pixels | Mask |
+| --- | --- | --- |
+| `packages/chat-renamer-vscode/media/icon-256.png` | 256 | no |
+| `packages/chat-renamer-vscode/media/icon-128.png` | 128 | no |
 
 Copy `openspec/changes/chat-renamer-logo/assets/chat-renamer.png` to `assets/brand/chat-renamer.png`. Regeneration reads the stable path. The change directory moves on archive.
 
+The source is 218×218, so 256 is an upscale and too large to show. Generate it anyway and point `icon` at it, because that is the size VS Code recommends for the manifest. The variant-worktrees no-upscale rule stays on that product, whose source is 375×374.
+
+Alternative: point `icon` at 128 and skip 256. Rejected because the manifest would miss the size VS Code asks for.
+
 ### Packaging and README
 
-Set `icon` to `media/icon-128.png` and whitelist `!media/icon-128.png`. Do not add a `files` list. The package script already writes `out/chat-renamer-<version>.vsix`. The test packages the extension and finds `media/icon-128.png` in the vsix.
+Set `icon` to `media/icon-256.png`. Whitelist `!media/icon-256.png` and `!media/icon-128.png`. Do not add a `files` list. The package script already writes `out/chat-renamer-<version>.vsix`. The test packages the extension and finds both files in the vsix: 256 because the manifest names it, 128 because the README shows it.
 
-The package README embeds `./media/icon-128.png` so GitHub renders it from that directory.
+The chat-renamer test compares every pixel of each published PNG to the unmasked lanczos3 scale, alpha included. The variant-worktrees test keeps its rounded-rectangle checks.
+
+The package README embeds `./media/icon-128.png` and does not embed the 256 file. GitHub renders the 128 from that directory.
 
 ## Risks / Trade-offs
 
-- [128 loses the "NAME" lettering] → Accept. 128 is the largest size that is not an upscale.
-- [`.vscodeignore` drops the icon] → Whitelist `media/icon-128.png`, and have the package test open the vsix.
+- [256 upscales a 218 source, so "NAME" softens] → Accept for the manifest file only. Shown marks use the 128 downscale.
+- [`.vscodeignore` drops an icon] → Whitelist `media/icon-256.png` and `media/icon-128.png`, and have the package test open the vsix.
 - [A reader still opens `assets/brand/source.png`] → The variant-worktrees pixel test fails until that path is updated. Search the tree for the old name.
 - [`sharp` native binary] → Already a dev dependency. Extension runtime code does not import it.
 
 ## Migration Plan
 
-Rename one source file, add the second, generate the 128 PNG, wire the manifest, the ignore whitelist, and the package README.
+Rename one source file, add the second, generate the two unmasked PNGs, wire the manifest, the ignore whitelist, and the package README.
 
-Rollback: rename `assets/brand/variant-worktrees.png` back to `assets/brand/source.png`, restore the two path references, delete `assets/brand/chat-renamer.png` and `packages/chat-renamer-vscode/media/icon-128.png`, and remove `icon`, the whitelist line, and the README image.
+Rollback: rename `assets/brand/variant-worktrees.png` back to `assets/brand/source.png`, restore the two path references, delete `assets/brand/chat-renamer.png` and `packages/chat-renamer-vscode/media/icon-256.png` and `icon-128.png`, and remove `icon`, the whitelist lines, and the README image.

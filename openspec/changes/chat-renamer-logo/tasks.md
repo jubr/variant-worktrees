@@ -5,14 +5,14 @@
 
 ## 2. Failing icon contract
 
-- [ ] 2.1 Add a failing `packages/chat-renamer-vscode` test for [specs/chat-renamer-vscode/product-icon](../../specs/chat-renamer-vscode/product-icon/spec.md): manifest `icon` is `media/icon-128.png` and that PNG is 128×128; `.vscodeignore` whitelists it; the PNG matches a center-crop then lanczos3 resize of `assets/brand/chat-renamer.png`, masked to a rounded rectangle flush with the sides, corner radius one tenth of the side, with the same one-pixel rim tolerance as the variant-worktrees product-icon test (outside that rim, alpha 0; inside it, every channel matches the unmasked scale, alpha included); the package README embeds `media/icon-128.png`. Verify the test fails before any chat-renamer icon file or manifest edit.
+- [ ] 2.1 Add a failing `packages/chat-renamer-vscode` test for [specs/chat-renamer-vscode/product-icon](../../specs/chat-renamer-vscode/product-icon/spec.md): manifest `icon` is `media/icon-256.png` and that PNG is 256×256; `.vscodeignore` whitelists `media/icon-256.png` and `media/icon-128.png`; `media/icon-128.png` is 128×128; each PNG matches a center-crop then lanczos3 resize of `assets/brand/chat-renamer.png` with no rounded-rectangle mask, every channel including alpha; the package README embeds `media/icon-128.png` and does not embed `media/icon-256.png`. Verify the test fails before any chat-renamer icon file or manifest edit.
 
 ## 3. Icon and wiring
 
-- [ ] 3.1 Generate `packages/chat-renamer-vscode/media/icon-128.png` from `assets/brand/chat-renamer.png` with that crop, resize, and mask. Verify the pixel-match assertion in the task 2.1 test passes.
-- [ ] 3.2 Set `packages/chat-renamer-vscode/package.json` `icon` to `media/icon-128.png` and whitelist that path in `.vscodeignore`. Verify the manifest assertions in the task 2.1 test pass.
+- [ ] 3.1 Extend `assets/brand/render-icons.ts` so variant-worktrees outputs keep the mask and chat-renamer outputs skip it. Generate `packages/chat-renamer-vscode/media/icon-256.png` and `icon-128.png` from `assets/brand/chat-renamer.png`. Verify the pixel-match assertions in the task 2.1 test pass and the variant-vscode product-icon test still passes.
+- [ ] 3.2 Set `packages/chat-renamer-vscode/package.json` `icon` to `media/icon-256.png` and whitelist `media/icon-256.png` and `media/icon-128.png` in `.vscodeignore`. Verify the manifest assertions in the task 2.1 test pass.
 - [ ] 3.3 Embed the 128×128 icon in `packages/chat-renamer-vscode/README.md`. Verify the README assertion in the task 2.1 test passes.
-- [ ] 3.4 Package the extension and verify the vsix contains `media/icon-128.png`.
+- [ ] 3.4 Package the extension and verify the vsix contains `media/icon-256.png` and `media/icon-128.png`.
 
 ## 4. Validation
 
