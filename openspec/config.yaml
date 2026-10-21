@@ -1,0 +1,51 @@
+schema: spec-driven
+
+context: |
+  variant-worktrees is a Bun workspace monorepo: variant-config (shared
+  variants.yaml configuration), variant-api (database variant library and CLI),
+  variant-mcp (MCP server), variant-vscode (VS Code extension), and the
+  chat-renamer-api / chat-renamer-vscode pair (Cursor chat renaming, embedded in variant-vscode).
+  Runtime is Bun, language is TypeScript
+  strict ESM, validation is Zod v4, lint/format is Biome, docs are VitePress +
+  TypeDoc. Database settings autodetect from mise.local.toml and environment
+  variables.
+
+  Current observable product behavior belongs in namespaced capability specifications
+  under openspec/specs/. Proposed behavior and its implementation plan belong in
+  openspec/changes/. User-facing library/MCP documentation belongs in docs/.
+  CONTRIBUTING.md owns the engineering workflow. AGENTS.md is the concise
+  source-of-truth map for contributors and tools.
+
+  Resolve conflicting behavioral evidence in this order: observable runtime behavior
+  and deployed contracts, automated tests, application code, then historical
+  requirements.
+
+  Use TypeScript for package code, outside-in red-green-refactor TDD for behavior
+  changes, and colocated bun:test files under each package's test/ directory.
+  Preserve conventional commit formatting and the existing human-reviewed GitHub
+  pull-request workflow.
+
+rules:
+  proposal:
+    - State the user or product problem, the capability-level change, impact, and explicit non-goals.
+    - Exclude credentials, environment addresses, branch state, transient blockers, dates, and backlog contents.
+  specs:
+    - Describe observable current or proposed behavior with normative requirements and concrete WHEN/THEN scenarios.
+    - Keep architecture, implementation checklists, historical commentary, and deferred backlog behavior out of capability specs.
+    - Use slash-namespaced capability paths that reflect stable product domains.
+  design:
+    - Record constraints, decisions with rationale, risks, migration steps, and rollback strategy without restating behavioral scenarios.
+  tasks:
+    - Use ordered, independently verifiable implementation steps and include proportionate test, documentation, and validation work.
+    - Do not encode credentials, environment addresses, branch status, transient blockers, or unrelated backlog contents.
+
+operations:
+  apply:
+    guidance:
+      - Keep implementation scoped to the selected change and mark each task complete only after its work and focused verification succeed.
+      - For behavioral changes, follow outside-in TDD and run the narrowest relevant checks before broader quality gates.
+  archive:
+    guidance:
+      - Archive only after all tasks are complete and strict OpenSpec validation succeeds.
+      - Confirm delta specs express the behavior that should become current before syncing them into openspec/specs/.
+      - Keep the archive free of credentials, transient operational state, and unrelated backlog material.

@@ -1,0 +1,23 @@
+{
+  "references": [
+    { "path": "packages/variant-api" },
+    { "path": "packages/variant-mcp" },
+    { "path": "packages/variant-ipc" },
+    { "path": "packages/chat-renamer-config" },
+    { "path": "packages/chat-renamer-api" },
+    { "path": "packages/chat-renamer-vscode" },
+    { "path": "packages/variant-vscode" }
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler"
+  },
+  "include": [],
+  "exclude": ["node_modules"]
+}

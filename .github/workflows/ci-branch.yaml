@@ -1,0 +1,62 @@
+name: CI
+
+# Specification: openspec/specs/meta/ci-feature-builds/spec.md
+# AIDEV-NOTE: main is not in `push` on purpose. ci-release.yaml calls this workflow
+# for main pushes, so main would otherwise run the whole gate twice.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # github.workflow is the caller's name when called, so a release run never
+  # shares a group with (and cancels) the branch's own push run.
+  group: ci-branch-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  gate:
+    name: Gate and extension packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # commitlint needs origin/main..HEAD
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - run: task install:ci
+      - run: task check:full
+      - run: task lint:workflows
+      - run: task package:vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: out/*.vsix
+          if-no-files-found: error
+
+  cli-prerelease:
+    name: Pre-release CLI (macOS arm64)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: bun task
+      - run: task install:ci
+      - run: task package:cli
+        env:
+          TARGET: bun-darwin-arm64
+      - name: Smoke test
+        run: |
+          bin=(out/variant-*-darwin-arm64)
+          "${bin[0]}" --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: variant-darwin-arm64
+          path: out/variant-*-darwin-arm64
+          if-no-files-found: error

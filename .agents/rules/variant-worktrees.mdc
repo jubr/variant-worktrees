@@ -1,0 +1,15 @@
+---
+description: variant-worktrees source-of-truth adapter
+alwaysApply: true
+---
+
+Read `AGENTS.md` for the source-of-truth map and `CONTRIBUTING.md` for the TDD,
+testing, and review workflow. Current behavior belongs in `openspec/specs/` and
+proposed work in `openspec/changes/`.
+
+### General Principles
+
+*   **Principle of Least Astonishment (POLA):** The AI should behave in a way that is consistent with the user's expectations and prior experiences. Avoid surprising the user with unexpected behavior.
+*   **You Ain't Gonna Need It (YAGNI):** Avoid adding functionality or code that is not currently needed. Focus on the requirements at hand and avoid over-engineering.
+*   **Keep It Simple, Stupid (KISS):** The AI should strive for simplicity in its solutions. Avoid unnecessary complexity.
+*   **Don't Repeat Yourself (DRY):** Avoid duplicating code. Extract common logic into reusable components.

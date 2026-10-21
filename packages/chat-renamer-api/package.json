@@ -1,0 +1,39 @@
+{
+  "name": "chat-renamer-api",
+  "version": "0.0.1",
+  "description": "Rename Cursor chats from a prompt: request parsing, title numbering, hook installer and the agent-host rename call",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build ./src/index.ts --outdir dist --target node --format esm --sourcemap=external --external chat-renamer-config",
+    "build:types": "tsc --emitDeclarationOnly",
+    "prepublishOnly": "bun run build",
+    "test": "bun test"
+  },
+  "homepage": "https://github.com/jubr/variant-worktrees",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jubr/variant-worktrees.git",
+    "directory": "packages/chat-renamer-api"
+  },
+  "keywords": [
+    "cursor",
+    "chat",
+    "rename"
+  ],
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "chat-renamer-config": "workspace:*"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "name": "variant-worktrees",
+  "version": "0.0.1",
+  "description": "Variant Worktrees VS Code extension",
+  "displayName": "Variant Worktrees",
+  "publisher": "jubr",
+  "icon": "media/icon-256.png",
+  "main": "./dist/extension.cjs",
+  "dependencies": {
+    "@types/vscode": "^1.86.0",
+    "chat-renamer": "workspace:*",
+    "variant-config": "workspace:*",
+    "variant-ipc": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@vscode/vsce": "^2.23.0",
+    "esbuild": "^0.20.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Open this directory in VSCode and then run your extension with F5 or `Run and Debug > Run Extension`!'",
+    "build": "bun run ./scripts/build-with-esbuild.ts",
+    "watch": "bun run ./scripts/watch-with-esbuild.ts",
+    "vsce-package": "mkdir -p ../../out && vsce package --no-dependencies --out ../../out/variant-worktrees-${npm_package_version}.vsix",
+    "package": "bun run build && bun run vsce-package",
+    "clean": "rm -rf ./dist",
+    "test": "bun test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jubr/variant-worktrees.git",
+    "directory": "packages/variant-vscode"
+  },
+  "engines": {
+    "vscode": "^1.86.0"
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onUri"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "variant.probeCursorCommands",
+        "title": "Variant: Probe Cursor Chat Commands"
+      },
+      {
+        "command": "variant.renameExistingChats",
+        "title": "Variant: Rename Existing Chats"
+      },
+      {
+        "command": "variant.renameActiveChat",
+        "title": "Variant: Rename active chat"
+      }
+    ],
+    "configuration": {
+      "title": "Variant Worktrees",
+      "properties": {
+        "variant.enable": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Turn chat renaming on or off. `false` stops title-event renames, hook installation, and renaming of existing chats. Palette rename commands stay available and tell you this setting is off. Default `true`. Changing it applies without a reload."
+        },
+        "variant.trigger": {
+          "type": "string",
+          "enum": [
+            "titleEvent",
+            "hook"
+          ],
+          "default": "titleEvent",
+          "enumDescriptions": [
+            "Listen to Cursor's chat title change event (cursor.onDidChangeAgentHostSessionCatalogTitle) and rename when the first prompt is a rename request.",
+            "Install a beforeSubmitPrompt hook in the Cursor hooks.json that sends rename requests to this extension and blocks lone /chat-rename prompts from the model."
+          ],
+          "markdownDescription": "What triggers a rename. Experimental: relies on private Cursor internals and may stop working on a Cursor update."
+        },
+        "variant.activationPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+            "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)",
+            "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"
+          ],
+          "markdownDescription": "JavaScript regular expressions tested against each line of the first prompt of a chat. A match renames the chat to its first capture group (or the whole match). The default list is a path pattern, a short `_work-` pattern, then a slug pattern. `/vw-spec-iterate @/Users/me/_v-outer/_v-inner` becomes `inner` (the last path segment after its leading prefix token), `/vw-spec-start @_work-my-slug` becomes `my-slug`, and `/vw-spec-start my-slug` becomes `my-slug`. A pattern title that already ends in digits is kept (`abc7` beside `abc` stays `abc7`). A title with no trailing digits is numbered against other open chats: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. `/chat-rename` and `/rename-chat` always work and are not numbered. When worktree prefixes are set, the default path pattern is left out and only those prefixes match an `@` path. In `hook` mode the patterns are copied into the hook script, which evaluates them with Python's `re`; change the setting to reinstall it."
+        },
+        "variant.worktreePrefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Prefixes of worktree directories, each with its own leading character and connector (`_v-` in `_v-my-slug`). A first prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. Empty by default, which turns this off; Variant fills it from `variant.prefix` in `variants.yaml` unless you list prefixes here."
+        },
+        "variant.renameExistingDays": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 7,
+          "markdownDescription": "How many days back to rename chats that already existed when the editor started. Chats whose first prompt matches an activation pattern or `/chat-rename` are renamed oldest first, numbered per title (`abc`, `abc2`, `abc3`), once per chat. `0` turns it off (default `7`). Changing it applies without a reload; the log lines starting with `[existing-chats]` name this setting and its value."
+        },
+        "variant.hookScope": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "user"
+          ],
+          "default": "workspace",
+          "enumDescriptions": [
+            "Write `.cursor/hooks.json` in the first workspace folder.",
+            "Write `~/.cursor/hooks.json`."
+          ],
+          "markdownDescription": "Which hooks.json receives the hook when `#variant.trigger#` is `hook`."
+        }
+      }
+    }
+  }
+}

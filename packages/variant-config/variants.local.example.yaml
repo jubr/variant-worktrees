@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=./variants.local.yaml.schema.json
+#
+# Ephemeral state of one variant, kept next to variants.yaml in the variant's own worktree (_v-<slug>/variants.local.yaml)
+# and git-ignored. Every option is listed with an illustrative value; alternatives follow `#` on the same line.
+# `{{NAME}}` in any string is replaced by the environment variable NAME when the file is read.
+# VARIANT_<KEY>_PORT, VARIANT_<KEY>_URL and VARIANT_<KEY>_PID (VARIANT_BE_PORT for `be`) override the instance values.
+# A test keeps this file in step with variants.local.yaml.schema.json.
+
+runtime:
+  slug: demo-embody-assume-user
+  mode: watch # up
+  dir: /Users/me/work/_v-demo-embody-assume-user # the variant's worktree
+  db: # the same settings as `db` in variants.yaml; only `port` may also be a {{NAME}} template
+    dialect: postgres # sqlite | mysql
+    url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set
+    host: 127.0.0.1
+    port: '{{POSTGRES_PORT}}' # from the environment; a number also works
+    user: app
+    password: '{{POSTGRES_PASSWORD}}'
+    database: app
+    schema: v_demo_embody_assume_user # also in POSTGRES_SCHEMA
+    filename: ./app.sqlite # sqlite only
+    ssl: false # true
+  instances: # keyed by the key of the entry in variant.instances
+    fe:
+      port: 62060
+      pid: 123
+      url: http://demo-embody-assume-user.vw.localhost:62060/
+    be:
+      port: 62061
+      pid: 456

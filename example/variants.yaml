@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=../packages/variant-config/variants.yaml.schema.json
+#
+# The example project: a Vite app (fe) and a NestJS app (be) on SQLite.
+# `variant watch` runs both dev servers on the host, `variant up` runs both as containers.
+db:
+  dialect: sqlite
+
+variant:
+  seed: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
+  storage: {} # a per-variant .storage directory, passed to commands in STORAGE_ROOT
+  steps:
+    - name: storage
+      run: echo "Preparing $VARIANT_SLUG with storage in $STORAGE_ROOT"
+      show: ^Preparing
+  implode:
+    preRm: [dist, node_modules, .cache, out] # removed below fe/ and be/ before the worktree goes
+    restore: [bun.lock] # a lockfile touched by `bun install` does not block the removal
+  # be comes first: the nginx of fe resolves the be container by name when it starts.
+  instances:
+    be:
+      kind: nestjs
+      dir: be
+      watch: bun run start:dev
+      dotenv: .env # copied from .env.example and amended with the variant's PORT and SQLITE_DATABASE
+      env:
+        PORT: '{{port}}'
+        SQLITE_DATABASE: '{{schema}}'
+      ready: /api # answers 200 once the server runs
+      container:
+        dockerfile: be/Dockerfile
+        image: example-be
+        port: 3000
+        volumes:
+          - '{{schema}}:/data/variant.sqlite' # the variant's database file
+        env:
+          PORT: '3000'
+          SQLITE_DATABASE: /data/variant.sqlite
+    fe:
+      kind: vite
+      dir: fe
+      watch: bun run dev
+      open: http://{{slug}}.vw.localhost:{{port}}
+      env:
+        PORT: '{{port}}'
+        VARIANT_API_PORT: '{{port.be}}'
+      ready: /
+      container:
+        build: bun run build
+        static: dist
+        proxy:
+          path: /api/
+          to: be
