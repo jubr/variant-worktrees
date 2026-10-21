@@ -38,14 +38,14 @@ Guide pages, the MCP page, and the API reference SHALL render in a document shel
 
 ### Requirement: Top navigation
 
-The top navigation SHALL include links named Guide, Configuration, CLI, and MCP. Guide SHALL open the guide introduction. Configuration SHALL open the library configuration section. CLI SHALL open the CLI command documentation. MCP SHALL open the MCP server page. The top navigation SHALL include a search control and a dark/light appearance switch. The top navigation SHALL link to `https://github.com/jubr/variant-worktrees`. The top navigation SHALL show the repository root `package.json` version prefixed with `v`, and that version SHALL link to `https://github.com/jubr/variant-worktrees/releases`.
+The top navigation SHALL include links named Guide, Configuration, CLI, and MCP. Guide SHALL open the guide introduction. Configuration SHALL open the configuration guide. CLI SHALL open the CLI command documentation. MCP SHALL open the MCP server page. The top navigation SHALL include a search control and a dark/light appearance switch. The top navigation SHALL link to `https://github.com/jubr/variant-worktrees`. The top navigation SHALL show the repository root `package.json` version prefixed with `v`, and that version SHALL link to `https://github.com/jubr/variant-worktrees/releases`.
 
 #### Scenario: Section links
 
 - **WHEN** the built installation page is read
 - **THEN** the top navigation includes Guide, Configuration, CLI, and MCP
 - **AND** Guide targets the guide introduction
-- **AND** Configuration targets the library configuration section
+- **AND** Configuration targets the configuration guide
 - **AND** CLI targets the CLI command documentation
 - **AND** MCP targets the MCP server page
 
@@ -60,6 +60,47 @@ The top navigation SHALL include links named Guide, Configuration, CLI, and MCP.
 - **THEN** the top navigation links to `https://github.com/jubr/variant-worktrees`
 - **AND** it shows `v` followed by the `version` in the repository root `package.json`
 - **AND** that version links to `https://github.com/jubr/variant-worktrees/releases`
+
+### Requirement: Sidebar groups
+
+The sidebar SHALL list Getting Started, then a Variant Worktrees group, then Chat Renamer, then Development. Getting Started SHALL be a link above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Core, then Configuration, then Installation, then the editor socket, then the MCP server, then the library. Chat Renamer SHALL include the chat renamer overview and, under it, a configuration page, and SHALL sit above Development. Development SHALL include Building and the API reference. The sidebar SHALL NOT link to a guide about replacing shell scripts.
+
+#### Scenario: Installation page lists the groups in order
+
+- **WHEN** the built installation page is read
+- **THEN** the sidebar shows Getting Started, then Variant Worktrees, then Chat Renamer, then Development
+- **AND** Core precedes Configuration, which precedes Installation
+- **AND** Chat Renamer lists its configuration page under the overview
+- **AND** the library link follows the MCP server link
+- **AND** Development includes a link to Building
+- **AND** the page does not link to `/guide/scripts`
+
+### Requirement: Getting started
+
+The getting started page SHALL open with a short introduction, then explain how a variant runs, then how to install the CLI in another project. It SHALL describe Variant Worktrees as a CLI, an MCP server, a VS Code extension, and a library. It SHALL show an agent workflow and a human workflow that run `variant watch` and `variant implode` for the slug `feature-forty-two`. It SHALL document `mise use github:jubr/variant-worktrees` and link to `https://mise.jdx.dev`. It SHALL point at the configuration guide. Its requirements SHALL name the `variant` CLI and SHALL name PostgreSQL, MySQL, and SQLite as optional. Tracked files under `docs/` SHALL NOT contain `VARIANT_API_KEY` or `cleye`.
+
+#### Scenario: Getting started shows both workflows
+
+- **WHEN** the built getting started page is read
+- **THEN** it contains `mise use github:jubr/variant-worktrees` and a link to `https://mise.jdx.dev`
+- **AND** how a variant runs precedes that install command
+- **AND** it contains `variant watch -s feature-forty-two` and `cd _v-feature-forty-two`
+- **AND** it names PostgreSQL, MySQL, and SQLite as optional
+- **AND** it links to the configuration guide
+
+#### Scenario: Docs omit the removed names
+
+- **WHEN** tracked files under `docs/` are searched
+- **THEN** none contain `VARIANT_API_KEY` or `cleye`
+
+### Requirement: Building from source
+
+Development SHALL include a Building page that documents building a checkout with Bun, `task bootstrap`, and `task build`.
+
+#### Scenario: Building page names the toolchain
+
+- **WHEN** the built Building page is read
+- **THEN** it contains `Bun`, `task bootstrap`, and `task build`
 
 ### Requirement: Landing page uses the document shell
 

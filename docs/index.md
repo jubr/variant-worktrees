@@ -1,16 +1,14 @@
 # variant-worktrees
 
-V0.0.1 · TypeScript Library / MCP
-
-Typed database variants for applications and AI clients.
+Variant Worktrees manages git worktrees, database schemas, watches, environment variables, and implodes. It comes as a CLI, an MCP server, a VS Code extension, and a library.
 
 ```bash
 npm install variant-api
 ```
 
-[Read the Guide](/guide/) · [API Reference](/api/)
+[Getting Started](/guide/) · [API Reference](/api/)
 
-## One workflow, two interfaces.
+## Library and MCP
 
 ### TypeScript SDK
 

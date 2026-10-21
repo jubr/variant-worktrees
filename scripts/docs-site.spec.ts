@@ -123,8 +123,7 @@ describe("dark document shell and top navigation", () => {
     const version = links.find((link) => link.text === `v${packageVersion}`);
     expect(guide?.href).toContain("/guide/");
     expect(guide?.href).not.toContain("library");
-    expect(configuration?.href).toContain("library");
-    expect(configuration?.href).toContain("configuration");
+    expect(configuration?.href).toContain("/guide/configuration");
     expect(cli?.href).toContain("cli-vscode-webview");
     expect(cli?.href).toContain("#cli");
     expect(mcp?.href).toContain("/mcp");
@@ -137,6 +136,64 @@ describe("dark document shell and top navigation", () => {
     expect(html).toContain("has-sidebar");
     expect(html).toContain("logo-256.png");
   });
+
+  test("lists Getting Started, then Variant Worktrees, Chat Renamer, and Development", () => {
+    const html = installation();
+    const start = html.indexOf("VPSidebar");
+    const end = html.indexOf("VPContent", start);
+    const sidebar = html.slice(start, end);
+    const at = (needle: string) => sidebar.indexOf(needle);
+    expect(at("Getting Started")).toBeGreaterThan(-1);
+    expect(at("Getting Started")).toBeLessThan(at("Variant Worktrees"));
+    expect(at("/guide/core")).toBeLessThan(at("/guide/configuration"));
+    expect(at("/guide/configuration")).toBeLessThan(at("/guide/installation"));
+    expect(at("/chat-renamer/index")).toBeLessThan(at("/chat-renamer/configuration"));
+    expect(at("/guide/installation")).toBeLessThan(at("/mcp"));
+    expect(at("/mcp")).toBeLessThan(at("/guide/library"));
+    expect(at("Chat Renamer")).toBeGreaterThan(at("Variant Worktrees"));
+    expect(at("Development")).toBeGreaterThan(at("Chat Renamer"));
+    expect(sidebar).toContain("/development/building");
+    expect(sidebar).toContain("/chat-renamer/");
+    expect(sidebar).not.toContain("Introduction");
+    expect(sidebar).not.toContain(">Reference<");
+    expect(html).not.toContain("/guide/scripts");
+  });
+});
+
+describe("getting started and building", () => {
+  test("shows both workflows, the mise install, and optional databases", () => {
+    const html = readFileSync(join(dist, "guide/index.html"), "utf8");
+    const text = html.replace(/<[^>]+>/g, "");
+    expect(text.indexOf("How it works")).toBeLessThan(text.indexOf("mise use github:jubr/variant-worktrees"));
+    expect(text).toContain("mise use github:jubr/variant-worktrees");
+    expect(html).toContain("https://mise.jdx.dev");
+    expect(html).toContain("/guide/configuration");
+    expect(text).toContain("variant watch -s feature-forty-two");
+    expect(text).toContain("cd _v-feature-forty-two");
+    expect(text).toContain("PostgreSQL");
+    expect(text).toContain("MySQL");
+    expect(text).toContain("SQLite");
+    expect(text).toContain("optional");
+  });
+
+  test("documents the source build", () => {
+    const html = readFileSync(join(dist, "development/building.html"), "utf8");
+    expect(html).toContain("Bun");
+    expect(html).toContain("task bootstrap");
+    expect(html).toContain("task build");
+  });
+
+  test("tracked docs omit the API key and the CLI library name", () => {
+    const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
+    const files = listed.stdout.split("\n").filter(Boolean);
+    const hits = files.filter((file) => {
+      const path = join(root, file);
+      if (!existsSync(path)) return false;
+      const text = readFileSync(path, "utf8");
+      return text.includes("VARIANT_API_KEY") || text.includes("cleye");
+    });
+    expect(hits).toEqual([]);
+  });
 });
 
 describe("remote personal-site attribution", () => {
@@ -144,7 +201,9 @@ describe("remote personal-site attribution", () => {
     const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
     const files = listed.stdout.split("\n").filter(Boolean);
     const hits = files.filter((file) => {
-      const text = readFileSync(join(root, file), "utf8");
+      const path = join(root, file);
+      if (!existsSync(path)) return false;
+      const text = readFileSync(path, "utf8");
       return text.includes("zach.dev") || text.includes("statue.png");
     });
     expect(hits).toEqual([]);

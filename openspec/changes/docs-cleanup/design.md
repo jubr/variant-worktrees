@@ -44,8 +44,10 @@ Set `appearance` to `'dark'`. That stores dark as the fallback and still renders
 
 Replace the three sidebar maps with one sidebar shown on every page:
 
-- Getting Started: Introduction (`/guide/`), Installation, Library, Replacing shell scripts, Editor socket, MCP Server
-- Reference: API Reference (`/api/`)
+- Getting Started (`/guide/`) sits above the Variant Worktrees group, with no group heading of its own
+- Variant Worktrees: Core (`/guide/core`), Configuration (`/guide/configuration`), Installation, Editor socket, MCP Server, Library
+- Chat Renamer: Overview (`/chat-renamer/`), then Configuration (`/chat-renamer/configuration`), above Development
+- Development: Building (`/development/building`), API Reference (`/api/`)
 
 Enable local search. Do not add installation tabs; the default fenced-code header and copy control are the code chrome.
 
@@ -56,7 +58,7 @@ Replace the current Library / MCP Server / API Reference items with:
 | Label | Target |
 | --- | --- |
 | Guide | `/guide/` |
-| Configuration | `/guide/library#configuration` |
+| Configuration | `/guide/configuration` |
 | CLI | `/cli-vscode-webview#cli` |
 | MCP | `/mcp` |
 | `v` + root `package.json` `version` | `https://github.com/jubr/variant-worktrees/releases` |

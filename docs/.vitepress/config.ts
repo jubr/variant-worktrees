@@ -27,7 +27,8 @@ const withPagesBase = (head: HeadConfig[]): HeadConfig[] => {
 
 export default defineConfig({
   title: "variant-worktrees",
-  description: "Typed database variants through the Variant API, CLI, and MCP server.",
+  description:
+    "Manages git worktrees, database schemas, watches, environment variables, and implodes. CLI, MCP server, VS Code extension, and library.",
   base: pagesBase,
   transformHead({ head }) {
     return withPagesBase(head);
@@ -54,27 +55,38 @@ export default defineConfig({
     search: { provider: "local" },
     nav: [
       { text: "Guide", link: "/guide/", activeMatch: "^/guide/" },
-      { text: "Configuration", link: "/guide/library#configuration" },
+      { text: "Configuration", link: "/guide/configuration" },
       { text: "CLI", link: "/cli-vscode-webview#cli" },
       { text: "MCP", link: "/mcp", activeMatch: "^/mcp" },
       { text: `v${packageVersion}`, link: "https://github.com/jubr/variant-worktrees/releases" },
     ],
 
     sidebar: [
+      { text: "Getting Started", link: "/guide/" },
       {
-        text: "Getting Started",
+        text: "Variant Worktrees",
         items: [
-          { text: "Introduction", link: "/guide/" },
+          { text: "Core", link: "/guide/core" },
+          { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },
-          { text: "Library", link: "/guide/library" },
-          { text: "Replacing shell scripts", link: "/guide/scripts" },
           { text: "Editor socket", link: "/guide/ipc" },
           { text: "MCP Server", link: "/mcp" },
+          { text: "Library", link: "/guide/library" },
         ],
       },
       {
-        text: "Reference",
-        items: [{ text: "API Reference", link: "/api/" }],
+        text: "Chat Renamer",
+        items: [
+          { text: "Overview", link: "/chat-renamer/" },
+          { text: "Configuration", link: "/chat-renamer/configuration" },
+        ],
+      },
+      {
+        text: "Development",
+        items: [
+          { text: "Building", link: "/development/building" },
+          { text: "API Reference", link: "/api/" },
+        ],
       },
     ],
 
