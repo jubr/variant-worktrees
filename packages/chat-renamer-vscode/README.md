@@ -1,5 +1,7 @@
 # Chat Renamer
 
+![Chat Renamer](./media/icon-128.png)
+
 Renames Cursor chats from their first prompt. Single purpose: it does nothing else.
 
 **Experimental.** It relies on private Cursor 3.23 internals and borrows the built-in `anysphere.cursor-agent-host` identity for one synchronous call, so it can break on any Cursor update.

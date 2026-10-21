@@ -38,7 +38,7 @@ const region = (x: number, y: number, size: number): "in" | "out" | "edge" => {
 };
 
 const scaledArtwork = async (size: number): Promise<Buffer> => {
-  const source = readFileSync(join(repoRoot, "assets/brand/source.png"));
+  const source = readFileSync(join(repoRoot, "assets/brand/variant-worktrees.png"));
   const meta = await sharp(source).metadata();
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;

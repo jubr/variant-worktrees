@@ -5,6 +5,8 @@
 # Whitelist what you need
 !.vscodeignore
 !dist/*
+!media/icon-256.png
+!media/icon-128.png
 !CHANGELOG.md
 !LICENSE.txt
 !README.md
