@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Define what a feature-branch or pull-request build verifies, so a reviewer can trust a green check as proof that the change passes every repository gate and still packages into the shippable artifacts.
+Define what a feature-branch build verifies, so a reviewer can trust the green check on a pull request as proof that the change passes every repository gate and still packages into the shippable artifacts.
 
 ## Requirements
 
 ### Requirement: Full gate run on feature branches
 
-The CI workflow SHALL run on every push to a branch other than `main` and on every pull request targeting `main`. Pushes to `main` run the same workflow through the release workflow, so the gate runs once per `main` push. It SHALL run the repository's complete check gate (install from the frozen lockfile, lint, build, test, commit message lint over the range since `main`, and docs build) by invoking the same `task` targets a contributor runs locally.
+The CI workflow SHALL run on every push to a branch other than `main`. Pushes to `main` run the same workflow through the release workflow, so the gate runs once per `main` push. Opening or updating a pull request targeting `main` SHALL NOT start a second run; the pull request SHALL show the gate result of the push of its head. The workflow SHALL run the repository's complete check gate (install from the frozen lockfile, lint, build, test, commit message lint over the range since `main`, and docs build) by invoking the same `task` targets a contributor runs locally.
 
 #### Scenario: Push to a feature branch
 
@@ -18,8 +18,9 @@ The CI workflow SHALL run on every push to a branch other than `main` and on eve
 
 #### Scenario: Pull request
 
-- **WHEN** a pull request targeting `main` is opened or updated
-- **THEN** the CI workflow runs the full gate against the pull request head
+- **WHEN** a pull request targeting `main` is opened or its head is updated
+- **THEN** the checks on that head are the checks from the push of that commit
+- **AND** the CI workflow does not start a run for the pull request event
 
 #### Scenario: Superseded run
 

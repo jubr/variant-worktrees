@@ -3,11 +3,11 @@ name: CI
 # Specification: openspec/specs/meta/ci-feature-builds/spec.md
 # AIDEV-NOTE: main is not in `push` on purpose. ci-release.yaml calls this workflow
 # for main pushes, so main would otherwise run the whole gate twice.
+# AIDEV-NOTE: no pull_request trigger. The push of the pull request head is the
+# gate run. A pull_request run uses refs/pull/N/merge and would not be cancelled.
 on:
   push:
     branches-ignore: [main]
-  pull_request:
-    branches: [main]
   workflow_call:
 
 permissions:

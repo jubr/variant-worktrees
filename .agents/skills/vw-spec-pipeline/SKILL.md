@@ -40,6 +40,6 @@ Stop caffeinate when the pipeline is SUCCESS (or the user aborts). If wrapup fol
 
 ## Notes
 
-- Default workflows run on branch push and pull_request against `main`. Treat the CI workflow as the gate.
+- Default workflows run on push to a branch other than `main`. A pull request shows that push run. Treat the CI workflow as the gate.
 - Keep the pull request description updated if scope shifted during CI fixes.
 - Sync-archive `[skip ci]`, `gh pr merge`, and `variant implode` belong to `vw-spec-wrapup`, not this skill.

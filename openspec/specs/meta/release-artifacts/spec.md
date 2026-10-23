@@ -87,3 +87,9 @@ A separate workflow SHALL publish the `.vsix` files of one chosen release to the
 
 - **WHEN** the maintainer selects only one registry
 - **THEN** only that registry receives the `.vsix` files
+
+#### Scenario: Release files survive repository checkout
+
+- **WHEN** the approved publish run has downloaded the release `.vsix` files and checked out the repository
+- **THEN** every downloaded `.vsix` file is still present when the first registry is contacted
+- **AND** the run fails before contacting either registry if none is present

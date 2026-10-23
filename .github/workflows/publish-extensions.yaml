@@ -58,14 +58,21 @@ jobs:
     runs-on: ubuntu-latest
     environment: marketplace
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: vsix
-          path: vsix
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
         with:
           install_args: bun
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: vsix
+      - name: Require downloaded .vsix files
+        run: |
+          count="$(find vsix -name '*.vsix' | wc -l)"
+          if [ "$count" -lt 1 ]; then
+            echo "::error::publish directory has no .vsix file"
+            exit 1
+          fi
       - name: Visual Studio Marketplace
         if: inputs.registry == 'both' || inputs.registry == 'marketplace'
         env:
