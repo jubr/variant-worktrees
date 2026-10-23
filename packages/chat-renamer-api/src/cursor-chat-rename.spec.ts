@@ -879,21 +879,17 @@ describe("catalogTitleDecision", () => {
   });
 
   it("lets a failing rename reject, so the caller can report it", async () => {
-    const { result } = await run(
+    const { result, entries } = await run(
       { text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 },
       {
         rename: async () => {
           throw new Error("gate closed");
         },
       },
-    ).then((outcome) => ({
-      result: outcome.result.then(
-        () => "resolved",
-        (error: Error) => error.message,
-      ),
-    }));
+    );
 
-    expect(result).toBe("gate closed");
+    await expect(result).rejects.toThrow("gate closed");
+    expect(entries.filter((entry) => entry.message.includes("decision"))).toEqual([]);
   });
 
   it("keeps the boolean and outcome wrappers", async () => {
