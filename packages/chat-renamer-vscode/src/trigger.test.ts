@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { activationPatternSources, DEFAULT_ACTIVATION_PATTERNS, installChatRenameHook } from "chat-renamer-api";
 import * as vscode from "vscode";
 
+import { captureLog, quiet } from "../test/log";
 import { vscodeMock } from "../test/vscode-mock";
 import { type RegisterChatRenamerOptions, registerChatRenamer as register } from "./register";
 
 type Disposable = { dispose(): void };
 
-const quiet = { info: () => {}, warn: () => {}, error: () => {} };
 describe("trigger", () => {
   let listeners: Array<(change: { sessionId: string; title?: string }) => void>;
   let registerUriHandler: ReturnType<typeof spyOn>;
@@ -92,19 +92,18 @@ describe("trigger", () => {
 
     it("still listens when the agent host extension is not enumerable", async () => {
       vscodeMock.extensions.getExtension = () => undefined;
-      const errors: unknown[][] = [];
-      const warnings: string[] = [];
-      const log = {
-        info: () => {},
-        warn: (line: string) => warnings.push(line),
-        error: (...args: unknown[]) => errors.push(args),
-      };
+      const { log, entries } = captureLog();
 
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
 
       expect(listeners).toHaveLength(1);
-      expect(errors).toEqual([]);
-      expect(warnings.join("\n")).not.toContain("is not installed");
+      expect(entries.filter((entry) => entry.level === "error")).toEqual([]);
+      expect(
+        entries
+          .filter((entry) => entry.level === "warn")
+          .map((entry) => entry.message)
+          .join("\n"),
+      ).not.toContain("is not installed");
     });
 
     it("keeps a second extension idle while the first one is active", async () => {
@@ -117,14 +116,16 @@ describe("trigger", () => {
 
     it("leaves chat-renamer idle when variant-worktrees is installed", async () => {
       vscodeMock.extensions.all = [{ id: "jubr.variant-worktrees" }];
-      const lines: string[] = [];
-      const log = { info: (line: string) => lines.push(line), warn: () => {}, error: () => {} };
+      const captured = captureLog();
+      const { log } = captured;
 
       await registerChatRenamer(context("jubr.chat-renamer"), { log }).ready;
 
       expect(listeners).toHaveLength(0);
       expect(registerUriHandler).not.toHaveBeenCalled();
-      expect(lines.some((line) => line.includes("jubr.variant-worktrees") && line.includes("idle"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("jubr.variant-worktrees") && line.includes("idle"))).toBe(
+        true,
+      );
 
       await registerChatRenamer(context("jubr.variant-worktrees"), { log: quiet }).ready;
 
@@ -149,13 +150,15 @@ describe("trigger", () => {
     });
 
     it("tells the log which extension owns renaming", async () => {
-      const lines: string[] = [];
-      const log = { info: (line: string) => lines.push(line), warn: () => {}, error: () => {} };
+      const captured = captureLog();
+      const { log } = captured;
       await registerChatRenamer(context("variant.variant-vscode"), { log: quiet }).ready;
 
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
 
-      expect(lines.some((line) => line.includes("variant.variant-vscode") && line.includes("idle"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("variant.variant-vscode") && line.includes("idle"))).toBe(
+        true,
+      );
     });
 
     it("hands renaming to the next extension once the owner is disposed", async () => {
@@ -441,16 +444,12 @@ describe("trigger", () => {
     let renamed: Array<{ sessionId: string; title: string }>;
     let catalog: Array<{ sessionId: string; title?: string }>;
     let prompts: Record<string, { text: string; submittedAtMs?: number }>;
-    let lines: string[];
     let commands: Record<string, (...args: unknown[]) => unknown>;
     let configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void>;
     let listCalls: number;
 
-    const log = {
-      info: (line: string) => lines.push(line),
-      warn: (line: string) => lines.push(line),
-      error: (line: string) => lines.push(line),
-    };
+    const captured = captureLog();
+    const log = captured.log;
     const emit = (change: { sessionId: string; title?: string }) => {
       for (const listener of [...listeners]) {
         listener(change);
@@ -477,7 +476,7 @@ describe("trigger", () => {
       renamed = [];
       catalog = [];
       prompts = {};
-      lines = [];
+      captured.entries.length = 0;
       commands = {};
       configListeners = [];
       listCalls = 0;
@@ -535,14 +534,18 @@ describe("trigger", () => {
 
       await start();
 
-      const started = lines.find((line) => line.includes("run started"));
+      const started = captured.lines.find((line) => line.includes("run started"));
       expect(started?.startsWith("[existing-chats]")).toBe(true);
       expect(started).toContain("startup");
       expect(started).toContain(`${SETTING}=7`);
-      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed oldest"))).toBe(true);
-      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed 3"))).toBe(true);
       expect(
-        lines.some(
+        captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed oldest")),
+      ).toBe(true);
+      expect(captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed 3"))).toBe(
+        true,
+      );
+      expect(
+        captured.lines.some(
           (line) =>
             line.startsWith("[existing-chats]") && line.includes("existing chats plan") && line.includes('"abc"'),
         ),
@@ -559,7 +562,9 @@ describe("trigger", () => {
 
       expect(renamed).toEqual([]);
       expect(listCalls).toBe(0);
-      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(true);
+      expect(captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(
+        true,
+      );
     });
 
     it("leaves chats older than the window alone", async () => {
@@ -605,7 +610,9 @@ describe("trigger", () => {
       await settle();
 
       expect(renamed).toEqual([{ sessionId: "late", title: "abc" }]);
-      expect(lines.some((line) => line.includes("run started") && line.includes("title events settled"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("run started") && line.includes("title events settled"))).toBe(
+        true,
+      );
     });
 
     it("lets only the active instance run", async () => {
@@ -629,7 +636,9 @@ describe("trigger", () => {
       await settle();
 
       expect(renamed).toHaveLength(3);
-      expect(lines.some((line) => line.includes("run started") && line.includes("setting changed"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("run started") && line.includes("setting changed"))).toBe(
+        true,
+      );
     });
 
     it("re-examines recorded chats when the command runs", async () => {
@@ -640,7 +649,7 @@ describe("trigger", () => {
       await commands["variant.renameExistingChats"]?.();
 
       expect(renamed).toHaveLength(3);
-      expect(lines.some((line) => line.includes("run started") && line.includes("command"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("run started") && line.includes("command"))).toBe(true);
     });
 
     it("tells the user which setting switched the command off", async () => {
@@ -680,14 +689,18 @@ describe("trigger", () => {
         await startWith({ renameExistingDays: 30 });
 
         expect(renamed).toEqual([{ sessionId: "stale", title: "abc" }]);
-        expect(lines.some((line) => line.includes("run started") && line.includes(`${SETTING}=30`))).toBe(true);
+        expect(captured.lines.some((line) => line.includes("run started") && line.includes(`${SETTING}=30`))).toBe(
+          true,
+        );
       });
 
       it("switches existing chats off when variants.yaml says 0", async () => {
         await startWith({ renameExistingDays: 0 });
 
         expect(renamed).toEqual([]);
-        expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(true);
+        expect(
+          captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`)),
+        ).toBe(true);
       });
 
       it("lets the editor setting win over variants.yaml", async () => {
