@@ -607,13 +607,45 @@ describe("trigger", () => {
       expect(warnings).toHaveLength(1);
     });
 
-    it("tells the user when the first prompt holds no rename request", async () => {
+    it("tells the user why when the first prompt holds no rename request", async () => {
       await start("fix the build");
 
       await commands["chat-renamer.renameActiveChat"]?.();
 
       expect(renamed).toEqual([]);
+      expect(warnings).toEqual([["This chat was not renamed: no rename request"]]);
+    });
+
+    it("tells the user the parse reason of a malformed request", async () => {
+      await start("/chat-rename two words");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([]);
       expect(warnings).toHaveLength(1);
+      expect(String(warnings[0]?.[0])).toStartWith("This chat was not renamed: malformed request: ");
+      expect(String(warnings[0]?.[0]).length).toBeGreaterThan("This chat was not renamed: malformed request: ".length);
+    });
+
+    it("tells the user why when the rename throws, and still fails the command", async () => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = async () => {
+        throw new Error("gate closed");
+      };
+      await start("/vw-spec-start abc");
+
+      await expect(commands["chat-renamer.renameActiveChat"]?.()).rejects.toThrow("gate closed");
+
+      expect(warnings).toEqual([["Chat rename failed: gate closed"]]);
+    });
+
+    it("is not limited to the title event's prompt lines", async () => {
+      const lines = Array.from({ length: 40 }, (_, index) => `filler ${index + 1}`);
+      lines[38] = "/vw-spec-start abc";
+      await start(lines.join("\n"));
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "chat-1", title: "abc" }]);
     });
 
     it("does not warn when the current title already shares the base", async () => {

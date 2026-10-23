@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import {
   type ChatRenamerNames,
-  catalogTitleOutcome,
+  catalogTitleDecision,
   type FirstPrompt,
   type Logger,
   listChatCatalog,
@@ -10,6 +10,7 @@ import {
   readFirstPrompt as readStoredFirstPrompt,
   renameChat,
   renameChatFromPrompt,
+  type TitleDecision,
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
@@ -115,21 +116,30 @@ export const registerRenameChatCommands = (
         const deps = resolveChatRenameDeps(context);
         const sessions = await listChatCatalog(deps);
         const title = sessions?.find((session) => session.sessionId === id)?.title;
-        const outcome = await catalogTitleOutcome(
-          deps,
-          { sessionId: id, title },
-          {
-            ...options,
-            readFirstPrompt: readPrompt,
-            notBeforeMs: Number.NEGATIVE_INFINITY,
-            maxAgeMs: Number.POSITIVE_INFINITY,
-          },
-        );
-        if (outcome === "same-base") {
+        let decision: TitleDecision;
+        try {
+          decision = await catalogTitleDecision(
+            deps,
+            { sessionId: id, title },
+            {
+              ...options,
+              readFirstPrompt: readPrompt,
+              notBeforeMs: Number.NEGATIVE_INFINITY,
+              maxAgeMs: Number.POSITIVE_INFINITY,
+            },
+          );
+        } catch (error) {
+          void vscode.window.showWarningMessage(
+            `Chat rename failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          throw error;
+        }
+        if (decision.outcome === "same-base") {
           return false;
         }
-        if (outcome !== "renamed") {
-          void vscode.window.showWarningMessage("This chat has no rename request.");
+        if (decision.outcome !== "renamed") {
+          const why = decision.detail ? `${decision.reason}: ${decision.detail}` : decision.reason;
+          void vscode.window.showWarningMessage(`This chat was not renamed: ${why}`);
           return false;
         }
         return true;
