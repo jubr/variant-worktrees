@@ -36,6 +36,6 @@
 
 ## 8. Docs, validation and packages
 
-- [ ] 8.1 Update `packages/chat-renamer-vscode/README.md`, `packages/variant-vscode/README.md`, `docs/chat-renamer/configuration.md` and `docs/chat-renamer/index.md` (the log channel is listed under Show Logs…, select Trace to see the prompt, the decision line fields, the `titleEventPromptLines` setting, notifications name the reason), and add entries to `packages/chat-renamer-vscode/CHANGELOG.md`, `packages/variant-vscode/CHANGELOG.md` and the root `CHANGELOG.md`. Verify `task docs:build` passes.
+- [ ] 8.1 Update `packages/chat-renamer-vscode/README.md`, `packages/variant-vscode/README.md`, `docs/chat-renamer/configuration.md` and `docs/chat-renamer/index.md` (the log channel is listed under Show Logs…, select Trace to see the prompt, the decision line fields, the `titleEventPromptLines` setting, notifications name the reason), and add Unreleased entries to `packages/chat-renamer-vscode/CHANGELOG.md` and `packages/variant-vscode/CHANGELOG.md` (the root changelog covers the library and CLI, which do not change). Verify `task docs:build` passes.
 - [ ] 8.2 Run `task lint`, `task test`, `task build`, `openspec validate --all --strict --no-interactive`, and `task check:full`. Verify each passes.
 - [ ] 8.3 Build the extensions with `task package:vsix` and verify `out/` holds `variant-worktrees-<version>.vsix` and `chat-renamer-<version>.vsix`, each non-empty, and that each package's `extension/package.json` lists `titleEventPromptLines`.
