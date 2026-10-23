@@ -10,6 +10,7 @@ describe("extension manifest", () => {
       "chat-renamer.activationPatterns",
       "chat-renamer.hookScope",
       "chat-renamer.renameExistingDays",
+      "chat-renamer.titleEventPromptLines",
       "chat-renamer.trigger",
       "chat-renamer.worktreePrefixes",
     ]);
@@ -28,7 +29,9 @@ describe("extension manifest", () => {
   });
 
   it("keeps the other defaults in step with the shared defaults", async () => {
-    const { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_WORKTREE_PREFIXES } = await import("chat-renamer-api");
+    const { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_TITLE_EVENT_PROMPT_LINES, DEFAULT_WORKTREE_PREFIXES } = await import(
+      "chat-renamer-api"
+    );
     const properties = manifest.contributes.configuration.properties;
 
     expect(properties["chat-renamer.worktreePrefixes"].default).toEqual([...DEFAULT_WORKTREE_PREFIXES]);
@@ -37,6 +40,11 @@ describe("extension manifest", () => {
       minimum: 0,
       default: DEFAULT_RENAME_EXISTING_DAYS,
     });
+    expect(properties["chat-renamer.titleEventPromptLines"]).toMatchObject({
+      type: "integer",
+      minimum: 1,
+      default: DEFAULT_TITLE_EVENT_PROMPT_LINES,
+    });
   });
 
   it("explains in the setting that 0 turns renaming of existing chats off", () => {
@@ -44,6 +52,13 @@ describe("extension manifest", () => {
 
     expect(markdownDescription).toContain("0");
     expect(markdownDescription).toContain("off");
+  });
+
+  it("explains that the limit applies to the title event and where the prompt shows in the log", () => {
+    const { markdownDescription } = manifest.contributes.configuration.properties["chat-renamer.titleEventPromptLines"];
+
+    expect(markdownDescription).toContain("title event");
+    expect(markdownDescription).toContain("Trace");
   });
 
   it("contributes the command that renames existing chats", () => {

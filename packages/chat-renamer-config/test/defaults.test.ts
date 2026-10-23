@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import * as defaults from "../src/index";
 
 describe("defaults", () => {
-  it("exports the five renamer defaults", () => {
+  it("exports the six renamer defaults", () => {
     expect(defaults.DEFAULT_TRIGGER).toBe("titleEvent");
     expect(defaults.DEFAULT_HOOK_SCOPE).toBe("workspace");
     expect(defaults.DEFAULT_ACTIVATION_PATTERNS).toEqual([
@@ -14,6 +14,7 @@ describe("defaults", () => {
     ]);
     expect(defaults.DEFAULT_WORKTREE_PREFIXES).toEqual([]);
     expect(defaults.DEFAULT_RENAME_EXISTING_DAYS).toBe(7);
+    expect(defaults.DEFAULT_TITLE_EVENT_PROMPT_LINES).toBe(10);
   });
 
   it("lists the allowed trigger and hook scope values", () => {

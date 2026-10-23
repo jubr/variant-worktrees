@@ -63,6 +63,7 @@ describe("VariantsConfigSchema", () => {
         activationPatterns: ["/x/"],
         worktreePrefixes: ["_v-", "_work-"],
         renameExistingDays: 30,
+        titleEventPromptLines: 20,
       },
     });
     expect(result.success).toBe(true);
@@ -70,6 +71,7 @@ describe("VariantsConfigSchema", () => {
 
   it("rejects an invalid or unknown chatRenamer option", () => {
     expect(VariantsConfigSchema.safeParse({ chatRenamer: { renameExistingDays: -1 } }).success).toBe(false);
+    expect(VariantsConfigSchema.safeParse({ chatRenamer: { titleEventPromptLines: 0 } }).success).toBe(false);
     expect(VariantsConfigSchema.safeParse({ chatRenamer: { trigger: "poll" } }).success).toBe(false);
     expect(VariantsConfigSchema.safeParse({ chatRenamer: { colour: "red" } }).success).toBe(false);
   });

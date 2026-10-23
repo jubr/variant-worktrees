@@ -1,6 +1,7 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import * as vscode from "vscode";
 
+import { captureLog } from "../test/log";
 import { registerChatRenamer } from "./register";
 
 const context = () => ({ subscriptions: [] as unknown[] }) as unknown as vscode.ExtensionContext;
@@ -40,12 +41,12 @@ describe("registerChatRenamer", () => {
   });
 
   it("logs to the supplied logger", () => {
-    const lines: string[] = [];
-    const log = { info: (m: string) => lines.push(m), warn: () => {}, error: () => {} };
+    const captured = captureLog();
+    const { log } = captured;
 
     registerChatRenamer(context(), { log });
 
-    expect(lines[0]).toContain("chat-renamer.renameChat");
+    expect(captured.lines[0]).toContain("chat-renamer.renameChat");
   });
 
   it("adds its disposables to the extension context", () => {

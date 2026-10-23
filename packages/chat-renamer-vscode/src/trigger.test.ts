@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { activationPatternSources, DEFAULT_ACTIVATION_PATTERNS, installChatRenameHook } from "chat-renamer-api";
 import * as vscode from "vscode";
 
+import { captureLog, quiet } from "../test/log";
 import { vscodeMock } from "../test/vscode-mock";
 import { type RegisterChatRenamerOptions, registerChatRenamer as register } from "./register";
 
 type Disposable = { dispose(): void };
 
-const quiet = { info: () => {}, warn: () => {}, error: () => {} };
 describe("trigger", () => {
   let listeners: Array<(change: { sessionId: string; title?: string }) => void>;
   let registerUriHandler: ReturnType<typeof spyOn>;
@@ -92,19 +92,18 @@ describe("trigger", () => {
 
     it("still listens when the agent host extension is not enumerable", async () => {
       vscodeMock.extensions.getExtension = () => undefined;
-      const errors: unknown[][] = [];
-      const warnings: string[] = [];
-      const log = {
-        info: () => {},
-        warn: (line: string) => warnings.push(line),
-        error: (...args: unknown[]) => errors.push(args),
-      };
+      const { log, entries } = captureLog();
 
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
 
       expect(listeners).toHaveLength(1);
-      expect(errors).toEqual([]);
-      expect(warnings.join("\n")).not.toContain("is not installed");
+      expect(entries.filter((entry) => entry.level === "error")).toEqual([]);
+      expect(
+        entries
+          .filter((entry) => entry.level === "warn")
+          .map((entry) => entry.message)
+          .join("\n"),
+      ).not.toContain("is not installed");
     });
 
     it("keeps a second extension idle while the first one is active", async () => {
@@ -117,14 +116,16 @@ describe("trigger", () => {
 
     it("leaves chat-renamer idle when variant-worktrees is installed", async () => {
       vscodeMock.extensions.all = [{ id: "jubr.variant-worktrees" }];
-      const lines: string[] = [];
-      const log = { info: (line: string) => lines.push(line), warn: () => {}, error: () => {} };
+      const captured = captureLog();
+      const { log } = captured;
 
       await registerChatRenamer(context("jubr.chat-renamer"), { log }).ready;
 
       expect(listeners).toHaveLength(0);
       expect(registerUriHandler).not.toHaveBeenCalled();
-      expect(lines.some((line) => line.includes("jubr.variant-worktrees") && line.includes("idle"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("jubr.variant-worktrees") && line.includes("idle"))).toBe(
+        true,
+      );
 
       await registerChatRenamer(context("jubr.variant-worktrees"), { log: quiet }).ready;
 
@@ -149,13 +150,15 @@ describe("trigger", () => {
     });
 
     it("tells the log which extension owns renaming", async () => {
-      const lines: string[] = [];
-      const log = { info: (line: string) => lines.push(line), warn: () => {}, error: () => {} };
+      const captured = captureLog();
+      const { log } = captured;
       await registerChatRenamer(context("variant.variant-vscode"), { log: quiet }).ready;
 
       await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
 
-      expect(lines.some((line) => line.includes("variant.variant-vscode") && line.includes("idle"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("variant.variant-vscode") && line.includes("idle"))).toBe(
+        true,
+      );
     });
 
     it("hands renaming to the next extension once the owner is disposed", async () => {
@@ -261,6 +264,198 @@ describe("trigger", () => {
       await titleEvent("fresh");
 
       expect(renamed).toHaveLength(1);
+    });
+  });
+
+  describe("title event prompt lines", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void>;
+    /** 12 lines; `/vw-spec-start abc` is on `requestLine`. */
+    const prompt = (requestLine: number) =>
+      Array.from({ length: 12 }, (_, index) =>
+        index + 1 === requestLine ? "/vw-spec-start abc" : `filler ${index + 1}`,
+      ).join("\n");
+
+    const start = async (text: string, options: Partial<RegisterChatRenamerOptions> = {}) => {
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: quiet,
+        now: () => STARTED,
+        readFirstPrompt: async () => ({ text, submittedAtMs: STARTED + 1_000 }),
+        ...options,
+      }).ready;
+    };
+    const titleEvent = async (sessionId: string) => {
+      // The mock listener list keeps disposed subscriptions, so the live one is the last.
+      listeners.at(-1)?.({ sessionId, title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+
+    beforeEach(() => {
+      renamed = [];
+      configListeners = [];
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      spyOn(vscode.workspace, "onDidChangeConfiguration").mockImplementation(((listener: never) => {
+        configListeners.push(listener);
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.workspace.onDidChangeConfiguration);
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("reads 10 lines by default", async () => {
+      await start(prompt(10));
+      await titleEvent("inside");
+
+      expect(renamed).toEqual([{ sessionId: "inside", title: "abc" }]);
+    });
+
+    it("ignores a request on line 11 by default", async () => {
+      await start(prompt(11));
+      await titleEvent("beyond");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("reads as many lines as variants.yaml asks for", async () => {
+      await start(prompt(11), { fileConfig: { titleEventPromptLines: 20 } });
+      await titleEvent("wide");
+
+      expect(renamed).toEqual([{ sessionId: "wide", title: "abc" }]);
+    });
+
+    it("lets the editor setting win over variants.yaml", async () => {
+      configure({ titleEventPromptLines: 1, renameExistingDays: 0 });
+
+      await start(prompt(2), { fileConfig: { titleEventPromptLines: 20 } });
+      await titleEvent("narrow");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("applies a changed setting to the next chat without a reload", async () => {
+      configure({ titleEventPromptLines: 10, renameExistingDays: 0 });
+      await start(prompt(11));
+      await titleEvent("before");
+
+      configure({ titleEventPromptLines: 20, renameExistingDays: 0 });
+      for (const listener of configListeners) {
+        listener({ affectsConfiguration: () => true });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      await titleEvent("after");
+
+      expect(renamed).toEqual([{ sessionId: "after", title: "abc" }]);
+    });
+
+    it("writes the lines it read to the log at trace level", async () => {
+      const captured = captureLog();
+      await start(prompt(11), { log: captured.log });
+      await titleEvent("traced");
+
+      const trace = captured.entries.filter((entry) => entry.level === "trace");
+      expect(trace).toHaveLength(1);
+      expect(trace[0]?.message).toContain("[title-event] prompt");
+      expect(trace[0]?.message).toContain("lines=10 dropped=2");
+    });
+  });
+
+  describe("title event decisions and failures", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let warnings: string[];
+    let captured: ReturnType<typeof captureLog>;
+
+    const start = async (text: string, submittedAtMs = STARTED + 1_000) => {
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: captured.log,
+        now: () => STARTED,
+        readFirstPrompt: async () => ({ text, submittedAtMs }),
+      }).ready;
+    };
+    const titleEvent = async (sessionId: string) => {
+      listeners[0]?.({ sessionId, title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+    const decisions = () => captured.entries.filter((entry) => entry.message.startsWith("[title-event] decision"));
+
+    beforeEach(() => {
+      captured = captureLog();
+      renamed = [];
+      warnings = [];
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      spyOn(vscode.window, "showWarningMessage").mockImplementation((async (...args: unknown[]) => {
+        warnings.push(String(args[0]));
+      }) as typeof vscode.window.showWarningMessage);
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("logs one decision with the matched pattern when it renames", async () => {
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+
+      expect(decisions()).toEqual([
+        {
+          level: "info",
+          message:
+            '[title-event] decision session="fresh" matched=true pattern=2 decision="rename" reason="rename request" title="abc"',
+        },
+      ]);
+    });
+
+    it("logs a prompt without a request as not matched and shows no notification", async () => {
+      await start("hello there");
+      await titleEvent("fresh");
+
+      expect(decisions()).toEqual([
+        {
+          level: "info",
+          message: '[title-event] decision session="fresh" matched=false decision="ignore" reason="no rename request"',
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("logs a chat that existed before startup at debug level only", async () => {
+      await start("/vw-spec-start abc", STARTED - 5_000);
+      await titleEvent("old");
+
+      expect(decisions().map((entry) => entry.level)).toEqual(["debug"]);
+      expect(decisions()[0]?.message).toContain('reason="before startup"');
+    });
+
+    it("logs no decision for a later title event of the same chat", async () => {
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+      await titleEvent("fresh");
+
+      expect(decisions()).toHaveLength(1);
+    });
+
+    it("reports a failing rename in the log and in a notification with the reason", async () => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = async () => {
+        throw new Error("gate closed");
+      };
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+
+      expect(decisions()).toEqual([
+        {
+          level: "error",
+          message:
+            '[title-event] decision session="fresh" decision="ignore" reason="title event failed" detail="gate closed"',
+        },
+      ]);
+      expect(warnings).toEqual(["Chat rename failed for fresh: gate closed"]);
     });
   });
 
@@ -412,13 +607,45 @@ describe("trigger", () => {
       expect(warnings).toHaveLength(1);
     });
 
-    it("tells the user when the first prompt holds no rename request", async () => {
+    it("tells the user why when the first prompt holds no rename request", async () => {
       await start("fix the build");
 
       await commands["chat-renamer.renameActiveChat"]?.();
 
       expect(renamed).toEqual([]);
+      expect(warnings).toEqual([["This chat was not renamed: no rename request"]]);
+    });
+
+    it("tells the user the parse reason of a malformed request", async () => {
+      await start("/chat-rename two words");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([]);
       expect(warnings).toHaveLength(1);
+      expect(String(warnings[0]?.[0])).toStartWith("This chat was not renamed: malformed request: ");
+      expect(String(warnings[0]?.[0]).length).toBeGreaterThan("This chat was not renamed: malformed request: ".length);
+    });
+
+    it("tells the user why when the rename throws, and still fails the command", async () => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = async () => {
+        throw new Error("gate closed");
+      };
+      await start("/vw-spec-start abc");
+
+      await expect(commands["chat-renamer.renameActiveChat"]?.()).rejects.toThrow("gate closed");
+
+      expect(warnings).toEqual([["Chat rename failed: gate closed"]]);
+    });
+
+    it("is not limited to the title event's prompt lines", async () => {
+      const lines = Array.from({ length: 40 }, (_, index) => `filler ${index + 1}`);
+      lines[38] = "/vw-spec-start abc";
+      await start(lines.join("\n"));
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "chat-1", title: "abc" }]);
     });
 
     it("does not warn when the current title already shares the base", async () => {
@@ -441,16 +668,12 @@ describe("trigger", () => {
     let renamed: Array<{ sessionId: string; title: string }>;
     let catalog: Array<{ sessionId: string; title?: string }>;
     let prompts: Record<string, { text: string; submittedAtMs?: number }>;
-    let lines: string[];
     let commands: Record<string, (...args: unknown[]) => unknown>;
     let configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void>;
     let listCalls: number;
 
-    const log = {
-      info: (line: string) => lines.push(line),
-      warn: (line: string) => lines.push(line),
-      error: (line: string) => lines.push(line),
-    };
+    const captured = captureLog();
+    const log = captured.log;
     const emit = (change: { sessionId: string; title?: string }) => {
       for (const listener of [...listeners]) {
         listener(change);
@@ -477,7 +700,7 @@ describe("trigger", () => {
       renamed = [];
       catalog = [];
       prompts = {};
-      lines = [];
+      captured.entries.length = 0;
       commands = {};
       configListeners = [];
       listCalls = 0;
@@ -535,14 +758,18 @@ describe("trigger", () => {
 
       await start();
 
-      const started = lines.find((line) => line.includes("run started"));
+      const started = captured.lines.find((line) => line.includes("run started"));
       expect(started?.startsWith("[existing-chats]")).toBe(true);
       expect(started).toContain("startup");
       expect(started).toContain(`${SETTING}=7`);
-      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed oldest"))).toBe(true);
-      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed 3"))).toBe(true);
       expect(
-        lines.some(
+        captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed oldest")),
+      ).toBe(true);
+      expect(captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes("renamed 3"))).toBe(
+        true,
+      );
+      expect(
+        captured.lines.some(
           (line) =>
             line.startsWith("[existing-chats]") && line.includes("existing chats plan") && line.includes('"abc"'),
         ),
@@ -559,7 +786,9 @@ describe("trigger", () => {
 
       expect(renamed).toEqual([]);
       expect(listCalls).toBe(0);
-      expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(true);
+      expect(captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(
+        true,
+      );
     });
 
     it("leaves chats older than the window alone", async () => {
@@ -605,7 +834,9 @@ describe("trigger", () => {
       await settle();
 
       expect(renamed).toEqual([{ sessionId: "late", title: "abc" }]);
-      expect(lines.some((line) => line.includes("run started") && line.includes("title events settled"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("run started") && line.includes("title events settled"))).toBe(
+        true,
+      );
     });
 
     it("lets only the active instance run", async () => {
@@ -629,7 +860,9 @@ describe("trigger", () => {
       await settle();
 
       expect(renamed).toHaveLength(3);
-      expect(lines.some((line) => line.includes("run started") && line.includes("setting changed"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("run started") && line.includes("setting changed"))).toBe(
+        true,
+      );
     });
 
     it("re-examines recorded chats when the command runs", async () => {
@@ -640,7 +873,7 @@ describe("trigger", () => {
       await commands["variant.renameExistingChats"]?.();
 
       expect(renamed).toHaveLength(3);
-      expect(lines.some((line) => line.includes("run started") && line.includes("command"))).toBe(true);
+      expect(captured.lines.some((line) => line.includes("run started") && line.includes("command"))).toBe(true);
     });
 
     it("tells the user which setting switched the command off", async () => {
@@ -680,14 +913,18 @@ describe("trigger", () => {
         await startWith({ renameExistingDays: 30 });
 
         expect(renamed).toEqual([{ sessionId: "stale", title: "abc" }]);
-        expect(lines.some((line) => line.includes("run started") && line.includes(`${SETTING}=30`))).toBe(true);
+        expect(captured.lines.some((line) => line.includes("run started") && line.includes(`${SETTING}=30`))).toBe(
+          true,
+        );
       });
 
       it("switches existing chats off when variants.yaml says 0", async () => {
         await startWith({ renameExistingDays: 0 });
 
         expect(renamed).toEqual([]);
-        expect(lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`))).toBe(true);
+        expect(
+          captured.lines.some((line) => line.startsWith("[existing-chats]") && line.includes(`${SETTING}=0`)),
+        ).toBe(true);
       });
 
       it("lets the editor setting win over variants.yaml", async () => {

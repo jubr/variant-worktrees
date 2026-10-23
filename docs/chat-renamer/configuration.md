@@ -13,6 +13,7 @@ chatRenamer:
   worktreePrefixes: # replaces variant.prefix; [] turns path derivation off
     - _v-
   renameExistingDays: 7 # 0 turns off renaming of chats that existed before the editor started
+  titleEventPromptLines: 10 # lines of a new chat's first prompt the title event tests (at least 1)
 ```
 
 `variant.enable` defaults to true. Set it to false to turn chat renaming off in this extension.

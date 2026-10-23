@@ -8,6 +8,10 @@ export const isWorktreePrefix = (value: unknown): value is string =>
 export const isRenameExistingDays = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
+/** A line limit: an integer of at least 1. */
+export const isPromptLineLimit = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1;
+
 export const isTrigger = (value: unknown): value is Trigger => TRIGGERS.includes(value as Trigger);
 
 export const isHookScope = (value: unknown): value is HookScope => HOOK_SCOPES.includes(value as HookScope);

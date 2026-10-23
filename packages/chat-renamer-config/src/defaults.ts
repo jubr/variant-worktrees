@@ -30,3 +30,6 @@ export const DEFAULT_WORKTREE_PREFIXES: readonly string[] = [];
 
 /** How many days back existing chats are renamed. 0 turns it off. */
 export const DEFAULT_RENAME_EXISTING_DAYS = 7;
+
+/** How many lines of a chat's first prompt the title event reads. A rename request is expected near the top. */
+export const DEFAULT_TITLE_EVENT_PROMPT_LINES = 10;

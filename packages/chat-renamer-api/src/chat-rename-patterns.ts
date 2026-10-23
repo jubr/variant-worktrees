@@ -62,27 +62,42 @@ const titleFromMatch = (match: RegExpExecArray): string | undefined => {
   return title.length > 0 ? title : undefined;
 };
 
+/** The first `limit` lines of `text`, joined with `\n`, and how many lines were read and left out. */
+export const firstLines = (text: string, limit: number): { text: string; lines: number; dropped: number } => {
+  const all = text.split(/\r?\n/);
+  const kept = all.slice(0, limit);
+  return { text: kept.join("\n"), lines: kept.length, dropped: all.length - kept.length };
+};
+
 /**
  * Looks for a rename request, line by line. On each line the `/chat-rename` and `/rename-chat` slash commands are
  * tried first (the title is taken literally), then the activation patterns (the first capture group that matched,
- * or the whole match, is the title). The first line with a result wins.
+ * or the whole match, is the title). The first line with a result wins. `patternIndex` is the position of the
+ * activation pattern that produced the title; a slash command has none.
  */
-export const findRenameRequest = (text: string, patterns: readonly RegExp[]): RenameRequest => {
+export const matchRenameRequest = (
+  text: string,
+  patterns: readonly RegExp[],
+): { request: RenameRequest; patternIndex?: number } => {
   for (const line of text.split(/\r?\n/)) {
     const slash = parseChatRenameSlash(line);
     if (slash.kind === "rename") {
-      return { kind: "rename", title: slash.title, viaPattern: false };
+      return { request: { kind: "rename", title: slash.title, viaPattern: false } };
     }
     if (slash.kind === "error") {
-      return slash;
+      return { request: slash };
     }
-    for (const pattern of patterns) {
+    for (const [patternIndex, pattern] of patterns.entries()) {
       const match = pattern.exec(line);
       const title = match ? titleFromMatch(match) : undefined;
       if (title) {
-        return { kind: "rename", title, viaPattern: true };
+        return { request: { kind: "rename", title, viaPattern: true }, patternIndex };
       }
     }
   }
-  return { kind: "none" };
+  return { request: { kind: "none" } };
 };
+
+/** The rename request in `text`; see `matchRenameRequest`. */
+export const findRenameRequest = (text: string, patterns: readonly RegExp[]): RenameRequest =>
+  matchRenameRequest(text, patterns).request;
