@@ -364,6 +364,101 @@ describe("trigger", () => {
     });
   });
 
+  describe("title event decisions and failures", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let warnings: string[];
+    let captured: ReturnType<typeof captureLog>;
+
+    const start = async (text: string, submittedAtMs = STARTED + 1_000) => {
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: captured.log,
+        now: () => STARTED,
+        readFirstPrompt: async () => ({ text, submittedAtMs }),
+      }).ready;
+    };
+    const titleEvent = async (sessionId: string) => {
+      listeners[0]?.({ sessionId, title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+    const decisions = () => captured.entries.filter((entry) => entry.message.startsWith("[title-event] decision"));
+
+    beforeEach(() => {
+      captured = captureLog();
+      renamed = [];
+      warnings = [];
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      spyOn(vscode.window, "showWarningMessage").mockImplementation((async (...args: unknown[]) => {
+        warnings.push(String(args[0]));
+      }) as typeof vscode.window.showWarningMessage);
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("logs one decision with the matched pattern when it renames", async () => {
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+
+      expect(decisions()).toEqual([
+        {
+          level: "info",
+          message:
+            '[title-event] decision session="fresh" matched=true pattern=2 decision="rename" reason="rename request" title="abc"',
+        },
+      ]);
+    });
+
+    it("logs a prompt without a request as not matched and shows no notification", async () => {
+      await start("hello there");
+      await titleEvent("fresh");
+
+      expect(decisions()).toEqual([
+        {
+          level: "info",
+          message: '[title-event] decision session="fresh" matched=false decision="ignore" reason="no rename request"',
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("logs a chat that existed before startup at debug level only", async () => {
+      await start("/vw-spec-start abc", STARTED - 5_000);
+      await titleEvent("old");
+
+      expect(decisions().map((entry) => entry.level)).toEqual(["debug"]);
+      expect(decisions()[0]?.message).toContain('reason="before startup"');
+    });
+
+    it("logs no decision for a later title event of the same chat", async () => {
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+      await titleEvent("fresh");
+
+      expect(decisions()).toHaveLength(1);
+    });
+
+    it("reports a failing rename in the log and in a notification with the reason", async () => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = async () => {
+        throw new Error("gate closed");
+      };
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+
+      expect(decisions()).toEqual([
+        {
+          level: "error",
+          message:
+            '[title-event] decision session="fresh" decision="ignore" reason="title event failed" detail="gate closed"',
+        },
+      ]);
+      expect(warnings).toEqual(["Chat rename failed for fresh: gate closed"]);
+    });
+  });
+
   describe("dragged-in worktree folders", () => {
     const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
     let renamed: Array<{ sessionId: string; title: string }>;

@@ -3,10 +3,10 @@ import { dirname, join } from "node:path";
 import {
   activationPatternSources,
   type ChatRenamerNames,
+  catalogTitleDecision,
   claimRenamer,
   compilePatterns,
   type FirstPrompt,
-  handleCatalogTitleChange,
   handleChatRenameUri,
   hookCommand,
   installChatRenameHook,
@@ -230,20 +230,24 @@ export const startChatRenameTrigger = (
           readFirstPromptWithRetry(() =>
             (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
           );
-        void handleCatalogTitleChange(resolveChatRenameDeps(context), change, {
+        const decisionLog = log.child("title-event");
+        void catalogTitleDecision(resolveChatRenameDeps(context), change, {
           ...options,
           readFirstPrompt: readPrompt,
           now,
           notBeforeMs: startedAtMs,
           maxLines: settings.titleEventPromptLines,
-          decisionLog: log.child("title-event"),
-        })
-          .then((handled) => {
-            log.info(
-              `title event ${change.sessionId} title=${JSON.stringify(change.title)}: ${handled ? "renamed from first prompt" : "not renamed"}`,
-            );
-          })
-          .catch((error: unknown) => log.error(`title event ${change.sessionId} failed`, error));
+          decisionLog,
+        }).catch((error: unknown) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          decisionLog.error("decision", undefined, {
+            session: change.sessionId,
+            decision: "ignore",
+            reason: "title event failed",
+            detail,
+          });
+          void vscode.window.showWarningMessage(`Chat rename failed for ${change.sessionId}: ${detail}`);
+        });
       });
       log.info("listening to onDidChangeAgentHostSessionCatalogTitle");
     };

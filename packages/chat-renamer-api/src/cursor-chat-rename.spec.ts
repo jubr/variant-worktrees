@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS, firstLines } from "./chat-rename-patterns";
 import {
   type ChatRenameDeps,
+  catalogTitleDecision,
   type Description,
   handleCatalogTitleChange,
   handleChatRenameUri,
@@ -739,5 +740,169 @@ describe("handleCatalogTitleChange reads a limited number of prompt lines", () =
 
     await expect(renameChatFromPrompt(deps, "chat-1", prompt(40, 39), { patterns })).resolves.toBe(true);
     expect(calls[0]?.title).toBe("abc");
+  });
+});
+
+describe("catalogTitleDecision", () => {
+  const NOW = Date.parse("2026-10-09T15:00:00.000Z");
+  const patterns = compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns;
+  type Prompt = { text: string; submittedAtMs?: number } | undefined;
+  const run = async (
+    prompt: Prompt,
+    extra: { title?: string; notBeforeMs?: number; rename?: () => Promise<void> } = {},
+  ) => {
+    const { deps, calls } = makeDeps(extra.rename);
+    const { log, entries } = captureLog();
+    const result = catalogTitleDecision(
+      deps,
+      { sessionId: "chat-1", title: extra.title ?? "Anything" },
+      {
+        readFirstPrompt: async () => prompt,
+        patterns,
+        now: () => NOW,
+        maxLines: 10,
+        notBeforeMs: extra.notBeforeMs,
+        decisionLog: log.child("title-event"),
+      },
+    );
+    await result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return { result, calls, entries: entries.filter((entry) => entry.level !== "trace") };
+  };
+
+  it("logs a pattern match that renames, with the pattern index and the final title", async () => {
+    const { result, entries } = await run({ text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 });
+
+    await expect(result).resolves.toMatchObject({ outcome: "renamed", decision: "rename", reason: "rename request" });
+    expect(entries).toEqual([
+      {
+        level: "info",
+        message:
+          '[title-event] decision session="chat-1" matched=true pattern=2 decision="rename" reason="rename request" title="abc"',
+      },
+    ]);
+  });
+
+  it("logs a slash command without a pattern", async () => {
+    const { entries } = await run({ text: '/chat-rename "two words"', submittedAtMs: NOW - 1000 });
+
+    expect(entries).toEqual([
+      {
+        level: "info",
+        message:
+          '[title-event] decision session="chat-1" matched=true decision="rename" reason="rename request" title="two words"',
+      },
+    ]);
+  });
+
+  it("logs a prompt with no request as not matched", async () => {
+    const { result, entries, calls } = await run({ text: "hello there", submittedAtMs: NOW - 1000 });
+
+    await expect(result).resolves.toMatchObject({ outcome: "ignored", decision: "ignore", matched: false });
+    expect(calls).toHaveLength(0);
+    expect(entries).toEqual([
+      {
+        level: "info",
+        message: '[title-event] decision session="chat-1" matched=false decision="ignore" reason="no rename request"',
+      },
+    ]);
+  });
+
+  it("logs a malformed slash command with the parse reason", async () => {
+    const { result, entries, calls } = await run({ text: "/chat-rename two words", submittedAtMs: NOW - 1000 });
+
+    const decision = await result;
+    expect(decision).toMatchObject({ decision: "ignore", reason: "malformed request", matched: true });
+    expect(decision.detail).toBeString();
+    expect(calls).toHaveLength(0);
+    expect(entries[0]?.level).toBe("info");
+    expect(entries[0]?.message).toContain('matched=true decision="ignore" reason="malformed request" detail=');
+  });
+
+  it("logs keep when the chat title already has the requested base", async () => {
+    const { result, entries, calls } = await run(
+      { text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 },
+      { title: "abc7" },
+    );
+
+    await expect(result).resolves.toMatchObject({ outcome: "same-base", decision: "keep" });
+    expect(calls).toHaveLength(0);
+    expect(entries[0]?.message).toContain('decision="keep" reason="current title shares the base"');
+  });
+
+  it("logs a chat that existed before startup at debug level", async () => {
+    const { result, entries } = await run(
+      { text: "/vw-spec-start abc", submittedAtMs: NOW - 5000 },
+      { notBeforeMs: NOW - 1000 },
+    );
+
+    await expect(result).resolves.toMatchObject({ decision: "ignore", reason: "before startup" });
+    expect(entries.map((entry) => entry.level)).toEqual(["debug"]);
+    expect(entries[0]?.message).toContain('decision="ignore" reason="before startup"');
+  });
+
+  it("logs a first prompt that is too old at debug level", async () => {
+    const { result, entries } = await run({ text: "/vw-spec-start abc", submittedAtMs: NOW - 60_000 });
+
+    await expect(result).resolves.toMatchObject({ reason: "too old" });
+    expect(entries.map((entry) => entry.level)).toEqual(["debug"]);
+  });
+
+  it("logs an unreadable first prompt, and one without a timestamp, at debug level", async () => {
+    for (const prompt of [undefined, { text: "/vw-spec-start abc" }]) {
+      const { result, entries } = await run(prompt);
+
+      await expect(result).resolves.toMatchObject({ decision: "ignore", reason: "no first prompt" });
+      expect(entries.map((entry) => entry.level)).toEqual(["debug"]);
+    }
+  });
+
+  it("writes no trace line for a chat it skipped before reading the prompt lines", async () => {
+    const { deps } = makeDeps();
+    const { log, entries } = captureLog();
+
+    await catalogTitleDecision(
+      deps,
+      { sessionId: "chat-1" },
+      {
+        readFirstPrompt: async () => ({ text: "/vw-spec-start abc", submittedAtMs: NOW - 60_000 }),
+        patterns,
+        now: () => NOW,
+        maxLines: 10,
+        decisionLog: log.child("title-event"),
+      },
+    );
+
+    expect(entries.filter((entry) => entry.level === "trace")).toEqual([]);
+  });
+
+  it("lets a failing rename reject, so the caller can report it", async () => {
+    const { result } = await run(
+      { text: "/vw-spec-start abc", submittedAtMs: NOW - 1000 },
+      {
+        rename: async () => {
+          throw new Error("gate closed");
+        },
+      },
+    ).then((outcome) => ({
+      result: outcome.result.then(
+        () => "resolved",
+        (error: Error) => error.message,
+      ),
+    }));
+
+    expect(result).toBe("gate closed");
+  });
+
+  it("keeps the boolean and outcome wrappers", async () => {
+    const { deps } = makeDeps();
+    const opts = {
+      readFirstPrompt: async () => ({ text: "hello", submittedAtMs: NOW - 1000 }),
+      now: () => NOW,
+    };
+
+    await expect(handleCatalogTitleChange(deps, { sessionId: "chat-1" }, opts)).resolves.toBe(false);
   });
 });

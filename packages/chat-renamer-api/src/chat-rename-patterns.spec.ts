@@ -6,6 +6,7 @@ import {
   compilePatterns,
   DEFAULT_ACTIVATION_PATTERNS,
   findRenameRequest,
+  matchRenameRequest,
   worktreeActivationPatterns,
 } from "./chat-rename-patterns";
 
@@ -177,5 +178,30 @@ describe("worktree path patterns", () => {
 
   it("lists each prefix once", () => {
     expect(worktreeActivationPatterns(["_v-", "_v-"])).toHaveLength(2);
+  });
+});
+
+describe("matchRenameRequest", () => {
+  it("names the activation pattern that produced the title", () => {
+    expect(matchRenameRequest("/vw-spec-start abc", defaults)).toEqual({
+      request: { kind: "rename", title: "abc", viaPattern: true },
+      patternIndex: 2,
+    });
+    expect(matchRenameRequest("/vw-spec-start @_work-abc", defaults).patternIndex).toBe(1);
+    expect(matchRenameRequest("/vw-spec-iterate @/Users/me/_v-abc", defaults).patternIndex).toBe(0);
+  });
+
+  it("reports no pattern for a slash command, no match and a malformed command", () => {
+    expect(matchRenameRequest("/chat-rename abc", defaults)).toEqual({
+      request: { kind: "rename", title: "abc", viaPattern: false },
+    });
+    expect(matchRenameRequest("fix the build", defaults)).toEqual({ request: { kind: "none" } });
+    expect(matchRenameRequest("/chat-rename two words", defaults).request.kind).toBe("error");
+  });
+
+  it("agrees with findRenameRequest", () => {
+    expect(matchRenameRequest("/vw-spec-start abc", defaults).request).toEqual(
+      findRenameRequest("/vw-spec-start abc", defaults),
+    );
   });
 });
