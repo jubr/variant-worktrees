@@ -121,7 +121,7 @@ list as the verification checklist for that work.
 
 GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 
-- `ci-branch.yaml` — every branch push (not `main`) and PR to `main`: `task check:full`
+- `ci-branch.yaml` — every push to a branch other than `main`: `task check:full`
   (install, lint, build, test, commitlint, docs build), `task lint:workflows`,
   both `.vsix` packages, and a macOS arm64 pre-release `variant` executable
   (`task package:vsix`, `task package:cli`). Also called by the release workflow.
