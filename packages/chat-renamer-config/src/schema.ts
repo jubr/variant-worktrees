@@ -30,6 +30,13 @@ export const renameExistingDaysSchema = z
   .min(0)
   .describe("Rename existing chats created within this many days. 0 turns it off.");
 
+/** Lines of the first prompt the title event reads. At least 1. */
+export const promptLineLimitSchema = z
+  .number()
+  .int()
+  .min(1)
+  .describe("Lines of a chat's first prompt that the title event tests for a rename request. At least 1.");
+
 /** The full set of chat renamer options. Every option is optional; an absent one takes its default. */
 export const ChatRenamerConfigSchema = z.strictObject({
   trigger: triggerSchema.optional(),
@@ -37,5 +44,6 @@ export const ChatRenamerConfigSchema = z.strictObject({
   activationPatterns: activationPatternsSchema.optional(),
   worktreePrefixes: worktreePrefixesSchema.optional(),
   renameExistingDays: renameExistingDaysSchema.optional(),
+  titleEventPromptLines: promptLineLimitSchema.optional(),
 });
 export type ChatRenamerConfig = z.infer<typeof ChatRenamerConfigSchema>;

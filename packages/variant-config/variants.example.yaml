@@ -112,3 +112,4 @@ chatRenamer:
   worktreePrefixes: # prefixes (with connector) of worktree folders whose dragged-in path names a chat
     - _v- # default: variant.prefix (above); list them here only to replace it, e.g. _work-
   renameExistingDays: 7 # 0 turns off renaming of chats that existed before the editor started
+  titleEventPromptLines: 10 # how many lines of a new chat's first prompt the title event tests (at least 1)

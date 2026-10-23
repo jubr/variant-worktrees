@@ -29,6 +29,7 @@ describe("readSettings", () => {
       ],
       worktreePrefixes: [],
       renameExistingDays: 7,
+      titleEventPromptLines: 10,
       enabled: true,
     });
   });
@@ -49,6 +50,15 @@ describe("readSettings", () => {
     configure({ renameExistingDays: { globalValue: 0 } }, { renameExistingDays: 0 });
 
     expect(readSettings("section", { renameExistingDays: 30 }).renameExistingDays).toBe(0);
+  });
+
+  it("layers titleEventPromptLines editor over host over default", () => {
+    configure({}, { titleEventPromptLines: 10 });
+    expect(readSettings("section").titleEventPromptLines).toBe(10);
+    expect(readSettings("section", { titleEventPromptLines: 20 }).titleEventPromptLines).toBe(20);
+
+    configure({ titleEventPromptLines: { globalValue: 5 } }, { titleEventPromptLines: 5 });
+    expect(readSettings("section", { titleEventPromptLines: 20 }).titleEventPromptLines).toBe(5);
   });
 
   it("prefers the folder value over the workspace value over the user value", () => {

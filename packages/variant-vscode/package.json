@@ -104,6 +104,12 @@
           "default": 7,
           "markdownDescription": "How many days back to rename chats that already existed when the editor started. Chats whose first prompt matches an activation pattern or `/chat-rename` are renamed oldest first, numbered per title (`abc`, `abc2`, `abc3`), once per chat. `0` turns it off (default `7`). Changing it applies without a reload; the log lines starting with `[existing-chats]` name this setting and its value."
         },
+        "variant.titleEventPromptLines": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "markdownDescription": "How many lines of a new chat's first prompt the title event tests for a rename request (default `10`, at least `1`). A slash command or activation pattern on a later line does not rename the chat. The lines read are written to the log channel at Trace level (select Trace in the channel's log level picker), and every decision is logged as a `[title-event]` line. Applies to the `titleEvent` trigger only. Changing it applies without a reload."
+        },
         "variant.hookScope": {
           "type": "string",
           "enum": [

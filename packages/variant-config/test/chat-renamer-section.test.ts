@@ -49,6 +49,22 @@ describe("readChatRenamerConfig", () => {
     }));
 });
 
+describe("readChatRenamerConfig titleEventPromptLines", () => {
+  it("returns the limit", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "chatRenamer:\n  titleEventPromptLines: 20\n");
+
+      expect(readChatRenamerConfig(directory)).toEqual({ titleEventPromptLines: 20 });
+    }));
+
+  it("returns an empty section for a limit of 0", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "chatRenamer:\n  titleEventPromptLines: 0\n");
+
+      expect(readChatRenamerConfig(directory)).toEqual({});
+    }));
+});
+
 describe("loadConfig", () => {
   it("carries the chatRenamer section through", () =>
     withDirectory((directory) => {
