@@ -1,5 +1,5 @@
 import type { FirstPrompt } from "./chat-first-prompt";
-import { findRenameRequest, type RenameRequest } from "./chat-rename-patterns";
+import { findRenameRequest, firstLines, type RenameRequest } from "./chat-rename-patterns";
 import { hasSameBase, numberedTitle, titleBase } from "./chat-title-numbering";
 import type { Logger } from "./log";
 
@@ -196,6 +196,10 @@ export type TitleChangeOptions = RenameOptions & {
   now?: () => number;
   /** A chat whose first prompt was submitted before this time already existed, so it is left alone. */
   notBeforeMs?: number;
+  /** Only this many lines of the first prompt are tested for a rename request. Unset reads the whole prompt. */
+  maxLines?: number;
+  /** Receives the lines read, at trace level. Pass a logger with its category, such as `log.child("title-event")`. */
+  decisionLog?: Logger;
   /** A first prompt older than this is ignored: the title event of a new chat follows its first prompt within seconds. */
   maxAgeMs?: number;
 };
@@ -226,7 +230,16 @@ export const catalogTitleOutcome = async (
   if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
     return "ignored";
   }
-  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
+  const read = options.maxLines === undefined ? undefined : firstLines(firstPrompt.text, options.maxLines);
+  if (read) {
+    options.decisionLog?.trace("prompt", {
+      session: change.sessionId,
+      lines: read.lines,
+      dropped: read.dropped,
+      text: read.text,
+    });
+  }
+  const request = findRenameRequest(read?.text ?? firstPrompt.text, options.patterns ?? []);
   if (request.kind !== "rename") {
     return "ignored";
   }

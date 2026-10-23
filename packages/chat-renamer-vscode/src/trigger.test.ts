@@ -267,6 +267,103 @@ describe("trigger", () => {
     });
   });
 
+  describe("title event prompt lines", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void>;
+    /** 12 lines; `/vw-spec-start abc` is on `requestLine`. */
+    const prompt = (requestLine: number) =>
+      Array.from({ length: 12 }, (_, index) =>
+        index + 1 === requestLine ? "/vw-spec-start abc" : `filler ${index + 1}`,
+      ).join("\n");
+
+    const start = async (text: string, options: Partial<RegisterChatRenamerOptions> = {}) => {
+      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+        log: quiet,
+        now: () => STARTED,
+        readFirstPrompt: async () => ({ text, submittedAtMs: STARTED + 1_000 }),
+        ...options,
+      }).ready;
+    };
+    const titleEvent = async (sessionId: string) => {
+      // The mock listener list keeps disposed subscriptions, so the live one is the last.
+      listeners.at(-1)?.({ sessionId, title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+
+    beforeEach(() => {
+      renamed = [];
+      configListeners = [];
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      spyOn(vscode.workspace, "onDidChangeConfiguration").mockImplementation(((listener: never) => {
+        configListeners.push(listener);
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.workspace.onDidChangeConfiguration);
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("reads 10 lines by default", async () => {
+      await start(prompt(10));
+      await titleEvent("inside");
+
+      expect(renamed).toEqual([{ sessionId: "inside", title: "abc" }]);
+    });
+
+    it("ignores a request on line 11 by default", async () => {
+      await start(prompt(11));
+      await titleEvent("beyond");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("reads as many lines as variants.yaml asks for", async () => {
+      await start(prompt(11), { fileConfig: { titleEventPromptLines: 20 } });
+      await titleEvent("wide");
+
+      expect(renamed).toEqual([{ sessionId: "wide", title: "abc" }]);
+    });
+
+    it("lets the editor setting win over variants.yaml", async () => {
+      configure({ titleEventPromptLines: 1, renameExistingDays: 0 });
+
+      await start(prompt(2), { fileConfig: { titleEventPromptLines: 20 } });
+      await titleEvent("narrow");
+
+      expect(renamed).toEqual([]);
+    });
+
+    it("applies a changed setting to the next chat without a reload", async () => {
+      configure({ titleEventPromptLines: 10, renameExistingDays: 0 });
+      await start(prompt(11));
+      await titleEvent("before");
+
+      configure({ titleEventPromptLines: 20, renameExistingDays: 0 });
+      for (const listener of configListeners) {
+        listener({ affectsConfiguration: () => true });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      await titleEvent("after");
+
+      expect(renamed).toEqual([{ sessionId: "after", title: "abc" }]);
+    });
+
+    it("writes the lines it read to the log at trace level", async () => {
+      const captured = captureLog();
+      await start(prompt(11), { log: captured.log });
+      await titleEvent("traced");
+
+      const trace = captured.entries.filter((entry) => entry.level === "trace");
+      expect(trace).toHaveLength(1);
+      expect(trace[0]?.message).toContain("[title-event] prompt");
+      expect(trace[0]?.message).toContain("lines=10 dropped=2");
+    });
+  });
+
   describe("dragged-in worktree folders", () => {
     const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
     let renamed: Array<{ sessionId: string; title: string }>;

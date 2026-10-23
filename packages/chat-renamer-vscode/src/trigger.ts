@@ -235,6 +235,8 @@ export const startChatRenameTrigger = (
           readFirstPrompt: readPrompt,
           now,
           notBeforeMs: startedAtMs,
+          maxLines: settings.titleEventPromptLines,
+          decisionLog: log.child("title-event"),
         })
           .then((handled) => {
             log.info(

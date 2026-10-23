@@ -62,6 +62,13 @@ const titleFromMatch = (match: RegExpExecArray): string | undefined => {
   return title.length > 0 ? title : undefined;
 };
 
+/** The first `limit` lines of `text`, joined with `\n`, and how many lines were read and left out. */
+export const firstLines = (text: string, limit: number): { text: string; lines: number; dropped: number } => {
+  const all = text.split(/\r?\n/);
+  const kept = all.slice(0, limit);
+  return { text: kept.join("\n"), lines: kept.length, dropped: all.length - kept.length };
+};
+
 /**
  * Looks for a rename request, line by line. On each line the `/chat-rename` and `/rename-chat` slash commands are
  * tried first (the title is taken literally), then the activation patterns (the first capture group that matched,

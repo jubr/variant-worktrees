@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
+import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS, firstLines } from "./chat-rename-patterns";
 import {
   type ChatRenameDeps,
   type Description,
@@ -11,6 +11,26 @@ import {
   renameChatFromPrompt,
   subscribeCatalogTitleChanges,
 } from "./cursor-chat-rename";
+import { createLogger, type Logger } from "./log";
+
+type Entry = { level: string; message: string };
+
+const captureLog = (): { log: Logger; entries: Entry[] } => {
+  const entries: Entry[] = [];
+  const at = (level: string) => (message: string) => {
+    entries.push({ level, message });
+  };
+  return {
+    entries,
+    log: createLogger({
+      trace: at("trace"),
+      debug: at("debug"),
+      info: at("info"),
+      warn: at("warn"),
+      error: at("error"),
+    }),
+  };
+};
 
 const makeDeps = (
   project: (id: string, title: string, seen: Description) => Promise<void> = async () => {},
@@ -622,5 +642,102 @@ describe("listPeerTitles", () => {
     deps.cursor = {};
 
     await expect(listPeerTitles(deps, ["a"], "self")).resolves.toEqual([]);
+  });
+});
+
+describe("firstLines", () => {
+  it("keeps the first lines and counts the dropped ones", () => {
+    expect(firstLines("a\nb\nc\nd", 2)).toEqual({ text: "a\nb", lines: 2, dropped: 2 });
+  });
+
+  it("counts \\r\\n like \\n and keeps a short text whole", () => {
+    expect(firstLines("a\r\nb\r\nc", 2)).toEqual({ text: "a\nb", lines: 2, dropped: 1 });
+    expect(firstLines("a\nb", 10)).toEqual({ text: "a\nb", lines: 2, dropped: 0 });
+  });
+});
+
+describe("handleCatalogTitleChange reads a limited number of prompt lines", () => {
+  const NOW = Date.parse("2026-10-09T15:00:00.000Z");
+  const patterns = compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns;
+  /** A prompt of `total` lines whose line `requestLine` (1-based) is `/vw-spec-start abc`. */
+  const prompt = (total: number, requestLine: number, eol = "\n"): string =>
+    Array.from({ length: total }, (_, index) =>
+      index + 1 === requestLine ? "/vw-spec-start abc" : `filler ${index + 1}`,
+    ).join(eol);
+  const run = (text: string, maxLines: number | undefined) => {
+    const { deps, calls } = makeDeps();
+    const { log, entries } = captureLog();
+    const handled = handleCatalogTitleChange(
+      deps,
+      { sessionId: "chat-1", title: "Anything" },
+      {
+        readFirstPrompt: async () => ({ text, submittedAtMs: NOW - 1000 }),
+        patterns,
+        now: () => NOW,
+        maxLines,
+        decisionLog: log.child("title-event"),
+      },
+    );
+    return { handled, calls, entries };
+  };
+
+  it("renames from a request on the last line inside the limit", async () => {
+    const { handled, calls } = run(prompt(12, 10), 10);
+
+    await expect(handled).resolves.toBe(true);
+    expect(calls[0]?.title).toBe("abc");
+  });
+
+  it("ignores a request on the first line beyond the limit", async () => {
+    const { handled, calls } = run(prompt(12, 11), 10);
+
+    await expect(handled).resolves.toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("reads further when the limit is wider", async () => {
+    const { handled, calls } = run(prompt(12, 11), 20);
+
+    await expect(handled).resolves.toBe(true);
+    expect(calls[0]?.title).toBe("abc");
+  });
+
+  it("reads less when the limit is narrower", async () => {
+    const { handled } = run(prompt(5, 2), 1);
+
+    await expect(handled).resolves.toBe(false);
+  });
+
+  it("counts \\r\\n line breaks the same way", async () => {
+    await expect(run(prompt(12, 10, "\r\n"), 10).handled).resolves.toBe(true);
+    await expect(run(prompt(12, 11, "\r\n"), 10).handled).resolves.toBe(false);
+  });
+
+  it("reads the whole prompt when no limit is given", async () => {
+    const { handled } = run(prompt(40, 39), undefined);
+
+    await expect(handled).resolves.toBe(true);
+  });
+
+  it("writes the lines read at trace level and nothing beyond the limit anywhere", async () => {
+    const { handled, entries } = run(prompt(12, 11), 10);
+    await handled;
+
+    const trace = entries.filter((entry) => entry.level === "trace");
+    expect(trace).toHaveLength(1);
+    expect(trace[0]?.message).toStartWith("[title-event] ");
+    expect(trace[0]?.message).toContain('session="chat-1"');
+    expect(trace[0]?.message).toContain("lines=10 dropped=2");
+    expect(trace[0]?.message).toContain("filler 1");
+    expect(trace[0]?.message).toContain("filler 10");
+    expect(trace[0]?.message).not.toContain("/vw-spec-start abc");
+    expect(entries.filter((entry) => entry.level !== "trace" && entry.message.includes("filler"))).toEqual([]);
+  });
+
+  it("still matches a request beyond line 10 in renameChatFromPrompt", async () => {
+    const { deps, calls } = makeDeps();
+
+    await expect(renameChatFromPrompt(deps, "chat-1", prompt(40, 39), { patterns })).resolves.toBe(true);
+    expect(calls[0]?.title).toBe("abc");
   });
 });
