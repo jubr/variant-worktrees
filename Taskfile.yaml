@@ -98,6 +98,10 @@ tasks:
     desc: "Print the lockstep release version (fails when package versions differ)"
     cmds: ["bun scripts/release-version.ts"]
 
+  version:incr:patch:
+    desc: "Bump the patch version in the root and every packages/*/package.json, and in bun.lock"
+    cmds: ["bun scripts/version-incr.ts"]
+
   clean:
     desc: "Remove package dist directories"
     cmds: ["bun run clean"]
