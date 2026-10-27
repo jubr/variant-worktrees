@@ -3,10 +3,10 @@ import { dirname, join } from "node:path";
 import {
   activationPatternSources,
   type ChatRenamerNames,
+  catalogTitleDecision,
   claimRenamer,
   compilePatterns,
   type FirstPrompt,
-  handleCatalogTitleChange,
   handleChatRenameUri,
   hookCommand,
   installChatRenameHook,
@@ -23,7 +23,7 @@ import {
 import * as vscode from "vscode";
 
 import { resolveChatRenameDeps } from "./cursor-host";
-import { EXISTING_CHATS_TAG, type ExistingChatsRunner, type ExistingChatsTrigger } from "./existing-chats";
+import type { ExistingChatsRunner, ExistingChatsTrigger } from "./existing-chats";
 import { type HostSettings, readSettings } from "./settings";
 
 /**
@@ -135,13 +135,15 @@ export const startChatRenameTrigger = (
       return;
     }
     if (days === 0) {
-      log.info(`${EXISTING_CHATS_TAG} off: ${existing.settingName}=0, so no startup, title-event or automatic runs`);
+      log.child("existing-chats").info(`off: ${existing.settingName}=0, so no startup, title-event or automatic runs`);
       return;
     }
     const delay = host.existingChatsDelayMs ?? DEFAULT_EXISTING_CHATS_DELAY_MS;
-    log.info(
-      `${EXISTING_CHATS_TAG} on: ${existing.settingName}=${days}; first run (${trigger}) in ${delay}ms, again after title events settle`,
-    );
+    log
+      .child("existing-chats")
+      .info(
+        `on: ${existing.settingName}=${days}; first run (${trigger}) in ${delay}ms, again after title events settle`,
+      );
     const runAfterDelay = (reason: ExistingChatsTrigger): void => {
       clearTimeout(existingTimer);
       existingTimer = setTimeout(() => {
@@ -155,9 +157,9 @@ export const startChatRenameTrigger = (
         runAfterDelay("title events settled"),
       );
     } catch (error) {
-      log.warn(
-        `${EXISTING_CHATS_TAG} not listening for title events: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      log
+        .child("existing-chats")
+        .warn(`not listening for title events: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -230,18 +232,24 @@ export const startChatRenameTrigger = (
           readFirstPromptWithRetry(() =>
             (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
           );
-        void handleCatalogTitleChange(resolveChatRenameDeps(context), change, {
+        const decisionLog = log.child("title-event");
+        void catalogTitleDecision(resolveChatRenameDeps(context), change, {
           ...options,
           readFirstPrompt: readPrompt,
           now,
           notBeforeMs: startedAtMs,
-        })
-          .then((handled) => {
-            log.info(
-              `title event ${change.sessionId} title=${JSON.stringify(change.title)}: ${handled ? "renamed from first prompt" : "not renamed"}`,
-            );
-          })
-          .catch((error: unknown) => log.error(`title event ${change.sessionId} failed`, error));
+          maxLines: settings.titleEventPromptLines,
+          decisionLog,
+        }).catch((error: unknown) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          decisionLog.error("decision", undefined, {
+            session: change.sessionId,
+            decision: "ignore",
+            reason: "title event failed",
+            detail,
+          });
+          void vscode.window.showWarningMessage(`Chat rename failed for ${change.sessionId}: ${detail}`);
+        });
       });
       log.info("listening to onDidChangeAgentHostSessionCatalogTitle");
     };

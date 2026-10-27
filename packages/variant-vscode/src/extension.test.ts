@@ -120,6 +120,39 @@ describe("extension", () => {
       expect(command?.title).toEqual("Variant: Probe Cursor Chat Commands");
     });
 
+    it("logs to a Variant Worktrees log channel, which Show Logs lists", () => {
+      const noop = () => {};
+      createOutputChannel.mockImplementation((() => ({
+        trace: noop,
+        debug: noop,
+        info: noop,
+        warn: noop,
+        error: noop,
+        dispose: noop,
+      })) as unknown as typeof vscode.window.createOutputChannel);
+      vscode.env.appName = "Cursor";
+      try {
+        activate({
+          subscriptions: [],
+          globalState: { get: () => undefined, update: async () => {} },
+          extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
+          globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+        } as unknown as vscode.ExtensionContext);
+      } finally {
+        vscode.env.appName = undefined;
+      }
+
+      expect(createOutputChannel.mock.calls).toEqual([["Variant Worktrees", { log: true }]]);
+    });
+
+    it("activates on startup so the log channel is listed without running a command", () => {
+      const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+        activationEvents: string[];
+      };
+
+      expect(manifest.activationEvents).toContain("onStartupFinished");
+    });
+
     it("does not register a hello world command", () => {
       activate(extensionContext);
 

@@ -4072,6 +4072,9 @@
 // }
 // interface Thenable<T> extends PromiseLike<T> {}
 
+/** Unset outside an editor host. A test sets `appName` to make the extension believe it runs in one. */
+export const env = { appName: undefined as string | undefined, uriScheme: "cursor" };
+
 export const commands = {
   registerCommand: () => {},
   getCommands: async (_filterInternal?: boolean): Promise<string[]> => [],
@@ -4080,13 +4083,32 @@ export const commands = {
 
 export const workspace: {
   workspaceFolders?: Array<{ uri: { fsPath: string } }>;
-} = {};
+  getConfiguration: (section: string) => { get: (key: string) => unknown };
+  onDidChangeConfiguration: (listener: unknown) => { dispose: () => void };
+} = {
+  getConfiguration: (_section: string) => ({ get: (_key: string): unknown => undefined }),
+  onDidChangeConfiguration: (_listener: unknown) => ({ dispose: () => {} }),
+};
+
+export const extensions = {
+  getExtension: (_id: string): { packageJSON: unknown } | undefined => undefined,
+  all: [] as { id: string }[],
+};
 
 export const window = {
-  showInformationMessage: () => {},
-  createOutputChannel: (_name: string) => ({
+  showInformationMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
+  showWarningMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
+  showErrorMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
+  registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
+  createOutputChannel: (_name: string, _options?: { log: boolean }) => ({
     clear: () => {},
     appendLine: (_line: string) => {},
+    trace: (_message: string) => {},
+    debug: (_message: string) => {},
+    info: (_message: string) => {},
+    warn: (_message: string) => {},
+    error: (_message: string) => {},
     show: () => {},
+    dispose: () => {},
   }),
 };

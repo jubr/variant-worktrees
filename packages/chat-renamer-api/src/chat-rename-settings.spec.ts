@@ -21,6 +21,7 @@ describe("readTriggerSettings", () => {
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
       worktreePrefixes: [],
       renameExistingDays: 7,
+      titleEventPromptLines: 10,
     });
   });
 
@@ -33,6 +34,7 @@ describe("readTriggerSettings", () => {
       activationPatterns: ["^a$", "b"],
       worktreePrefixes: [],
       renameExistingDays: 7,
+      titleEventPromptLines: 10,
     });
   });
 
@@ -43,6 +45,7 @@ describe("readTriggerSettings", () => {
       activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS],
       worktreePrefixes: [],
       renameExistingDays: 7,
+      titleEventPromptLines: 10,
     });
   });
 
@@ -60,6 +63,18 @@ describe("readTriggerSettings", () => {
   it("falls back to 7 days for an invalid window", () => {
     for (const value of [-1, 1.5, "7", true, null]) {
       expect(readTriggerSettings(settings({ renameExistingDays: value })).renameExistingDays).toBe(7);
+    }
+  });
+
+  it("reads titleEventPromptLines, default 10", () => {
+    expect(readTriggerSettings(settings({})).titleEventPromptLines).toBe(10);
+    expect(readTriggerSettings(settings({ titleEventPromptLines: 20 })).titleEventPromptLines).toBe(20);
+    expect(readTriggerSettings(settings({ titleEventPromptLines: 1 })).titleEventPromptLines).toBe(1);
+  });
+
+  it("falls back to 10 lines for an invalid limit", () => {
+    for (const value of [0, -3, 2.5, "many", true, null]) {
+      expect(readTriggerSettings(settings({ titleEventPromptLines: value })).titleEventPromptLines).toBe(10);
     }
   });
 

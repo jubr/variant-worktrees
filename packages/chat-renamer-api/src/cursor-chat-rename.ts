@@ -1,5 +1,5 @@
 import type { FirstPrompt } from "./chat-first-prompt";
-import { findRenameRequest, type RenameRequest } from "./chat-rename-patterns";
+import { findRenameRequest, firstLines, matchRenameRequest, type RenameRequest } from "./chat-rename-patterns";
 import { hasSameBase, numberedTitle, titleBase } from "./chat-title-numbering";
 import type { Logger } from "./log";
 
@@ -114,13 +114,14 @@ const applyRequest = async (
   id: string,
   request: Extract<RenameRequest, { kind: "rename" }>,
   options: RenameOptions,
-): Promise<void> => {
+): Promise<string> => {
   const title =
     request.viaPattern && options.peerTitles
       ? numberedTitle(request.title, await options.peerTitles(id))
       : request.title;
   logRename(options.log, id, renameReason(request.viaPattern, request.title, title), title);
   await renameChat(deps, id, title);
+  return title;
 };
 
 /**
@@ -196,6 +197,10 @@ export type TitleChangeOptions = RenameOptions & {
   now?: () => number;
   /** A chat whose first prompt was submitted before this time already existed, so it is left alone. */
   notBeforeMs?: number;
+  /** Only this many lines of the first prompt are tested for a rename request. Unset reads the whole prompt. */
+  maxLines?: number;
+  /** Receives the lines read, at trace level. Pass a logger with its category, such as `log.child("title-event")`. */
+  decisionLog?: Logger;
   /** A first prompt older than this is ignored: the title event of a new chat follows its first prompt within seconds. */
   maxAgeMs?: number;
 };
@@ -204,39 +209,117 @@ const DEFAULT_MAX_AGE_MS = 30 * 1000;
 
 export type CatalogTitleOutcome = "renamed" | "same-base" | "ignored";
 
+/** What the title event decided for a chat, and why. `reason` and `detail` are fit to show to a user. */
+export type TitleDecision = {
+  outcome: CatalogTitleOutcome;
+  decision: "rename" | "keep" | "ignore";
+  reason:
+    | "rename request"
+    | "current title shares the base"
+    | "no first prompt"
+    | "before startup"
+    | "too old"
+    | "no rename request"
+    | "malformed request";
+  /** Whether a slash command or an activation pattern matched. A malformed slash command counts as matched. */
+  matched: boolean;
+  /** Index of the activation pattern that matched, none for a slash command. */
+  patternIndex?: number;
+  /** The requested title; for `rename` the final title after numbering. */
+  title?: string;
+  /** The parse reason of a malformed request. */
+  detail?: string;
+};
+
+const logDecision = (log: Logger | undefined, session: string, result: TitleDecision): void => {
+  const early =
+    result.reason === "no first prompt" || result.reason === "before startup" || result.reason === "too old";
+  const write = early ? log?.debug.bind(log) : log?.info.bind(log);
+  write?.("decision", {
+    session,
+    matched: result.matched,
+    pattern: result.patternIndex,
+    decision: result.decision,
+    reason: result.reason,
+    title: result.title,
+    detail: result.detail,
+  });
+};
+
 /**
  * Title-event trigger. Cursor's title change event is the moment the first prompt has been named, so this reads the
  * chat's first prompt and, when it holds a rename request, renames the chat. A chat whose first prompt cannot be
  * read, or carries no timestamp, is left alone: without a timestamp there is no telling a new chat from an old one.
  * Ordinary and malformed requests are ignored, and so is a pattern title for a chat whose title already has its base.
+ * Resolves with the decision, which `options.decisionLog` also receives as one entry. A failing rename rejects.
  */
+export const catalogTitleDecision = async (
+  deps: ChatRenameDeps,
+  change: CatalogTitleChange,
+  options: TitleChangeOptions = {},
+): Promise<TitleDecision> => {
+  const decide = (result: TitleDecision): TitleDecision => {
+    logDecision(options.decisionLog, change.sessionId, result);
+    return result;
+  };
+  const ignore = (reason: TitleDecision["reason"], extra: Partial<TitleDecision> = {}): TitleDecision =>
+    decide({ outcome: "ignored", decision: "ignore", reason, matched: false, ...extra });
+
+  const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
+  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
+    return ignore("no first prompt");
+  }
+  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
+    return ignore("before startup");
+  }
+  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
+  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
+    return ignore("too old");
+  }
+  const read = options.maxLines === undefined ? undefined : firstLines(firstPrompt.text, options.maxLines);
+  if (read) {
+    options.decisionLog?.trace("prompt", {
+      session: change.sessionId,
+      lines: read.lines,
+      dropped: read.dropped,
+      text: read.text,
+    });
+  }
+  const { request, patternIndex } = matchRenameRequest(read?.text ?? firstPrompt.text, options.patterns ?? []);
+  if (request.kind === "none") {
+    return ignore("no rename request");
+  }
+  if (request.kind === "error") {
+    return ignore("malformed request", { matched: true, detail: request.reason });
+  }
+  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
+    logRename(options.log, change.sessionId, "current title shares the base", change.title);
+    return decide({
+      outcome: "same-base",
+      decision: "keep",
+      reason: "current title shares the base",
+      matched: true,
+      patternIndex,
+      title: request.title,
+    });
+  }
+  const title = await applyRequest(deps, change.sessionId, request, options);
+  return decide({
+    outcome: "renamed",
+    decision: "rename",
+    reason: "rename request",
+    matched: true,
+    patternIndex,
+    title,
+  });
+};
+
+/** The outcome of `catalogTitleDecision`, for callers that do not need the reason. */
 export const catalogTitleOutcome = async (
   deps: ChatRenameDeps,
   change: CatalogTitleChange,
   options: TitleChangeOptions = {},
-): Promise<CatalogTitleOutcome> => {
-  const firstPrompt = await options.readFirstPrompt?.(change.sessionId);
-  if (!firstPrompt || firstPrompt.submittedAtMs === undefined) {
-    return "ignored";
-  }
-  if (firstPrompt.submittedAtMs < (options.notBeforeMs ?? Number.NEGATIVE_INFINITY)) {
-    return "ignored";
-  }
-  const age = (options.now ?? Date.now)() - firstPrompt.submittedAtMs;
-  if (age > (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS)) {
-    return "ignored";
-  }
-  const request = findRenameRequest(firstPrompt.text, options.patterns ?? []);
-  if (request.kind !== "rename") {
-    return "ignored";
-  }
-  if (request.viaPattern && change.title !== undefined && hasSameBase(change.title, request.title)) {
-    logRename(options.log, change.sessionId, "current title shares the base", change.title);
-    return "same-base";
-  }
-  await applyRequest(deps, change.sessionId, request, options);
-  return "renamed";
-};
+): Promise<CatalogTitleOutcome> => (await catalogTitleDecision(deps, change, options)).outcome;
 
 export const handleCatalogTitleChange = async (
   deps: ChatRenameDeps,

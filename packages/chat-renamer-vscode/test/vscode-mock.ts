@@ -21,7 +21,15 @@ export const vscodeMock = {
     executeCommand: async (..._args: unknown[]): Promise<unknown> => undefined,
   },
   window: {
-    createOutputChannel: (_name: string) => ({ appendLine: (_line: string) => {}, dispose: () => {} }),
+    createOutputChannel: (_name: string, _options?: { log: boolean }) => ({
+      appendLine: (_line: string) => {},
+      trace: (_message: string) => {},
+      debug: (_message: string) => {},
+      info: (_message: string) => {},
+      warn: (_message: string) => {},
+      error: (_message: string) => {},
+      dispose: () => {},
+    }),
     registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
     showErrorMessage: async (..._args: unknown[]) => undefined,
     showInformationMessage: async (..._args: unknown[]) => undefined,

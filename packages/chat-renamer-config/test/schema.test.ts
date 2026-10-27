@@ -4,6 +4,7 @@ import {
   activationPatternsSchema,
   ChatRenamerConfigSchema,
   hookScopeSchema,
+  promptLineLimitSchema,
   renameExistingDaysSchema,
   triggerSchema,
   worktreePrefixesSchema,
@@ -40,6 +41,19 @@ describe("renameExistingDaysSchema", () => {
   });
 });
 
+describe("promptLineLimitSchema", () => {
+  it("accepts integers of at least 1", () => {
+    expect(promptLineLimitSchema.safeParse(1).success).toBe(true);
+    expect(promptLineLimitSchema.safeParse(10).success).toBe(true);
+  });
+
+  it("rejects zero, fractions and non-numbers", () => {
+    expect(promptLineLimitSchema.safeParse(0).success).toBe(false);
+    expect(promptLineLimitSchema.safeParse(2.5).success).toBe(false);
+    expect(promptLineLimitSchema.safeParse("10").success).toBe(false);
+  });
+});
+
 describe("activationPatternsSchema", () => {
   it("accepts string arrays, including empty", () => {
     expect(activationPatternsSchema.safeParse([]).success).toBe(true);
@@ -72,6 +86,7 @@ describe("ChatRenamerConfigSchema", () => {
         activationPatterns: ["/x/"],
         worktreePrefixes: ["_v-"],
         renameExistingDays: 30,
+        titleEventPromptLines: 20,
       }).success,
     ).toBe(true);
   });
@@ -79,5 +94,6 @@ describe("ChatRenamerConfigSchema", () => {
   it("rejects unknown keys and invalid values", () => {
     expect(ChatRenamerConfigSchema.safeParse({ colour: "red" }).success).toBe(false);
     expect(ChatRenamerConfigSchema.safeParse({ renameExistingDays: -1 }).success).toBe(false);
+    expect(ChatRenamerConfigSchema.safeParse({ titleEventPromptLines: 0 }).success).toBe(false);
   });
 });

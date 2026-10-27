@@ -16,12 +16,12 @@ Renames Cursor chats from their first prompt. Single purpose: it does nothing el
 
 ## Triggers (`chat-renamer.trigger`)
 
-- `titleEvent` (default): listens to `cursor.onDidChangeAgentHostSessionCatalogTitle`. The first title event of a chat is Cursor naming the first prompt; the extension then reads that prompt from Cursor's on-disk store and renames if it holds a request. Only chats created while the editor runs are renamed: the first prompt must be newer than the extension's startup and at most 30 seconds old, so the title events Cursor emits for existing chats at load rename nothing. A prompt that cannot be read (or has no timestamp) leaves the chat alone.
+- `titleEvent` (default): listens to `cursor.onDidChangeAgentHostSessionCatalogTitle`. The first title event of a chat is Cursor naming the first prompt; the extension then reads that prompt from Cursor's on-disk store and renames if it holds a request. Only chats created while the editor runs are renamed: the first prompt must be newer than the extension's startup and at most 30 seconds old, so the title events Cursor emits for existing chats at load rename nothing. A prompt that cannot be read (or has no timestamp) leaves the chat alone. Only the first `chat-renamer.titleEventPromptLines` lines of the prompt (default `10`, at least `1`) are tested for a request, so a pattern further down does not rename; the `hook` trigger, **Rename active chat** and existing chats read the whole prompt. Every new chat gets one `[title-event] decision` log line saying whether a slash command or pattern matched (and which pattern), what was decided (`rename`, `keep` or `ignore`) and why.
 - `hook`: writes a `beforeSubmitPrompt` hook and script into `.cursor/hooks.json` (`chat-renamer.hookScope`: `workspace` or `user`). The hook sends the prompt and conversation id to this extension's URI handler. A lone slash command is blocked so no model turn is spent; a prompt that only matches a pattern still goes to the model. Needs `python3` and `open` or `xdg-open`. Patterns are copied into the script and evaluated with Python `re`. An unparsable `hooks.json` is never overwritten. Switching the trigger removes the entry and script this extension wrote.
 
 ## Commands
 
-- **Chat Renamer: Rename active chat** (`chat-renamer.renameActiveChat`): renames the selected chat from its first prompt, including a prompt older than 30 seconds, even when `renameExistingDays` is `0`. No selected chat, or a first prompt with no rename request, leaves the chat alone and tells you.
+- **Chat Renamer: Rename active chat** (`chat-renamer.renameActiveChat`): renames the selected chat from its first prompt, including a prompt older than 30 seconds, even when `renameExistingDays` is `0`. No selected chat, or a first prompt with no rename request, leaves the chat alone and tells you why (`no rename request`, `malformed request` with what is wrong, or the error of a failing rename).
 - **Chat Renamer: Rename Existing Chats** (`chat-renamer.renameExistingChats`): runs the existing-chats rename now. With `renameExistingDays` at `0` it does nothing and names the setting.
 
 Not shown in the palette; meant for other extensions and scripts:
@@ -29,7 +29,7 @@ Not shown in the palette; meant for other extensions and scripts:
 - `chat-renamer.renameChat(id, title)`
 - `chat-renamer.renameChatFromPrompt(id, prompt)`
 
-All activity is logged to the **Chat Renamer** output channel.
+All activity is logged to the **Chat Renamer** log channel, which **Developer: Show Logs…** lists once the extension has started and which has its own log level. Info shows decisions and renames; select **Trace** in the channel's log level picker to also see the first lines of each new chat's prompt, and **Debug** for chats skipped because they existed before startup. A rename that fails also shows a notification with the cause.
 
 A host extension can supply the same options from elsewhere (Variant reads the `chatRenamer` section of `variants.yaml`); an option you set explicitly in the editor settings wins over the host's value, which wins over the default.
 

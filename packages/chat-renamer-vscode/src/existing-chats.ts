@@ -13,8 +13,8 @@ import type * as vscode from "vscode";
 import { resolveChatRenameDeps } from "./cursor-host";
 import { type HostSettings, readSettings } from "./settings";
 
-/** Marks every log line of this feature so it can be told apart from the realtime trigger. */
-export const EXISTING_CHATS_TAG = "[existing-chats]";
+/** Category of every log line of this feature, so it can be told apart from the realtime trigger. */
+const EXISTING_CHATS_CATEGORY = "existing-chats";
 
 const DAY_MS = 86_400_000;
 
@@ -61,6 +61,7 @@ export const createExistingChatsRunner = ({
   readFirstPrompt: readPrompt,
   fileConfig,
 }: ExistingChatsRunnerInput): ExistingChatsRunner => {
+  const existingLog = log.child(EXISTING_CHATS_CATEGORY);
   const settingName = `${names.configSection}.renameExistingDays`;
   const recordKey = `${names.configSection}.examinedChats`;
   const dbPath = (): string => join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
@@ -72,13 +73,13 @@ export const createExistingChatsRunner = ({
     const windowDays = days();
     const setting = `${settingName}=${windowDays}`;
     if (windowDays === 0) {
-      log.info(`${EXISTING_CHATS_TAG} off, nothing to do for ${trigger}: ${setting}`);
+      existingLog.info(`off, nothing to do for ${trigger}: ${setting}`);
       return { kind: "off", setting };
     }
 
     const notBeforeMs = startedAtMs - windowDays * DAY_MS;
-    log.info(
-      `${EXISTING_CHATS_TAG} run started by ${trigger}, obeying ${setting}: chats created ${stamp(notBeforeMs)} to ${stamp(startedAtMs)}, ` +
+    existingLog.info(
+      `run started by ${trigger}, obeying ${setting}: chats created ${stamp(notBeforeMs)} to ${stamp(startedAtMs)}, ` +
         `record ${ignoreRecord ? "ignored" : "honoured"}`,
     );
     try {
@@ -97,22 +98,22 @@ export const createExistingChatsRunner = ({
         },
       });
       for (const chat of result.renamed) {
-        log.info(
-          `${EXISTING_CHATS_TAG} renamed ${chat.sessionId}: ${JSON.stringify(chat.previousTitle ?? null)} -> ${JSON.stringify(chat.title)} ` +
+        existingLog.info(
+          `renamed ${chat.sessionId}: ${JSON.stringify(chat.previousTitle ?? null)} -> ${JSON.stringify(chat.title)} ` +
             `(existing chats plan) (created ${stamp(chat.createdAtMs)})`,
         );
       }
       for (const failure of result.failed) {
-        log.warn(`${EXISTING_CHATS_TAG} could not rename ${failure.sessionId}: ${failure.error}`);
+        existingLog.warn(`could not rename ${failure.sessionId}: ${failure.error}`);
       }
-      log.info(
-        `${EXISTING_CHATS_TAG} run finished (${trigger}, ${setting}): listed ${result.listed}, examined ${result.examined}, ` +
+      existingLog.info(
+        `run finished (${trigger}, ${setting}): listed ${result.listed}, examined ${result.examined}, ` +
           `renamed ${result.renamed.length}, failed ${result.failed.length}`,
       );
       return { kind: "done", setting, result };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error(`${EXISTING_CHATS_TAG} run failed (${trigger}, ${setting})`, error);
+      existingLog.error(`run failed (${trigger}, ${setting})`, error);
       return { kind: "failed", setting, error: message };
     }
   };
