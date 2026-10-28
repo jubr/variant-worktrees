@@ -99,7 +99,7 @@ jobs:
       - run: gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --generate-notes out/*
 
   # Runs only when this run created the release, so an already released tag is never
-  # published again. Approval of the `marketplace` environment still gates the upload.
+  # published again.
   publish:
     name: Publish extensions
     needs: [version, release]

@@ -66,7 +66,7 @@ The release workflow SHALL NOT create or modify a release when the tag `v<versio
 
 ### Requirement: Manual registry publication
 
-A separate workflow SHALL publish the `.vsix` files of one chosen release to the Visual Studio Marketplace and to Open VSX. It SHALL start only by manual dispatch naming a release tag, or as the last job of the release workflow when that run created the release, SHALL run in a protected environment that requires approval, and SHALL publish the exact `.vsix` files attached to that release without rebuilding them. The workflow SHALL authenticate to Open VSX through trusted publishing, without a stored token, and to the Visual Studio Marketplace with the repository secret `VSCE_PAT` until the Marketplace supports trusted publishing. The OIDC token permission SHALL be granted to the publishing job only.
+A separate workflow SHALL publish the `.vsix` files of one chosen release to the Visual Studio Marketplace and to Open VSX. It SHALL start only by manual dispatch naming a release tag, or as the last job of the release workflow when that run created the release, SHALL run in the `marketplace` environment that holds the registry credentials, and SHALL publish the exact `.vsix` files attached to that release without rebuilding them. The workflow SHALL authenticate to Open VSX through trusted publishing, without a stored token, and to the Visual Studio Marketplace with the repository secret `VSCE_PAT` until the Marketplace supports trusted publishing. The OIDC token permission SHALL be granted to the publishing job only.
 
 #### Scenario: Not triggered by itself
 
@@ -76,7 +76,7 @@ A separate workflow SHALL publish the `.vsix` files of one chosen release to the
 #### Scenario: Called after a new release
 
 - **WHEN** the release workflow creates release `v<version>`
-- **THEN** it runs the publish workflow for that tag as its last job, after environment approval
+- **THEN** it runs the publish workflow for that tag as its last job
 
 #### Scenario: Already released version
 
@@ -85,7 +85,7 @@ A separate workflow SHALL publish the `.vsix` files of one chosen release to the
 
 #### Scenario: Publish a release
 
-- **WHEN** a maintainer dispatches the workflow with tag `v1.2.3` and approves the environment
+- **WHEN** a maintainer dispatches the workflow with tag `v1.2.3`
 - **THEN** both `.vsix` files from release `v1.2.3` are published to the Visual Studio Marketplace and to Open VSX
 
 #### Scenario: Unknown tag
@@ -100,7 +100,7 @@ A separate workflow SHALL publish the `.vsix` files of one chosen release to the
 
 #### Scenario: Release files survive repository checkout
 
-- **WHEN** the approved publish run has downloaded the release `.vsix` files and checked out the repository
+- **WHEN** the publish run has downloaded the release `.vsix` files and checked out the repository
 - **THEN** every downloaded `.vsix` file is still present when the first registry is contacted
 - **AND** the run fails before contacting either registry if none is present
 
