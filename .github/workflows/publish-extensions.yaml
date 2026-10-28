@@ -2,12 +2,12 @@ name: Publish extensions
 
 # Specification: openspec/specs/meta/release-artifacts/spec.md (Manual registry publication)
 # Manual only. Publishes the .vsix files attached to one GitHub Release, without
-# rebuilding. No long-lived registry tokens: both registries use OIDC trusted
-# publishing. Needs a protected `marketplace` environment with required reviewers,
-# environment variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
-# (Entra managed identity with a GitHub federated credential, member of the
-# Marketplace publisher), and an Open VSX trusted publisher registered for this
-# workflow file and the `marketplace` environment.
+# rebuilding. Open VSX uses OIDC trusted publishing (no token). The Visual Studio
+# Marketplace still needs the repository secret VSCE_PAT: its trusted publishing is
+# not supported yet, see https://github.com/microsoft/vsmarketplace/issues/1422
+# Needs a protected `marketplace` environment with required reviewers, secret
+# VSCE_PAT, and an Open VSX trusted publisher registered for this workflow file and
+# the `marketplace` environment.
 on:
   workflow_dispatch:
     inputs:
@@ -63,7 +63,7 @@ jobs:
     environment: marketplace
     permissions:
       contents: read
-      # AIDEV-NOTE: id-token is the OIDC credential for Azure login and Open VSX; keep it on this job only
+      # AIDEV-NOTE: id-token is the OIDC credential for Open VSX (and Azure login once enabled); keep it on this job only
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -81,18 +81,28 @@ jobs:
             echo "::error::publish directory has no .vsix file"
             exit 1
           fi
-      - name: Azure login (Entra workload identity federation)
-        if: inputs.registry == 'both' || inputs.registry == 'marketplace'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # AIDEV-NOTE: Marketplace trusted publishing is not supported yet
+      # (https://github.com/microsoft/vsmarketplace/issues/1422), so VSCE_PAT stays.
+      # To switch to Entra workload identity federation: delete VSCE_PAT and its env,
+      # uncomment the login step and the --azure-credential line, and set the variables
+      # AZURE_CLIENT_ID, AZURE_TENANT_ID and AZURE_SUBSCRIPTION_ID (all three are
+      # required, on the `marketplace` environment) for a managed identity that has a
+      # GitHub federated credential and is a member of the Marketplace publisher.
+      # - name: Azure login (Entra workload identity federation)
+      #   if: inputs.registry == 'both' || inputs.registry == 'marketplace'
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ vars.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Visual Studio Marketplace
         if: inputs.registry == 'both' || inputs.registry == 'marketplace'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           for file in vsix/*.vsix; do
-            bunx @vscode/vsce@2.32.0 publish --azure-credential --packagePath "$file"
+            bunx @vscode/vsce@2.32.0 publish --packagePath "$file"
+            # bunx @vscode/vsce@2.32.0 publish --azure-credential --packagePath "$file"
           done
       - name: Open VSX
         if: inputs.registry == 'both' || inputs.registry == 'openvsx'

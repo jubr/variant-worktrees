@@ -142,14 +142,15 @@ The root package, `variant-api`, `variant-vscode` and `chat-renamer` share one
 version (`task release:version` fails when they differ). Run `task version:incr:patch`
 to bump every package and `bun.lock`, merge to `main`; a green build tags and releases
 that version. To publish to the registries, dispatch `publish-extensions.yaml` with the tag; a reviewer approves the `marketplace`
-environment first. Publishing uses short-lived OIDC credentials, no stored tokens.
-One-time setup: environment `marketplace` with required reviewers; for the Visual
-Studio Marketplace, an Entra managed identity with a GitHub federated credential
-(environment `marketplace`), added as Contributor of the publisher, and environment
-variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`; for Open VSX,
-a trusted publisher per extension (workflow `publish-extensions.yaml`, environment
-`marketplace`). The first Open VSX version of an extension must be published once
-with a token, since a trusted publisher needs an existing extension.
+environment first. One-time setup: environment `marketplace` with required reviewers and
+secret `VSCE_PAT` (Visual Studio Marketplace; its trusted publishing is not supported
+yet, see [vsmarketplace#1422](https://github.com/microsoft/vsmarketplace/issues/1422)).
+Open VSX needs no token: register a trusted publisher per extension on open-vsx.org
+(workflow `publish-extensions.yaml`, environment `marketplace`). The first Open VSX
+version of an extension must be published once with a token, since a trusted
+publisher needs an existing extension. The workflow keeps the Marketplace Entra
+variant as commented-out lines; it needs `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
+`AZURE_SUBSCRIPTION_ID` as variables on `marketplace`.
 
 ## Review and delivery
 
