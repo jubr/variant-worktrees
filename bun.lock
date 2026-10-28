@@ -16,21 +16,21 @@
     },
     "packages/chat-renamer-api": {
       "name": "chat-renamer-api",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "chat-renamer-config": "workspace:*",
       },
     },
     "packages/chat-renamer-config": {
       "name": "chat-renamer-config",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "zod": "^4.6.5",
       },
     },
     "packages/chat-renamer-vscode": {
       "name": "chat-renamer",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@types/vscode": "^1.86.0",
         "chat-renamer-api": "workspace:*",
@@ -46,7 +46,7 @@
     },
     "packages/variant-api": {
       "name": "variant-api",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "bin": {
         "variant": "./dist/cli.js",
       },
@@ -61,7 +61,7 @@
     },
     "packages/variant-config": {
       "name": "variant-config",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "chat-renamer-config": "workspace:*",
         "smol-toml": "^1.8.0",
@@ -71,7 +71,7 @@
     },
     "packages/variant-ipc": {
       "name": "variant-ipc",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "variant-config": "workspace:*",
         "zod": "^4.6.5",
@@ -79,7 +79,7 @@
     },
     "packages/variant-mcp": {
       "name": "variant-mcp",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "bin": {
         "variant-mcp": "./dist/mcp.js",
       },
@@ -92,7 +92,7 @@
     },
     "packages/variant-vscode": {
       "name": "variant-worktrees",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@types/vscode": "^1.86.0",
         "chat-renamer": "workspace:*",

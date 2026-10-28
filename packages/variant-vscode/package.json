@@ -1,6 +1,6 @@
 {
   "name": "variant-worktrees",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Variant Worktrees VS Code extension",
   "displayName": "Variant Worktrees",
   "publisher": "jubr",
