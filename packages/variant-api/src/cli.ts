@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import { cli, command } from "cleye";
+import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { type CommandDefinition, commands } from "./commands.js";
 import { createClient } from "./index.js";
 import { formatTable } from "./table.js";
 import type { VariantRecord } from "./types.js";
+
+const { version } = pkg;
 
 const redacted = (value: unknown): unknown => {
   if (Array.isArray(value)) {
@@ -75,7 +78,7 @@ try {
   await cli(
     {
       name: "variant",
-      version: "0.0.1",
+      version,
       help: {
         description: "Database variants for git worktrees",
       },
