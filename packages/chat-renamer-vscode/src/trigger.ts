@@ -223,6 +223,8 @@ export const startChatRenameTrigger = (
       const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
       const checked = new Set<string>();
       eventSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), (change) => {
+        // Every event is logged as it arrives, also the later ones (renames) that are skipped below.
+        log.child("title-event").debug("event", { session: change.sessionId, title: change.title });
         // The first title event of a chat is the AI name for its first prompt. Later events are renames; skip them.
         if (checked.has(change.sessionId)) {
           return;

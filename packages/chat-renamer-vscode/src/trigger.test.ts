@@ -433,6 +433,20 @@ describe("trigger", () => {
       expect(decisions()[0]?.message).toContain('reason="before startup"');
     });
 
+    it("logs every title event at debug level as it arrives, including later ones of the same chat", async () => {
+      await start("/vw-spec-start abc");
+      await titleEvent("fresh");
+      listeners[0]?.({ sessionId: "fresh", title: "Renamed by hand" });
+      listeners[0]?.({ sessionId: "other" });
+
+      const events = captured.entries.filter((entry) => entry.message.startsWith("[title-event] event"));
+      expect(events).toEqual([
+        { level: "debug", message: '[title-event] event session="fresh" title="Some AI title"' },
+        { level: "debug", message: '[title-event] event session="fresh" title="Renamed by hand"' },
+        { level: "debug", message: '[title-event] event session="other"' },
+      ]);
+    });
+
     it("logs no decision for a later title event of the same chat", async () => {
       await start("/vw-spec-start abc");
       await titleEvent("fresh");
