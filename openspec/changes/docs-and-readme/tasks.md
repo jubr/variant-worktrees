@@ -11,6 +11,10 @@
 
 - [ ] 3.1 Rewrite the top of `README.md`: icon, docs link, `Why`, `How it works`, install with `mise use github:jubr/variant-worktrees`. Keep Configuration, CLI, MCP, Chat renamer, and Packages, and reduce the source-build and Development sections to a pointer to `CONTRIBUTING.md`. Verify the repository README scenarios and the existing icon test pass.
 
-## 4. Validation
+## 4. CLI version
 
-- [ ] 4.1 Run `task check:full` and `openspec validate --all --strict --no-interactive`. Verify both exit 0.
+- [x] 4.1 Add a `cli.test.ts` case for `variant --version` and the `--help` header, then read the version from `package.json` in `packages/variant-api/src/cli.ts`. Verify `bun test test/cli.test.ts` passes and the compiled executable from `task package:cli` prints the package version.
+
+## 5. Validation
+
+- [ ] 5.1 Run `task check:full` and `openspec validate --all --strict --no-interactive`. Verify both exit 0.

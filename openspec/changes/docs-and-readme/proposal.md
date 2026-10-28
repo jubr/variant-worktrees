@@ -9,6 +9,7 @@ The VS Code extension is listed with the tagline "Variant Worktrees VS Code exte
 - The repository README gets the same story-first opening and fills in the product description, install, the human/agent workflow, configuration, CLI, MCP, and chat renamer.
 - Both READMEs start with a link to the online documentation (`https://jubr.github.io/variant-worktrees/`), above the story.
 - The repository README keeps the 256×256 product icon and its package list; contributor setup stays a short pointer to `CONTRIBUTING.md`.
+- The `variant` CLI reports the `variant-api` package version in `--version` and the `--help` header. It printed a fixed `v0.0.1` while releases were `v0.0.3`, which the documented `variant --help` output exposes.
 
 ## Capabilities
 
@@ -18,13 +19,14 @@ The VS Code extension is listed with the tagline "Variant Worktrees VS Code exte
 
 ### Modified Capabilities
 
-None. The icon requirement for the repository README (`variant-vscode/product-icon`) is unchanged.
+- `variant-api/commands`: adds a requirement that the CLI reports the package version. The icon requirement for the repository README (`variant-vscode/product-icon`) is unchanged.
 
 ## Impact
 
 - `packages/variant-vscode/package.json` (`description`)
 - `packages/variant-vscode/README.md`
 - `README.md`
+- `packages/variant-api/src/cli.ts` and `packages/variant-api/test/cli.test.ts` (version)
 - A new colocated test in `packages/variant-vscode/src/` that reads both READMEs and the manifest.
 
 ## Non-goals
