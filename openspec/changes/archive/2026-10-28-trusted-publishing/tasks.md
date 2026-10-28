@@ -5,8 +5,8 @@
 
 ## 2. Registry setup (maintainer, outside the tree)
 
-- [ ] 2.1 On open-vsx.org register a trusted publisher per extension (`variant-worktrees`, `chat-renamer`): workflow `publish-extensions.yaml`, environment `marketplace`. Each extension needs one version already published with a token.
-- [ ] 2.2 Dispatch once for a release; then delete `OVSX_PAT`.
+- [x] 2.1 On open-vsx.org register a trusted publisher per extension (`variant-worktrees`, `chat-renamer`): workflow `publish-extensions.yaml`, environment `marketplace`. Each extension needs one version already published with a token.
+- [x] 2.2 Dispatch once for a release; then delete `OVSX_PAT`.
 
 ## 3. When the Marketplace supports trusted publishing
 
