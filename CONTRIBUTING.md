@@ -138,7 +138,7 @@ When adding a gate, expose it as a `task` and call that task from the workflow.
 
 ### Releasing
 
-The root package, `variant-api`, `variant-vscode` and `chat-renamer-vscode` share one
+The root package, `variant-api`, `variant-vscode` and `chat-renamer` share one
 version (`task release:version` fails when they differ). Run `task version:incr:patch`
 to bump every package and `bun.lock`, merge to `main`; a green build tags and releases
 that version. To publish to the registries, dispatch `publish-extensions.yaml` with the tag; a reviewer approves the `marketplace`

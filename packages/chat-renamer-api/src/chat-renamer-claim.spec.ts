@@ -16,7 +16,7 @@ describe("claimRenamer", () => {
     const registry: RenamerRegistry = {};
     claimRenamer("variant.variant-vscode", registry);
 
-    const second = claimRenamer("variant.chat-renamer-vscode", registry);
+    const second = claimRenamer("variant.chat-renamer", registry);
 
     expect(second.owned).toBe(false);
     expect(second.owner).toBe("variant.variant-vscode");

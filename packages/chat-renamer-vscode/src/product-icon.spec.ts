@@ -5,7 +5,7 @@ import { join } from "node:path";
 import sharp from "sharp";
 
 /**
- * Specification: openspec/specs/chat-renamer-vscode/product-icon/spec.md
+ * Specification: openspec/specs/chat-renamer/product-icon/spec.md
  */
 
 const repoRoot = join(import.meta.dirname, "../../..");
