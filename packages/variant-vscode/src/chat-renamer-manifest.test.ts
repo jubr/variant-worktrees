@@ -26,7 +26,7 @@ describe("embedded chat renamer manifest", () => {
   const renamer = read("../../chat-renamer-vscode/package.json");
 
   // VS Code reads contributions only from this extension's own manifest, so they are copied. This keeps the copy honest.
-  it("contributes the same settings as chat-renamer-vscode under the variant section", () => {
+  it("contributes the same settings as chat-renamer under the variant section", () => {
     expect(variant.contributes.configuration.properties).toEqual(
       expect.objectContaining(toVariantKeys(renamer.contributes.configuration.properties)),
     );

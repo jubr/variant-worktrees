@@ -41,12 +41,12 @@ Every option is in [Configuration](#configuration) and the [configuration guide]
   request.
 - [`chat-renamer-config`](./packages/chat-renamer-config) — schema for the
   `chatRenamer` section of `variants.yaml`.
-- [`chat-renamer-vscode`](./packages/chat-renamer-vscode) — Cursor extension that
+- [`chat-renamer`](./packages/chat-renamer-vscode) — Cursor extension that
   renames a chat from its first prompt.
 
 ## Chat renamer
 
-[`chat-renamer-vscode`](./packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](#configuration) and [Chat Renamer](./docs/chat-renamer/index.md)). An editor setting you set explicitly wins.
+[`chat-renamer`](./packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](#configuration) and [Chat Renamer](./docs/chat-renamer/index.md)). An editor setting you set explicitly wins.
 
 ## Configuration
 
