@@ -84,7 +84,7 @@ describe("trigger", () => {
 
   describe("one active instance", () => {
     it("lets a single extension listen for title events and handle URIs", async () => {
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
+      await registerChatRenamer(context("variant.chat-renamer"), { log: quiet }).ready;
 
       expect(listeners).toHaveLength(1);
       expect(registerUriHandler).toHaveBeenCalledTimes(1);
@@ -94,7 +94,7 @@ describe("trigger", () => {
       vscodeMock.extensions.getExtension = () => undefined;
       const { log, entries } = captureLog();
 
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
+      await registerChatRenamer(context("variant.chat-renamer"), { log }).ready;
 
       expect(listeners).toHaveLength(1);
       expect(entries.filter((entry) => entry.level === "error")).toEqual([]);
@@ -108,7 +108,7 @@ describe("trigger", () => {
 
     it("keeps a second extension idle while the first one is active", async () => {
       await registerChatRenamer(context("variant.variant-vscode"), { log: quiet }).ready;
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
+      await registerChatRenamer(context("variant.chat-renamer"), { log: quiet }).ready;
 
       expect(listeners).toHaveLength(1);
       expect(registerUriHandler).toHaveBeenCalledTimes(1);
@@ -139,7 +139,7 @@ describe("trigger", () => {
           log: quiet,
           commandPrefix: "variant",
         }).ready;
-        await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
+        await registerChatRenamer(context("variant.chat-renamer"), { log: quiet }).ready;
 
         const ids = registerCommand.mock.calls.map((call) => call[0]);
         expect(ids).toContain("variant.renameActiveChat");
@@ -154,7 +154,7 @@ describe("trigger", () => {
       const { log } = captured;
       await registerChatRenamer(context("variant.variant-vscode"), { log: quiet }).ready;
 
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), { log }).ready;
+      await registerChatRenamer(context("variant.chat-renamer"), { log }).ready;
 
       expect(captured.lines.some((line) => line.includes("variant.variant-vscode") && line.includes("idle"))).toBe(
         true,
@@ -169,7 +169,7 @@ describe("trigger", () => {
       }
       listeners.length = 0;
 
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), { log: quiet }).ready;
+      await registerChatRenamer(context("variant.chat-renamer"), { log: quiet }).ready;
 
       expect(listeners).toHaveLength(1);
     });
@@ -186,7 +186,7 @@ describe("trigger", () => {
       it("does not install a hook for an idle extension", async () => {
         await registerChatRenamer(context("variant.variant-vscode"), { commandPrefix: "owner", log: quiet }).ready;
 
-        await registerChatRenamer(context("variant.chat-renamer-vscode"), { commandPrefix: "idle", log: quiet }).ready;
+        await registerChatRenamer(context("variant.chat-renamer"), { commandPrefix: "idle", log: quiet }).ready;
 
         expect(existsSync(hookScript("idle"))).toBe(false);
       });
@@ -201,7 +201,7 @@ describe("trigger", () => {
         });
         await registerChatRenamer(context("variant.variant-vscode"), { commandPrefix: "owner", log: quiet }).ready;
 
-        await registerChatRenamer(context("variant.chat-renamer-vscode"), { commandPrefix: "idle", log: quiet }).ready;
+        await registerChatRenamer(context("variant.chat-renamer"), { commandPrefix: "idle", log: quiet }).ready;
 
         expect(existsSync(hookScript("idle"))).toBe(false);
         expect(readFileSync(join(cursorDir, "hooks.json"), "utf8")).not.toContain("idle-chat-rename.sh");
@@ -215,7 +215,7 @@ describe("trigger", () => {
     let prompts: Record<string, { text: string; submittedAtMs?: number }>;
 
     const start = async () => {
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+      await registerChatRenamer(context("variant.chat-renamer"), {
         log: quiet,
         now: () => STARTED,
         readFirstPrompt: async (sessionId) => prompts[sessionId],
@@ -278,7 +278,7 @@ describe("trigger", () => {
       ).join("\n");
 
     const start = async (text: string, options: Partial<RegisterChatRenamerOptions> = {}) => {
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+      await registerChatRenamer(context("variant.chat-renamer"), {
         log: quiet,
         now: () => STARTED,
         readFirstPrompt: async () => ({ text, submittedAtMs: STARTED + 1_000 }),
@@ -371,7 +371,7 @@ describe("trigger", () => {
     let captured: ReturnType<typeof captureLog>;
 
     const start = async (text: string, submittedAtMs = STARTED + 1_000) => {
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+      await registerChatRenamer(context("variant.chat-renamer"), {
         log: captured.log,
         now: () => STARTED,
         readFirstPrompt: async () => ({ text, submittedAtMs }),
@@ -464,7 +464,7 @@ describe("trigger", () => {
     let renamed: Array<{ sessionId: string; title: string }>;
 
     const run = async (prompt: string, options: Partial<RegisterChatRenamerOptions> = {}) => {
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), {
+      await registerChatRenamer(context("variant.chat-renamer"), {
         log: quiet,
         now: () => STARTED,
         readFirstPrompt: async () => ({ text: prompt, submittedAtMs: STARTED + 1_000 }),
@@ -529,7 +529,7 @@ describe("trigger", () => {
 
     it("copies the worktree patterns into the hook script", async () => {
       configure({ trigger: "hook", hookScope: "user", worktreePrefixes: ["_work-"] });
-      await registerChatRenamer(context("variant.chat-renamer-vscode"), { commandPrefix: "wt", log: quiet }).ready;
+      await registerChatRenamer(context("variant.chat-renamer"), { commandPrefix: "wt", log: quiet }).ready;
 
       const script = readFileSync(join(homeDir, ".cursor", "hooks", "wt-chat-rename.sh"), "utf8");
       const patterns = activationPatternSources(["_work-"], [...DEFAULT_ACTIVATION_PATTERNS]);
@@ -548,7 +548,7 @@ describe("trigger", () => {
     let showWarningMessage: { mockRestore(): void };
 
     const start = (prompt: string) =>
-      registerChatRenamer(context("variant.chat-renamer-vscode"), {
+      registerChatRenamer(context("variant.chat-renamer"), {
         log: quiet,
         now: () => STARTED,
         readFirstPrompt: async () => ({ text: prompt, submittedAtMs: STARTED - 60_000 }),
@@ -819,7 +819,7 @@ describe("trigger", () => {
       }
       renamed.length = 0;
 
-      await start(state, "variant.chat-renamer-vscode");
+      await start(state, "variant.chat-renamer");
 
       expect(renamed).toEqual([]);
     });
@@ -842,7 +842,7 @@ describe("trigger", () => {
     it("lets only the active instance run", async () => {
       oldChats();
       await start(memento(), "variant.variant-vscode");
-      await start(memento(), "variant.chat-renamer-vscode");
+      await start(memento(), "variant.chat-renamer");
 
       expect(listCalls).toBe(1);
     });

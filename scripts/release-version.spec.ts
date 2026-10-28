@@ -12,7 +12,7 @@ const PACKAGE_FILES = {
   root: "package.json",
   "variant-api": "packages/variant-api/package.json",
   "variant-vscode": "packages/variant-vscode/package.json",
-  "chat-renamer-vscode": "packages/chat-renamer-vscode/package.json",
+  "chat-renamer": "packages/chat-renamer-vscode/package.json",
 } as const;
 
 const roots: string[] = [];
@@ -51,7 +51,7 @@ describe("release-version", () => {
       root: "1.2.3",
       "variant-api": "1.2.3",
       "variant-vscode": "1.2.3",
-      "chat-renamer-vscode": "1.2.3",
+      "chat-renamer": "1.2.3",
     });
 
     const result = await run(root);
@@ -65,7 +65,7 @@ describe("release-version", () => {
       root: "1.2.3",
       "variant-api": "1.2.3",
       "variant-vscode": "1.2.4",
-      "chat-renamer-vscode": "1.2.2",
+      "chat-renamer": "1.2.2",
     });
 
     const result = await run(root);

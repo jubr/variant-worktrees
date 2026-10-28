@@ -1,7 +1,7 @@
 /**
  * Editor-independent logic of the Cursor chat renamer: parsing rename requests, numbering titles, reading a chat's
  * first prompt, installing the hook script, and renaming through Cursor's private agent-host API.
- * Nothing here imports `vscode`; chat-renamer-vscode wires it into an extension.
+ * Nothing here imports `vscode`; chat-renamer wires it into an extension.
  */
 
 export * from "./chat-existing-plan";

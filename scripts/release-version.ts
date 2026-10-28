@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Print the lockstep release version shared by the root package, variant-api,
- * variant-vscode and chat-renamer-vscode.
+ * variant-vscode and chat-renamer.
  *
  * Specification: openspec/specs/meta/release-artifacts/spec.md (Lockstep release version)
  *
