@@ -2,8 +2,9 @@ name: Release
 
 # Specification: openspec/specs/meta/release-artifacts/spec.md
 # Green main -> build both .vsix + `variant` executables -> GitHub Release v<version>.
-# A version whose tag already exists is not released again. Registry upload is a
-# separate, manual workflow (publish-extensions.yaml).
+# A version whose tag already exists is not released again. Registry upload is the
+# reusable workflow publish-extensions.yaml, called last and only for a new release;
+# it can also be dispatched by hand for any existing tag.
 on:
   push:
     branches: [main]
@@ -96,3 +97,17 @@ jobs:
           name: release-assets
           path: out
       - run: gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --generate-notes out/*
+
+  # Runs only when this run created the release, so an already released tag is never
+  # published again. Approval of the `marketplace` environment still gates the upload.
+  publish:
+    name: Publish extensions
+    needs: [version, release]
+    if: needs.release.result == 'success'
+    uses: ./.github/workflows/publish-extensions.yaml
+    with:
+      tag: v${{ needs.version.outputs.version }}
+    # AIDEV-NOTE: a called workflow cannot exceed the caller's permissions; id-token is for Open VSX OIDC
+    permissions:
+      contents: read
+      id-token: write

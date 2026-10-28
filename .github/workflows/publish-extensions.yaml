@@ -1,8 +1,9 @@
 name: Publish extensions
 
 # Specification: openspec/specs/meta/release-artifacts/spec.md (Manual registry publication)
-# Manual only. Publishes the .vsix files attached to one GitHub Release, without
-# rebuilding. Open VSX uses OIDC trusted publishing (no token). The Visual Studio
+# Publishes the .vsix files attached to one GitHub Release, without rebuilding.
+# Runs by manual dispatch, and as the last job of ci-release.yaml (workflow_call)
+# right after a new release is created. Open VSX uses OIDC trusted publishing (no token). The Visual Studio
 # Marketplace still needs the repository secret VSCE_PAT: its trusted publishing is
 # not supported yet, see https://github.com/microsoft/vsmarketplace/issues/1422
 # Needs a protected `marketplace` environment with required reviewers, secret
@@ -19,6 +20,16 @@ on:
         description: "Which registry receives the .vsix files"
         type: choice
         options: [both, marketplace, openvsx]
+        default: both
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to publish, for example v1.2.3"
+        type: string
+        required: true
+      registry:
+        description: "Which registry receives the .vsix files: both, marketplace or openvsx"
+        type: string
         default: both
 
 permissions:

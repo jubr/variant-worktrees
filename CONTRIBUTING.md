@@ -130,8 +130,9 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
   linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
   `v<version>`. No release when that tag already exists. Manual dispatch with
   `dry-run` (default) builds the assets without releasing.
-- `publish-extensions.yaml` — manual dispatch only: publishes the `.vsix` files of a
-  chosen release tag to the Visual Studio Marketplace and/or Open VSX.
+- `publish-extensions.yaml` — publishes the `.vsix` files of a release tag to the
+  Visual Studio Marketplace and/or Open VSX. Called as the last job of
+  `ci-release.yaml` when that run created the release; also manually dispatchable.
 - `docs.yml` — TypeDoc + VitePress to GitHub Pages (main)
 
 When adding a gate, expose it as a `task` and call that task from the workflow.
@@ -141,8 +142,9 @@ When adding a gate, expose it as a `task` and call that task from the workflow.
 The root package, `variant-api`, `variant-vscode` and `chat-renamer` share one
 version (`task release:version` fails when they differ). Run `task version:incr:patch`
 to bump every package and `bun.lock`, merge to `main`; a green build tags and releases
-that version. To publish to the registries, dispatch `publish-extensions.yaml` with the tag; a reviewer approves the `marketplace`
-environment first. One-time setup: environment `marketplace` with required reviewers and
+that version and then runs `publish-extensions.yaml` for it. To publish an older tag
+by hand, dispatch `publish-extensions.yaml` with the tag. Either way a reviewer
+approves the `marketplace` environment first. One-time setup: environment `marketplace` with required reviewers and
 secret `VSCE_PAT` (Visual Studio Marketplace; its trusted publishing is not supported
 yet, see [vsmarketplace#1422](https://github.com/microsoft/vsmarketplace/issues/1422)).
 Open VSX needs no token: register a trusted publisher per extension on open-vsx.org

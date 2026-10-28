@@ -66,12 +66,22 @@ The release workflow SHALL NOT create or modify a release when the tag `v<versio
 
 ### Requirement: Manual registry publication
 
-A separate workflow SHALL publish the `.vsix` files of one chosen release to the Visual Studio Marketplace and to Open VSX. It SHALL start only by manual dispatch naming a release tag, SHALL run in a protected environment that requires approval, and SHALL publish the exact `.vsix` files attached to that release without rebuilding them. The workflow SHALL authenticate to Open VSX through trusted publishing, without a stored token, and to the Visual Studio Marketplace with the repository secret `VSCE_PAT` until the Marketplace supports trusted publishing. The OIDC token permission SHALL be granted to the publishing job only.
+A separate workflow SHALL publish the `.vsix` files of one chosen release to the Visual Studio Marketplace and to Open VSX. It SHALL start only by manual dispatch naming a release tag, or as the last job of the release workflow when that run created the release, SHALL run in a protected environment that requires approval, and SHALL publish the exact `.vsix` files attached to that release without rebuilding them. The workflow SHALL authenticate to Open VSX through trusted publishing, without a stored token, and to the Visual Studio Marketplace with the repository secret `VSCE_PAT` until the Marketplace supports trusted publishing. The OIDC token permission SHALL be granted to the publishing job only.
 
-#### Scenario: Not triggered automatically
+#### Scenario: Not triggered by itself
 
-- **WHEN** a release is created or a push lands on `main`
-- **THEN** the publish workflow does not run
+- **WHEN** a release is created outside the release workflow or a push lands on `main`
+- **THEN** the publish workflow does not run on its own
+
+#### Scenario: Called after a new release
+
+- **WHEN** the release workflow creates release `v<version>`
+- **THEN** it runs the publish workflow for that tag as its last job, after environment approval
+
+#### Scenario: Already released version
+
+- **WHEN** the release workflow finds `v<version>` already released
+- **THEN** the publish workflow is not run
 
 #### Scenario: Publish a release
 
