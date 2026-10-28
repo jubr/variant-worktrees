@@ -19,7 +19,7 @@ None.
 
 ### Modified Capabilities
 
-- `chat-renamer-vscode/chat-renaming`: adds requirements for the log channel, the configurable line limit of the title event, the title-event decision log, structured leveled log lines, and failure notifications with a reason; modifies the settings list and the active-chat command. Existing log line contracts (`[existing-chats]`, `rename <id>: <reason>; title ...`) stay as they are.
+- `chat-renamer/chat-renaming`: adds requirements for the log channel, the configurable line limit of the title event, the title-event decision log, structured leveled log lines, and failure notifications with a reason; modifies the settings list and the active-chat command. Existing log line contracts (`[existing-chats]`, `rename <id>: <reason>; title ...`) stay as they are.
 - `chat-renamer-config/defaults`: the shared option set gains `titleEventPromptLines` (default 10).
 - `variant-config/core`: the `chatRenamer` section accepts `titleEventPromptLines`.
 
@@ -34,7 +34,7 @@ None.
 - `packages/chat-renamer-vscode/src/commands.ts` and `trigger.ts` (notifications with reasons).
 - Packaging: both `.vsix` files are built into `out/` as the last task.
 - `packages/chat-renamer-vscode/README.md` and the changelogs.
-- [specs/chat-renamer-vscode/chat-renaming](../../specs/chat-renamer-vscode/chat-renaming/spec.md).
+- [specs/chat-renamer/chat-renaming](../../specs/chat-renamer/chat-renaming/spec.md).
 
 ## Non-goals
 

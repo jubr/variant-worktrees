@@ -8,7 +8,7 @@ Define the artifacts a green `main` build releases and how they are handed to th
 
 ### Requirement: Lockstep release version
 
-The release SHALL have one version, shared by the root package, `variant-api`, `variant-vscode`, and `chat-renamer-vscode`. A release run SHALL fail before building artifacts when those versions differ.
+The release SHALL have one version, shared by the root package, `variant-api`, `variant-vscode`, and `chat-renamer`. A release run SHALL fail before building artifacts when those versions differ.
 
 #### Scenario: Versions agree
 
