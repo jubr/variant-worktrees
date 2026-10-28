@@ -1,6 +1,6 @@
 {
   "name": "chat-renamer",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Rename Cursor chats from the first prompt: /chat-rename commands and activation patterns with numbered titles",
   "displayName": "Chat Renamer",
   "publisher": "jubr",

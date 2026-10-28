@@ -29,7 +29,7 @@ Not shown in the palette; meant for other extensions and scripts:
 - `chat-renamer.renameChat(id, title)`
 - `chat-renamer.renameChatFromPrompt(id, prompt)`
 
-All activity is logged to the **Chat Renamer** log channel, which **Developer: Show Logs…** lists once the extension has started and which has its own log level. Info shows decisions and renames; select **Trace** in the channel's log level picker to also see the first lines of each new chat's prompt, and **Debug** for chats skipped because they existed before startup. A rename that fails also shows a notification with the cause.
+All activity is logged to the **Chat Renamer** log channel, which **Developer: Show Logs…** lists once the extension has started and which has its own log level. Info shows decisions and renames; select **Trace** in the channel's log level picker to also see the first lines of each new chat's prompt, and **Debug** for every title event as it arrives (`[title-event] event`) and for chats skipped because they existed before startup. A rename that fails also shows a notification with the cause.
 
 A host extension can supply the same options from elsewhere (Variant reads the `chatRenamer` section of `variants.yaml`); an option you set explicitly in the editor settings wins over the host's value, which wins over the default.
 
