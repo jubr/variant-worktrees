@@ -1,4 +1,4 @@
-# chat-renamer-vscode Specification
+# chat-renamer Specification
 
 ## Purpose
 
@@ -267,11 +267,11 @@ Whenever the renamer renames a chat, the log SHALL include the chat id, the reas
 
 ### Requirement: Packaged vsix is written to the repository out directory
 
-Every extension package script that produces a `.vsix` SHALL write it into the repository-root `out/` directory. `chat-renamer-vscode` SHALL write `out/chat-renamer-<version>.vsix`. `variant-vscode` SHALL write `out/variant-worktrees-<version>.vsix`. The repository `.gitignore` SHALL ignore `out/`.
+Every extension package script that produces a `.vsix` SHALL write it into the repository-root `out/` directory. `chat-renamer` SHALL write `out/chat-renamer-<version>.vsix`. `variant-vscode` SHALL write `out/variant-worktrees-<version>.vsix`. The repository `.gitignore` SHALL ignore `out/`.
 
 #### Scenario: Chat renamer package output is ignored
 
-- **WHEN** the `chat-renamer-vscode` package script runs for version `0.0.1`
+- **WHEN** the `chat-renamer` package script runs for version `0.0.1`
 - **THEN** the file `out/chat-renamer-0.0.1.vsix` exists at the repository root and git ignores `out/`
 
 #### Scenario: Variant package output is ignored

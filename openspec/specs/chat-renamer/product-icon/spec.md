@@ -1,4 +1,4 @@
-# chat-renamer-vscode Specification
+# chat-renamer Specification
 
 ## Purpose
 
@@ -8,16 +8,16 @@ Present the supplied chat-renamer artwork as the extension icon. The package REA
 
 ### Requirement: Extension icon
 
-The chat-renamer-vscode extension manifest SHALL set `icon` to a PNG that is 256×256 pixels and is a square scale of the supplied source artwork. The packaged extension SHALL contain that file.
+The chat-renamer extension manifest SHALL set `icon` to a PNG that is 256×256 pixels and is a square scale of the supplied source artwork. The packaged extension SHALL contain that file.
 
 #### Scenario: Manifest icon is 256 pixels
 
-- **WHEN** the chat-renamer-vscode extension manifest is read
+- **WHEN** the chat-renamer extension manifest is read
 - **THEN** `icon` resolves to an existing PNG whose width and height are both 256
 
 #### Scenario: Packaged extension contains the icon
 
-- **WHEN** the chat-renamer-vscode extension is packaged
+- **WHEN** the chat-renamer extension is packaged
 - **THEN** the package contains the file named by `icon`
 
 ### Requirement: Published icon sizes

@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md - Why. Today `chat-renamer-api/src/log.ts` has a `Logger` of `info`/`warn`/`error` that formats `<ISO time> <LEVEL> message` and calls `appendLine` on a plain `OutputChannel`. `chat-renamer-vscode/src/log.ts` creates that channel (`Chat Renamer`, or `Variant Worktrees` through `variant-vscode`). `catalogTitleOutcome` returns `renamed | same-base | ignored` with no reason, and `findRenameRequest` scans every line and does not say which pattern matched. Several log lines are specified verbatim (`[existing-chats]`, `rename <id>: <reason>; title ...`).
+See proposal.md - Why. Today `chat-renamer-api/src/log.ts` has a `Logger` of `info`/`warn`/`error` that formats `<ISO time> <LEVEL> message` and calls `appendLine` on a plain `OutputChannel`. `chat-renamer/src/log.ts` creates that channel (`Chat Renamer`, or `Variant Worktrees` through `variant-vscode`). `catalogTitleOutcome` returns `renamed | same-base | ignored` with no reason, and `findRenameRequest` scans every line and does not say which pattern matched. Several log lines are specified verbatim (`[existing-chats]`, `rename <id>: <reason>; title ...`).
 
 The reference logger (`vscode-previewur/src/logger.ts`) wraps a `vscode.LogOutputChannel`, adds a category path (`getChild`) rendered as `[a.b] message`, and exposes `trace`/`debug`/`info`/`warn`/`error`.
 
