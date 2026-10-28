@@ -142,8 +142,14 @@ The root package, `variant-api`, `variant-vscode` and `chat-renamer` share one
 version (`task release:version` fails when they differ). Run `task version:incr:patch`
 to bump every package and `bun.lock`, merge to `main`; a green build tags and releases
 that version. To publish to the registries, dispatch `publish-extensions.yaml` with the tag; a reviewer approves the `marketplace`
-environment first. One-time repo setup: environment `marketplace` with required
-reviewers and secrets `VSCE_PAT` (Visual Studio Marketplace) and `OVSX_PAT` (Open VSX).
+environment first. Publishing uses short-lived OIDC credentials, no stored tokens.
+One-time setup: environment `marketplace` with required reviewers; for the Visual
+Studio Marketplace, an Entra managed identity with a GitHub federated credential
+(environment `marketplace`), added as Contributor of the publisher, and environment
+variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`; for Open VSX,
+a trusted publisher per extension (workflow `publish-extensions.yaml`, environment
+`marketplace`). The first Open VSX version of an extension must be published once
+with a token, since a trusted publisher needs an existing extension.
 
 ## Review and delivery
 
