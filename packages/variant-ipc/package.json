@@ -1,6 +1,6 @@
 {
   "name": "variant-ipc",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Unix domain socket for editor requests",
   "type": "module",
   "main": "dist/index.js",

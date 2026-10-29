@@ -1,6 +1,6 @@
 {
   "name": "chat-renamer-config",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Defaults and field schemas shared by the Cursor chat renamer and variant-config",
   "type": "module",
   "main": "dist/index.js",

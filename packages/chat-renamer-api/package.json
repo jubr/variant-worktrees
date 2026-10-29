@@ -1,6 +1,6 @@
 {
   "name": "chat-renamer-api",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Rename Cursor chats from a prompt: request parsing, title numbering, hook installer and the agent-host rename call",
   "type": "module",
   "main": "dist/index.js",

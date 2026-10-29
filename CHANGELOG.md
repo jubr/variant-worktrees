@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.0.4
+
+### Fixed
+
+- `variant --version` and `--help` report the package version instead of a fixed `v0.0.1`.
 
 ### Removed
 

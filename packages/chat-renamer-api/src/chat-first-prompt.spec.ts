@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { parseFirstPrompt, readFirstPrompt, readFirstPromptWithRetry } from "./chat-first-prompt";
+import {
+  parseFirstPrompt,
+  probeFirstPromptStore,
+  readFirstPrompt,
+  readFirstPromptWithRetry,
+} from "./chat-first-prompt";
 
 const header = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
@@ -45,7 +50,7 @@ describe("readFirstPrompt", () => {
     return { run, queries };
   };
 
-  it("reads the first human bubble header, then its text", async () => {
+  it("reads the first human bubble header of the older layout, then its text, after the newer layout found none", async () => {
     const { run, queries } = fakeRunner({
       "composerData:chat-1": header({ bubbleId: "b-9" }),
       "bubbleId:chat-1:b-9": "/chat-rename wanted",
@@ -54,7 +59,60 @@ describe("readFirstPrompt", () => {
     const result = await readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run });
 
     expect(result?.text).toBe("/chat-rename wanted");
-    expect(queries).toHaveLength(2);
+    expect(queries).toHaveLength(3);
+  });
+
+  it("reads the first human header from the header rows of the newer layout", async () => {
+    const { run } = fakeRunner({
+      "composerConvHeaders:chat-1:": header({ bubbleId: "b-7", grouping: {} }),
+      "bubbleId:chat-1:b-7": "/vw-spec-start abc",
+    });
+
+    await expect(readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      text: "/vw-spec-start abc",
+      submittedAtMs: Date.parse("2026-10-09T14:49:32.475Z"),
+    });
+  });
+
+  it("falls back to the older layout when reading the newer one fails", async () => {
+    const { run: older } = fakeRunner({
+      "composerData:chat-1": header({ bubbleId: "b-9" }),
+      "bubbleId:chat-1:b-9": "/vw-spec-start abc",
+    });
+    const run = async (db: string, sql: string): Promise<string> => {
+      if (sql.includes("composerConvHeaders")) {
+        throw new Error("no such function: json_each");
+      }
+      return older(db, sql);
+    };
+
+    await expect(readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toMatchObject({
+      text: "/vw-spec-start abc",
+    });
+  });
+
+  it("falls back to the older layout when the newer one returns output it cannot parse", async () => {
+    const { run: older } = fakeRunner({
+      "composerData:chat-1": header({ bubbleId: "b-9" }),
+      "bubbleId:chat-1:b-9": "/vw-spec-start abc",
+    });
+    const run = async (db: string, sql: string): Promise<string> =>
+      sql.includes("composerConvHeaders") ? "Error: database is locked" : older(db, sql);
+
+    await expect(readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toMatchObject({
+      text: "/vw-spec-start abc",
+    });
+  });
+
+  it("prefers the newer layout when both hold a human message", async () => {
+    const { run } = fakeRunner({
+      "composerConvHeaders:chat-1:": header({ bubbleId: "b-new" }),
+      "composerData:chat-1": header({ bubbleId: "b-old" }),
+      "bubbleId:chat-1:b-new": "new text",
+      "bubbleId:chat-1:b-old": "old text",
+    });
+
+    expect((await readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run }))?.text).toBe("new text");
   });
 
   it("uses the preview when the bubble row is missing", async () => {
@@ -103,5 +161,73 @@ describe("readFirstPromptWithRetry", () => {
 
     await expect(readFirstPromptWithRetry(read, 4, 0)).resolves.toBeUndefined();
     expect(calls).toBe(4);
+  });
+});
+
+describe("probeFirstPromptStore", () => {
+  /** Answers like `sqlite3 -json`: one row with column `v`, nothing for an unknown key. */
+  const probeRunner = (answers: Record<string, unknown>) => async (_db: string, sql: string) => {
+    const hit = Object.entries(answers).find(([needle]) => sql.includes(needle));
+    return hit ? JSON.stringify([{ v: hit[1] }]) : "";
+  };
+
+  it("reports the record version, no listed headers and the header rows of the newer layout", async () => {
+    const run = probeRunner({
+      "composerData:chat-1": JSON.stringify({ record: 18, listed: 0 }),
+      "composerConvHeaders:chat-1:": 2,
+    });
+
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      record: 18,
+      listedHeaders: 0,
+      headerRows: 2,
+    });
+  });
+
+  it("reports a chat without any rows as missing", async () => {
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run: probeRunner({}) })).resolves.toEqual({
+      record: "missing",
+      listedHeaders: 0,
+      headerRows: 0,
+    });
+  });
+
+  it("reports the headers the record lists in the older layout", async () => {
+    const run = probeRunner({ "composerData:chat-1": JSON.stringify({ record: 3, listed: 4 }) });
+
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      record: 3,
+      listedHeaders: 4,
+      headerRows: 0,
+    });
+  });
+
+  it("reports the message of a failed query and still answers for the other one", async () => {
+    const run = async (_db: string, sql: string): Promise<string> => {
+      if (sql.includes("composerData:")) {
+        throw new Error("sqlite3 missing");
+      }
+      return JSON.stringify([{ v: 3 }]);
+    };
+
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      record: "unknown",
+      listedHeaders: 0,
+      headerRows: 3,
+      error: "sqlite3 missing",
+    });
+  });
+
+  it("does not query for an id that is not a plain id", async () => {
+    const queries: string[] = [];
+    const run = async (_db: string, sql: string): Promise<string> => {
+      queries.push(sql);
+      return "";
+    };
+
+    const probe = await probeFirstPromptStore({ dbPath: "/db", sessionId: "x'; drop table t;--", run });
+
+    expect(probe.error).toBeDefined();
+    expect(queries).toHaveLength(0);
   });
 });
