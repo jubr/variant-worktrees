@@ -36,6 +36,15 @@ describe("variant CLI", () => {
     expect(noArgs.stderr).toBe(explicitHelp.stderr);
   });
 
+  it("reports the package version in help and --version", async () => {
+    const { version } = (await Bun.file(`${import.meta.dir}/../package.json`).json()) as { version: string };
+    const help = await runCli(["--help"]);
+    const flag = await runCli(["--version"]);
+
+    expect(help.stdout).toContain(`variant v${version}`);
+    expect(flag.stdout.trim()).toBe(version);
+  });
+
   it("has no destroy command; implode replaces it", async () => {
     const help = await runCli(["--help"]);
     const destroy = await runCli(["destroy"]);
