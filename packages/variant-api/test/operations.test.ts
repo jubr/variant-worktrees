@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
@@ -54,23 +55,34 @@ describe("variant client operations", () => {
     }
   });
 
-  it("switches to the primary worktree for main", async () => {
-    const directory = tempDirectory();
+  it("creates a worktree without changing the working directory of the process", async () => {
+    const parent = tempDirectory();
+    const repo = join(parent, "repo");
     const originalDirectory = process.cwd();
     try {
-      const baseConfig = loadConfig({ cwd: directory });
+      const git = (...args: string[]): void => {
+        execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" });
+      };
+      execFileSync("git", ["init", "-q", "-b", "main", repo], { encoding: "utf8" });
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git("add", "README.md");
+      git("commit", "-q", "-m", "initial");
+
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
-        cwd: originalDirectory,
-        stateDir: join(directory, ".cache", "variants"),
-        worktree: false,
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
       });
-      const switched = await client.switch("main");
-      expect(switched.slug).toBe("main");
-      expect(switched.worktree).toContain("variant-worktrees");
+      const created = await client.create("add-auth");
+
+      expect(created.worktree).toContain("_v-add-auth");
+      expect(existsSync(created.worktree as string)).toBe(true);
+      expect(process.cwd()).toBe(originalDirectory);
     } finally {
-      process.chdir(originalDirectory);
-      rmSync(directory, { recursive: true, force: true });
+      rmSync(parent, { recursive: true, force: true });
     }
   });
 });

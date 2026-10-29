@@ -6,17 +6,7 @@ import { chatRenamerConfigFor } from "./renamer-config.ts";
 
 export const LOG_CHANNEL_NAME = "Variant Worktrees";
 
-const LIFECYCLE_COMMANDS = new Set([
-  "config",
-  "create",
-  "list",
-  "switch",
-  "provision",
-  "up",
-  "down",
-  "watch",
-  "implode",
-]);
+const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provision", "up", "down", "watch", "implode"]);
 
 const listeners = new Map<string, SocketListener>();
 

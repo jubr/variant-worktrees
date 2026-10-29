@@ -56,12 +56,6 @@ export const commands: CommandDefinition[] = [
     execute: (client) => client.list(),
   },
   {
-    name: "switch",
-    description: "Switch process context to a variant worktree",
-    args: [slugArg, verboseArg],
-    execute: (client, args) => client.switch(slugString(args)),
-  },
-  {
     name: "provision",
     description: "Run configured variant runtime and seed commands",
     args: [slugArg, verboseArg],

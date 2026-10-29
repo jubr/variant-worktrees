@@ -7,7 +7,6 @@ import { downVariant } from "./operations/down.js";
 import { implodeVariant } from "./operations/implode.js";
 import { listVariants } from "./operations/list.js";
 import { provisionVariant } from "./operations/provision.js";
-import { switchVariant } from "./operations/switch.js";
 import type { OperationContext } from "./operations/types.js";
 import { upVariant } from "./operations/up.js";
 import { watchVariant } from "./operations/watch.js";
@@ -45,24 +44,6 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     down: (slug, options) => withAdapter((context) => downVariant(context, slug, options)),
     implode: (slug, options) => withAdapter((context) => implodeVariant(context, slug, options)),
     list: () => withAdapter((context) => listVariants(context)),
-    switch: async (slug) => {
-      const adapter = createDatabaseAdapter(config.db, stateDir);
-      try {
-        return switchVariant(
-          {
-            config,
-            variantRoot,
-            stateDir,
-            cwd,
-            useWorktree: options.worktree ?? true,
-            adapter,
-          },
-          slug,
-        );
-      } finally {
-        await adapter.close();
-      }
-    },
     provision: (slug, options) => withAdapter((context) => provisionVariant(context, slug, options)),
     config: () => config,
   };
@@ -77,4 +58,4 @@ export type {
   VariantRecord,
   VariantState,
 } from "./types.js";
-export { ensureWorktree, primaryWorktree, switchWorktree } from "./worktree.js";
+export { ensureWorktree, primaryWorktree } from "./worktree.js";

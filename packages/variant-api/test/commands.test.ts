@@ -27,12 +27,11 @@ const recordingClient = (): { client: VariantClient; calls: [string, ...unknown[
 };
 
 describe("command registry", () => {
-  it("contains the lifecycle, runtime and config commands and no destroy", () => {
+  it("contains the lifecycle, runtime and config commands and no destroy or switch", () => {
     expect(commands.map((command) => command.name)).toEqual([
       "config",
       "create",
       "list",
-      "switch",
       "provision",
       "up",
       "down",
@@ -40,6 +39,7 @@ describe("command registry", () => {
       "implode",
     ]);
     expect(commands.some((command) => String(command.name) === "destroy")).toBe(false);
+    expect(commands.some((command) => String(command.name) === "switch")).toBe(false);
   });
 
   it("declares an optional short slug flag for slug commands", () => {
