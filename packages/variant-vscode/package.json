@@ -1,7 +1,7 @@
 {
   "name": "variant-worktrees",
   "version": "0.0.3",
-  "description": "Isolated tree+db for your agents :: watch, seed, implode",
+  "description": "Isolated worktree+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode",
   "displayName": "Variant Worktrees",
   "publisher": "jubr",
   "icon": "media/icon-256.png",
