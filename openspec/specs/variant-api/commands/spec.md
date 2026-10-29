@@ -57,7 +57,7 @@ The system SHALL auto-generate webview forms from `ArgDefinition[]`.
 
 ### Requirement: Lifecycle commands execute in variant-api
 
-The system SHALL execute `config`, `create`, `list`, `switch`, `provision`, `up`, `down`, `watch` and `implode` in `variant-api`. The CLI and the MCP server SHALL call that logic in-process. Those commands SHALL NOT be routed to the VS Code extension. Requests that need the editor are the only socket traffic, and they are not these commands.
+The system SHALL execute `config`, `create`, `list`, `provision`, `up`, `down`, `watch` and `implode` in `variant-api`. The CLI and the MCP server SHALL call that logic in-process. Those commands SHALL NOT be routed to the VS Code extension. Requests that need the editor are the only socket traffic, and they are not these commands.
 
 #### Scenario: CLI create stays in variant-api
 
@@ -79,7 +79,7 @@ The system SHALL execute `config`, `create`, `list`, `switch`, `provision`, `up`
 
 ### Requirement: Runtime lifecycle commands
 
-The system SHALL define the commands `up`, `down`, `watch` and `implode` next to `config`, `create`, `list`, `switch` and `provision`, each with the optional `slug` argument. The command `destroy` SHALL NOT exist; `implode` replaces it. `watch` SHALL also take a boolean `detach`, and `implode` a boolean `force`. Every command SHALL also accept a boolean `verbose` that restores the full output of quiet provisioning steps. The CLI, the MCP server and the webview forms SHALL derive their flags, tool inputs and fields from these definitions.
+The system SHALL define the commands `up`, `down`, `watch` and `implode` next to `config`, `create`, `list` and `provision`, each with the optional `slug` argument. The commands `destroy` and `switch` SHALL NOT exist; `implode` replaces `destroy`. `watch` SHALL also take a boolean `detach`, and `implode` a boolean `force`. Every command SHALL also accept a boolean `verbose` that restores the full output of quiet provisioning steps. The CLI, the MCP server and the webview forms SHALL derive their flags, tool inputs and fields from these definitions.
 
 #### Scenario: Commands registered
 
@@ -100,6 +100,12 @@ The system SHALL define the commands `up`, `down`, `watch` and `implode` next to
 
 - **WHEN** a user runs `variant destroy`
 - **THEN** the CLI reports an unknown command and `variant --help` lists `implode`
+
+#### Scenario: Switch removed
+
+- **WHEN** a user runs `variant switch`
+- **THEN** the CLI reports an unknown command and `variant --help` does not list `switch`
+- **AND** the MCP server registers no `variant_switch` tool
 
 #### Scenario: Verbose flag
 
