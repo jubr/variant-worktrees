@@ -4,7 +4,7 @@
 
 ## 2. Extension description and README
 
-- [ ] 2.1 Set `description` to `Isolated tree+db for your agents :: watch, seed, implode` in `packages/variant-vscode/package.json`. Verify the description scenario passes.
+- [ ] 2.1 Set `description` to `Isolated tree+db for you & your agents :: watch, seed, implode :: cli, mcp & vscode` in `packages/variant-vscode/package.json`. Verify the description scenario passes.
 - [ ] 2.2 Rewrite `packages/variant-vscode/README.md` per design.md: docs link, `Why`, `How it works`, configuration, MCP, chat renamer, learn more; no development or probe content. Verify the extension README scenarios pass and the `.vsix` build still includes `README.md`.
 
 ## 3. Repository README

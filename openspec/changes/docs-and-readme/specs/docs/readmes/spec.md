@@ -2,12 +2,12 @@
 
 ### Requirement: Extension description
 
-The `variant-vscode` manifest `description` SHALL be `Isolated tree+db for your agents :: watch, seed, implode`.
+The `variant-vscode` manifest `description` SHALL be `Isolated tree+db for you & your agents :: watch, seed, implode :: cli, mcp & vscode`.
 
 #### Scenario: Marketplace tagline
 
 - **WHEN** the `variant-vscode` `package.json` is read
-- **THEN** its `description` is `Isolated tree+db for your agents :: watch, seed, implode`
+- **THEN** its `description` is `Isolated tree+db for you & your agents :: watch, seed, implode :: cli, mcp & vscode`
 
 ### Requirement: README tagline
 
