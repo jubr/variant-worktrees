@@ -9,7 +9,7 @@ import { join } from "node:path";
 const repoRoot = join(import.meta.dirname, "../../..");
 const read = (file: string): string => readFileSync(join(repoRoot, file), "utf8");
 
-const description = "Isolated tree+db for you & your agents :: watch, seed, implode :: cli, mcp & vscode";
+const description = "Isolated tree+db for your agents :: watch, seed, implode";
 const docsUrl = "https://jubr.github.io/variant-worktrees/";
 
 const readmes = [
