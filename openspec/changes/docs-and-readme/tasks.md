@@ -1,15 +1,15 @@
 ## 1. Contract test (red)
 
-- [ ] 1.1 Add `packages/variant-vscode/src/readme.spec.ts` covering every scenario of `docs/readmes` (description, tagline and docs link before the first `##`, `Why` first and before `variant watch`, no development strings in the extension README, product areas present, `mise use` line and `CONTRIBUTING.md` link in the repository README). Verify `task test` fails on the new spec.
+- [x] 1.1 Add `packages/variant-vscode/src/readme.spec.ts` covering every scenario of `docs/readmes` (description, tagline and docs link before the first `##`, `Why` first and before `variant watch`, no development strings in the extension README, product areas present, `mise use` line and `CONTRIBUTING.md` link in the repository README). Verify `task test` fails on the new spec.
 
 ## 2. Extension description and README
 
-- [ ] 2.1 Set `description` to `Isolated tree+db for you & your agents :: watch, seed, implode :: cli, mcp & vscode` in `packages/variant-vscode/package.json`. Verify the description scenario passes.
-- [ ] 2.2 Rewrite `packages/variant-vscode/README.md` per design.md: docs link, `Why`, `How it works`, configuration, MCP, chat renamer, learn more; no development or probe content. Verify the extension README scenarios pass and the `.vsix` build still includes `README.md`.
+- [x] 2.1 Set `description` to `Isolated tree+db for your agents :: watch, seed, implode` in `packages/variant-vscode/package.json`. Verify the description scenario passes.
+- [x] 2.2 Rewrite `packages/variant-vscode/README.md` per design.md: docs link, `Why`, `How it works`, configuration, MCP, chat renamer, learn more; no development or probe content. Verify the extension README scenarios pass and the `.vsix` build still includes `README.md`.
 
 ## 3. Repository README
 
-- [ ] 3.1 Rewrite the top of `README.md`: icon, docs link, `Why`, `How it works`, install with `mise use github:jubr/variant-worktrees`. Keep Configuration, CLI, MCP, Chat renamer, and Packages, and reduce the source-build and Development sections to a pointer to `CONTRIBUTING.md`. Verify the repository README scenarios and the existing icon test pass.
+- [x] 3.1 Rewrite the top of `README.md`: icon, docs link, `Why`, `How it works`, install with `mise use github:jubr/variant-worktrees`. Keep Configuration, CLI, MCP, Chat renamer, and Packages, and reduce the source-build and Development sections to a pointer to `CONTRIBUTING.md`. Verify the repository README scenarios and the existing icon test pass.
 
 ## 4. CLI version
 
@@ -17,4 +17,4 @@
 
 ## 5. Validation
 
-- [ ] 5.1 Run `task check:full` and `openspec validate --all --strict --no-interactive`. Verify both exit 0.
+- [x] 5.1 Run `task check:full` and `openspec validate --all --strict --no-interactive`. Verify both exit 0.
