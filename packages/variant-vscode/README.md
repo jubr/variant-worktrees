@@ -2,7 +2,7 @@
 
 ![Variant Worktrees](media/icon-256.png)
 
-**Isolated tree+db for your agents :: watch, seed, implode**
+**Isolated worktree+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode**
 
 📖 **[Read the documentation](https://jubr.github.io/variant-worktrees/)**
 
