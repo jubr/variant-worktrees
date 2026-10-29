@@ -3,8 +3,8 @@ name: Release
 # Specification: openspec/specs/meta/release-artifacts/spec.md
 # Green main -> build both .vsix + `variant` executables -> GitHub Release v<version>.
 # A version whose tag already exists is not released again. Registry upload is the
-# reusable workflow publish-extensions.yaml, called last and only for a new release;
-# it can also be dispatched by hand for any existing tag.
+# separate workflow publish-extensions.yaml, which runs after this one completes (not
+# called from it) and only for a new release; it can also be dispatched by hand.
 on:
   push:
     branches: [main]
@@ -98,16 +98,7 @@ jobs:
           path: out
       - run: gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --generate-notes out/*
 
-  # Runs only when this run created the release, so an already released tag is never
-  # published again.
-  publish:
-    name: Publish extensions
-    needs: [version, release]
-    if: needs.release.result == 'success'
-    uses: ./.github/workflows/publish-extensions.yaml
-    with:
-      tag: v${{ needs.version.outputs.version }}
-    # AIDEV-NOTE: a called workflow cannot exceed the caller's permissions; id-token is for Open VSX OIDC
-    permissions:
-      contents: read
-      id-token: write
+  # AIDEV-NOTE: registry publication is not a job here. publish-extensions.yaml is a separate
+  # workflow triggered by workflow_run after this "Release" workflow completes, so the Open VSX
+  # trusted publisher (OIDC) sees publish-extensions.yaml, not a workflow called from this one.
+  # It publishes only when this run created a release tag for the released commit.
