@@ -136,3 +136,71 @@ export const readFirstPromptWithRetry = async (
   }
   return undefined;
 };
+
+/** What Cursor's store holds for a chat, to tell why its first prompt cannot be read. */
+export type FirstPromptStoreProbe = {
+  /** Version of the chat record, `missing` when there is none, `unknown` when reading it failed. */
+  record: number | string;
+  /** Message headers the chat record lists (older layout). */
+  listedHeaders: number;
+  /** Rows of message headers of the newer layout. */
+  headerRows: number;
+  /** Message of the first failed query. */
+  error?: string;
+};
+
+const firstCell = (output: string): unknown => {
+  const trimmed = output.trim();
+  return trimmed.length === 0 ? undefined : (JSON.parse(trimmed) as Array<{ v?: unknown }>)[0]?.v;
+};
+
+/**
+ * Looks at what the store holds for a chat without reading its prompt: the record version, the headers the record
+ * lists and the header rows of the newer layout. Meant for a log entry after a read failed. Never throws.
+ */
+export const probeFirstPromptStore = async ({
+  dbPath,
+  sessionId,
+  run = runSqlite3,
+}: {
+  dbPath: string;
+  sessionId: string;
+  run?: SqliteRunner;
+}): Promise<FirstPromptStoreProbe> => {
+  const probe: FirstPromptStoreProbe = { record: "unknown", listedHeaders: 0, headerRows: 0 };
+  if (!SAFE_ID.test(sessionId)) {
+    return { ...probe, error: "chat id is not a plain id" };
+  }
+  const fail = (error: unknown): void => {
+    probe.error ??= error instanceof Error ? error.message : String(error);
+  };
+  try {
+    const cell = firstCell(
+      await run(
+        dbPath,
+        `select json_object('record', json_extract(value, '$._v'), 'listed', json_array_length(json_extract(value, '$.fullConversationHeadersOnly'))) as v from cursorDiskKV where key = 'composerData:${sessionId}'`,
+      ),
+    );
+    if (cell === undefined) {
+      probe.record = "missing";
+    } else {
+      const record = JSON.parse(String(cell)) as { record?: unknown; listed?: unknown };
+      probe.record = typeof record.record === "number" || typeof record.record === "string" ? record.record : "unknown";
+      probe.listedHeaders = typeof record.listed === "number" ? record.listed : 0;
+    }
+  } catch (error) {
+    fail(error);
+  }
+  try {
+    const count = firstCell(
+      await run(
+        dbPath,
+        `select count(*) as v from cursorDiskKV where key >= 'composerConvHeaders:${sessionId}:' and key < 'composerConvHeaders:${sessionId};'`,
+      ),
+    );
+    probe.headerRows = typeof count === "number" ? count : 0;
+  } catch (error) {
+    fail(error);
+  }
+  return probe;
+};

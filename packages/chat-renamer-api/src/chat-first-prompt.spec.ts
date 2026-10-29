@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { parseFirstPrompt, readFirstPrompt, readFirstPromptWithRetry } from "./chat-first-prompt";
+import {
+  parseFirstPrompt,
+  probeFirstPromptStore,
+  readFirstPrompt,
+  readFirstPromptWithRetry,
+} from "./chat-first-prompt";
 
 const header = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
@@ -156,5 +161,73 @@ describe("readFirstPromptWithRetry", () => {
 
     await expect(readFirstPromptWithRetry(read, 4, 0)).resolves.toBeUndefined();
     expect(calls).toBe(4);
+  });
+});
+
+describe("probeFirstPromptStore", () => {
+  /** Answers like `sqlite3 -json`: one row with column `v`, nothing for an unknown key. */
+  const probeRunner = (answers: Record<string, unknown>) => async (_db: string, sql: string) => {
+    const hit = Object.entries(answers).find(([needle]) => sql.includes(needle));
+    return hit ? JSON.stringify([{ v: hit[1] }]) : "";
+  };
+
+  it("reports the record version, no listed headers and the header rows of the newer layout", async () => {
+    const run = probeRunner({
+      "composerData:chat-1": JSON.stringify({ record: 18, listed: 0 }),
+      "composerConvHeaders:chat-1:": 2,
+    });
+
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      record: 18,
+      listedHeaders: 0,
+      headerRows: 2,
+    });
+  });
+
+  it("reports a chat without any rows as missing", async () => {
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run: probeRunner({}) })).resolves.toEqual({
+      record: "missing",
+      listedHeaders: 0,
+      headerRows: 0,
+    });
+  });
+
+  it("reports the headers the record lists in the older layout", async () => {
+    const run = probeRunner({ "composerData:chat-1": JSON.stringify({ record: 3, listed: 4 }) });
+
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      record: 3,
+      listedHeaders: 4,
+      headerRows: 0,
+    });
+  });
+
+  it("reports the message of a failed query and still answers for the other one", async () => {
+    const run = async (_db: string, sql: string): Promise<string> => {
+      if (sql.includes("composerData:")) {
+        throw new Error("sqlite3 missing");
+      }
+      return JSON.stringify([{ v: 3 }]);
+    };
+
+    await expect(probeFirstPromptStore({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      record: "unknown",
+      listedHeaders: 0,
+      headerRows: 3,
+      error: "sqlite3 missing",
+    });
+  });
+
+  it("does not query for an id that is not a plain id", async () => {
+    const queries: string[] = [];
+    const run = async (_db: string, sql: string): Promise<string> => {
+      queries.push(sql);
+      return "";
+    };
+
+    const probe = await probeFirstPromptStore({ dbPath: "/db", sessionId: "x'; drop table t;--", run });
+
+    expect(probe.error).toBeDefined();
+    expect(queries).toHaveLength(0);
   });
 });
