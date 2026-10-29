@@ -1,6 +1,6 @@
 # Editor socket
 
-`config`, `create`, `list`, `switch`, `provision`, `up`, `down`, `watch`, and
+`config`, `create`, `list`, `provision`, `up`, `down`, `watch`, and
 `implode` run in `variant-api`. The CLI and the MCP server call that logic in-process. Those
 commands are not sent to the VS Code extension.
 

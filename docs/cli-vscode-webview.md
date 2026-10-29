@@ -22,8 +22,8 @@ export interface CommandDefinition {
 }
 ```
 
-Commands include `config`, `create`, `list`, `switch`, `provision`, `up`,
-`down`, `watch`, and `implode`. Every command takes an optional boolean
+Commands include `config`, `create`, `list`, `provision`, `up`, `down`,
+`watch`, and `implode`. Every command takes an optional boolean
 `verbose`; `watch` also takes `detach` and `implode` takes `force`. A command
 may set `mcpFixed` arguments (`watch` always passes `detach: true` to MCP). Adding
 a command updates CLI and MCP registration from the same source.
@@ -52,7 +52,7 @@ registers `variant_<command>` tools. Tool handlers call the same
 
 ## VS Code
 
-The CLI and the MCP server execute `config`, `create`, `list`, `switch`,
+The CLI and the MCP server execute `config`, `create`, `list`,
 `provision`, `up`, `down`, `watch`, and `implode` in `variant-api`. The extension does not. Requests
 that need the editor use `{name, args}` on the socket described in
 [Editor socket](./guide/ipc).

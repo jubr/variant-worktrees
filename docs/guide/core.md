@@ -28,14 +28,6 @@ List the known database variants.
 variant list
 ```
 
-## switch
-
-Switch process context to that variant's `_v-*` worktree.
-
-```bash
-variant switch -s feature-forty-two
-```
-
 ## provision
 
 Run the configured install, dotenv, `up`, step, and seed commands. This prepares the variant without leaving a supervised `watch` in the foreground.
