@@ -1,6 +1,6 @@
 {
   "name": "variant-config",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Configuration discovery for variant workspaces",
   "type": "module",
   "main": "dist/index.js",

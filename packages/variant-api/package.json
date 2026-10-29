@@ -1,6 +1,6 @@
 {
   "name": "variant-api",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Database variant lifecycle library and CLI",
   "type": "module",
   "main": "dist/index.js",
