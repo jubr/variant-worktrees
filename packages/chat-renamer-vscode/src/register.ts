@@ -20,6 +20,10 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   homeDir?: string;
   /** Replaces the read of a chat's first prompt from Cursor's store. For tests. */
   readFirstPrompt?: TriggerHost["readFirstPrompt"];
+  /** Replaces the look at Cursor's store after an unreadable first prompt. For tests. */
+  probeFirstPromptStore?: TriggerHost["probeFirstPromptStore"];
+  /** Retries of the first prompt read. For tests. */
+  firstPromptRetry?: TriggerHost["firstPromptRetry"];
   /** Clock in epoch milliseconds. For tests. */
   now?: () => number;
   /** Delay before the startup run and after the last title event, in milliseconds. Default 3000. For tests. */
@@ -46,6 +50,8 @@ export const registerChatRenamer = (
     log,
     homeDir,
     readFirstPrompt,
+    probeFirstPromptStore,
+    firstPromptRetry,
     now,
     existingChatsDelayMs,
     fileConfig,
@@ -69,6 +75,8 @@ export const registerChatRenamer = (
   const ready = startChatRenameTrigger(context, logger, options, names, {
     homeDir,
     readFirstPrompt,
+    probeFirstPromptStore,
+    firstPromptRetry,
     now,
     existing,
     existingChatsDelayMs,

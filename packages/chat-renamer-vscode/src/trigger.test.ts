@@ -473,6 +473,127 @@ describe("trigger", () => {
     });
   });
 
+  describe("unreadable first prompt of a new chat", () => {
+    const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
+    let renamed: Array<{ sessionId: string; title: string }>;
+    let warnings: string[];
+    let captured: ReturnType<typeof captureLog>;
+    let readable: Set<string>;
+
+    const start = async () => {
+      await registerChatRenamer(context("variant.chat-renamer"), {
+        log: captured.log,
+        now: () => STARTED,
+        firstPromptRetry: { attempts: 1, delayMs: 0 },
+        readFirstPrompt: async (sessionId) =>
+          readable.has(sessionId) ? { text: "/vw-spec-start abc", submittedAtMs: STARTED + 1_000 } : undefined,
+        probeFirstPromptStore: async (sessionId) => ({
+          record: 18,
+          listedHeaders: 0,
+          headerRows: sessionId === "no-rows" ? 0 : 1,
+        }),
+      }).ready;
+    };
+    const titleEvent = async (sessionId: string) => {
+      listeners[0]?.({ sessionId, title: "Some AI title" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    };
+    const unreadable = () => captured.entries.filter((entry) => entry.message.startsWith("[title-event] unreadable"));
+
+    beforeEach(() => {
+      captured = captureLog();
+      renamed = [];
+      warnings = [];
+      readable = new Set();
+      vscodeMock.cursor.projectAgentHostSessionTitle = async (sessionId, title) => {
+        renamed.push({ sessionId, title });
+      };
+      spyOn(vscode.window, "showWarningMessage").mockImplementation((async (...args: unknown[]) => {
+        warnings.push(String(args[0]));
+      }) as typeof vscode.window.showWarningMessage);
+    });
+
+    afterEach(() => {
+      vscodeMock.cursor.projectAgentHostSessionTitle = undefined;
+    });
+
+    it("traces what the store holds for the first unreadable chat and shows one warning naming it", async () => {
+      await start();
+      await titleEvent("no-rows");
+
+      expect(unreadable()).toEqual([
+        {
+          level: "trace",
+          message: '[title-event] unreadable session="no-rows" attempt=1 record=18 listedHeaders=0 headerRows=0',
+        },
+      ]);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("no-rows");
+      expect(warnings[0]).toContain("chat store");
+    });
+
+    it("traces a second unreadable chat as attempt 2 without another warning", async () => {
+      await start();
+      await titleEvent("first");
+      await titleEvent("second");
+
+      expect(unreadable().map((entry) => entry.message)).toEqual([
+        '[title-event] unreadable session="first" attempt=1 record=18 listedHeaders=0 headerRows=1',
+        '[title-event] unreadable session="second" attempt=2 record=18 listedHeaders=0 headerRows=1',
+      ]);
+      expect(warnings).toHaveLength(1);
+    });
+
+    it("traces only the first 5 unreadable chats", async () => {
+      await start();
+      for (const id of ["c1", "c2", "c3", "c4", "c5", "c6"]) {
+        await titleEvent(id);
+      }
+
+      expect(unreadable()).toHaveLength(5);
+      expect(unreadable().at(-1)?.message).toContain('session="c5" attempt=5');
+      expect(captured.entries.filter((entry) => entry.message.includes('decision session="c6"'))).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+    });
+
+    it("counts only chats ignored for an unreadable prompt", async () => {
+      readable.add("fine");
+      await start();
+      await titleEvent("fine");
+
+      expect(unreadable()).toEqual([]);
+      expect(warnings).toEqual([]);
+      expect(renamed).toEqual([{ sessionId: "fine", title: "abc" }]);
+    });
+
+    it("renames a readable chat after an unreadable one", async () => {
+      readable.add("fine");
+      await start();
+      await titleEvent("broken");
+      await titleEvent("fine");
+
+      expect(renamed).toEqual([{ sessionId: "fine", title: "abc" }]);
+      expect(unreadable()).toHaveLength(1);
+    });
+
+    it("still warns when the probe itself fails", async () => {
+      await registerChatRenamer(context("variant.chat-renamer"), {
+        log: captured.log,
+        now: () => STARTED,
+        firstPromptRetry: { attempts: 1, delayMs: 0 },
+        readFirstPrompt: async () => undefined,
+        probeFirstPromptStore: async () => {
+          throw new Error("probe broke");
+        },
+      }).ready;
+      await titleEvent("broken");
+
+      expect(warnings).toHaveLength(1);
+      expect(unreadable()).toHaveLength(1);
+      expect(unreadable()[0]?.message).toContain('error="probe broke"');
+    });
+  });
+
   describe("dragged-in worktree folders", () => {
     const STARTED = Date.parse("2026-10-12T08:30:00.000Z");
     let renamed: Array<{ sessionId: string; title: string }>;

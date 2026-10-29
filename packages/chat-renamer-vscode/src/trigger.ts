@@ -7,11 +7,13 @@ import {
   claimRenamer,
   compilePatterns,
   type FirstPrompt,
+  type FirstPromptStoreProbe,
   handleChatRenameUri,
   hookCommand,
   installChatRenameHook,
   type Logger,
   listPeerTitles,
+  probeFirstPromptStore,
   type RenameOptions,
   readFirstPrompt,
   readFirstPromptWithRetry,
@@ -43,6 +45,10 @@ export type TriggerHost = {
   homeDir?: string;
   /** Reads a chat's first prompt. Default: Cursor's on-disk store. */
   readFirstPrompt?: (sessionId: string) => Promise<FirstPrompt | undefined>;
+  /** Looks at what Cursor's store holds for a chat whose first prompt was unreadable. Default: Cursor's on-disk store. */
+  probeFirstPromptStore?: (sessionId: string) => Promise<FirstPromptStoreProbe>;
+  /** Retries of the first prompt read. Default 6 attempts, 500 ms apart. */
+  firstPromptRetry?: { attempts?: number; delayMs?: number };
   now?: () => number;
   /** Renames chats that existed before startup. Without it no existing-chats run is scheduled. */
   existing?: ExistingChatsRunner;
@@ -53,6 +59,8 @@ export type TriggerHost = {
 };
 
 const DEFAULT_EXISTING_CHATS_DELAY_MS = 3000;
+/** Unreadable first prompts of new chats that are written to the log, counted since the extension started. */
+const MAX_UNREADABLE_TRACES = 5;
 
 const isExtension = (id: string, name: string): boolean => id === name || id.endsWith(`.${name}`);
 
@@ -112,6 +120,40 @@ export const startChatRenameTrigger = (
   options.peerTitles = async (sessionId) => {
     const openIds = await vscode.commands.executeCommand<string[]>("composer.getOrderedSelectedComposerIds");
     return listPeerTitles(resolveChatRenameDeps(context), Array.isArray(openIds) ? openIds : [], sessionId);
+  };
+
+  // Counts for the whole lifetime of the extension, so a setting change does not reset them.
+  let unreadableChats = 0;
+  const reportUnreadable = async (sessionId: string, dbPath: string, log: Logger): Promise<void> => {
+    if (unreadableChats >= MAX_UNREADABLE_TRACES) {
+      return;
+    }
+    const attempt = ++unreadableChats;
+    let probe: Partial<FirstPromptStoreProbe> = {};
+    try {
+      probe = await (host.probeFirstPromptStore ?? ((id) => probeFirstPromptStore({ dbPath, sessionId: id })))(
+        sessionId,
+      );
+    } catch (error) {
+      probe = { error: error instanceof Error ? error.message : String(error) };
+    }
+    try {
+      log.trace("unreadable", {
+        session: sessionId,
+        attempt,
+        record: probe.record,
+        listedHeaders: probe.listedHeaders,
+        headerRows: probe.headerRows,
+        error: probe.error,
+      });
+      if (attempt === 1) {
+        void vscode.window.showWarningMessage(
+          `Chat rename: the first prompt of chat ${sessionId} could not be read from Cursor's chat store. Cursor may have changed how it stores chats, so new chats may not be renamed. Set the log level of this extension's output to Trace for details.`,
+        );
+      }
+    } catch {
+      // Diagnostics must never turn into a rename failure.
+    }
   };
 
   let eventSubscription: { dispose(): void } | undefined;
@@ -231,8 +273,10 @@ export const startChatRenameTrigger = (
         }
         checked.add(change.sessionId);
         const readPrompt = (sessionId: string) =>
-          readFirstPromptWithRetry(() =>
-            (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
+          readFirstPromptWithRetry(
+            () => (host.readFirstPrompt ?? ((id) => readFirstPrompt({ dbPath, sessionId: id })))(sessionId),
+            host.firstPromptRetry?.attempts,
+            host.firstPromptRetry?.delayMs,
           );
         const decisionLog = log.child("title-event");
         void catalogTitleDecision(resolveChatRenameDeps(context), change, {
@@ -242,16 +286,20 @@ export const startChatRenameTrigger = (
           notBeforeMs: startedAtMs,
           maxLines: settings.titleEventPromptLines,
           decisionLog,
-        }).catch((error: unknown) => {
-          const detail = error instanceof Error ? error.message : String(error);
-          decisionLog.error("decision", undefined, {
-            session: change.sessionId,
-            decision: "ignore",
-            reason: "title event failed",
-            detail,
+        })
+          .then((decision) =>
+            decision.reason === "no first prompt" ? reportUnreadable(change.sessionId, dbPath, decisionLog) : undefined,
+          )
+          .catch((error: unknown) => {
+            const detail = error instanceof Error ? error.message : String(error);
+            decisionLog.error("decision", undefined, {
+              session: change.sessionId,
+              decision: "ignore",
+              reason: "title event failed",
+              detail,
+            });
+            void vscode.window.showWarningMessage(`Chat rename failed for ${change.sessionId}: ${detail}`);
           });
-          void vscode.window.showWarningMessage(`Chat rename failed for ${change.sessionId}: ${detail}`);
-        });
       });
       log.info("listening to onDidChangeAgentHostSessionCatalogTitle");
     };
