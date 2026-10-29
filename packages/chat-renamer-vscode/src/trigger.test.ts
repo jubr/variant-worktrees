@@ -684,18 +684,24 @@ describe("trigger", () => {
     let commands: Record<string, (...args: unknown[]) => unknown>;
     let warnings: unknown[][];
     let selected: unknown;
+    /** First prompts by chat id; any other chat gets the prompt passed to `start`. */
+    let prompts: Map<string, string>;
     let executeCommand: { mockRestore(): void };
     let registerCommand: { mockRestore(): void };
     let showWarningMessage: { mockRestore(): void };
 
-    const start = (prompt: string) =>
+    const start = (prompt: string, log = quiet) =>
       registerChatRenamer(context("variant.chat-renamer"), {
-        log: quiet,
+        log,
         now: () => STARTED,
-        readFirstPrompt: async () => ({ text: prompt, submittedAtMs: STARTED - 60_000 }),
+        readFirstPrompt: async (sessionId) =>
+          prompts.has(sessionId)
+            ? { text: prompts.get(sessionId) ?? "", submittedAtMs: STARTED - 60_000 }
+            : { text: prompt, submittedAtMs: STARTED - 60_000 },
       }).ready;
 
     beforeEach(() => {
+      prompts = new Map();
       renamed = [];
       commands = {};
       warnings = [];
@@ -787,6 +793,161 @@ describe("trigger", () => {
       await commands["chat-renamer.renameActiveChat"]?.();
 
       expect(renamed).toEqual([{ sessionId: "chat-1", title: "abc" }]);
+    });
+
+    it("renames the selected chat the catalog lists as most recently updated", async () => {
+      selected = ["pane-chat", "editor-chat"];
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => [
+        { sessionId: "pane-chat", title: "AI one", updatedAt: 1000 },
+        { sessionId: "editor-chat", title: "AI two", updatedAt: 2000 },
+      ];
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "editor-chat", title: "abc" }]);
+    });
+
+    it("renames the most recently updated chat when Cursor reports none selected", async () => {
+      selected = [];
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => [
+        { sessionId: "old", title: "AI one", updatedAt: 1000 },
+        { sessionId: "recent", title: "AI two", updatedAt: 2000 },
+      ];
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "recent", title: "abc" }]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("renames a selected chat the catalog does not list, taking the first of them", async () => {
+      selected = ["first", "second"];
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => [{ sessionId: "other", updatedAt: 9000 }];
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "first", title: "abc" }]);
+    });
+
+    it("accepts a selected chat given as an object with a composerId", async () => {
+      selected = [{ composerId: "chat-1" }];
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "chat-1", title: "abc" }]);
+    });
+
+    it("still renames the first selected chat when the catalog cannot be read", async () => {
+      selected = ["first", "second"];
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => {
+        throw new Error("catalog down");
+      };
+      await start("/vw-spec-start abc");
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(renamed).toEqual([{ sessionId: "first", title: "abc" }]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("traces how the active chat was found", async () => {
+      selected = ["a", "b"];
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => [
+        { sessionId: "a", title: "AI a", updatedAt: 1000 },
+        { sessionId: "b", title: "AI b", updatedAt: 2000 },
+        { sessionId: "c", title: "AI c", updatedAt: 3000 },
+      ];
+      const { log, entries } = captureLog();
+      await start("/vw-spec-start abc", log);
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      const active = entries.filter((entry) => entry.message.startsWith("[active-chat] "));
+      expect(active.slice(0, 3)).toEqual([
+        { level: "trace", message: '[active-chat] selection type="array" count=2 ids=["a","b"]' },
+        {
+          level: "trace",
+          message:
+            '[active-chat] catalog count=3 chats=[{"id":"a","title":"AI a","updatedAt":1000},{"id":"b","title":"AI b","updatedAt":2000}]',
+        },
+        { level: "trace", message: '[active-chat] chosen session="b" rule="newest selected"' },
+      ]);
+      // The first prompt and the decision follow, as a title event logs them.
+      expect(active.slice(3).map((entry) => entry.message.split(" ").slice(0, 3).join(" "))).toEqual([
+        '[active-chat] prompt session="b"',
+        '[active-chat] decision session="b"',
+      ]);
+    });
+
+    it("logs why nothing was renamed when no chat can be found", async () => {
+      selected = [];
+      const { log, entries } = captureLog();
+      await start("/vw-spec-start abc", log);
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(entries.filter((entry) => entry.message.startsWith("[active-chat] "))).toEqual([
+        { level: "trace", message: '[active-chat] selection type="array" count=0 ids=[]' },
+        { level: "trace", message: "[active-chat] catalog count=0 chats=[]" },
+        { level: "trace", message: '[active-chat] chosen rule="none"' },
+        { level: "warn", message: '[active-chat] not renamed reason="no chat found"' },
+      ]);
+      expect(warnings).toHaveLength(1);
+    });
+
+    it("logs the reason when the first prompt holds no rename request", async () => {
+      const { log, entries } = captureLog();
+      await start("fix the build", log);
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(entries).toContainEqual({
+        level: "warn",
+        message: '[active-chat] not renamed reason="no rename request"',
+      });
+    });
+
+    it("logs the reason and detail of a malformed request", async () => {
+      const { log, entries } = captureLog();
+      await start("/chat-rename two words", log);
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      const warned = entries.filter((entry) => entry.level === "warn" && entry.message.includes("not renamed"));
+      expect(warned).toHaveLength(1);
+      expect(warned[0]?.message).toStartWith('[active-chat] not renamed reason="malformed request: ');
+    });
+
+    it("logs a warning that names an unreadable catalog and counts it as empty", async () => {
+      selected = ["first", "second"];
+      vscodeMock.cursor.listAgentHostSessionCatalog = async () => {
+        throw new Error("catalog down");
+      };
+      const { log, entries } = captureLog();
+      await start("/vw-spec-start abc", log);
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      expect(entries).toContainEqual({ level: "warn", message: "[active-chat] catalog unreadable: catalog down" });
+      expect(entries).toContainEqual({ level: "trace", message: "[active-chat] catalog count=0 chats=[]" });
+      expect(entries).toContainEqual({
+        level: "trace",
+        message: '[active-chat] chosen session="first" rule="first selected"',
+      });
+    });
+
+    it("writes the selection, catalog and choice at trace level only", async () => {
+      const { log, entries } = captureLog();
+      await start("/vw-spec-start abc", log);
+
+      await commands["chat-renamer.renameActiveChat"]?.();
+
+      const loud = entries.filter((entry) => entry.level !== "trace" && entry.message.startsWith("[active-chat] "));
+      expect(loud.map((entry) => entry.message.split(" ")[1])).toEqual(["decision"]);
     });
 
     it("does not warn when the current title already shares the base", async () => {

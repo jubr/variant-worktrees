@@ -56,3 +56,7 @@ export const chooseActiveChat = (selection: unknown, catalog: readonly CatalogSe
   }
   return { rule: "none", ids, chats };
 };
+
+/** The shape of what Cursor returned as the selection, for the log. */
+export const selectionType = (selection: unknown): string =>
+  Array.isArray(selection) ? "array" : selection === null ? "null" : typeof selection;
