@@ -1,10 +1,10 @@
 ## 1. Contract test (red)
 
-- [ ] 1.1 Add `packages/variant-vscode/src/readme.spec.ts` covering every scenario of `docs/readmes` (description, docs link before the first `##`, `Why` first and before `variant watch`, no development strings in the extension README, product areas present, `mise use` line and `CONTRIBUTING.md` link in the repository README). Verify `task test` fails on the new spec.
+- [ ] 1.1 Add `packages/variant-vscode/src/readme.spec.ts` covering every scenario of `docs/readmes` (description, tagline and docs link before the first `##`, `Why` first and before `variant watch`, no development strings in the extension README, product areas present, `mise use` line and `CONTRIBUTING.md` link in the repository README). Verify `task test` fails on the new spec.
 
 ## 2. Extension description and README
 
-- [ ] 2.1 Set `description` to `Git + Db schema :: provision, watch, implode` in `packages/variant-vscode/package.json`. Verify the description scenario passes.
+- [ ] 2.1 Set `description` to `Isolated tree+db for your agents :: watch, seed, implode` in `packages/variant-vscode/package.json`. Verify the description scenario passes.
 - [ ] 2.2 Rewrite `packages/variant-vscode/README.md` per design.md: docs link, `Why`, `How it works`, configuration, MCP, chat renamer, learn more; no development or probe content. Verify the extension README scenarios pass and the `.vsix` build still includes `README.md`.
 
 ## 3. Repository README

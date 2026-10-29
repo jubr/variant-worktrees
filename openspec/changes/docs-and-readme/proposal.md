@@ -4,7 +4,7 @@ The VS Code extension is listed with the tagline "Variant Worktrees VS Code exte
 
 ## What Changes
 
-- The `variant-vscode` manifest description becomes `Git + Db schema :: provision, watch, implode`.
+- The `variant-vscode` manifest description becomes `Isolated tree+db for your agents :: watch, seed, implode`.
 - The `variant-vscode` package README is rewritten as a user-facing page that tells the story: why (an agent or a human needs a git branch and a database schema that do not collide), then how (`create`, `watch`, `implode`, `variants.yaml`, the MCP server, the chat renamer). It is selected from `docs/`, not copied. It carries no development, build, or test information, and drops the Cursor command probe section.
 - The repository README gets the same story-first opening and fills in the product description, install, the human/agent workflow, configuration, CLI, MCP, and chat renamer.
 - Both READMEs start with a link to the online documentation (`https://jubr.github.io/variant-worktrees/`), above the story.

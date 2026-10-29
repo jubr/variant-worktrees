@@ -2,12 +2,21 @@
 
 ### Requirement: Extension description
 
-The `variant-vscode` manifest `description` SHALL be `Git + Db schema :: provision, watch, implode`.
+The `variant-vscode` manifest `description` SHALL be `Isolated tree+db for your agents :: watch, seed, implode`.
 
 #### Scenario: Marketplace tagline
 
 - **WHEN** the `variant-vscode` `package.json` is read
-- **THEN** its `description` is `Git + Db schema :: provision, watch, implode`
+- **THEN** its `description` is `Isolated tree+db for your agents :: watch, seed, implode`
+
+### Requirement: README tagline
+
+Each of the two READMEs SHALL show the extension description as its tagline, in the lines before the first second-level heading.
+
+#### Scenario: Tagline in both READMEs
+
+- **WHEN** either README is read
+- **THEN** the extension description appears before the first second-level heading
 
 ### Requirement: Documentation link first
 
