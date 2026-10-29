@@ -138,7 +138,6 @@ export interface VariantClient {
   watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
   down(slug?: string, options?: DownOptions): Promise<DownResult>;
   list(): Promise<VariantRecord[]>;
-  switch(slug?: string): Promise<{ slug: string; worktree: string }>;
   provision(
     slug?: string,
     options?: { verbose?: boolean; log?: (line: string) => void },

@@ -23,14 +23,6 @@ The system SHALL expose a `variant_create` MCP tool accepting a slug argument.
 - **WHEN** an MCP client calls `variant_create({ slug: "test-feature" })`
 - **THEN** a variant schema or database is created, a worktree is ensured, and the result includes the state path
 
-### Requirement: variant_switch tool
-
-The system SHALL expose a `variant_switch` MCP tool that changes process context to a variant worktree.
-
-#### Scenario: Switch to variant
-- **WHEN** an MCP client calls `variant_switch({ slug: "test-feature" })`
-- **THEN** cwd changes to the resolved `_v-test-feature` worktree and the result includes its path
-
 ### Requirement: variant_provision tool
 
 The system SHALL expose a `variant_provision` MCP tool that runs the configured seed command for a variant.

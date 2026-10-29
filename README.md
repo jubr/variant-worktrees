@@ -114,7 +114,7 @@ Configure an MCP client to run:
 }
 ```
 
-Tools: `variant_config`, `variant_create`, `variant_list`, `variant_switch`,
+Tools: `variant_config`, `variant_create`, `variant_list`,
 `variant_provision`, `variant_up`, `variant_down`, `variant_watch` (always
 detached), and `variant_implode`.
 

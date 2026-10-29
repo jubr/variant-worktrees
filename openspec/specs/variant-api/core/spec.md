@@ -93,11 +93,12 @@ The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-v
 
 ### Requirement: Worktree coupling
 
-The system SHALL create or switch to `_v-<slug>` worktrees below the resolved `variant.root` when variant operations require it. A new worktree SHALL start a branch named with the first of `variant.branchPrefixes` from `variant.baseBranch`, unless a branch named with any configured prefix already exists, which SHALL be checked out instead.
+The system SHALL create `_v-<slug>` worktrees below the resolved `variant.root` when variant operations require it, and reuse one that exists. Variant operations SHALL NOT change the working directory of the process. A new worktree SHALL start a branch named with the first of `variant.branchPrefixes` from `variant.baseBranch`, unless a branch named with any configured prefix already exists, which SHALL be checked out instead.
 
 #### Scenario: Ensure worktree on create
 - **WHEN** `create("add-auth")` is called from the primary worktree
-- **THEN** `_v-add-auth` is created on `feat/add-auth` below the resolved root and the process switches to it
+- **THEN** `_v-add-auth` is created on `feat/add-auth` below the resolved root and the result holds its path
+- **AND** the working directory of the process is unchanged
 
 #### Scenario: Main slug stays in primary
 - **WHEN** the slug resolves to `main`

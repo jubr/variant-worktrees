@@ -28,7 +28,6 @@ MCP client configuration:
 - `variant_config` — print resolved configuration.
 - `variant_list` — list state and database variants.
 - `variant_create({ slug })` — create an isolated variant.
-- `variant_switch({ slug })` — switch process context to its `_v-*` worktree.
 - `variant_provision({ slug, verbose })` — run configured install, dotenv, `up`, step and seed commands.
 - `variant_up({ slug, verbose })` — recreate the database and run the instances as containers; returns the
   mode, worktree, database target, and the port, URL and container name of each instance.

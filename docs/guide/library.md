@@ -22,7 +22,6 @@ database-only behavior is required.
 await client.create("preview-one");
 await client.provision("preview-one");
 const variants = await client.list();
-await client.switch("preview-one");
 
 await client.up("preview-one"); // instances as containers, on a fresh database
 const watched = await client.watch("preview-one", { detach: true }); // host processes

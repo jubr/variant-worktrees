@@ -69,7 +69,6 @@ describe("MCP server", () => {
         "variant_config",
         "variant_create",
         "variant_list",
-        "variant_switch",
         "variant_provision",
         "variant_up",
         "variant_down",
@@ -78,6 +77,7 @@ describe("MCP server", () => {
       ]);
       expect(names).not.toContain("variant_free");
       expect(names).not.toContain("variant_destroy");
+      expect(names).not.toContain("variant_switch");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

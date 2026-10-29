@@ -71,15 +71,3 @@ export const ensureWorktree = (
   runGit(primary, args);
   return resolve(destination);
 };
-
-export const switchWorktree = (
-  slug: string,
-  cwd = process.cwd(),
-  variantRoot?: string,
-  prefix?: string,
-  branches?: BranchSettings,
-): string => {
-  const path = ensureWorktree(slug, cwd, variantRoot, prefix, branches);
-  process.chdir(path);
-  return path;
-};

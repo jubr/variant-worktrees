@@ -38,7 +38,7 @@ When the extension activates, it SHALL listen on `{resolveMainVscodeDir}/variant
 
 ### Requirement: Lifecycle commands are not handled here
 
-The extension SHALL NOT execute `config`, `create`, `list`, `switch`, `provision`, `up`, `down`, `watch`, or `implode`. A socket request with one of those names SHALL fail and SHALL NOT call `variant-api`.
+The extension SHALL NOT execute `config`, `create`, `list`, `provision`, `up`, `down`, `watch`, or `implode`. A socket request with one of those names SHALL fail and SHALL NOT call `variant-api`.
 
 #### Scenario: Create is refused
 
