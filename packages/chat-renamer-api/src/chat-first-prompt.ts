@@ -58,6 +58,16 @@ const firstValue = (output: string): string | undefined => {
 };
 
 /**
+ * Queries for the first human message header, newest known layout first. Newer Cursor builds keep the headers of a chat in
+ * rows `composerConvHeaders:<id>:<chunk>`; earlier builds list them in the chat record `composerData:<id>`.
+ * The key range keeps SQLite on the unique key index (`;` follows `:`).
+ */
+const headerQueries = (sessionId: string): string[] => [
+  `select j.value as v from cursorDiskKV kv, json_each(kv.value) j where kv.key >= 'composerConvHeaders:${sessionId}:' and kv.key < 'composerConvHeaders:${sessionId};' and json_extract(j.value, '$.type') = 1 order by kv.key limit 1`,
+  `select j.value as v from cursorDiskKV kv, json_each(json_extract(kv.value, '$.fullConversationHeadersOnly')) j where kv.key = 'composerData:${sessionId}' and json_extract(j.value, '$.type') = 1 limit 1`,
+];
+
+/**
  * Reads a chat's first human prompt from Cursor's on-disk store (cursorDiskKV in state.vscdb), which the
  * extension API does not expose otherwise. Private, version-fragile layout (Cursor 3.23.x). Resolves undefined
  * when anything is missing or unreadable, so callers can fall back.
@@ -75,12 +85,19 @@ export const readFirstPrompt = async ({
     return undefined;
   }
   try {
-    const headerJson = firstValue(
-      await run(
-        dbPath,
-        `select j.value as v from cursorDiskKV kv, json_each(json_extract(kv.value, '$.fullConversationHeadersOnly')) j where kv.key = 'composerData:${sessionId}' and json_extract(j.value, '$.type') = 1 limit 1`,
-      ),
-    );
+    // AIDEV-NOTE: Newer layout first, then the older one. Each method fails on its own: a method that worked in an
+    // earlier version is never dropped, and a fault in a newer one never ends the read.
+    let headerJson: string | undefined;
+    for (const sql of headerQueries(sessionId)) {
+      try {
+        headerJson = firstValue(await run(dbPath, sql));
+      } catch {
+        headerJson = undefined;
+      }
+      if (headerJson) {
+        break;
+      }
+    }
     if (!headerJson) {
       return undefined;
     }

@@ -45,7 +45,7 @@ describe("readFirstPrompt", () => {
     return { run, queries };
   };
 
-  it("reads the first human bubble header, then its text", async () => {
+  it("reads the first human bubble header of the older layout, then its text, after the newer layout found none", async () => {
     const { run, queries } = fakeRunner({
       "composerData:chat-1": header({ bubbleId: "b-9" }),
       "bubbleId:chat-1:b-9": "/chat-rename wanted",
@@ -54,7 +54,60 @@ describe("readFirstPrompt", () => {
     const result = await readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run });
 
     expect(result?.text).toBe("/chat-rename wanted");
-    expect(queries).toHaveLength(2);
+    expect(queries).toHaveLength(3);
+  });
+
+  it("reads the first human header from the header rows of the newer layout", async () => {
+    const { run } = fakeRunner({
+      "composerConvHeaders:chat-1:": header({ bubbleId: "b-7", grouping: {} }),
+      "bubbleId:chat-1:b-7": "/vw-spec-start abc",
+    });
+
+    await expect(readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toEqual({
+      text: "/vw-spec-start abc",
+      submittedAtMs: Date.parse("2026-10-09T14:49:32.475Z"),
+    });
+  });
+
+  it("falls back to the older layout when reading the newer one fails", async () => {
+    const { run: older } = fakeRunner({
+      "composerData:chat-1": header({ bubbleId: "b-9" }),
+      "bubbleId:chat-1:b-9": "/vw-spec-start abc",
+    });
+    const run = async (db: string, sql: string): Promise<string> => {
+      if (sql.includes("composerConvHeaders")) {
+        throw new Error("no such function: json_each");
+      }
+      return older(db, sql);
+    };
+
+    await expect(readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toMatchObject({
+      text: "/vw-spec-start abc",
+    });
+  });
+
+  it("falls back to the older layout when the newer one returns output it cannot parse", async () => {
+    const { run: older } = fakeRunner({
+      "composerData:chat-1": header({ bubbleId: "b-9" }),
+      "bubbleId:chat-1:b-9": "/vw-spec-start abc",
+    });
+    const run = async (db: string, sql: string): Promise<string> =>
+      sql.includes("composerConvHeaders") ? "Error: database is locked" : older(db, sql);
+
+    await expect(readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run })).resolves.toMatchObject({
+      text: "/vw-spec-start abc",
+    });
+  });
+
+  it("prefers the newer layout when both hold a human message", async () => {
+    const { run } = fakeRunner({
+      "composerConvHeaders:chat-1:": header({ bubbleId: "b-new" }),
+      "composerData:chat-1": header({ bubbleId: "b-old" }),
+      "bubbleId:chat-1:b-new": "new text",
+      "bubbleId:chat-1:b-old": "old text",
+    });
+
+    expect((await readFirstPrompt({ dbPath: "/db", sessionId: "chat-1", run }))?.text).toBe("new text");
   });
 
   it("uses the preview when the bubble row is missing", async () => {
