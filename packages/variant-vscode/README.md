@@ -1,26 +1,94 @@
-# Variant VS Code
+# Variant Worktrees
 
-VS Code extension package for Variant, scaffolded from the
-[Bun VS Code extension template](https://github.com/lalunamel/bun-vscode-extension).
+![Variant Worktrees](media/icon-256.png)
 
-## Development
+**Isolated tree+db for you & your agents :: watch, seed, implode :: cli, mcp & vscode**
+
+📖 **[Read the documentation](https://jubr.github.io/variant-worktrees/)**
+
+## Why
+
+Three agents, one repository, one database. Each agent wants its own branch, its own dev servers, and its own data. Git worktrees give every agent its own checkout, but the database stays shared: one agent's migration breaks the others, a seed script wipes your test data, and two dev servers fight over port 3000.
+
+A **variant** closes that gap. It is a git worktree that comes with its own database schema (PostgreSQL, MySQL, or a SQLite file), its own storage directory, and its own free ports. You get a place where an agent, or you, can change anything without touching anyone else's work. When the work is merged, the variant disappears completely.
+
+## How it works
+
+You describe your project once in `variants.yaml`. Then three commands cover the whole life of a variant:
 
 ```bash
-bun install
-bun run build
-bun test
+variant watch -s feature-forty-two     # create the worktree and database, seed it, start the dev servers
+# ... work, browse, commit ...
+variant implode -s feature-forty-two   # stop everything, drop the database, remove the worktree
 ```
 
-Open this package in VS Code and press `F5` to launch the Extension Development Host.
+- **`create`** makes the `_v-feature-forty-two` worktree on its own branch.
+- **`watch`** provisions it (install, migrate, seed) and keeps your dev servers running on free ports, so you can follow an agent's progress live in the browser.
+- **`up`** does the same with containers instead of host processes. **`down`** stops either one and keeps the data.
+- **`implode`** stops the variant, drops its database and storage, and removes the worktree. It refuses to run on `main` and on work that is not merged into your base branch, unless you pass `--force`. The branch itself stays.
 
-## Cursor command probe
+When you work inside a variant worktree yourself, the slug comes from the branch, so you can leave out `-s`.
 
-**Variant: Probe Cursor Chat Commands** (`variant.probeCursorCommands`) lists command ids registered in the current editor that look like a Cursor chat rename or title operation. The list is written to the **Cursor Command Probe** output channel. When nothing matches, the channel shows `No rename-like commands found in this build.`
+Install the `variant` CLI into a project with [mise](https://mise.jdx.dev):
 
-A listed id is not a stable rename API. Cursor does not document these commands, and a later Cursor release can remove or rename them. This extension does not call a listed command.
+```bash
+mise use github:jubr/variant-worktrees
+```
 
-Behavior: [specs/variant-vscode/cursor-command-probe](../../openspec/specs/variant-vscode/cursor-command-probe/spec.md).
+## Describe your project once
 
-## Chat renaming
+```yaml
+variant:
+  up: npm run db:migrate
+  watch: npm run dev
+  seed: npm run db:seed
+  instances:
+    fe:
+      kind: vite
+      dir: fe
+      open: http://{{slug}}.vw.localhost:{{port}}
+    be:
+      kind: nestjs
+      dir: be
+```
 
-Chat renaming (`/chat-rename`, activation patterns, numbered titles) is provided by [`chat-renamer`](../chat-renamer-vscode/README.md), which this extension embeds and which also ships on its own. Here its commands use the `variant.` prefix (`variant.renameChat`, `variant.renameChatFromPrompt`) and the `variant.*` settings (`enable`, `trigger`, `hookScope`, `activationPatterns`, `worktreePrefixes`, `renameExistingDays`, `titleEventPromptLines`) plus the palette commands **Variant: Rename active chat** (`variant.renameActiveChat`) and **Variant: Rename Existing Chats** (`variant.renameExistingChats`); `variant.enable` defaults to true and `false` turns chat renaming off, and `renameExistingDays` defaults to 7 and `0` turns renaming of existing chats off. The same options can be set in the `chatRenamer` section of `variants.yaml` (editor settings you set explicitly win), and `variant.prefix` there is the worktree folder prefix the renamer recognises by default (set `chatRenamer.worktreePrefixes` to replace it, `[]` to turn that off and use the default path pattern; `/vw-spec-start @_work-slug` still becomes `slug`). Experimental. `titleEventPromptLines` (default 10) limits how many lines of a new chat's first prompt the title event tests. Activity is logged to the **Variant Worktrees** log channel (listed by **Developer: Show Logs…**; select Trace to see the prompt lines read, and look for `[title-event] decision` lines to learn why a chat was or was not renamed).
+Vite and NestJS apps are detected automatically, so a small project may need no instances at all. Database settings are read from `mise.local.toml`, then from environment variables. Every option, including templates, steps, and the `implode` safety rules, is in the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
+
+## Let your agents drive
+
+The same operations are available as an MCP server, so Cursor, Claude, or any MCP client can create, watch, and implode variants itself:
+
+```json
+{
+  "mcpServers": {
+    "variant": {
+      "command": "variant-mcp",
+      "args": ["--config", "/workspace/variants.yaml"]
+    }
+  }
+}
+```
+
+The tools are `variant_config`, `variant_list`, `variant_create`, `variant_switch`, `variant_provision`, `variant_up`, `variant_down`, `variant_watch`, and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
+
+## One chat per variant
+
+Every agent chat deserves a name that says which variant it works on. This extension renames a Cursor chat from its first prompt:
+
+- `/chat-rename my-title` sets that title.
+- `/vw-spec-start my-slug` becomes `my-slug`, using the activation patterns in your settings.
+- A worktree folder dragged into the chat, such as `_v-my-slug`, becomes `my-slug`.
+- Chats with the same name are numbered: `my-slug`, `my-slug2`, `my-slug3`.
+
+It also renames the chats you already have from the last seven days. The palette commands are **Variant: Rename active chat** and **Variant: Rename Existing Chats**. Options live in the `chatRenamer` section of `variants.yaml` or in the `variant.*` editor settings; see the [chat renamer guide](https://jubr.github.io/variant-worktrees/chat-renamer/). Renaming is experimental, since it relies on Cursor internals that can change in any release.
+
+## Learn more
+
+- [Getting started](https://jubr.github.io/variant-worktrees/guide/)
+- [Every `variant` command](https://jubr.github.io/variant-worktrees/guide/core)
+- [Configuration](https://jubr.github.io/variant-worktrees/guide/configuration)
+- [MCP server](https://jubr.github.io/variant-worktrees/mcp)
+- [Chat renamer](https://jubr.github.io/variant-worktrees/chat-renamer/)
+- [Source and issues](https://github.com/jubr/variant-worktrees)
+
+MIT licensed.
