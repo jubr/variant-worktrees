@@ -88,17 +88,182 @@ const flagWords = (command: CommandModel): string[] => [
   `-${HELP.short}`,
 ];
 
+/** The flag of a slug-taking command that carries a slug as its value. */
+const slugFlagOf = (command: CommandModel): FlagModel | undefined =>
+  command.takesSlug ? command.flags.find((flag) => flag.long === "slug") : undefined;
+
+/**
+ * How a script gets the slugs while the user completes. They are kept in the running shell's own variables
+ * (`__variant_slugs`, `__variant_dir`, `__variant_time`) and nowhere else: no file, nothing outliving the session. A
+ * remembered list belongs to the directory it was gathered in and is fresh for 30 seconds.
+ */
+const BASH_SLUGS = [
+  "# Bash 4.1 or newer can gather in the background through a descriptor; older bash gathers on demand.",
+  "if [[ ${BASH_VERSINFO[0]} -gt 4 || (${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -ge 1) ]]; then",
+  "  __variant_async=1",
+  "else",
+  "  __variant_async=0",
+  "fi",
+  '__variant_fd="${__variant_fd-}"',
+  "__variant_fresh() {",
+  "  __variant_have && ((SECONDS - __variant_time < 30))",
+  "}",
+  "__variant_have() {",
+  '  [[ -n "${__variant_time-}" && "${__variant_dir-}" == "$PWD" ]]',
+  "}",
+  "__variant_remember() {",
+  '  __variant_dir="$1"',
+  '  __variant_time="$2"',
+  '  __variant_slugs="$3"',
+  "}",
+  "__variant_gather() {",
+  '  __variant_remember "$PWD" "$SECONDS" "$(command variant completions --list-slugs 2>/dev/null)"',
+  "}",
+  "# Gathering in the background: the output of a process substitution, read from a descriptor of this shell.",
+  "__variant_start() {",
+  '  [[ -n "$__variant_fd" ]] && return 0',
+  '  __variant_fd_dir="$PWD"',
+  "  __variant_fd_time=$SECONDS",
+  "  exec {__variant_fd}< <(command variant completions --list-slugs 2>/dev/null)",
+  "}",
+  "# Takes in the gathering under way when it has ended; `wait` blocks until it does.",
+  "__variant_harvest() {",
+  '  [[ -n "$__variant_fd" ]] || return 1',
+  '  if [[ "$1" != wait ]] && ! read -t 0 -u "$__variant_fd" 2>/dev/null; then',
+  "    return 1",
+  "  fi",
+  "  local -a lines",
+  "  local IFS=$'\\n'",
+  '  mapfile -t -u "$__variant_fd" lines',
+  "  exec {__variant_fd}<&-",
+  '  __variant_fd=""',
+  '  __variant_remember "$__variant_fd_dir" "$__variant_fd_time" "${lines[*]:-}"',
+  "}",
+  "__variant_prefetch() {",
+  "  ((__variant_async)) || return 0",
+  "  __variant_harvest",
+  "  __variant_fresh && return 0",
+  '  if [[ -n "$__variant_fd" && "$__variant_fd_dir" != "$PWD" ]]; then',
+  "    __variant_harvest wait",
+  "  fi",
+  "  __variant_start",
+  "}",
+  "__variant_complete_slugs() {",
+  "  if ((__variant_async)); then",
+  "    __variant_harvest",
+  "    if __variant_have; then",
+  "      __variant_fresh || __variant_start",
+  "    else",
+  "      __variant_harvest wait",
+  "      __variant_have || __variant_gather",
+  "    fi",
+  "  else",
+  "    __variant_fresh || __variant_gather",
+  "  fi",
+  '  COMPREPLY=($(compgen -W "$__variant_slugs" -- "$1"))',
+  "}",
+];
+
+const FISH_SLUGS = [
+  "function __variant_slug_candidates",
+  "    set -l now (date +%s)",
+  '    if not set -q __variant_time; or test "$__variant_dir" != "$PWD"; or test (math $now - $__variant_time) -ge 30',
+  "        set -g __variant_slugs (command variant completions --list-slugs 2>/dev/null)",
+  "        set -g __variant_dir $PWD",
+  "        set -g __variant_time $now",
+  "    end",
+  "    for slug in $__variant_slugs",
+  "        echo $slug",
+  "    end",
+  "end",
+];
+
+const ZSH_SLUGS = [
+  "# zsh/datetime is built in (no process). $SECONDS is not used: completion functions see it reset to 0.",
+  "zmodload zsh/datetime",
+  "__variant_fd=${__variant_fd-}",
+  "__variant_have() {",
+  '  [[ -n ${__variant_time-} && ${__variant_dir-} == "$PWD" ]]',
+  "}",
+  "",
+  "__variant_fresh() {",
+  "  __variant_have && ((EPOCHSECONDS - __variant_time < 30))",
+  "}",
+  "",
+  "__variant_remember() {",
+  "  __variant_dir=$1",
+  "  __variant_time=$2",
+  "  __variant_slugs=$3",
+  "}",
+  "",
+  "__variant_gather() {",
+  '  __variant_remember "$PWD" $EPOCHSECONDS "$(command variant completions --list-slugs 2>/dev/null)"',
+  "}",
+  "",
+  "# Gathering in the background: the output of a process substitution, read from a descriptor that zle watches.",
+  "__variant_start() {",
+  "  [[ -n $__variant_fd ]] && return 0",
+  '  __variant_fd_dir="$PWD"',
+  "  __variant_fd_time=$EPOCHSECONDS",
+  "  exec {__variant_fd}< <(command variant completions --list-slugs 2>/dev/null)",
+  "  zle -F $__variant_fd __variant_slugs_ready",
+  "}",
+  "",
+  "# Takes in the gathering under way: reads it to its end, stops watching its descriptor, and closes it.",
+  "__variant_collect() {",
+  "  local fd=$__variant_fd line",
+  "  local -a lines",
+  "  while IFS= read -r -u $fd line; do",
+  "    lines+=($line)",
+  "  done",
+  "  zle -F $fd",
+  "  exec {fd}<&-",
+  "  __variant_fd=",
+  '  __variant_remember "$__variant_fd_dir" "$__variant_fd_time" "${(F)lines}"',
+  "}",
+  "",
+  "# zle calls this when the descriptor can be read, so the list lands without another keypress.",
+  "__variant_slugs_ready() {",
+  "  [[ -n $__variant_fd ]] && __variant_collect",
+  "  return 0",
+  "}",
+  "",
+  "__variant_prefetch() {",
+  "  __variant_fresh && return 0",
+  '  if [[ -n $__variant_fd && $__variant_fd_dir != "$PWD" ]]; then',
+  "    __variant_collect",
+  "  fi",
+  "  __variant_start",
+  "}",
+  "",
+  "_variant_slugs() {",
+  "  if __variant_have; then",
+  "    __variant_fresh || __variant_start",
+  "  else",
+  "    [[ -n $__variant_fd ]] && __variant_collect",
+  "    __variant_have || __variant_gather",
+  "  fi",
+  "  local -a slugs",
+  "  slugs=(${(f)__variant_slugs})",
+  "  compadd -a slugs",
+  "}",
+];
+
 const bash = (model: CommandModel[]): string => {
   const names = model.map((command) => command.name).join(" ");
-  const cases = model.map(
-    (command) =>
-      `    ${command.name}) flags=${quoteSh(flagWords(command).join(" "))}; values=${quoteSh((command.values ?? []).join(" "))} ;;`,
-  );
+  const cases = model.map((command) => {
+    const slugFlag = slugFlagOf(command);
+    const slugFlags = slugFlag ? [`--${slugFlag.long}`, ...(slugFlag.short ? [`-${slugFlag.short}`] : [])] : [];
+    return `    ${command.name}) flags=${quoteSh(flagWords(command).join(" "))}; values=${quoteSh((command.values ?? []).join(" "))}; slug_flags=${quoteSh(slugFlags.join(" "))}; slug_pos=${command.takesSlug ? 1 : 0} ;;`;
+  });
   return `${[
     "# bash completion for variant, generated by `variant completions bash`",
+    ...BASH_SLUGS,
     "_variant() {",
-    "  local cur cmd flags values i",
+    "  __variant_prefetch",
+    "  local cur prev cmd flags values slug_flags slug_pos i",
     '  cur="${COMP_WORDS[COMP_CWORD]}"',
+    '  prev="${COMP_WORDS[COMP_CWORD-1]}"',
     '  cmd=""',
     "  for ((i = 1; i < COMP_CWORD; i++)); do",
     '    case "${COMP_WORDS[i]}" in',
@@ -116,10 +281,14 @@ const bash = (model: CommandModel[]): string => {
     "  fi",
     '  case "$cmd" in',
     ...cases,
-    '    *) flags=""; values="" ;;',
+    '    *) flags=""; values=""; slug_flags=""; slug_pos=0 ;;',
     "  esac",
-    '  if [[ "$cur" == -* ]]; then',
+    '  if [[ -n "$slug_flags" && " $slug_flags " == *" $prev "* ]]; then',
+    '    __variant_complete_slugs "$cur"',
+    '  elif [[ "$cur" == -* ]]; then',
     '    COMPREPLY=($(compgen -W "$flags" -- "$cur"))',
+    '  elif [[ "$slug_pos" == 1 ]]; then',
+    '    __variant_complete_slugs "$cur"',
     "  else",
     '    COMPREPLY=($(compgen -W "$values" -- "$cur"))',
     "  fi",
@@ -131,6 +300,7 @@ const bash = (model: CommandModel[]): string => {
 const fish = (model: CommandModel[]): string => {
   const lines = [
     "# fish completion for variant, generated by `variant completions fish`",
+    ...FISH_SLUGS,
     "complete -c variant -f",
     `complete -c variant -n __fish_use_subcommand -l ${HELP.long} -s ${HELP.short} -d ${quoteFish(HELP.description)}`,
     `complete -c variant -n __fish_use_subcommand -l ${VERSION.long} -d ${quoteFish(VERSION.description)}`,
@@ -142,10 +312,16 @@ const fish = (model: CommandModel[]): string => {
   }
   for (const command of model) {
     const scope = quoteFish(`__fish_seen_subcommand_from ${command.name}`);
+    const slugFlag = slugFlagOf(command);
     for (const flag of command.flags) {
+      const values =
+        flag === slugFlag ? ` -x -a ${quoteFish("(__variant_slug_candidates)")}` : flag.takesValue ? " -r" : "";
       lines.push(
-        `complete -c variant -n ${scope}${flag.short ? ` -s ${flag.short}` : ""} -l ${flag.long}${flag.takesValue ? " -r" : ""} -d ${quoteFish(flag.description)}`,
+        `complete -c variant -n ${scope}${flag.short ? ` -s ${flag.short}` : ""} -l ${flag.long}${values} -d ${quoteFish(flag.description)}`,
       );
+    }
+    if (command.takesSlug) {
+      lines.push(`complete -c variant -n ${scope} -a ${quoteFish("(__variant_slug_candidates)")}`);
     }
     lines.push(`complete -c variant -n ${scope} -l ${HELP.long} -s ${HELP.short} -d ${quoteFish(HELP.description)}`);
     if (command.values && command.values.length > 0) {
@@ -155,9 +331,9 @@ const fish = (model: CommandModel[]): string => {
   return `${lines.join("\n")}\n`;
 };
 
-const zshFlagSpec = (flag: FlagModel): string => {
+const zshFlagSpec = (flag: FlagModel, slugFlag: FlagModel | undefined): string => {
   const explanation = `[${zshExplanation(flag.description)}]`;
-  const action = flag.takesValue ? `:${flag.long}:_nothing` : "";
+  const action = flag.takesValue ? `:${flag.long}:${flag === slugFlag ? "_variant_slugs" : "_nothing"}` : "";
   if (!flag.short) {
     return quoteSh(`--${flag.long}${flag.takesValue ? "=" : ""}${explanation}${action}`);
   }
@@ -172,8 +348,9 @@ const zsh = (model: CommandModel[]): string => {
   const entries = model.map((command) => `    ${quoteSh(`${zshDescribeName(command.name)}:${command.description}`)}`);
   const blocks = model.flatMap((command): string[] => {
     const specs = [
-      ...command.flags.map(zshFlagSpec),
+      ...command.flags.map((flag) => zshFlagSpec(flag, slugFlagOf(command))),
       zshHelpSpec,
+      ...(command.takesSlug ? [quoteSh("1:slug:_variant_slugs")] : []),
       ...(command.values && command.values.length > 0 ? [quoteSh(`1:value:(${command.values.join(" ")})`)] : []),
     ];
     return [
@@ -186,7 +363,10 @@ const zsh = (model: CommandModel[]): string => {
     "#compdef variant",
     "# zsh completion for variant, generated by `variant completions zsh`",
     "",
+    ...ZSH_SLUGS,
+    "",
     "_variant() {",
+    "  __variant_prefetch",
     '  local curcontext="$curcontext" state line ret=1',
     "  typeset -A opt_args",
     "  local -a variant_commands",

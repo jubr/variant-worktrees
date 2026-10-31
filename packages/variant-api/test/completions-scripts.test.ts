@@ -140,6 +140,126 @@ describe.each(SHELLS)("%s completion script", (shell) => {
   });
 });
 
+describe.each(SHELLS)("%s completion script slug wiring", (shell) => {
+  const script = generateCompletions(shell);
+  const slugCommands = commands.filter((command) => command.args.some((arg) => arg.name === "slug"));
+  const otherCommands = commands.filter((command) => !slugCommands.includes(command));
+
+  /** What the section of a command holds when it completes slugs for `--slug`/`-s` and for the positional. */
+  const wiring: Record<Shell, { flag: (part: string) => boolean; positional: (part: string) => boolean }> = {
+    bash: {
+      flag: (part) => part.includes("slug_flags='--slug -s'"),
+      positional: (part) => part.includes("slug_pos=1"),
+    },
+    fish: {
+      flag: (part) =>
+        part.split("\n").some((line) => line.includes("-l slug") && line.includes("__variant_slug_candidates")),
+      positional: (part) =>
+        part.split("\n").some((line) => !line.includes("-l ") && line.includes("__variant_slug_candidates")),
+    },
+    zsh: {
+      flag: (part) => part.includes(":slug:_variant_slugs"),
+      positional: (part) => part.includes("'1:slug:_variant_slugs'"),
+    },
+  };
+
+  it("completes slugs for --slug, -s and the positional of every slug-taking command", () => {
+    for (const command of slugCommands) {
+      const part = section(shell, script, String(command.name));
+      expect(wiring[shell].flag(part)).toBe(true);
+      expect(wiring[shell].positional(part)).toBe(true);
+    }
+  });
+
+  it("offers no slugs to commands without a slug", () => {
+    for (const command of otherCommands) {
+      const part = section(shell, script, String(command.name));
+      expect(part).not.toBe("");
+      expect(wiring[shell].flag(part)).toBe(false);
+      expect(wiring[shell].positional(part)).toBe(false);
+    }
+    expect(wiring[shell].positional(section(shell, script, "completions"))).toBe(false);
+  });
+
+  it("asks `variant completions --list-slugs` for the candidates, silencing its errors, and only there", () => {
+    const asks = script.split("completions --list-slugs").length - 1;
+    expect(asks).toBeGreaterThan(0);
+    expect(script.split("command variant completions --list-slugs 2>/dev/null").length - 1).toBe(asks);
+  });
+
+  it("does not embed any slug in the script", () => {
+    expect(script).not.toMatch(/add-auth|fix-login/);
+  });
+});
+
+describe.each(SHELLS)("%s completion script slug memory", (shell) => {
+  const script = generateCompletions(shell);
+
+  it("remembers the slugs, their directory and their time in three variables", () => {
+    for (const name of ["__variant_slugs", "__variant_dir", "__variant_time"]) {
+      expect(script).toContain(name);
+    }
+  });
+
+  it("compares the working directory and a 30 second age before using the list", () => {
+    expect(script).toContain("$PWD");
+    expect(script).toMatch(/\b30\b/);
+    expect(script).toContain({ fish: "date +%s", bash: "$SECONDS", zsh: "$EPOCHSECONDS" }[shell]);
+  });
+
+  it("creates no file, directory, or universal variable", () => {
+    for (const forbidden of ["mkdir", "mktemp", "touch", "set -U", "set --universal", "tee "]) {
+      expect(script).not.toContain(forbidden);
+    }
+    // Redirections to a path: only `2>/dev/null` and descriptor duplication are allowed.
+    const redirections = script
+      .replaceAll("2>/dev/null", "")
+      .replaceAll("->", "")
+      .replace(/[0-9]?>&/g, "");
+    expect(redirections).not.toMatch(/>\s*[^\s]/);
+  });
+});
+
+describe("completion script prefetch", () => {
+  it("zsh gathers through a descriptor on a process substitution that zle reads, then closes it", () => {
+    const script = generateCompletions("zsh");
+
+    expect(script).toMatch(/exec \{\w+\}< <\(command variant completions --list-slugs 2>\/dev\/null\)/);
+    expect(script).toMatch(/zle -F \$\w+ \w+/);
+    expect(script).toMatch(/zle -F \$\w+\s/);
+    expect(script).toMatch(/exec \{\w+\}<&-/);
+  });
+
+  it("bash 4.1 or newer gathers through a descriptor and reads it once ready, guarded by BASH_VERSINFO", () => {
+    const script = generateCompletions("bash");
+
+    expect(script).toMatch(/exec \{\w+\}< <\(command variant completions --list-slugs 2>\/dev\/null\)/);
+    expect(script).toMatch(/read -t 0 -u "\$\w+"/);
+    expect(script).toMatch(/mapfile -t -u "\$\w+"/);
+    expect(script).toMatch(/exec \{\w+\}<&-/);
+    const guard = script.indexOf("BASH_VERSINFO");
+    expect(guard).toBeGreaterThan(-1);
+    expect(script).toMatch(
+      /\$\{BASH_VERSINFO\[0\]\} -gt 4 \|\| \(\$\{BASH_VERSINFO\[0\]\} -eq 4 && \$\{BASH_VERSINFO\[1\]\} -ge 1\)/,
+    );
+  });
+
+  it("fish starts no background work", () => {
+    const script = generateCompletions("fish");
+
+    expect(script).not.toContain("<(");
+    expect(script).not.toMatch(/&\s*$/m);
+    expect(script).not.toContain("--on-event");
+    expect(script).not.toContain("disown");
+  });
+
+  it("bash decides at load time, without running variant, whether it may prefetch", () => {
+    const script = generateCompletions("bash");
+
+    expect(script).toContain("__variant_async=");
+  });
+});
+
 describe.each(SHELLS)("%s completion script escaping", (shell) => {
   const nasty = "it's a: $HOME `id`";
   const model: CommandModel[] = [

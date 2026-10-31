@@ -1,0 +1,7 @@
+#!/bin/sh
+# Stands in for the `variant` binary while a completion script runs: records every start, then prints the slugs listed
+# in the `slugs` file of the directory it runs in, after an optional STUB_DELAY.
+echo "$PWD" >> "$STUB_LOG"
+[ -n "$STUB_DELAY" ] && sleep "$STUB_DELAY"
+[ -f "$PWD/slugs" ] && cat "$PWD/slugs"
+exit 0
