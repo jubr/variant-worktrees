@@ -4,6 +4,7 @@ import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { flagSpecsFor } from "./cli-flags.js";
 import { type CommandDefinition, commands } from "./commands.js";
+import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
 import { createClient } from "./index.js";
 import { formatTable } from "./table.js";
 import type { VariantRecord } from "./types.js";
@@ -64,10 +65,30 @@ const runCommand = (definition: CommandDefinition) =>
     },
   );
 
+/** CLI-only: prints a shell completion script. It needs no configuration, database, or git, so no client is created. */
+const completionsCli = command(
+  {
+    name: completionsCommand.name,
+    help: { description: completionsCommand.description },
+    parameters: ["[shell]"],
+  },
+  (argv) => {
+    const shell = argv._.shell;
+    if (!isShell(shell)) {
+      throw new Error(
+        `${shell === undefined ? "Missing shell" : `Unsupported shell: ${shell}`}. Supported shells: ${SHELLS.join(", ")}.`,
+      );
+    }
+    process.stdout.write(generateCompletions(shell));
+  },
+);
+
+const cliCommandNames = [...commands.map((definition) => String(definition.name)), completionsCommand.name];
+
 try {
   const args = process.argv.slice(2);
   const requested = args.find((arg) => !arg.startsWith("-"));
-  if (requested !== undefined && !commands.some((definition) => definition.name === requested)) {
+  if (requested !== undefined && !cliCommandNames.includes(requested)) {
     throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
   }
   await cli(
@@ -78,7 +99,7 @@ try {
         description: "Database variants for git worktrees",
       },
       strictFlags: true,
-      commands: commands.map(runCommand),
+      commands: [...commands.map(runCommand), completionsCli],
     },
     undefined,
     args.length === 0 ? ["--help"] : args,
