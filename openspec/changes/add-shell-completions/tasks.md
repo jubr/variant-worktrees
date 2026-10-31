@@ -22,8 +22,11 @@
 - [ ] 3.4 Add a test that `--list-slugs` creates no state directory and opens no database connection, and verify it passes
 - [ ] 3.5 Add a test that the listing equals the file-based slugs `list` reports for a fixture project, and verify it passes
 - [ ] 3.6 Add `takesSlug` to `describeCli()` and tests that each generated script wires `--list-slugs` into `--slug`/`-s` values and the positional of slug-taking subcommands only; verify they fail (red)
-- [ ] 3.7 Wire slug completion into the bash, fish, and zsh generators and verify the tests from 3.6 pass
-- [ ] 3.8 Extend the shell load smoke tests (2.7): where `bash` or `fish` is installed, drive a completion request for `variant up --slug ` against a fixture project with a `variant` stub on `PATH`, and verify the fixture slugs are offered; run locally for every installed shell
+- [ ] 3.7 Wire slug completion into the bash, fish, and zsh generators (synchronous listing first) and verify the tests from 3.6 pass
+- [ ] 3.8 Add a test that `--list-slugs` skips directories whose names are not valid slugs (`_v-bad name`, `_v-Upper`), and verify it passes
+- [ ] 3.9 Add generator tests that each script contains the prefetch logic: a per-directory cache file under `${XDG_CACHE_HOME:-$HOME/.cache}/variant/completions` created with mode 0700, a 30 second freshness check, a `.pending` marker, an atomic rename, and the silent detach form of that shell; verify they fail (red)
+- [ ] 3.10 Implement prefetch and stale-while-revalidate in the bash, fish, and zsh generators and verify the tests from 3.9 pass
+- [ ] 3.11 Extend the shell load smoke tests (2.7): where `bash`, `zsh`, or `fish` is installed, drive completion against a fixture project with a `variant` stub on `PATH` that records its calls, and verify: the first `variant ` completion starts one background refresh and prints nothing; after it finishes, `variant up -s ` is answered from the stored list without a further call; a stored list older than 30 seconds is offered and refreshed; the first `-s` completion with no stored list is answered synchronously; no job notice appears and the cache directory mode is 0700; run locally for every installed shell
 
 ## 4. Docs
 

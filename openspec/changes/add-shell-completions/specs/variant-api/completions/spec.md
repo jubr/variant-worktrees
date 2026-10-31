@@ -111,7 +111,11 @@ Each script SHALL be loadable by its shell without errors: `zsh` as a `#compdef 
 
 ### Requirement: Slug completion
 
-Every generated script SHALL complete the value of `--slug` and `-s`, and the positional slug, for each subcommand that takes a slug, with the slugs of existing variants. The candidates SHALL be gathered when the user requests completion, not embedded in the script, so a variant created after the script was generated is offered. Subcommands that take no slug SHALL NOT be offered slug candidates. When the candidates cannot be gathered, the shell SHALL receive no candidates and the user SHALL see no error output.
+Every generated script SHALL complete the value of `--slug` and `-s`, and the positional slug, for each subcommand that takes a slug, with the slugs of existing variants. The candidates SHALL be gathered while the user is completing, not embedded in the script, so a variant created after the script was generated is offered.
+
+The script SHALL prefetch the candidates: a completion request at any position of a `variant` command line SHALL start a refresh in the background when no fresh candidate list exists for the current directory, so the list is ready by the time the user completes a slug. A list is fresh for 30 seconds after it was gathered. The refresh SHALL NOT delay the completion in progress, SHALL NOT print anything, and SHALL NOT leave a job, job number, or completion notice in the user's shell. At a slug position the script SHALL offer the stored list immediately, even when it is no longer fresh, and start a refresh in that case; when no stored list exists yet, it SHALL gather the candidates synchronously so the first slug completion is never empty because of the prefetch. A stored list SHALL be replaced atomically, so a reader never sees a partial list, and SHALL be kept in a directory only the current user can read and write.
+
+Subcommands that take no slug SHALL NOT be offered slug candidates. When the candidates cannot be gathered, the shell SHALL receive no candidates and the user SHALL see no error output.
 
 #### Scenario: Slug flag value completed
 
@@ -135,8 +139,46 @@ Every generated script SHALL complete the value of `--slug` and `-s`, and the po
 
 #### Scenario: New variant offered without regenerating
 
-- **WHEN** a script was generated before variant `new-one` was created
-- **THEN** completing `variant up --slug ` offers `new-one`
+- **WHEN** a script was generated before variant `new-one` was created and the stored list is older than 30 seconds
+- **THEN** completing `variant up --slug ` may offer the stored list, which starts a refresh
+- **AND** the next `variant up --slug ` completion offers `new-one`
+
+#### Scenario: First completion prefetches in the background
+
+- **WHEN** a user completes `variant ` for the first time in a directory and no stored list exists
+- **THEN** the subcommands are offered without waiting for the slug listing
+- **AND** a background refresh stores the slugs of that directory's project
+
+#### Scenario: Prefetched list used at a slug position
+
+- **WHEN** a background refresh has finished and the user then completes `variant up -s `
+- **THEN** the slugs are offered from the stored list and `variant` is not started for the answer
+
+#### Scenario: Slug completion before any prefetch
+
+- **WHEN** no stored list exists and the user completes `variant up -s ` as the very first completion
+- **THEN** the slugs are gathered synchronously and offered
+
+#### Scenario: Stale list offered while refreshing
+
+- **WHEN** the stored list is older than 30 seconds and the user completes `variant up -s `
+- **THEN** the stored slugs are offered without delay
+- **AND** a background refresh replaces the stored list
+
+#### Scenario: Fresh list is not refreshed
+
+- **WHEN** the stored list is younger than 30 seconds
+- **THEN** a completion request does not start a refresh
+
+#### Scenario: Refresh leaves the shell untouched
+
+- **WHEN** a completion request starts a background refresh
+- **THEN** nothing is printed to the terminal and the shell shows no job number or completion notice
+
+#### Scenario: Stored list is private
+
+- **WHEN** the script stores a list
+- **THEN** the directory that holds it is readable and writable by the current user only
 
 #### Scenario: Outside a project
 
@@ -145,7 +187,7 @@ Every generated script SHALL complete the value of `--slug` and `-s`, and the po
 
 ### Requirement: Slug listing
 
-`variant completions --list-slugs` SHALL print the slugs of existing variants to stdout, one per line, sorted and without duplicates, and SHALL exit with code 0; `<shell>` SHALL NOT be required with it. A variant exists for this purpose when it has a saved variant state, or when a directory named with `variant.prefix` exists below `variant.root` (the slug is the name without the prefix). The listing SHALL NOT connect to a database and SHALL NOT create or modify any file or directory. When the configuration cannot be loaded, it SHALL print nothing and exit with code 0.
+`variant completions --list-slugs` SHALL print the slugs of existing variants to stdout, one per line, sorted and without duplicates, and SHALL print only valid slugs (lowercase letters and digits separated by single hyphens), and SHALL exit with code 0; `<shell>` SHALL NOT be required with it. A variant exists for this purpose when it has a saved variant state, or when a directory named with `variant.prefix` exists below `variant.root` (the slug is the name without the prefix). The listing SHALL NOT connect to a database and SHALL NOT create or modify any file or directory. When the configuration cannot be loaded, it SHALL print nothing and exit with code 0.
 
 #### Scenario: State and worktrees combined
 
@@ -156,6 +198,11 @@ Every generated script SHALL complete the value of `--slug` and `-s`, and the po
 
 - **WHEN** both a saved state and a `_v-add-auth` directory exist for `add-auth`
 - **THEN** `add-auth` is printed once
+
+#### Scenario: Invalid names are skipped
+
+- **WHEN** the directory `_v-bad name` or `_v-Upper` exists below `variant.root`
+- **THEN** neither is printed, because a slug is lowercase letters, digits, and single hyphens
 
 #### Scenario: Custom prefix
 

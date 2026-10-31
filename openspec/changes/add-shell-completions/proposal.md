@@ -6,7 +6,7 @@ The `variant` CLI has eight subcommands, per-command flags (`--slug`/`-s`, `--de
 
 - Add a `variant completions <shell>` command that prints a completion script for `zsh`, `bash`, or `fish` to stdout. The user sources it or saves it where the shell loads completions.
 - The scripts complete the subcommands (with their descriptions where the shell supports them), the flags of each subcommand including aliases and CLI-only flags, the global `--help` and `--version`, and the `<shell>` argument of `completions` itself.
-- The scripts also complete the value of `--slug`/`-s` and the positional slug of every subcommand that takes one, with the slugs of existing variants. The candidates are read when the user presses TAB, from `variant completions --list-slugs`, which prints one slug per line.
+- The scripts also complete the value of `--slug`/`-s` and the positional slug of every subcommand that takes one, with the slugs of existing variants. The candidates come from `variant completions --list-slugs`, which prints one slug per line. The first completion on a `variant` command line prefetches them in the background into a short-lived per-user cache, so they are ready when the user reaches `-s`.
 - The script content derives from the same command definitions that drive the CLI, so a new command or flag shows up in completions without a separate edit.
 - `completions` appears in `variant --help`. It is a CLI-only command: it is not a lifecycle command, so it gets no MCP tool and no webview form, and it needs no configuration, database, or git repository.
 - An unsupported or missing `<shell>` fails with a message that lists the supported shells and exits non-zero.
