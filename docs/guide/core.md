@@ -71,3 +71,26 @@ Stop the variant, drop its database and storage, clear its state, and remove its
 variant implode -s feature-forty-two
 variant implode -s feature-forty-two --force
 ```
+
+## completions
+
+Print a completion script for `zsh`, `bash`, or `fish` to stdout. It needs no configuration, database, or git repository, and it writes nothing. The shell argument is required: an unsupported or missing shell fails and names the supported ones.
+
+The scripts complete the
+subcommands, the flags of each one, and the slugs of existing variants, read live from the local variant state and
+`_v-*` worktrees (never the database). Regenerate the script after you upgrade `variant`; the `eval`/`source` forms do
+it on every shell start.
+
+```bash
+# zsh: after compinit, in ~/.zshrc
+eval "$(variant completions zsh)"
+# or save it where $fpath finds it: variant completions zsh > ~/.zsh/completions/_variant
+
+# bash: in ~/.bashrc
+source <(variant completions bash)
+
+# fish
+variant completions fish > ~/.config/fish/completions/variant.fish
+```
+
+`variant completions --list-slugs` prints the slugs of existing variants, one per line. The scripts call it while you complete a slug, in the background in `zsh` and in `bash` 4.1 or newer. The result is kept in shell variables for 30 seconds, never in a file. It reads local files only, and prints nothing when no configuration can be loaded.

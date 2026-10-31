@@ -122,6 +122,25 @@ PostgreSQL and MySQL use isolated schemas/databases; SQLite uses one database
 file per variant. Every command is explained in the
 [command reference](https://jubr.github.io/variant-worktrees/guide/core).
 
+### Shell completion
+
+Completion scripts for `zsh`, `bash`, and `fish` come from `variant completions <shell>`. They complete the
+subcommands, the flags of each one, and the slugs of existing variants, read live from the local variant state and
+`_v-*` worktrees (never the database). Regenerate the script after you upgrade `variant`; the `eval`/`source` forms do
+it on every shell start.
+
+```bash
+# zsh: after compinit, in ~/.zshrc
+eval "$(variant completions zsh)"
+# or save it where $fpath finds it: variant completions zsh > ~/.zsh/completions/_variant
+
+# bash: in ~/.bashrc
+source <(variant completions bash)
+
+# fish
+variant completions fish > ~/.config/fish/completions/variant.fish
+```
+
 ## MCP
 
 Configure an MCP client to run:

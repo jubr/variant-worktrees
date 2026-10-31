@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `variant completions <shell>` prints a completion script for `zsh`, `bash`, or `fish`. It completes the subcommands,
+  their flags, and the slugs of existing variants; the scripts derive from the CLI's own command definitions.
+  `variant completions --list-slugs` prints those slugs from local variant state and worktrees.
+
 ## 0.0.4
 
 ### Fixed
