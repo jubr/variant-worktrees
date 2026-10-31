@@ -1,6 +1,6 @@
 ## Purpose
 
-Lets users tab-complete the `variant` CLI in their shell by generating a completion script for `zsh`, `bash`, or `fish` from the CLI's own command definitions.
+Lets users tab-complete the `variant` CLI in their shell by generating a completion script for `zsh`, `bash`, or `fish` from the CLI's own command definitions, and completes variant slugs from local variant state.
 
 ## ADDED Requirements
 
@@ -38,7 +38,7 @@ The CLI SHALL provide `variant completions <shell>`, where `<shell>` is `zsh`, `
 
 ### Requirement: Unsupported shell
 
-`variant completions` SHALL fail when `<shell>` is missing or is not one of `zsh`, `bash`, `fish`. The error message SHALL name the supported shells, nothing SHALL be written to stdout, and the exit code SHALL be non-zero.
+Unless `--list-slugs` is given, `variant completions` SHALL fail when `<shell>` is missing or is not one of `zsh`, `bash`, `fish`. The error message SHALL name the supported shells, nothing SHALL be written to stdout, and the exit code SHALL be non-zero.
 
 #### Scenario: Unknown shell
 
@@ -48,7 +48,7 @@ The CLI SHALL provide `variant completions <shell>`, where `<shell>` is `zsh`, `
 
 #### Scenario: Missing shell
 
-- **WHEN** a user runs `variant completions`
+- **WHEN** a user runs `variant completions` without `--list-slugs`
 - **THEN** stderr names `zsh`, `bash`, and `fish`
 - **AND** stdout is empty and the exit code is non-zero
 
@@ -108,3 +108,72 @@ Each script SHALL be loadable by its shell without errors: `zsh` as a `#compdef 
 - **WHEN** a user runs `eval "$(variant completions zsh)"` in `zsh` after `compinit`
 - **THEN** the shell reports no error and prints nothing
 - **AND** `variant <TAB>` offers the subcommands
+
+### Requirement: Slug completion
+
+Every generated script SHALL complete the value of `--slug` and `-s`, and the positional slug, for each subcommand that takes a slug, with the slugs of existing variants. The candidates SHALL be gathered when the user requests completion, not embedded in the script, so a variant created after the script was generated is offered. Subcommands that take no slug SHALL NOT be offered slug candidates. When the candidates cannot be gathered, the shell SHALL receive no candidates and the user SHALL see no error output.
+
+#### Scenario: Slug flag value completed
+
+- **WHEN** variants `add-auth` and `fix-login` exist and a user completes `variant up --slug ` or `variant up -s `
+- **THEN** `add-auth` and `fix-login` are offered
+
+#### Scenario: Positional slug completed
+
+- **WHEN** variants `add-auth` and `fix-login` exist and a user completes `variant implode `
+- **THEN** `add-auth` and `fix-login` are offered
+
+#### Scenario: Prefix narrows candidates
+
+- **WHEN** variants `add-auth` and `fix-login` exist and a user completes `variant down --slug ad`
+- **THEN** `add-auth` is offered and `fix-login` is not
+
+#### Scenario: Commands without a slug
+
+- **WHEN** a user completes the arguments of `variant list`
+- **THEN** no slug candidates are offered
+
+#### Scenario: New variant offered without regenerating
+
+- **WHEN** a script was generated before variant `new-one` was created
+- **THEN** completing `variant up --slug ` offers `new-one`
+
+#### Scenario: Outside a project
+
+- **WHEN** a user completes `variant up --slug ` in a directory that is not a git repository and holds no `variants.yaml`
+- **THEN** no candidates are offered and nothing is printed to the terminal
+
+### Requirement: Slug listing
+
+`variant completions --list-slugs` SHALL print the slugs of existing variants to stdout, one per line, sorted and without duplicates, and SHALL exit with code 0; `<shell>` SHALL NOT be required with it. A variant exists for this purpose when it has a saved variant state, or when a directory named with `variant.prefix` exists below `variant.root` (the slug is the name without the prefix). The listing SHALL NOT connect to a database and SHALL NOT create or modify any file or directory. When the configuration cannot be loaded, it SHALL print nothing and exit with code 0.
+
+#### Scenario: State and worktrees combined
+
+- **WHEN** a saved state exists for `add-auth` and the directory `_v-fix-login` exists below `variant.root`
+- **THEN** `variant completions --list-slugs` prints `add-auth` and `fix-login`, one per line, sorted
+
+#### Scenario: Same variant listed once
+
+- **WHEN** both a saved state and a `_v-add-auth` directory exist for `add-auth`
+- **THEN** `add-auth` is printed once
+
+#### Scenario: Custom prefix
+
+- **WHEN** `variant.prefix` is `wt-` and the directory `wt-add-auth` exists below `variant.root`
+- **THEN** `add-auth` is printed
+
+#### Scenario: No variants
+
+- **WHEN** no state and no prefixed directory exist
+- **THEN** stdout is empty and the exit code is 0
+
+#### Scenario: No side effects
+
+- **WHEN** the state directory does not exist and a user runs `variant completions --list-slugs`
+- **THEN** the state directory is still absent afterwards
+- **AND** no database connection is opened
+
+#### Scenario: Unloadable configuration
+
+- **WHEN** the configuration file is invalid or absent
+- **THEN** stdout is empty, stderr is empty, and the exit code is 0
