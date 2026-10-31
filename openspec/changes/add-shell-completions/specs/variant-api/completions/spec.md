@@ -113,7 +113,11 @@ Each script SHALL be loadable by its shell without errors: `zsh` as a `#compdef 
 
 Every generated script SHALL complete the value of `--slug` and `-s`, and the positional slug, for each subcommand that takes a slug, with the slugs of existing variants. The candidates SHALL be gathered while the user is completing, not embedded in the script, so a variant created after the script was generated is offered.
 
-The script SHALL prefetch the candidates: a completion request at any position of a `variant` command line SHALL start a refresh in the background when no fresh candidate list exists for the current directory, so the list is ready by the time the user completes a slug. A list is fresh for 30 seconds after it was gathered. The refresh SHALL NOT delay the completion in progress, SHALL NOT print anything, and SHALL NOT leave a job, job number, or completion notice in the user's shell. At a slug position the script SHALL offer the stored list immediately, even when it is no longer fresh, and start a refresh in that case; when no stored list exists yet, it SHALL gather the candidates synchronously so the first slug completion is never empty because of the prefetch. A stored list SHALL be replaced atomically, so a reader never sees a partial list, and SHALL be kept in a directory only the current user can read and write.
+The script SHALL keep the candidates in variables of the running shell only. It SHALL NOT write a cache file, a marker, or any other file, and nothing SHALL outlive the shell session. The remembered list belongs to the directory it was gathered in and SHALL NOT be offered in another directory. A list is fresh for 30 seconds after it was gathered.
+
+In `zsh` and in `bash` 4.1 or newer, the script SHALL prefetch: a completion request at any position of a `variant` command line SHALL start gathering in the background when no fresh list exists for the current directory, so the list is ready by the time the user completes a slug. The prefetch SHALL NOT delay the completion in progress, SHALL NOT print anything, and SHALL NOT leave a job number or completion notice in the shell. At a slug position the script SHALL offer the remembered list immediately, even when it is no longer fresh, and start gathering again in that case. When no list is remembered yet, it SHALL wait for the gathering already under way, or gather synchronously when none is, so the first slug completion is never empty because of the prefetch.
+
+In `fish` and in `bash` older than 4.1 (such as the `bash` 3.2 of macOS), which cannot hand a background result to the running shell without a file, the script SHALL NOT prefetch. At a slug position it SHALL offer the remembered list while fresh, and otherwise gather synchronously, remember the result, and offer it.
 
 Subcommands that take no slug SHALL NOT be offered slug candidates. When the candidates cannot be gathered, the shell SHALL receive no candidates and the user SHALL see no error output.
 
@@ -139,51 +143,61 @@ Subcommands that take no slug SHALL NOT be offered slug candidates. When the can
 
 #### Scenario: New variant offered without regenerating
 
-- **WHEN** a script was generated before variant `new-one` was created and the stored list is older than 30 seconds
-- **THEN** completing `variant up --slug ` may offer the stored list, which starts a refresh
-- **AND** the next `variant up --slug ` completion offers `new-one`
+- **WHEN** a script was generated before variant `new-one` was created and the remembered list is older than 30 seconds
+- **THEN** in `zsh` and `bash` 4.1 or newer, completing `variant up --slug ` offers the remembered list and starts gathering, and the next `variant up --slug ` completion offers `new-one`
+- **AND** in `fish` and older `bash`, completing `variant up --slug ` gathers again and offers `new-one`
 
 #### Scenario: First completion prefetches in the background
 
-- **WHEN** a user completes `variant ` for the first time in a directory and no stored list exists
+- **WHEN** a user of `zsh` or `bash` 4.1 or newer completes `variant ` for the first time in a directory
 - **THEN** the subcommands are offered without waiting for the slug listing
-- **AND** a background refresh stores the slugs of that directory's project
+- **AND** the slugs of that directory's project are gathered in the background and remembered in the shell
 
 #### Scenario: Prefetched list used at a slug position
 
-- **WHEN** a background refresh has finished and the user then completes `variant up -s `
-- **THEN** the slugs are offered from the stored list and `variant` is not started for the answer
+- **WHEN** the background gathering has finished and the user then completes `variant up -s `
+- **THEN** the slugs are offered from the remembered list and `variant` is not started for the answer
 
 #### Scenario: Slug completion before any prefetch
 
-- **WHEN** no stored list exists and the user completes `variant up -s ` as the very first completion
-- **THEN** the slugs are gathered synchronously and offered
+- **WHEN** no list is remembered and the user completes `variant up -s ` as the very first completion
+- **THEN** the slugs are gathered (waiting for a gathering under way, or running one) and offered
 
-#### Scenario: Stale list offered while refreshing
+#### Scenario: Gathering in flight at a slug position
 
-- **WHEN** the stored list is older than 30 seconds and the user completes `variant up -s `
-- **THEN** the stored slugs are offered without delay
-- **AND** a background refresh replaces the stored list
+- **WHEN** a background gathering has started but not finished and no list is remembered
+- **THEN** the slug completion waits for that gathering and offers its slugs, without starting a second one
 
-#### Scenario: Fresh list is not refreshed
+#### Scenario: Stale list offered while gathering again
 
-- **WHEN** the stored list is younger than 30 seconds
-- **THEN** a completion request does not start a refresh
+- **WHEN** the remembered list is older than 30 seconds and a `zsh` or `bash` 4.1 or newer user completes `variant up -s `
+- **THEN** the remembered slugs are offered without delay
+- **AND** gathering starts again in the background
 
-#### Scenario: Refresh leaves the shell untouched
+#### Scenario: Fresh list is not gathered again
 
-- **WHEN** a completion request starts a background refresh
+- **WHEN** the remembered list is younger than 30 seconds
+- **THEN** a completion request does not start `variant`
+
+#### Scenario: Remembered per directory
+
+- **WHEN** a list was gathered in directory `A` and the user completes `variant up -s ` in directory `B`
+- **THEN** the list of `A` is not offered
+
+#### Scenario: Fish gathers on demand
+
+- **WHEN** a `fish` user completes `variant up -s ` twice within 30 seconds in one directory
+- **THEN** `variant` is started once, for the first completion
+
+#### Scenario: Prefetch leaves the shell untouched
+
+- **WHEN** a completion request starts a background gathering
 - **THEN** nothing is printed to the terminal and the shell shows no job number or completion notice
 
-#### Scenario: Stored list is private
+#### Scenario: No files are written
 
-- **WHEN** the script stores a list
-- **THEN** the directory that holds it is readable and writable by the current user only
-
-#### Scenario: Outside a project
-
-- **WHEN** a user completes `variant up --slug ` in a directory that is not a git repository and holds no `variants.yaml`
-- **THEN** no candidates are offered and nothing is printed to the terminal
+- **WHEN** a user completes slugs in any supported shell
+- **THEN** the script has created no file and no directory
 
 ### Requirement: Slug listing
 
