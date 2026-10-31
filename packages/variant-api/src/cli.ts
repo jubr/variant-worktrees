@@ -4,7 +4,7 @@ import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { flagSpecsFor } from "./cli-flags.js";
 import { type CommandDefinition, commands } from "./commands.js";
-import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
+import { completionsCommand, generateCompletions, isShell, listSlugs, SHELLS } from "./completions.js";
 import { createClient } from "./index.js";
 import { formatTable } from "./table.js";
 import type { VariantRecord } from "./types.js";
@@ -71,8 +71,14 @@ const completionsCli = command(
     name: completionsCommand.name,
     help: { description: completionsCommand.description },
     parameters: ["[shell]"],
+    flags: { listSlugs: { type: Boolean, description: "Print the slugs of existing variants, one per line" } },
   },
   (argv) => {
+    if (argv.flags.listSlugs) {
+      const slugs = listSlugs();
+      process.stdout.write(slugs.map((slug) => `${slug}\n`).join(""));
+      return;
+    }
     const shell = argv._.shell;
     if (!isShell(shell)) {
       throw new Error(

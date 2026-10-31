@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -84,4 +84,134 @@ describe("variant completions", () => {
 
     expect(help.stdout).toMatch(/^\s+completions\s+\S/m);
   });
+});
+
+describe("variant completions --list-slugs", () => {
+  /** A temporary project with `variants.yaml`; `run` gets its directory and the CLI environment. */
+  const inProject = async (
+    config: string,
+    run: (directory: string, options: { cwd: string; env: Record<string, string> }) => Promise<void>,
+  ): Promise<void> => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "variant-slugs-")));
+    try {
+      writeFileSync(join(directory, "variants.yaml"), config);
+      await run(directory, { cwd: directory, env: { VARIANT_CONFIG: join(directory, "variants.yaml") } });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  };
+  const sqlite = "db:\n  dialect: sqlite\n";
+  const state = (directory: string, slug: string): void => {
+    mkdirSync(join(directory, ".cache", "variants"), { recursive: true });
+    writeFileSync(join(directory, ".cache", "variants", `${slug}.yaml`), `slug: ${slug}\n`);
+  };
+  /** Every file and directory below `directory`, to compare before and after. */
+  const tree = (directory: string): string[] =>
+    (readdirSync(directory, { recursive: true }) as string[]).map(String).sort();
+
+  it("prints states and worktree directories together, once each, sorted", () =>
+    inProject(sqlite, async (directory, options) => {
+      state(directory, "shared");
+      state(directory, "add-auth");
+      mkdirSync(join(directory, "_v-fix-login"));
+      mkdirSync(join(directory, "_v-shared"));
+
+      const result = await runCli(["completions", "--list-slugs"], options);
+
+      expect(result.stdout).toBe("add-auth\nfix-login\nshared\n");
+      expect(result.stderr).toBe("");
+      expect(result.exitCode).toBe(0);
+    }));
+
+  it("needs no shell with --list-slugs", () =>
+    inProject(sqlite, async (_directory, options) => {
+      const result = await runCli(["completions", "--list-slugs"], options);
+
+      expect(result.exitCode).toBe(0);
+    }));
+
+  it("uses the configured variant.prefix", () =>
+    inProject("db:\n  dialect: sqlite\nvariant:\n  prefix: wt-\n", async (directory, options) => {
+      mkdirSync(join(directory, "wt-add-auth"));
+      mkdirSync(join(directory, "_v-ignored"));
+
+      const result = await runCli(["completions", "--list-slugs"], options);
+
+      expect(result.stdout).toBe("add-auth\n");
+    }));
+
+  it("skips names that are not valid slugs and plain files", () =>
+    inProject(sqlite, async (directory, options) => {
+      for (const name of ["_v-bad name", "_v-Upper", "_v-a--b", "_v-", "_v-trailing-"]) {
+        mkdirSync(join(directory, name));
+      }
+      writeFileSync(join(directory, "_v-file"), "");
+      mkdirSync(join(directory, "_v-fine"));
+
+      const result = await runCli(["completions", "--list-slugs"], options);
+
+      expect(result.stdout).toBe("fine\n");
+    }));
+
+  it("prints nothing when no variant exists", () =>
+    inProject(sqlite, async (_directory, options) => {
+      const result = await runCli(["completions", "--list-slugs"], options);
+
+      expect(result.stdout).toBe("");
+      expect(result.exitCode).toBe(0);
+    }));
+
+  it("prints nothing, silently, when the configuration is invalid", () =>
+    inProject("db: [unclosed\n", async (directory, options) => {
+      mkdirSync(join(directory, "_v-add-auth"));
+
+      const result = await runCli(["completions", "--list-slugs"], options);
+
+      expect(result).toEqual({ stdout: "", stderr: "", exitCode: 0 });
+    }));
+
+  it("prints nothing, silently, outside a project", async () => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "variant-slugs-bare-")));
+    try {
+      mkdirSync(join(directory, "_v-add-auth"));
+
+      const result = await runCli(["completions", "--list-slugs"], { cwd: directory, env: { VARIANT_CONFIG: "" } });
+
+      expect(result).toEqual({ stdout: "", stderr: "", exitCode: 0 });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("creates no file or directory and never opens the database", () =>
+    // An unreachable PostgreSQL server: a connection attempt would fail or hang, so success proves none was made.
+    inProject(
+      "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  user: nobody\n  password: nothing\n  database: none\n",
+      async (directory, options) => {
+        mkdirSync(join(directory, "_v-add-auth"));
+        const before = tree(directory);
+
+        const result = await runCli(["completions", "--list-slugs"], options);
+
+        expect(result.stdout).toBe("add-auth\n");
+        expect(result.exitCode).toBe(0);
+        expect(tree(directory)).toEqual(before);
+        expect(existsSync(join(directory, ".cache"))).toBe(false);
+      },
+    ));
+
+  it("lists the same slugs as `list` for the file-based variants", () =>
+    inProject(sqlite, async (directory, options) => {
+      state(directory, "beta");
+      state(directory, "gamma");
+      mkdirSync(join(directory, "_v-alpha"));
+      writeFileSync(join(directory, "_v-alpha", "variants.local.yaml"), "runtime:\n  slug: alpha\n");
+      mkdirSync(join(directory, "_v-gamma"));
+
+      const listing = await runCli(["completions", "--list-slugs"], options);
+      const records = JSON.parse((await runCli(["list"], options)).stdout) as { slug: string }[];
+
+      expect(listing.stdout.trim().split("\n")).toEqual(records.map((record) => record.slug));
+      expect(listing.stdout.trim().split("\n")).toEqual(["alpha", "beta", "gamma"]);
+    }));
 });

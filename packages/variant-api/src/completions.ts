@@ -6,8 +6,11 @@
  * (`describeCli()`), which is built from the same command definitions the CLI runs, so a command or flag added there is
  * completed without a separate edit. The scripts are plain strings: no file next to the binary is needed.
  */
+import { existsSync, readdirSync } from "node:fs";
+import { loadConfig } from "variant-config";
 import { flagSpecsFor } from "./cli-flags.js";
 import { commands } from "./commands.js";
+import { defaultStateDir, isValidSlug, stateSlugs } from "./state.js";
 
 export const SHELLS = ["zsh", "bash", "fish"] as const;
 export type Shell = (typeof SHELLS)[number];
@@ -34,7 +37,13 @@ export const completionsCommand: CommandModel = {
   name: "completions",
   description: "Print a shell completion script (zsh, bash, fish)",
   takesSlug: false,
-  flags: [],
+  flags: [
+    {
+      long: "list-slugs",
+      description: "Print the slugs of existing variants, one per line",
+      takesValue: false,
+    },
+  ],
   values: [...SHELLS],
 };
 
@@ -215,3 +224,29 @@ export const generateCompletions = (shell: Shell, model: CommandModel[] = descri
   generators[shell](model);
 
 export const isShell = (value: string | undefined): value is Shell => SHELLS.some((shell) => shell === value);
+
+/**
+ * The slugs of existing variants for completion: saved variant states plus `<prefix>*` directories below
+ * `variant.root`, valid slugs only, sorted and without duplicates. It reads local files and nothing else: no database,
+ * no git, no writes, and it does not create a client. Any failure (no or invalid configuration) yields no slugs, so a
+ * TAB in an unrelated directory never prints an error.
+ */
+export const listSlugs = (
+  cwd: string = process.cwd(),
+  configPath: string | undefined = process.env.VARIANT_CONFIG,
+): string[] => {
+  try {
+    const config = loadConfig({ cwd, ...(configPath ? { configPath } : {}) });
+    if (!existsSync(config.configPath)) {
+      return [];
+    }
+    const { prefix, root } = config.variant;
+    const worktrees = readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
+      .map((entry) => entry.name.slice(prefix.length));
+    const slugs = new Set([...stateSlugs(defaultStateDir(config.configDir)), ...worktrees].filter(isValidSlug));
+    return [...slugs].sort();
+  } catch {
+    return [];
+  }
+};

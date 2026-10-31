@@ -5,6 +5,12 @@ import type { VariantState } from "./types.js";
 
 const validSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** A slug is lowercase letters and digits separated by single hyphens. */
+export const isValidSlug = (value: string): boolean => validSlug.test(value);
+
+/** Where variant states are kept by default: below the directory of the configuration file. */
+export const defaultStateDir = (configDir: string): string => join(configDir, ".cache", "variants");
+
 const assertSlug = (slug: string): void => {
   if (!validSlug.test(slug)) {
     throw new Error(`Invalid variant slug: ${slug}`);
