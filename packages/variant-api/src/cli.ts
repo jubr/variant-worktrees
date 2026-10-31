@@ -2,6 +2,7 @@
 import { cli, command } from "cleye";
 import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
+import { flagSpecsFor } from "./cli-flags.js";
 import { type CommandDefinition, commands } from "./commands.js";
 import { createClient } from "./index.js";
 import { formatTable } from "./table.js";
@@ -23,25 +24,19 @@ const redacted = (value: unknown): unknown => {
   return copy;
 };
 
-/** Flags that only the CLI has: they change how a result is printed, not what a command does. */
-const CLI_ONLY_FLAGS: Record<string, Record<string, { type: BooleanConstructor; description: string }>> = {
-  list: { table: { type: Boolean, description: "Print a table instead of JSON" } },
-};
-
 const flagTypes = { string: String, number: Number, boolean: Boolean } as const;
 
 const flagsFor = (definition: CommandDefinition) =>
-  Object.fromEntries([
-    ...definition.args.map((arg) => [
-      arg.name,
+  Object.fromEntries(
+    flagSpecsFor(definition).map((flag) => [
+      flag.name,
       {
-        type: flagTypes[arg.type],
-        ...(arg.short ? { alias: arg.short } : {}),
-        description: arg.name === "slug" ? "Explicit variant slug; overrides git detection" : arg.description,
+        type: flagTypes[flag.type],
+        ...(flag.short ? { alias: flag.short } : {}),
+        description: flag.description,
       },
     ]),
-    ...Object.entries(CLI_ONLY_FLAGS[String(definition.name)] ?? {}),
-  ]);
+  );
 
 const runCommand = (definition: CommandDefinition) =>
   command(
