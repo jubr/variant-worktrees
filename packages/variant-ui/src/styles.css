@@ -199,3 +199,17 @@ body {
   background: var(--vv-button-bg);
   color: var(--vv-button-fg);
 }
+
+.dialog.output {
+  width: min(90vw, 720px);
+  max-width: none;
+}
+
+.dialog .log {
+  max-height: 60vh;
+  margin: 0 0 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+}
