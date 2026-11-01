@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
+import type { AddressInfo, Socket } from "node:net";
 import { resolve } from "node:path";
 import type { VariantClient } from "variant-api";
 import { linesFrom, readTail } from "./log-tail.js";
@@ -200,6 +200,12 @@ export const startUiServer = async (options: UiServerOptions): Promise<UiServer>
       }
     });
   });
+  // AIDEV-NOTE: closeAllConnections does not end open event streams under Bun, so the sockets are tracked and destroyed.
+  const sockets = new Set<Socket>();
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
+  });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(options.port, "127.0.0.1", () => {
@@ -216,7 +222,9 @@ export const startUiServer = async (options: UiServerOptions): Promise<UiServer>
     close: () =>
       new Promise<void>((resolve) => {
         server.close(() => resolve());
-        server.closeAllConnections();
+        for (const socket of sockets) {
+          socket.destroy();
+        }
       }),
   };
 };

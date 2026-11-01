@@ -109,7 +109,7 @@ export const describeTransportContract = (
       }));
 
     it("passes watch, down, implode and showOutput to the host with the slug", () =>
-      using([demo()], async ({ transport, received }) => {
+      using([demo({ log: "/work/_v-demo/variants.watch.log" })], async ({ transport, received }) => {
         await eventually(() => transport.records().length === 1, "the first records");
 
         await transport.watch("demo");
