@@ -82,7 +82,7 @@ React 19, built by `bun build` (JSX, CSS and font assets), no Vite and no UI lib
 - `Transport.origin` (`"editor"` or `"server"`) decides whether the `variant-ui` row has a stop control. The editor stops the server with `down("variant-ui")`, which the extension maps to a `SIGTERM` of the recorded pid; the page served by the server shows the row without a stop control, since it would cut its own connection.
 - The webview transport and its host half (`createWebviewTransport`, `attachWebviewHost`) live together in `variant-ui/protocol`, so the two ends cannot drift, and the shared contract suite runs against both ends over an in-memory channel. The host subscribes when the page says `ready`, so a snapshot is never posted before the page listens.
 - The extension loads `variant-api` lazily. Where its sqlite module is missing, the Variants view shows the load error as its only item instead of the extension failing to activate.
-- The `variant ui` core is `runUi` in `variant-server` (flags as options). Registering the `ui` command and its flags in `variant-cli` waits for the `cli-package-node-runtime` change that creates that package; until then the core is tested but no `variant ui` binary entry exists.
+- The `variant ui` core is `runUi` in `variant-server` (flags as options); `variant-cli` registers the `ui` command with `--detach` and `--stop` and imports `variant-server` on use. `variant-server` is private and not part of the published `variant-cli` package, so an npm install of `variant-cli` answers `variant ui` with a clear "not available" message, and the compiled single-file executables cannot find the built app next to them. Shipping the app with those artifacts is left to a follow-up change.
 
 ### Where the view sits
 
