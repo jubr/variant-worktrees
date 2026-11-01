@@ -58,6 +58,16 @@ for response types.
 Documentation-only baseline changes do not require new product tests, but they
 must run the existing checks cited as evidence by the selected OpenSpec change.
 
+## Documenting new commands and functionality
+
+Any extra commands or functionality that you add must also be added to the
+[`README.md`](README.md) and to the documentation under `docs/`, in the same
+pull request: a new CLI command appears in the README CLI section, as a section in
+`docs/guide/core.md`, and, when it is a lifecycle command, as a tool in
+`docs/mcp.md`; a new flag, output format, or configuration key appears wherever
+its command or section is described. `scripts/docs-coverage.spec.ts` fails for a
+registered command that is missing from them. Record the change in `CHANGELOG.md`.
+
 ## Tool execution
 
 **All commands** and project tools (`openspec`, `task`, `bun`, `hk`, `commitlint`, etc)

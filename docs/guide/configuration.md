@@ -100,7 +100,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 `up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every instance (`VARIANT_<KEY>_PORT`, then `variants.local.yaml`, then a free unreserved port), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
 
-Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands record `runtime` in the `variants.local.yaml` of the variant's worktree and, attached, wait for every `ready` path and open the URL of each instance with an `open` template.
+Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands record `runtime` in the `variants.local.yaml` of the variant's worktree (`slug`, `mode`, `dir`, `db`, the `instances` with port, pid and URL and, for a detached `watch`, `log`: the path of `variants.watch.log`, which holds the output of its processes) and, attached, wait for every `ready` path and open the URL of each instance with an `open` template.
 
 An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one instance ends or the worktree disappears, and 0 only when detached. The CLI sets the process exit code from it.
 
