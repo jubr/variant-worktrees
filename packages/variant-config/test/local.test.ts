@@ -33,6 +33,11 @@ describe("VariantsLocalSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts the log path of a detached watch and rejects an empty one", () => {
+    expect(parse({ log: "/work/_v-demo/variants.watch.log" }).success).toBe(true);
+    expect(parse({ log: "" }).success).toBe(false);
+  });
+
   it("reuses the database rules: a negative port and an unknown key fail", () => {
     expect(parse({ db: { port: -1 } }).success).toBe(false);
     expect(parse({ db: { nope: 1 } }).success).toBe(false);
