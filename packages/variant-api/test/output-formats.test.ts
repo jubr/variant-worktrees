@@ -83,4 +83,22 @@ describe("output formats", () => {
       {},
       "db:\n  dialect: postgres\n  host: db.example\n  user: app\n  password: hunter2\n  database: app\n",
     ));
+
+  it("prints a non-empty text summary for every command that runs without a runtime", () =>
+    withVariants(async (environment) => {
+      for (const args of [
+        ["config"],
+        ["create", "-s", "gamma"],
+        ["list"],
+        ["provision", "-s", "gamma"],
+        ["down", "-s", "gamma"],
+        ["implode", "-s", "gamma"],
+      ]) {
+        const result = await runCli(args, environment);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout.trim().length).toBeGreaterThan(0);
+        expect(isJson(result.stdout)).toBe(false);
+      }
+    }));
 });
