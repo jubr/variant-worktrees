@@ -1,8 +1,10 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { resolve } from "node:path";
 import type { VariantClient } from "variant-api";
 import { linesFrom, readTail } from "./log-tail.js";
+import { serveApp } from "./static.js";
 
 /** What the server needs of the library: the records, their changes and the three actions. */
 export type UiClient = Pick<VariantClient, "list" | "subscribe" | "watch" | "down" | "implode">;
@@ -145,6 +147,9 @@ export const startUiServer = async (options: UiServerOptions): Promise<UiServer>
       request.method === "POST" ? /^\/api\/variants\/([^/]+)\/(watch|down|implode)$/.exec(url.pathname) : null;
     if (action) {
       return runAction(request, response, decodeURIComponent(action[1] as string), action[2] as ActionName);
+    }
+    if ((request.method === "GET" || request.method === "HEAD") && !url.pathname.startsWith("/api/")) {
+      return serveApp(response, resolve(options.staticDir), url.pathname, request.method === "HEAD");
     }
     return empty(response, 404);
   };
