@@ -143,6 +143,16 @@ export const detectVariantRoot = (configDir: string, main: string): string => {
   return main;
 };
 
+/** The first letter or digit of each word of `name`, lowercased. Words end at other characters and before a capital that follows a lowercase letter. */
+export const abbreviate = (name: string): string => {
+  const letters = name
+    .split(/[^A-Za-z0-9]+|(?<=[a-z])(?=[A-Z])/)
+    .filter((word) => word !== "")
+    .map((word) => word.charAt(0).toLowerCase())
+    .join("");
+  return letters === "" ? "app" : letters;
+};
+
 const readMiseEnvironment = (path: string): Environment => {
   const parsed = parseToml(readFileSync(path, "utf8")) as TomlDocument;
   const env = isRecord(parsed.env) ? parsed.env : {};

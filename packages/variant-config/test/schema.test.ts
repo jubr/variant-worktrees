@@ -20,6 +20,21 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
+  it("rejects an instance with the reserved key variant-ui, naming it", () => {
+    const result = VariantsConfigSchema.safeParse({
+      variant: { instances: { "variant-ui": { kind: "vite", dir: "ui" } } },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (candidate) => candidate.path.join(".") === "variant.instances.variant-ui",
+      );
+      expect(issue?.message).toContain("variant-ui");
+      expect(issue?.message).toContain("reserved");
+    }
+  });
+
   it("accepts a custom prefix", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "_work-" } }).success).toBe(true);
   });

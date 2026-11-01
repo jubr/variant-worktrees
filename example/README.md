@@ -30,4 +30,4 @@ variant implode demo          # remove the variant, its database and its worktre
 - `variants.yaml` also shows `storage`, a `steps` entry, `implode.preRm`, `ready`, `env` and `container`. `be` is
   listed first because the nginx of the `fe` container resolves the `be` container by name when it starts.
 - A container engine in a VM (colima, podman machine) can only mount directories it shares, usually below `$HOME`.
-- `open` on `fe` is the URL of the app: `http://<slug>.vw.localhost:<port>`.
+- `open` on `fe` is the URL of the app: `http://<slug>.<abbr>.localhost:<port>` (`variant.abbr` is `vw` here).
