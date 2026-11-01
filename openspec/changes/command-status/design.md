@@ -78,7 +78,12 @@ cleye's `help.render` receives the default help nodes. The renderer appends a `G
 
 `status` appears in MCP automatically from `commands[]`; no per-surface code. No webview ships yet, and one would derive from the same definitions. MCP keeps receiving structured results.
 
+### A failed detached start leaves no log
+
+The log file is created before the first process starts. If a start fails, the already started processes are stopped and the log file is removed before the error propagates; no runtime state is written.
+
 ## Risks / Trade-offs
+
 
 - [Scripts that parse CLI stdout as JSON break] → **BREAKING** entry in `CHANGELOG.md`, `--json` documented in README and docs, tests prove `--json` equals the old output.
 - [Text layouts become an implicit contract] → text is documented as for people; `--json` and `--yaml` are the stable machine formats.

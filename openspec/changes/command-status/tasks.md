@@ -27,3 +27,7 @@
 - [ ] 4.2 Update `README.md` CLI section: `status`, `list -v`, the minimal list columns, the watch log file, a "Global flags" subsection for `--json` and `--yaml`, and the MCP tools list; verify with a README test or grep that `variant status`, `--json`, `--yaml` appear and the flags subsection is separate
 - [ ] 4.3 Update `docs/guide/core.md` (status, list columns and `-v`, watch log, output formats, global flags), `docs/guide/configuration.md` (`runtime.log`), `docs/mcp.md` (`variant_status`, `variant_list` verbose) and `CHANGELOG.md` (Added: status, `--json`, `--yaml`, `-v`, watch log, uptime; **BREAKING**: text default, `--table` removed, new list columns), and verify `task docs:build` succeeds if available
 - [ ] 4.4 Run `task lint`, `task test`, `task build`, `openspec validate --all --strict --no-interactive` and verify all pass
+
+## 5. Watch failure cleanup
+
+- [ ] 5.1 Write a failing test that a detached `watch` whose process cannot start leaves no `variants.watch.log` and no runtime state; implement the removal and verify it passes

@@ -11,6 +11,7 @@ There is no way to ask what one variant is doing right now. `variant list` print
 - Show the global flags in their own "Global flags" section in `variant --help`, `variant <command> --help` and the README CLI section, apart from the per-command flags.
 - `variant list` gets a minimal default set of columns: `slug`, `mode`, `uptime`, the full `url`, the `log` file of the watch and `dir`. With `-v`/`--verbose` it shows all meta information of every variant, the same as `status` shows for one. `-v` becomes the short alias of `--verbose` on every command.
 - Add what that needs: variants report `uptimeSeconds` (how long their recorded processes have run, from the system process table) and a detached `watch` writes the output of all its processes to one log file in the worktree, recorded as `runtime.log`, so users can `tail -f` it in real time.
+- A detached `watch` that cannot start a process removes its log file instead of leaving an empty one.
 - Add a CONTRIBUTING requirement: every added command or functionality is also added to the README and to the documentation under `docs/`.
 - Docs: README CLI section, `docs/guide/core.md` (status, output formats, global flags), `docs/mcp.md` (new tool), `CHANGELOG.md`.
 
