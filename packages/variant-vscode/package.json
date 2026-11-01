@@ -212,6 +212,14 @@
         {
           "command": "variant.stopUiServer",
           "when": "false"
+        },
+        {
+          "command": "variant.openPanel",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "variant.openInBrowser",
+          "when": "workspaceFolderCount > 0"
         }
       ],
       "view/title": [

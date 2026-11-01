@@ -2,7 +2,9 @@ import { existsSync } from "node:fs";
 import { findConfigFile } from "variant-config";
 import * as vscode from "vscode";
 import { createActions, type VariantActions } from "./variants-actions.ts";
+import { openInBrowser, readServerToken } from "./variants-browser.ts";
 import { type LoadClient, loadVariantClient, messageOf } from "./variants-client.ts";
+import { createPanelManager } from "./variants-panel.ts";
 import { createVariantsStore, type VariantsStore } from "./variants-store.ts";
 import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
 
@@ -14,6 +16,9 @@ export interface ViewDeps {
   loadClient?: LoadClient;
   hasConfig?: () => boolean;
   kill?: (pid: number, signal: NodeJS.Signals) => void;
+  /** The token of the running UI server; read from its file by default. */
+  readToken?: () => string | undefined;
+  readIndex?: (directory: string) => string;
 }
 
 export interface VariantsView {
@@ -44,6 +49,13 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     loadClient,
     records: store.records,
     ...(deps.kill ? { kill: deps.kill } : {}),
+  });
+  const panel = createPanelManager({
+    extensionUri: context.extensionUri,
+    loadClient,
+    actions,
+    store,
+    ...(deps.readIndex ? { readIndex: deps.readIndex } : {}),
   });
   const provider = new VariantsTreeProvider(store);
   const syncContexts = (): void => {
@@ -107,6 +119,13 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
       return slug === undefined ? Promise.resolve() : attempt(() => actions.openUrl(slug));
     }),
     register("variant.stopUiServer", () => attempt(() => actions.stopUiServer())),
+    register("variant.openPanel", () => attempt(() => panel.open())),
+    register("variant.openInBrowser", () =>
+      attempt(() =>
+        openInBrowser({ records: store.records, readToken: deps.readToken ?? (() => readServerToken(deps.root)) }),
+      ),
+    ),
+    { dispose: () => panel.dispose() },
   );
 
   syncContexts();

@@ -223,9 +223,40 @@ describe("UI server item", () => {
   });
 });
 
+describe("panel and web page commands", () => {
+  const createWebviewPanel = spyOn(vscode.window, "createWebviewPanel");
+
+  it("opens the panel", async () => {
+    createWebviewPanel.mockClear();
+    const { command } = await open([down], { readIndex: () => "<html><head></head><body></body></html>" });
+
+    await command("variant.openPanel")();
+
+    expect(createWebviewPanel.mock.calls.map((call) => call[0])).toEqual(["variant.panel"]);
+  });
+
+  it("opens the web page of the running server with its token", async () => {
+    const server = record("main", {
+      instances: { "variant-ui": { alive: true, pid: 1, url: "http://ui.vw.localhost:62100" } },
+    });
+    const { command } = await open([server], { readToken: () => "t0ken" });
+
+    await command("variant.openInBrowser")();
+
+    expect(String(openExternal.mock.calls[0]?.[0])).toBe("http://ui.vw.localhost:62100/?token=t0ken");
+  });
+});
+
 describe("view actions and the extension socket", () => {
   it("never import the socket module, which refuses lifecycle names", () => {
-    for (const file of ["variants-view.ts", "variants-actions.ts", "variants-tree.ts", "variants-store.ts"]) {
+    for (const file of [
+      "variants-view.ts",
+      "variants-actions.ts",
+      "variants-tree.ts",
+      "variants-store.ts",
+      "variants-panel.ts",
+      "variants-browser.ts",
+    ]) {
       const source = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
       expect(source).not.toContain("variant-ipc");
       expect(source).not.toContain("./socket");
