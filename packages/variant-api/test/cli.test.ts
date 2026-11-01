@@ -51,6 +51,20 @@ describe("variant CLI", () => {
     expect((await runCli(["provision", "--help"])).stdout).toContain("--verbose");
   });
 
+  it("takes -v as the short form of --verbose on every command", async () => {
+    for (const name of ["config", "create", "list", "provision", "up", "down", "watch", "implode"]) {
+      expect((await runCli([name, "--help"])).stdout).toContain("-v, --verbose");
+    }
+    expect((await runCli(["config", "-v"])).exitCode).toBe(0);
+  });
+
+  it("keeps --version as the only version flag", async () => {
+    const { version } = (await Bun.file(`${import.meta.dir}/../package.json`).json()) as { version: string };
+
+    expect((await runCli(["-v"])).stdout.trim()).not.toBe(version);
+    expect((await runCli(["--version"])).stdout.trim()).toBe(version);
+  });
+
   it("sets the exit code of an attached watch from its result", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
     const configPath = join(directory, "variants.yaml");
