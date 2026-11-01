@@ -1,0 +1,58 @@
+## Purpose
+
+The `status` command answers what one variant is doing right now: what `list` knows about it plus everything its runtime state records, without opening `variants.local.yaml` by hand.
+
+## ADDED Requirements
+
+### Requirement: Status command
+
+The system SHALL provide a `status` command that takes the optional `slug` argument, resolved like every other command (explicit slug, else the current git worktree), and returns the record of that single variant. The record SHALL hold the facts `list` returns for the variant (`slug`, `target`, `dialect`, `statePath`, `worktree`, `createdAt`, `exists`, and, when a runtime state exists, `mode`, `url` and `instances`) and a `runtime` object. The command SHALL fail with an error naming the slug when no state file, database target or runtime state exists for it. It SHALL NOT change any state.
+
+#### Scenario: Status of a running variant
+
+- **WHEN** variant `demo` has a state file and a runtime state with mode `watch` and instance `fe` on port 62060 with pid 123, and a user runs `variant status demo`
+- **THEN** the result has `slug` `demo`, `mode` `watch`, and `instances.fe.port` 62060
+
+#### Scenario: Slug from the worktree
+
+- **WHEN** a user runs `variant status` inside the worktree `_v-demo`
+- **THEN** the result is the status of slug `demo`
+
+#### Scenario: Unknown slug
+
+- **WHEN** no state file, database target or runtime state exists for `ghost` and a user runs `variant status ghost`
+- **THEN** the command fails with an error that names `ghost` and the process exits non-zero
+
+#### Scenario: Only one variant
+
+- **WHEN** variants `alpha` and `beta` exist and a user runs `variant status alpha`
+- **THEN** the result describes `alpha` only
+
+### Requirement: Status carries the runtime meta information
+
+The `runtime` object of a status result SHALL hold every value of the `runtime` section of the variant's `variants.local.yaml`, with `VARIANT_<KEY>_*` overrides and `{{NAME}}` templates applied as the other commands read them: `slug`, `mode`, `dir`, `db`, and `instances` with each instance's `port`, `pid`, `url` and `alive` (set when a pid is recorded). It SHALL also hold `file`, the path of the runtime file it was read from. The `db.password` value SHALL be shown as `***` in every output format. A variant with no runtime state SHALL have no `runtime` object.
+
+#### Scenario: Full runtime section
+
+- **WHEN** the runtime state of `demo` records mode `up`, `dir`, `db.dialect` `postgres`, `db.schema` `v_demo`, and instance `be` with port 62061
+- **THEN** `runtime.mode`, `runtime.dir`, `runtime.db.dialect`, `runtime.db.schema` and `runtime.instances.be.port` carry those values and `runtime.file` is the path of that `variants.local.yaml`
+
+#### Scenario: Liveness
+
+- **WHEN** an instance records a pid and no process with that id exists
+- **THEN** that instance has `alive: false`
+
+#### Scenario: Password redacted
+
+- **WHEN** the runtime state records `db.password` `secret`
+- **THEN** no output format of `variant status` contains `secret`, and `db.password` is `***`
+
+#### Scenario: Environment override applied
+
+- **WHEN** `VARIANT_FE_PORT` is `62070` and the runtime state records port 62060 for `fe`
+- **THEN** `runtime.instances.fe.port` is 62070
+
+#### Scenario: No runtime state
+
+- **WHEN** variant `demo` has a state file but no runtime state
+- **THEN** the status result has no `runtime` object and no `mode`
