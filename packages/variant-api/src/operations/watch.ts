@@ -1,10 +1,10 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, openSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stopProcessTree } from "../processes.js";
 import { announce, logToStderr } from "../ready.js";
 import { commandEnvironment, type VariantRun } from "../run-context.js";
-import { clearVariantRuntime, writeVariantRuntime } from "../runtime-state.js";
+import { clearVariantRuntime, watchLogPath, writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
@@ -56,12 +56,14 @@ const launches = (context: OperationContext, run: VariantRun): Launch[] => {
   ];
 };
 
-const spawnProcess = (launch: Launch, detach: boolean): Started => {
+/** `output` is the descriptor a detached process writes its stdout and stderr to; an attached one uses the console. */
+const spawnProcess = (launch: Launch, output: number | undefined): Started => {
+  const detach = output !== undefined;
   const child = spawn("sh", ["-c", launch.command], {
     cwd: launch.cwd,
     env: launch.env,
     detached: true,
-    stdio: detach ? "ignore" : "inherit",
+    stdio: detach ? ["ignore", output, output] : "inherit",
   });
   // a spawn failure is also reported as an event, which must not end the process
   child.on("error", () => {});
@@ -142,20 +144,36 @@ export const watchVariant = async (
         "Set `watch` on an instance or `variant.watch` in variants.yaml.",
     );
   }
-  for (const launch of toStart) {
-    if (started.length > 0 && delay > 0) {
-      await sleep(delay);
+  // AIDEV-NOTE: a detached watch has no console, so every process appends to one file the kernel writes directly
+  // (no pipe), which keeps the output real-time and alive after this process exits. Truncated on each start.
+  const logFile = options.detach === true && toStart.length > 0 ? watchLogPath(config, run.worktree) : undefined;
+  if (logFile) {
+    writeFileSync(logFile, "");
+  }
+  const output = logFile ? openSync(logFile, "a") : undefined;
+  try {
+    for (const launch of toStart) {
+      if (started.length > 0 && delay > 0) {
+        await sleep(delay);
+      }
+      log(`[${launch.key}] ${launch.command}`);
+      if (logFile) {
+        appendFileSync(logFile, `[${launch.key}] ${launch.command}\n`);
+      }
+      try {
+        started.push(spawnProcess(launch, output));
+      } catch (error) {
+        await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
+        throw error;
+      }
     }
-    log(`[${launch.key}] ${launch.command}`);
-    try {
-      started.push(spawnProcess(launch, options.detach === true));
-    } catch (error) {
-      await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
-      throw error;
+  } finally {
+    if (output !== undefined) {
+      closeSync(output);
     }
   }
   const pids = Object.fromEntries(started.map(({ key, pid }) => [key, pid]));
-  writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "watch", pids));
+  writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "watch", pids, logFile));
 
   const result: WatchResult = {
     slug,

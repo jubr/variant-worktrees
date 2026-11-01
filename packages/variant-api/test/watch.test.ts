@@ -44,6 +44,10 @@ import { appendFileSync, writeFileSync } from "node:fs";
 const who = process.env.WHO ?? "variant";
 appendFileSync(process.env.ORDER_LOG ?? "order.log", who + " " + Date.now() + "\\n");
 writeFileSync("started-" + who + ".txt", String(process.pid));
+if (process.env.PRINT) {
+  console.log("out " + who);
+  console.error("err " + who);
+}
 setInterval(() => {}, 1000);
 if (process.env.DIE_AFTER) setTimeout(() => process.exit(3), Number(process.env.DIE_AFTER));
 `;
@@ -52,6 +56,9 @@ const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
 
 const watcher = (who: string, extra = ""): string =>
   `{ kind: ${who === "be" ? "nestjs" : "vite"}, dir: ${who}, watch: "${process.execPath} ../watch.js", env: { WHO: ${who}, ORDER_LOG: "{{worktree}}/order.log" }${extra} }`;
+
+/** `watcher`, with a process that also prints one line to stdout and one to stderr. */
+const printingWatcher = (who: string): string => watcher(who).replace("ORDER_LOG:", "PRINT: '1', ORDER_LOG:");
 
 const BASE = lines(
   "db:",
@@ -73,7 +80,10 @@ interface Project {
   /** An attached watch that ends when `stop()` is called. */
   attach: (options?: WatchOptions) => { done: Promise<WatchResult>; stop: () => void };
   localFile: string;
-  runtime: () => { instances: Record<string, { port?: number; pid?: number; url?: string }> } & Record<string, unknown>;
+  runtime: () => { instances: Record<string, { port?: number; pid?: number; url?: string }>; log?: string } & Record<
+    string,
+    unknown
+  >;
   /** The pid of a started instance, once it has written its marker. */
   started: (who: string) => Promise<number>;
 }
@@ -481,5 +491,53 @@ describe("watch readiness and opening", () => {
 
       stop();
       expect((await done).exitCode).toBe(130);
+    }));
+});
+
+describe("detached watch log", () => {
+  const PRINTING = BASE.replace(`    be: ${watcher("be")}`, `    be: ${printingWatcher("be")}`).replace(
+    `    fe: ${watcher("fe", ", open: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
+    `    fe: ${printingWatcher("fe")}`,
+  );
+  const logIn = (directory: string): string => join(directory, "variants.watch.log");
+  const untilLogHas = (directory: string, ...needles: string[]): Promise<void> =>
+    until(
+      () =>
+        existsSync(logIn(directory)) &&
+        needles.every((needle) => readFileSync(logIn(directory), "utf8").includes(needle)),
+    );
+
+  it("writes the output of every process to one file while they run and records its path", () =>
+    withProject(async ({ watch, directory, runtime }) => {
+      const result = await watch({ detach: true });
+
+      await untilLogHas(directory, "out be", "err be", "out fe", "err fe");
+      const log = readFileSync(logIn(directory), "utf8");
+      for (const { key, command } of result.processes) {
+        expect(log).toContain(`[${key}] ${command}`);
+      }
+      expect(runtime().log).toBe(logIn(directory));
+      expect(isProcessAlive(result.processes[0]?.pid as number)).toBe(true);
+    }, PRINTING));
+
+  it("starts the file over when the watch runs again", () =>
+    withProject(async ({ watch, directory }) => {
+      writeFileSync(logIn(directory), "old run\n");
+      await watch({ detach: true });
+      await untilLogHas(directory, "out be");
+
+      expect(readFileSync(logIn(directory), "utf8")).not.toContain("old run");
+    }, PRINTING));
+
+  it("keeps the output of an attached watch on the console and writes no file", () =>
+    withProject(async ({ attach, directory, runtime, started }) => {
+      const { done, stop } = attach();
+      await started("be");
+      await started("fe");
+      expect(runtime().log).toBeUndefined();
+      stop();
+      await done;
+
+      expect(existsSync(logIn(directory))).toBe(false);
     }));
 });
