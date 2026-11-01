@@ -19,7 +19,7 @@ variant:
       dir: fe
 ```
 
-The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. The key `variant-ui` is reserved for the server of `variant ui`; defining an instance with it fails validation. Instances start in the listed order. List a container that another one proxies to first: a static site resolves its proxy target by name when it starts.
+The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. The key `variant-ui` is reserved for the server of `variant ui`, and so is every key whose segment is `UI` (such as `ui`), because `VARIANT_UI_PORT` is the server's port variable; defining an instance with one fails validation. Instances start in the listed order. List a container that another one proxies to first: a static site resolves its proxy target by name when it starts.
 
 ## Templates
 
@@ -59,6 +59,7 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `root` | Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into `main` (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `main` itself (`./_v-foo`). A worktree directory inside `main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created |
 | `reservedPorts` | Ports that are never picked for an instance (default 3000, 4200, 5432) |
 | `storage` | `{ dir, env }`: a per-variant directory (default `.storage`) and the variable that carries it (default `STORAGE_ROOT`) |
+| `ui` | `{ port }`: the port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port that is not reserved |
 | `steps` | Named commands that run between the `up` commands and the seed command |
 | `supervise` | `startDelaySeconds` (2), `readyTimeoutSeconds` (180), `checkoutPollSeconds` (5; 0 turns the check off) |
 | `implode` | See below |

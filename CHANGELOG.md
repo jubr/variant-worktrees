@@ -12,6 +12,9 @@
 - `variant ui` starts a local web server with the same app: it binds to loopback, requires a token, checks the `Host`
   header and asks for a confirmation to implode. It records itself as the reserved `variant-ui` instance of `main`,
   so `variant list` and the view show it.
+- `variant.ui.port` and `VARIANT_UI_PORT` set the port of `variant ui`. The instance key `ui` is reserved because its
+  environment segment would share that variable. The server ships inside the `variant-cli` package and the compiled
+  `variant` executables, together with the app.
 - `variant.abbr`, a short project label (`variant-worktrees` is `vw`) for hostnames, and the `{{abbr}}` placeholder of
   `open` URL templates.
 - `variant-api` `client.subscribe`: the current records now and again whenever runtime state, state files or process

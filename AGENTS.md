@@ -16,7 +16,7 @@ Bun workspace monorepo:
 - **`variant-cli`** — the `variant` command: argument parsing, help, and text/JSON/YAML output.
 - **`variant-mcp`** — MCP server exposing variant lifecycle tools.
 - **`variant-ui`** — the variants React app (one UI for the editor webview and the browser) and its transport seam.
-- **`variant-server`** — loopback HTTP server (token, SSE, static app) behind `variant ui`.
+- **`variant-server`** — loopback HTTP server (token, SSE, static app) behind `variant ui`. A library, not a binary: `variant-cli` bundles it, with the built app, into its package and executables.
 - **`variant-vscode`** — VS Code extension in the same workspace, included in the root build.
 
 Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts, and that socket refuses every lifecycle command. The extension's own views (the Variants view and the panel) call `variant-api` in-process for `list`, `watch`, `down` and `implode`; those calls are not reachable from the socket. Do not route the rest through the extension.

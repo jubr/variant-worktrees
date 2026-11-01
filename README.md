@@ -99,7 +99,7 @@ values.
 
 Instances take an optional `open` URL template (`{{slug}}`, `{{port}}`; `{{abbr}}`; autodetected Vite instances get `http://{{slug}}.{{abbr}}.localhost:{{port}}`) and an optional `dotenv` file, relative to `dir`, that is copied for a variant and amended with its values (`amendDotenv`, `dotenvFor`). Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
 
-`variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. The instance key `variant-ui` is reserved for the UI server.
+`variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. The instance key `variant-ui` is reserved for the UI server, and so is `ui`: `VARIANT_UI_PORT` (or `variant.ui.port`) sets the server's port.
 
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
@@ -190,7 +190,7 @@ detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/var
 - [`variant-ui`](./packages/variant-ui) — the variants React app for the editor
   webview and the browser.
 - [`variant-server`](./packages/variant-server) — the local web server behind
-  `variant ui`.
+  `variant ui`; bundled into `variant-cli` and its executables, not a program of its own.
 - [`variant-vscode`](./packages/variant-vscode) — VS Code extension package.
   Embeds chat renamer.
 - [`chat-renamer-api`](./packages/chat-renamer-api) — parse a Cursor chat rename
