@@ -1,5 +1,6 @@
+import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { type DiscoveredRuntime, LOCAL_FILENAME, readRuntimes } from "variant-config";
+import { type DiscoveredRuntime, LOCAL_FILENAME, type ResolvedConfig, readRuntimes } from "variant-config";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { readState, stateSlugs } from "../state.js";
@@ -12,6 +13,17 @@ const slugFromTarget = (target: string, dialect: string): string => {
     return target;
   }
   return target.replace(/^v_/, "").replaceAll("_", "-");
+};
+
+/** The directories whose `variants.local.yaml` makes up the runtime state: the variant worktrees and the main checkout. */
+export const runtimeDirectories = (config: ResolvedConfig): { root: string; prefix: string; directories: string[] } => {
+  const { prefix, root, main } = config.variant;
+  const worktrees = existsSync(root)
+    ? readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))
+        .map((entry) => join(root, entry.name))
+    : [];
+  return { root, prefix, directories: [...new Set([...worktrees, main])] };
 };
 
 /** The runtime state of every variant: `<root>/<prefix>*` worktrees and the main checkout, keyed by slug. */
