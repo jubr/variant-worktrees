@@ -75,6 +75,14 @@ tasks:
     desc: "Run workspace bun:test suites"
     cmds: ["bun run test"]
 
+  test:node:
+    desc: "Run the library and CLI smoke tests that execute dist/ under Node (the mise-pinned node)"
+    cmds:
+      - task: build
+      - node --version
+      - bun run --filter variant-api test test/node-runtime.test.ts
+      - bun run --filter variant-cli test test/runtimes.test.ts
+
   package:vsix:
     desc: "Build, then package variant-worktrees and chat-renamer into out/*.vsix"
     cmds:
