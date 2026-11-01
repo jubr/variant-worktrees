@@ -1,24 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-
-const runCli = async (
-  args: string[],
-  environment: Record<string, string> = {},
-): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
-  const proc = Bun.spawn(["bun", "run", "src/cli.ts", ...args], {
-    cwd: `${import.meta.dir}/..`,
-    env: { ...process.env, VARIANT_WORKTREE: "0", ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [exitCode, stdout, stderr] = await Promise.all([
-    proc.exited,
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  return { stdout, stderr, exitCode };
-};
+import { runCli } from "./support/cli.js";
 
 describe("variant CLI", () => {
   it("lists lifecycle commands in help", async () => {
@@ -73,7 +56,7 @@ describe("variant CLI", () => {
     const configPath = join(directory, "variants.yaml");
     writeFileSync(configPath, "db:\n  dialect: sqlite\nvariant:\n  watch: exit 0\n  open: false\n");
     try {
-      const result = await runCli(["watch", "-s", "demo"], { VARIANT_CONFIG: configPath });
+      const result = await runCli(["watch", "-s", "demo", "--json"], { VARIANT_CONFIG: configPath });
 
       expect(JSON.parse(result.stdout).exitCode).toBe(1);
       expect(result.exitCode).toBe(1);
@@ -82,8 +65,8 @@ describe("variant CLI", () => {
     }
   });
 
-  it("prints detected config as JSON", async () => {
-    const result = await runCli(["config"]);
+  it("prints detected config as JSON with --json", async () => {
+    const result = await runCli(["config", "--json"]);
     expect(result.exitCode).toBe(0);
     const config = JSON.parse(result.stdout);
     expect(config.db).toBeDefined();
@@ -139,13 +122,6 @@ describe("variant CLI", () => {
         expect(rows[1]?.[3]).toEndWith("alpha.db");
         expect(rows[2]?.slice(0, 3)).toEqual(["beta", "-", "-"]);
         expect(rows).toHaveLength(3);
-      }));
-
-    it("keeps JSON as the default output", () =>
-      withVariants(async (environment) => {
-        const result = await runCli(["list"], environment);
-
-        expect(JSON.parse(result.stdout).map((record: { slug: string }) => record.slug)).toEqual(["alpha", "beta"]);
       }));
   });
 });
