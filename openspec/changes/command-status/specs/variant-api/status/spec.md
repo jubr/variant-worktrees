@@ -30,7 +30,7 @@ The system SHALL provide a `status` command that takes the optional `slug` argum
 
 ### Requirement: Status carries the runtime meta information
 
-The `runtime` object of a status result SHALL hold every value of the `runtime` section of the variant's `variants.local.yaml`, with `VARIANT_<KEY>_*` overrides and `{{NAME}}` templates applied as the other commands read them: `slug`, `mode`, `dir`, `db`, and `instances` with each instance's `port`, `pid`, `url` and `alive` (set when a pid is recorded). It SHALL also hold `file`, the path of the runtime file it was read from. The `db.password` value SHALL be shown as `***` in every output format. A variant with no runtime state SHALL have no `runtime` object.
+The `runtime` object of a status result SHALL hold every value of the `runtime` section of the variant's `variants.local.yaml`, with `{{NAME}}` templates replaced as when discovering runtime states (the `VARIANT_<KEY>_*` overrides describe only the variant being run and do not apply): `slug`, `mode`, `dir`, `log`, `db`, and `instances` with each instance's `port`, `pid`, `url`, `alive` (set when a pid is recorded) and `uptimeSeconds`. It SHALL also hold `file`, the path of the runtime file it was read from. The `db.password` value SHALL be shown as `***` in every output format. A variant with no runtime state SHALL have no `runtime` object.
 
 #### Scenario: Full runtime section
 
@@ -47,10 +47,10 @@ The `runtime` object of a status result SHALL hold every value of the `runtime` 
 - **WHEN** the runtime state records `db.password` `secret`
 - **THEN** no output format of `variant status` contains `secret`, and `db.password` is `***`
 
-#### Scenario: Environment override applied
+#### Scenario: Environment overrides do not apply
 
 - **WHEN** `VARIANT_FE_PORT` is `62070` and the runtime state records port 62060 for `fe`
-- **THEN** `runtime.instances.fe.port` is 62070
+- **THEN** `runtime.instances.fe.port` is 62060
 
 #### Scenario: No runtime state
 

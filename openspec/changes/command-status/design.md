@@ -18,11 +18,9 @@
 
 ### `status` is a client operation, built on the `list` building blocks
 
-Add `client.status(slug?)` and `operations/status.ts`. It resolves the slug like other commands, then reuses the pieces of `listVariants` (state file, database target, `runtimeBySlug`, `instanceFacts`) for one slug instead of listing all variants and filtering, and adds a `runtime` object. Those helpers move from `list.ts` into a shared module so both operations use them. The `runtime` object is the stored runtime section as `readRuntime` returns it (overrides and templates applied) plus `file` and per-instance `alive`.
+Add `client.status(slug?)` and `operations/status.ts`. It resolves the slug like other commands and builds the record of that one slug with the same collection code `list` uses (state file, database target, discovered runtime state, instance facts), then attaches a `runtime` object. The code moves from `list.ts` into `operations/records.ts`, parameterised by an optional slug filter and a `verbose` switch for `runtime`. The `runtime` object is the discovered runtime section (templates replaced; `VARIANT_<KEY>_*` overrides do not apply, as in discovery, because they describe only the variant being run) plus `file` and per-instance `alive` and `uptimeSeconds`. The database adapter is still asked for its target list, because that is the only way to know whether a database target exists for the slug.
 
-Alternative: filter `list()` by slug. Rejected: it lists the whole database and drops the runtime meta that `list` does not carry (`db`, `dir`, `file`).
-
-Alternative: return the raw `variants.local.yaml`. Rejected: it skips override resolution, liveness and redaction.
+Alternative: return the raw `variants.local.yaml`. Rejected: it skips template resolution, liveness and redaction.
 
 Unknown slug: status throws `Unknown variant: <slug>` when no state, database target or runtime exists. The CLI prints the message and exits 1 (existing error path); MCP returns an error result.
 
