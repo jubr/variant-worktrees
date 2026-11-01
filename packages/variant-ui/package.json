@@ -1,0 +1,27 @@
+{
+  "name": "variant-ui",
+  "version": "0.0.4",
+  "private": true,
+  "description": "The variants React app: one UI for the editor webview and the browser",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "build": "bun run scripts/build.ts && tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@vscode/codicons": "^0.0.36",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^17.0.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.2.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

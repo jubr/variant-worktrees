@@ -65,7 +65,7 @@ tasks:
     cmds: ["actionlint"]
 
   build:
-    desc: "Build variant-config, variant-api, then variant-mcp"
+    desc: "Build every package: configs, libraries, variant-ui, then the extensions"
     run: once
     cmds:
       - bun run build
