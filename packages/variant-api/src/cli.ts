@@ -3,6 +3,7 @@ import { cli, command } from "cleye";
 import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { type CommandDefinition, commands } from "./commands.js";
+import { renderHelp } from "./help.js";
 import { createClient } from "./index.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 
@@ -32,7 +33,7 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
   command(
     {
       name: String(definition.name),
-      help: { description: definition.description },
+      help: { description: definition.description, render: renderHelp },
       parameters: definition.args.some((arg) => arg.name === "slug") ? ["[slug]"] : [],
       flags: flagsFor(definition),
     },
@@ -72,6 +73,7 @@ try {
       version,
       help: {
         description: "Database variants for git worktrees",
+        render: renderHelp,
       },
       strictFlags: true,
       commands: commands.map((definition) => runCommand(definition, format)),
