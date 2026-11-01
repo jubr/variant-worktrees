@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
+import { detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
 import { readRuntime } from "./local.js";
 import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
 import {
@@ -64,9 +64,11 @@ const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): b
 
 const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
   const { storage, supervise, implode, ...variant } = config.variant ?? {};
+  const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
     ...variant,
-    root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir),
+    main,
+    root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
     instances: resolveInstances(config, configDir),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
@@ -167,7 +169,7 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
 
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
-export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
+export { detectConnection, detectInstances, detectVariantMain, detectVariantRoot, findMiseFile } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { basename, dirname, join, parse as parsePath, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { type DbConfig, type DbDialect, DEFAULT_OPEN_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
 
@@ -89,7 +89,11 @@ const gitCommonRoot = (startDir: string): string | undefined => {
   }
 };
 
-export const detectVariantRoot = (configDir: string): string => {
+/**
+ * The main tree the worktrees are made from: the directory of the real file behind a parent `AGENTS.md` symlink,
+ * else the git carrying directory, else `configDir`.
+ */
+export const detectVariantMain = (configDir: string): string => {
   const parentAgents = join(dirname(resolve(configDir)), "AGENTS.md");
   try {
     if (lstatSync(parentAgents).isSymbolicLink()) {
@@ -108,6 +112,35 @@ export const detectVariantRoot = (configDir: string): string => {
     return realpathSync(commonRoot);
   }
   return realpathSync(resolve(configDir));
+};
+
+const realpathOrResolve = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+};
+
+const isInside = (directory: string, path: string): boolean => {
+  const relation = relative(directory, path);
+  return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
+};
+
+/**
+ * The directory that holds the `<prefix><slug>` worktrees: the directory of a parent `AGENTS.md` symlink whose
+ * target lies in `main` (`<parent>/_v-foo`), else `main` itself (`./_v-foo`).
+ */
+export const detectVariantRoot = (configDir: string, main: string): string => {
+  const parentAgents = join(dirname(resolve(configDir)), "AGENTS.md");
+  try {
+    if (lstatSync(parentAgents).isSymbolicLink() && isInside(realpathOrResolve(main), realpathSync(parentAgents))) {
+      return realpathSync(dirname(parentAgents));
+    }
+  } catch {
+    // No usable symlink: the worktrees go into the main tree.
+  }
+  return main;
 };
 
 const readMiseEnvironment = (path: string): Environment => {
