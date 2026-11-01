@@ -52,14 +52,15 @@ After `cd`, the slug comes from the branch, so `watch` and `implode` need no `-s
 mise use github:jubr/variant-worktrees
 ```
 
-The VS Code extension (Variant Worktrees) is published to the Visual Studio Marketplace and Open VSX. The `variant-mcp` server and the `variant-api` library install from npm:
+The VS Code extension (Variant Worktrees) is published to the Visual Studio Marketplace and Open VSX. The `variant` CLI (`variant-cli`), the `variant-mcp` server and the `variant-api` library install from npm. All run on Node.js 22.13 or newer and on Bun:
 
 ```bash
+npm install -g variant-cli
 npm install -g variant-mcp
 npm install variant-api
 ```
 
-Releases also ship the `variant` CLI as a single-file executable for Linux, macOS, and Windows.
+`variant-api` is the library only and provides no `variant` command; `variant-cli` provides it. Releases also ship the `variant` CLI as a single-file executable for Linux, macOS, and Windows.
 
 To try it on a working project, use [`example/`](./example) (Vite, NestJS, and SQLite). Seed, ports, and containers are in [`example/README.md`](./example/README.md).
 
@@ -171,8 +172,9 @@ detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/var
 
 - [`variant-config`](./packages/variant-config) — `variants.yaml` schema and
   mise/environment autodetection.
-- [`variant-api`](./packages/variant-api) — lifecycle library and `variant`
-  CLI.
+- [`variant-api`](./packages/variant-api) — lifecycle library for Node.js and
+  Bun.
+- [`variant-cli`](./packages/variant-cli) — the `variant` command.
 - [`variant-mcp`](./packages/variant-mcp) — MCP tools for variant lifecycle
   operations.
 - [`variant-vscode`](./packages/variant-vscode) — VS Code extension package.

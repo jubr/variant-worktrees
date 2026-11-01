@@ -1,4 +1,4 @@
-import type { CommandDefinition } from "./commands.js";
+import type { CommandDefinition } from "variant-api/commands";
 
 /**
  * The arguments `execute()` receives for a command line: every flag the definition declares that was given, and the

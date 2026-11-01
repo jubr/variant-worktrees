@@ -1,6 +1,6 @@
 # Library
 
-Use `variant-api` to manage isolated database variants from TypeScript.
+Use `variant-api` to manage isolated database variants from TypeScript. It runs on Node.js 22.13 or newer and on Bun, and provides no command line: the `variant` command comes from the `variant-cli` package.
 
 ## Quick start
 

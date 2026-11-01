@@ -34,7 +34,7 @@ const hostTarget = (): string => `bun-${process.platform === "win32" ? "windows"
 const compile = (root: string, version: string, target: string): string => {
   const outfile = join(root, "out", assetName(version, target));
   const proc = Bun.spawnSync(
-    ["bun", "build", join(root, "packages/variant-api/src/cli.ts"), "--compile", `--target=${target}`, "--outfile", outfile],
+    ["bun", "build", join(root, "packages/variant-cli/src/cli.ts"), "--compile", `--target=${target}`, "--outfile", outfile],
     { stdout: "inherit", stderr: "inherit" },
   );
   if (proc.exitCode !== 0) {

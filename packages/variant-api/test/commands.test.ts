@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { collectArgs } from "../src/cli-args.js";
 import { type CommandDefinition, commands } from "../src/commands.js";
 import type { VariantClient } from "../src/types.js";
 
@@ -119,28 +118,10 @@ describe("command registry", () => {
   });
 
   it("is not wired to the editor socket in the CLI or the MCP server", () => {
-    const sources = ["src/cli.ts", "src/commands.ts", "src/index.ts", "../variant-mcp/src/mcp.ts"]
+    const sources = ["src/commands.ts", "src/index.ts", "../variant-cli/src/cli.ts", "../variant-mcp/src/mcp.ts"]
       .map((path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"))
       .join("\n");
 
     expect(sources).not.toContain("variant-ipc");
-  });
-});
-
-describe("command line arguments", () => {
-  it("passes --detach and --slug to watch", () => {
-    expect(collectArgs(definition("watch"), { slug: "demo", detach: true })).toEqual({ slug: "demo", detach: true });
-  });
-
-  it("takes the slug of implode from the positional argument", () => {
-    expect(collectArgs(definition("implode"), { force: true }, "demo")).toEqual({ slug: "demo", force: true });
-  });
-
-  it("passes --verbose to provision", () => {
-    expect(collectArgs(definition("provision"), { verbose: true })).toEqual({ verbose: true });
-  });
-
-  it("leaves out flags that were not given", () => {
-    expect(collectArgs(definition("watch"), { detach: undefined, slug: undefined })).toEqual({});
   });
 });
