@@ -14,7 +14,14 @@ export const provisionVariant = async (
   const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
   const worktree =
     context.useWorktree && slug !== "main"
-      ? ensureWorktree(slug, context.cwd, context.variantRoot, config.variant.prefix, config.variant)
+      ? ensureWorktree(
+          slug,
+          context.cwd,
+          context.variantRoot,
+          config.variant.prefix,
+          config.variant,
+          config.variant.main,
+        )
       : (locateWorktree(context, slug) ?? checkoutRoot(context.cwd));
   const run = await prepareRun(context, slug, worktree);
   return { slug, ...runProvisioning(context, run, options) };
