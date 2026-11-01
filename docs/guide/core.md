@@ -91,6 +91,29 @@ variant implode -s feature-forty-two
 variant implode -s feature-forty-two --force
 ```
 
+## ui
+
+Serve the variants app as a web page on a local port, the same app as the Variants view and panel of the VS Code extension. It lists every variant with its state (watching, up, down) and offers play, stop and implode.
+
+```bash
+variant ui
+variant ui --detach
+variant ui --stop
+```
+
+The server picks a free port the way an instance does (reserved ports are never picked; `VARIANT_VARIANT_UI_PORT` pins it), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
+
+There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the instance `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved: `variant.instances` must not define it.
+
+Security model:
+
+- Loopback only, no remote access.
+- A random 128-bit token is required. The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie. The token lives in an owner-only file next to the [editor socket](./ipc) and is removed when the server ends.
+- The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
+- POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
+- `implode` needs `confirm: true` in the request body, and `main` is never imploded.
+- A content security policy allows scripts and styles from the server's own origin only.
+
 ## Global flags
 
 These flags work on every command, before or after the command name. `variant --help` and `variant <command> --help` list them in a `Global flags` section, apart from the flags of the command.

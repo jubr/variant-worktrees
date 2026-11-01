@@ -14,9 +14,11 @@ Bun workspace monorepo:
 - **`variant-config`** — shared `variants.yaml` parser and mise/env autodetection.
 - **`variant-api`** — TypeScript database variant lifecycle library and `variant` CLI.
 - **`variant-mcp`** — MCP server exposing variant lifecycle tools.
+- **`variant-ui`** — the variants React app (one UI for the editor webview and the browser) and its transport seam.
+- **`variant-server`** — loopback HTTP server (token, SSE, static app) behind `variant ui`.
 - **`variant-vscode`** — VS Code extension in the same workspace, included in the root build.
 
-Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts. Do not route the rest through the extension.
+Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts, and that socket refuses every lifecycle command. The extension's own views (the Variants view and the panel) call `variant-api` in-process for `list`, `watch`, `down` and `implode`; those calls are not reachable from the socket. Do not route the rest through the extension.
 
 Tech: Bun, TypeScript strict ESM, Zod v4, Drizzle ORM, Biome, VitePress + TypeDoc. Database connection settings autodetect from `mise.local.toml`, then environment variables.
 
@@ -76,6 +78,10 @@ packages/
   variant-mcp/
     src/mcp.ts       — MCP server entry point
     test/mcp.test.ts — MCP server tests
+  variant-ui/
+    src/              — React app, transports (memory, HTTP, webview messages), co-located *.spec.ts
+  variant-server/
+    src/              — HTTP API, event stream, static files, `variant ui` core
   variant-vscode/    — VS Code extension (workspace member and root build target)
 docs/                — VitePress documentation
 ```

@@ -19,13 +19,14 @@ variant:
       dir: fe
 ```
 
-The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. Instances start in the listed order. List a container that another one proxies to first: a static site resolves its proxy target by name when it starts.
+The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. The key `variant-ui` is reserved for the server of `variant ui`; defining an instance with it fails validation. Instances start in the listed order. List a container that another one proxies to first: a static site resolves its proxy target by name when it starts.
 
 ## Templates
 
 Values of `env`, `envAlways`, `container.env`, `container.volumes` and `open` are rendered in two passes.
 
 1. Variant placeholders: `{{slug}}`, `{{schema}}` (the database schema or file), `{{storage}}`, `{{worktree}}`, `{{url}}`, `{{port}}` and `{{port.<instance>}}`.
+   `{{abbr}}` is the project abbreviation (see `abbr` below); the default `open` URL of a detected Vite instance is `http://{{slug}}.{{abbr}}.localhost:{{port}}`.
 2. Environment templates: `{{NAME}}` reads the environment and fails when it is unset, `{{NAME:-default}}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `{{JWT_SECRET:-variant-local-{{slug}}}}` works.
 
 Every command also sees `VARIANT_SLUG`, `VARIANT_TARGET`, the database settings (`POSTGRES_*`, `MYSQL_*` or `SQLITE_DATABASE`), the storage variable, and the port and URL of every instance as `VARIANT_<KEY>_PORT` and `VARIANT_<KEY>_URL`.
@@ -48,6 +49,7 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 
 | Option | Meaning |
 | --- | --- |
+| `abbr` | A short label of the project for hostnames, lowercase letters and digits optionally separated by `-`. Absent: the first letter or digit of each word of the main checkout's directory name (`variant-worktrees` is `vw`, `OtherTitleCase` is `otc`, `moreStuff` is `ms`, `lower_example` is `le`, no letters at all `app`) |
 | `baseBranch` | New variant branches start here; a variant must be merged here before `implode` (default `main`) |
 | `branchPrefixes` | The first prefixes a new branch; all are dropped to derive a slug (default `feat/`, `fix/`) |
 | `containerEngine` | `docker` or `podman`; `CONTAINER_ENGINE` wins; absent: `docker` if installed, else `podman` |

@@ -55,6 +55,11 @@ with their source as `{file}.spec.ts` (for example, `src/client.ts` and
 MCP tool handlers) over private internals. Zod schemas are the source of truth
 for response types.
 
+The React app in `variant-ui` and the HTTP server in `variant-server` follow the same rule with co-located
+`*.spec.ts` files (component tests run on happy-dom and Testing Library). A new transport must pass the shared
+`describeTransportContract` suite of `variant-ui/testing`. The extension's tests run against `mocks/vscode.ts`: add
+the part of the VS Code API a test needs to that mock.
+
 Documentation-only baseline changes do not require new product tests, but they
 must run the existing checks cited as evidence by the selected OpenSpec change.
 
@@ -103,7 +108,7 @@ runtime. `bun.lock` is the committed, CI-authoritative lockfile.
 task install           # bun install at workspace root
 task lint              # biome check packages/
 task format:write      # biome check --write packages/
-task build             # bun run build (api then mcp)
+task build             # bun run build (libraries, variant-ui, then the extensions)
 task test              # bun run test
 task docs:dev          # TypeDoc + vitepress dev
 task commitlint        # mise-pinned commitlint on origin/main..HEAD

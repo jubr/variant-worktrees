@@ -4,6 +4,18 @@
 
 ### Added
 
+- A **Variants** view in the Explorer: every variant with a watching, up or down icon, the uptime, and inline play,
+  stop and implode (after a confirmation). The context menu shows a variant's output, opens its URL, opens the panel
+  and the web page. It follows changes made by the CLI, an agent or another window within seconds.
+- **Variant: Open Variants Panel** shows the same list in an editor panel; **Variant: Open Variants in Browser** opens
+  the web page of a running UI server.
+- `variant ui` starts a local web server with the same app: it binds to loopback, requires a token, checks the `Host`
+  header and asks for a confirmation to implode. It records itself as the reserved `variant-ui` instance of `main`,
+  so `variant list` and the view show it.
+- `variant.abbr`, a short project label (`variant-worktrees` is `vw`) for hostnames, and the `{{abbr}}` placeholder of
+  `open` URL templates.
+- `variant-api` `client.subscribe`: the current records now and again whenever runtime state, state files or process
+  liveness change.
 - `variant status [slug]` (and the `variant_status` MCP tool): everything known about one variant, including all
   meta information of its runtime state (mode, directory, database settings with the password hidden, and per
   instance the port, pid, URL, liveness and uptime).
@@ -26,6 +38,13 @@
   `<parent>/_v-foo` instead of `<main>/_v-foo`. Without the symlink it stays the main checkout. The resolved
   `variant.root` of `loadConfig` follows; use the new `variant.main` for the main checkout. Set `variant.root` to
   the main checkout to keep the old place; existing worktrees are still found by slug.
+- **BREAKING** The default `open` URL of an autodetected Vite instance is `http://{{slug}}.{{abbr}}.localhost:{{port}}`
+  instead of `http://{{slug}}.vw.localhost:{{port}}`; a project whose directory name does not abbreviate to `vw` gets
+  another host. Set `open` on the instance to keep the old one.
+- **BREAKING** The VS Code extension needs VS Code 1.101 or a host with Node.js 22.13 or newer, because its views read
+  sqlite databases through `node:sqlite`. Older hosts do not activate it.
+- The extension socket still refuses `config`, `create`, `list`, `provision`, `up`, `down`, `watch` and `implode`; the
+  extension's own views run `list`, `watch`, `down` and `implode` in-process.
 - **BREAKING** The CLI prints a text summary instead of JSON by default. Add `--json` to get the previous output.
 - **BREAKING** `variant list` prints the table `slug, mode, uptime, url, log, dir` by default; the `schema`
   column moved to `list -v`/`--json`.
