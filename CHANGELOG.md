@@ -31,8 +31,17 @@
   symlink, else the git checkout).
 - A worktree created inside the main tree adds `_v-*` (the configured prefix) to an existing `.gitignore`.
 
+- `variant-api` runs on Node.js 22.13 or newer as well as on Bun: a SQLite variant uses `node:sqlite` under Node
+  and `bun:sqlite` under Bun, loaded only when a SQLite variant is used, and the `implode` cleanup patterns are
+  matched by a runtime-neutral glob.
+- `variant-cli` package that provides the `variant` command and shares the lockstep release version.
+
 ### Changed
 
+- **BREAKING** `variant` moves from `variant-api` to the new `variant-cli` package: `npm install -g variant-cli`
+  provides it, `variant-api` is the library only and no longer depends on the command-line parser. Commands, flags
+  and output are unchanged, and the release executables keep their names. `variant --version` reports the version
+  of `variant-cli`.
 - **BREAKING** `variant.root` is only the directory that holds the worktrees. With a parent `AGENTS.md` symlink into
   the main checkout it now defaults to the directory that holds the symlink, so `variant watch foo` creates
   `<parent>/_v-foo` instead of `<main>/_v-foo`. Without the symlink it stays the main checkout. The resolved

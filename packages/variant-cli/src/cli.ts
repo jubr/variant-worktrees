@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { cli, command } from "cleye";
+import { createClient } from "variant-api";
+import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
-import { type CommandDefinition, commands } from "./commands.js";
 import { renderHelp } from "./help.js";
-import { createClient } from "./index.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 
 const { version } = pkg;

@@ -11,13 +11,14 @@ const script = join(import.meta.dir, "release-version.ts");
 const PACKAGE_FILES = {
   root: "package.json",
   "variant-api": "packages/variant-api/package.json",
+  "variant-cli": "packages/variant-cli/package.json",
   "variant-vscode": "packages/variant-vscode/package.json",
   "chat-renamer": "packages/chat-renamer-vscode/package.json",
 } as const;
 
 const roots: string[] = [];
 
-/** Build a throwaway workspace whose four release packages declare the given versions. */
+/** Build a throwaway workspace whose release packages declare the given versions. */
 const workspace = (versions: Record<keyof typeof PACKAGE_FILES, string>): string => {
   const root = mkdtempSync(join(tmpdir(), "release-version-"));
   roots.push(root);
@@ -46,10 +47,11 @@ afterEach(() => {
 });
 
 describe("release-version", () => {
-  test("prints the shared version when all four packages agree", async () => {
+  test("prints the shared version when all release packages agree", async () => {
     const root = workspace({
       root: "1.2.3",
       "variant-api": "1.2.3",
+      "variant-cli": "1.2.3",
       "variant-vscode": "1.2.3",
       "chat-renamer": "1.2.3",
     });
@@ -64,6 +66,7 @@ describe("release-version", () => {
     const root = workspace({
       root: "1.2.3",
       "variant-api": "1.2.3",
+      "variant-cli": "1.2.5",
       "variant-vscode": "1.2.4",
       "chat-renamer": "1.2.2",
     });
@@ -75,10 +78,26 @@ describe("release-version", () => {
     for (const line of [
       "package.json: 1.2.3",
       "packages/variant-api/package.json: 1.2.3",
+      "packages/variant-cli/package.json: 1.2.5",
       "packages/variant-vscode/package.json: 1.2.4",
       "packages/chat-renamer-vscode/package.json: 1.2.2",
     ]) {
       expect(result.stderr).toContain(line);
     }
+  });
+
+  test("fails when only variant-cli differs", async () => {
+    const root = workspace({
+      root: "1.2.3",
+      "variant-api": "1.2.3",
+      "variant-cli": "1.2.4",
+      "variant-vscode": "1.2.3",
+      "chat-renamer": "1.2.3",
+    });
+
+    const result = await run(root);
+
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("packages/variant-cli/package.json: 1.2.4");
   });
 });

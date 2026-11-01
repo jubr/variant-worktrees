@@ -73,15 +73,22 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 };
 
 export { loadConfig } from "variant-config";
+export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
   DatabaseAdapter,
+  DownResult,
+  ImplodeResult,
+  InstanceFacts,
+  InstanceReport,
   ListOptions,
   RuntimeStatus,
+  UpResult,
   VariantClient,
   VariantClientOptions,
   VariantRecord,
   VariantState,
   VariantUpdate,
+  WatchResult,
 } from "./types.js";
 export { ensureWorktree, primaryWorktree } from "./worktree.js";

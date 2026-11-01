@@ -8,7 +8,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { commands } from "../packages/variant-api/src/commands.ts";
-import { GLOBAL_FLAGS } from "../packages/variant-api/src/output.ts";
+import { GLOBAL_FLAGS } from "../packages/variant-cli/src/output.ts";
 
 const root = join(import.meta.dir, "..");
 const read = (path: string): string => readFileSync(join(root, path), "utf8");

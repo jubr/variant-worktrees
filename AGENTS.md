@@ -12,7 +12,8 @@ Read the narrowest authoritative source for the question at hand:
 Bun workspace monorepo:
 
 - **`variant-config`** — shared `variants.yaml` parser and mise/env autodetection.
-- **`variant-api`** — TypeScript database variant lifecycle library and `variant` CLI.
+- **`variant-api`** — TypeScript database variant lifecycle library for Node.js and Bun.
+- **`variant-cli`** — the `variant` command: argument parsing, help, and text/JSON/YAML output.
 - **`variant-mcp`** — MCP server exposing variant lifecycle tools.
 - **`variant-ui`** — the variants React app (one UI for the editor webview and the browser) and its transport seam.
 - **`variant-server`** — loopback HTTP server (token, SSE, static app) behind `variant ui`.
@@ -71,6 +72,10 @@ packages/
       state.ts        — YAML variant state
       slug.ts         — explicit and git-derived slug resolution
       worktree.ts     — _v-* worktree management
+    test/
+  variant-cli/
+    src/cli.ts        — `variant` entry point (bin)
+    src/output.ts     — text, JSON and YAML rendering of command results
     test/
   variant-config/
     src/              — variants.yaml schema and config autodetection

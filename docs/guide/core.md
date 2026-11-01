@@ -1,6 +1,6 @@
 # Core
 
-These are the `variant` commands. A slug command takes the slug as a positional argument or as `-s`/`--slug`. The flag wins. Without either, the slug comes from the current worktree branch. `--verbose` (`-v`) prints the full output of quiet provisioning steps; on `list` it shows all meta information of every variant.
+These are the `variant` commands, provided by the `variant-cli` package (see [Installation](./installation)). A slug command takes the slug as a positional argument or as `-s`/`--slug`. The flag wins. Without either, the slug comes from the current worktree branch. `--verbose` (`-v`) prints the full output of quiet provisioning steps; on `list` it shows all meta information of every variant.
 
 Commands print text for people. [Global flags](#global-flags) switch to JSON or YAML.
 

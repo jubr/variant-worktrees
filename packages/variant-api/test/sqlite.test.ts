@@ -1,7 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { SqliteAdapter } from "../src/db/sqlite.js";
+import { loadDatabase, SqliteAdapter } from "../src/db/sqlite.js";
+
+describe("sqlite driver selection", () => {
+  it("fails with an error naming SQLite and Node 22.13 when the runtime has no driver", async () => {
+    const missing = async (): Promise<never> => {
+      throw new Error("No such built-in module: node:sqlite");
+    };
+    await expect(loadDatabase(false, missing)).rejects.toThrow(/SQLite.*Node 22\.13/);
+  });
+
+  it("asks for bun:sqlite under Bun and node:sqlite under Node", async () => {
+    const asked: string[] = [];
+    const load = async (specifier: string): Promise<Record<string, unknown>> => {
+      asked.push(specifier);
+      return { Database: class {}, DatabaseSync: class {} };
+    };
+    await loadDatabase(true, load);
+    await loadDatabase(false, load);
+    expect(asked).toEqual(["bun:sqlite", "node:sqlite"]);
+  });
+});
 
 describe("SqliteAdapter", () => {
   it("creates a database file for each slug", async () => {

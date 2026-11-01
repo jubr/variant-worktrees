@@ -1,5 +1,3 @@
-import { formatDuration } from "./duration.js";
-import { formatTable } from "./table.js";
 import type {
   DownResult,
   ImplodeResult,
@@ -8,7 +6,9 @@ import type {
   UpResult,
   VariantRecord,
   WatchResult,
-} from "./types.js";
+} from "variant-api";
+import { formatDuration } from "./duration.js";
+import { formatTable } from "./table.js";
 
 /** Where a text layout is rendered. */
 export interface TextOptions {
