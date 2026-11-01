@@ -19,7 +19,7 @@ tasks:
       - task: bin:bun-shebang
 
   bin:bun-shebang:
-    desc: "Make node_modules/.bin/variant run under bun (no-op until variant-api is built)"
+    desc: "Make node_modules/.bin/variant run under bun (no-op until variant-cli is built)"
     cmds: ["scripts/bun-shebang.sh"]
 
   bootstrap:
@@ -65,7 +65,7 @@ tasks:
     cmds: ["actionlint"]
 
   build:
-    desc: "Build variant-config, variant-api, then variant-mcp"
+    desc: "Build variant-config, variant-api, variant-cli, then variant-mcp"
     run: once
     cmds:
       - bun run build

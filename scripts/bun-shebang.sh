@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AIDEV-NOTE: node_modules/.bin/variant is a symlink to packages/variant-api/dist/cli.js, whose
+# AIDEV-NOTE: node_modules/.bin/variant is a symlink to packages/variant-cli/dist/cli.js, whose
 # shebang is `node`. Run it under bun instead. Patch the symlink target in place: `sed --in-place`
 # on the link itself would replace the link with a copy. A missing target (not built yet) is fine.
 # A rebuild rewrites dist/cli.js, so the build task runs this again.
