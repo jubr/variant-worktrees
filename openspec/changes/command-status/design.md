@@ -76,7 +76,7 @@ cleye's `help.render` receives the default help nodes. The renderer appends a `G
 
 ### Webview and MCP
 
-`status` appears in the webview and MCP automatically from `commands[]`; no per-surface code. The webview and MCP continue to receive structured results.
+`status` appears in MCP automatically from `commands[]`; no per-surface code. No webview ships yet, and one would derive from the same definitions. MCP keeps receiving structured results.
 
 ## Risks / Trade-offs
 

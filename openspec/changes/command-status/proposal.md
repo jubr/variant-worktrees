@@ -5,7 +5,7 @@ There is no way to ask what one variant is doing right now. `variant list` print
 ## What Changes
 
 - Add a `variant status [slug]` command. It reports one variant: the facts `list` shows for it plus all the meta information of its runtime state (the `runtime` section of `variants.local.yaml`: slug, mode, directory, database settings, instances with port, pid, URL and liveness). Database passwords are redacted. It fails when nothing is known about the slug.
-- Add `variant_status` MCP tool and a webview form for `status`; both derive from the same command definition.
+- Add a `variant_status` MCP tool. It derives from the same command definition, as would a webview form (none ships yet).
 - **BREAKING** The CLI no longer prints JSON by default. Every command prints a human-readable text summary. `variant list` prints its table by default, so `--table` is removed.
 - Add the global flags `--json` and `--yaml` that print the same result as JSON or YAML. They work on every command, before or after the command name. Giving both fails.
 - Show the global flags in their own "Global flags" section in `variant --help`, `variant <command> --help` and the README CLI section, apart from the per-command flags.
