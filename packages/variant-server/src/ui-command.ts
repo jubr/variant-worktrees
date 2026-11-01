@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createClient } from "variant-api";
 import { startUiServer, type UiServer } from "./server.js";
-import { defaultStaticDir } from "./static.js";
+import { defaultStaticDir, type StaticApp } from "./static.js";
 import {
   chooseUiPort,
   readEntry,
@@ -25,8 +25,8 @@ export interface UiCommandOptions {
   stop?: boolean;
   /** The command line that runs this command attached, for `detach`: the executable followed by its arguments. */
   respawn?: string[];
-  /** The built app; the one of the `variant-ui` package by default. */
-  staticDir?: string;
+  /** The built app (a directory, or a map from file names to paths); the one of the `variant-ui` package by default. */
+  staticDir?: StaticApp;
   /** Ends an attached run, the way an interrupt does. */
   signal?: AbortSignal;
   /** The ports to try, instead of asking the operating system; for tests. */

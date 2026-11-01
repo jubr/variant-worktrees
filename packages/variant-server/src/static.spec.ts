@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import { withServer } from "./test-support.js";
 
 describe("static app", () => {
@@ -31,6 +32,50 @@ describe("static app", () => {
       },
       { files: { "app/chunk.js": "console.log(1)", "app/chunk.css": "body{}" } },
     ));
+
+  describe("from a map of file names to paths", () => {
+    // AIDEV-NOTE: a compiled executable embeds the app under hashed names, so it hands the server a map, not a directory
+    const files = { "embedded-1.bin": "<!doctype html><title>Embedded</title>", "embedded-2.bin": "console.log(2)" };
+    const app = (directory: string) => ({
+      "index.html": join(directory, "embedded-1.bin"),
+      "chunk.js": join(directory, "embedded-2.bin"),
+    });
+
+    it("serves the listed files under their names, with their content type", () =>
+      withServer(
+        async ({ call }) => {
+          const script = await call("GET", "/chunk.js");
+
+          expect(script.status).toBe(200);
+          expect(script.headers["content-type"]).toContain("text/javascript");
+          expect(script.body).toBe("console.log(2)");
+        },
+        { files, app },
+      ));
+
+    it("serves index.html for / and for a client route", () =>
+      withServer(
+        async ({ call }) => {
+          for (const path of ["/", "/variants/demo"]) {
+            const response = await call("GET", path);
+
+            expect(response.status).toBe(200);
+            expect(response.headers["content-type"]).toContain("text/html");
+            expect(response.body).toContain("<title>Embedded</title>");
+          }
+        },
+        { files, app },
+      ));
+
+    it("does not serve a file that is not listed", () =>
+      withServer(
+        async ({ call }) => {
+          expect((await call("GET", "/embedded-2.bin")).body).toContain("<title>Embedded</title>");
+          expect((await call("GET", "/%2e%2e/embedded-2.bin")).body).toContain("<title>Embedded</title>");
+        },
+        { files, app },
+      ));
+  });
 
   it("carries a content security policy that denies scripts and styles from other origins", () =>
     withServer(async ({ call }) => {

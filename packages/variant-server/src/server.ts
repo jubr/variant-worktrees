@@ -1,10 +1,9 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
-import { resolve } from "node:path";
 import type { VariantClient } from "variant-api";
 import { linesFrom, readTail } from "./log-tail.js";
-import { serveApp } from "./static.js";
+import { type StaticApp, serveApp } from "./static.js";
 
 /** What the server needs of the library: the records, their changes and the three actions. */
 export type UiClient = Pick<VariantClient, "list" | "subscribe" | "watch" | "down" | "implode">;
@@ -15,8 +14,8 @@ export interface UiServerOptions {
   port: number;
   /** The project abbreviation: the server answers to `ui.<abbr>.localhost`. */
   abbr: string;
-  /** The built variants app. */
-  staticDir: string;
+  /** The built variants app: its directory, or a map from file names to paths for an app that is embedded. */
+  staticDir: StaticApp;
   /** The token of this run; a random one of 128 bits by default. */
   token?: string;
   /** How often an idle event stream gets a comment line; 15 seconds by default. */
@@ -149,7 +148,7 @@ export const startUiServer = async (options: UiServerOptions): Promise<UiServer>
       return runAction(request, response, decodeURIComponent(action[1] as string), action[2] as ActionName);
     }
     if ((request.method === "GET" || request.method === "HEAD") && !url.pathname.startsWith("/api/")) {
-      return serveApp(response, resolve(options.staticDir), url.pathname, request.method === "HEAD");
+      return serveApp(response, options.staticDir, url.pathname, request.method === "HEAD");
     }
     return empty(response, 404);
   };

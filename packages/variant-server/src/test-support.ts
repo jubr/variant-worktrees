@@ -180,6 +180,8 @@ export const withServer = async (
   options: {
     records?: VariantRecord[] | ((directory: string) => VariantRecord[]);
     files?: Record<string, string>;
+    /** The app to serve instead of the built-in tiny one: a directory or a map of file names to paths. */
+    app?: (directory: string) => string | Record<string, string>;
     abbr?: string;
     keepAliveMs?: number;
   } = {},
@@ -198,7 +200,7 @@ export const withServer = async (
     client,
     port: 0,
     abbr: options.abbr ?? "vw",
-    staticDir,
+    staticDir: options.app?.(directory) ?? staticDir,
     ...(options.keepAliveMs === undefined ? {} : { keepAliveMs: options.keepAliveMs }),
   });
   const origin = `http://127.0.0.1:${server.port}`;
