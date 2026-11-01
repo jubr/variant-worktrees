@@ -48,3 +48,27 @@ The system SHALL accept an optional `variant.abbr`, a string of lowercase letter
 
 - **WHEN** `variant.abbr` is absent and the main checkout directory is `___`
 - **THEN** the resolved abbreviation is `app`
+
+### Requirement: UI server settings
+
+The system SHALL accept an optional `variant.ui` object that holds the settings of the `variant ui` server, with the optional `port`, a TCP port the server listens on. The environment variable `VARIANT_UI_PORT` is the override of `variant.ui.port` (see `variant-server/ui-instance`). Unknown keys below `variant.ui` SHALL fail validation, and a port that is not a positive integer SHALL fail validation.
+
+#### Scenario: Port set
+
+- **WHEN** `variants.yaml` sets `variant.ui.port: 62100`
+- **THEN** the resolved configuration carries `variant.ui.port` 62100
+
+#### Scenario: Absent
+
+- **WHEN** `variant.ui` is absent
+- **THEN** loading succeeds and the resolved configuration has no `variant.ui.port`
+
+#### Scenario: Invalid port
+
+- **WHEN** `variant.ui.port` is `0`, `"abc"` or `1.5`
+- **THEN** loading the configuration fails validation
+
+#### Scenario: Unknown key
+
+- **WHEN** `variants.yaml` sets `variant.ui.color: red`
+- **THEN** loading the configuration fails validation

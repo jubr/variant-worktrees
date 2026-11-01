@@ -6,7 +6,7 @@ How the web server starts, ends and records itself as the `variant-ui` instance 
 
 ### Requirement: Starting the server
 
-`variant ui` SHALL start the server on a free port chosen like an instance port (reserved ports are never picked; `VARIANT_VARIANT_UI_PORT` overrides), bind it to loopback and print the URL `http://ui.<abbr>.localhost:<port>/?token=<token>`. It SHALL run attached until interrupted, or with `--detach` start the server in the background and return after printing the URL. The `variant-ui` instance key SHALL be reserved: a `variants.yaml` that defines an instance with that key SHALL fail validation.
+`variant ui` SHALL start the server on the first of: the environment variable `VARIANT_UI_PORT`, the setting `variant.ui.port`, and a free port that is not in `variant.reservedPorts`. A port that is named explicitly is kept even when reserved, as for any instance. An empty `VARIANT_UI_PORT` SHALL count as unset; a value that is not a port number SHALL fail with an error that names the variable. The server SHALL bind to loopback and `variant ui` SHALL print the URL `http://ui.<abbr>.localhost:<port>/?token=<token>`. It SHALL run attached until interrupted, or with `--detach` start the server in the background and return after printing the URL. The `variant-ui` instance key SHALL be reserved, and so SHALL every instance key whose environment segment is `UI` (such as `ui`), because `VARIANT_UI_PORT` belongs to the server: a `variants.yaml` that defines an instance with such a key SHALL fail validation.
 
 #### Scenario: Attached start
 
@@ -20,13 +20,33 @@ How the web server starts, ends and records itself as the `variant-ui` instance 
 
 #### Scenario: Port override
 
-- **WHEN** `VARIANT_VARIANT_UI_PORT` is `62100`
+- **WHEN** `VARIANT_UI_PORT` is `62100`
 - **THEN** the server listens on 62100
+
+#### Scenario: Port from the configuration
+
+- **WHEN** `variants.yaml` sets `variant.ui.port: 62101` and `VARIANT_UI_PORT` is not set
+- **THEN** the server listens on 62101
+
+#### Scenario: Environment wins over the configuration
+
+- **WHEN** `variant.ui.port` is `62101` and `VARIANT_UI_PORT` is `62100`
+- **THEN** the server listens on 62100
+
+#### Scenario: Invalid port variable
+
+- **WHEN** `VARIANT_UI_PORT` is `abc`
+- **THEN** `variant ui` fails with an error that names `VARIANT_UI_PORT`
 
 #### Scenario: Reserved key
 
 - **WHEN** `variants.yaml` defines `variant.instances.variant-ui`
 - **THEN** loading the configuration fails validation naming the reserved key
+
+#### Scenario: Instance key that would share the server's variable
+
+- **WHEN** `variants.yaml` defines `variant.instances.ui`
+- **THEN** loading the configuration fails validation naming the key and `VARIANT_UI_PORT`
 
 ### Requirement: Recording as an instance of main
 
