@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Print the lockstep release version shared by the root package, variant-api,
- * variant-vscode and chat-renamer.
+ * variant-cli, variant-vscode and chat-renamer.
  *
  * Specification: openspec/specs/meta/release-artifacts/spec.md (Lockstep release version)
  *
@@ -16,6 +16,7 @@ const root = resolve(process.argv[2] ?? join(import.meta.dir, ".."));
 const RELEASE_PACKAGES = [
   "package.json",
   "packages/variant-api/package.json",
+  "packages/variant-cli/package.json",
   "packages/variant-vscode/package.json",
   "packages/chat-renamer-vscode/package.json",
 ];
