@@ -201,6 +201,7 @@ export {
   envSegment,
   LOCAL_FILENAME,
   UI_INSTANCE_KEY,
+  UI_PORT_ENV,
   VariantsConfigSchema,
   VariantsLocalSchema,
   variantsJsonSchema,

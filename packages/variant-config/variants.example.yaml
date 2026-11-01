@@ -36,6 +36,8 @@ variant:
   storage: # per-variant data directory; absent: none
     dir: .storage # relative to the worktree
     env: STORAGE_ROOT # variable that carries the absolute directory to commands
+  ui: # the `variant ui` web server
+    port: 62100 # VARIANT_UI_PORT wins. Absent: a free port that is not reserved
   steps: # run in order between the `up` commands and the seed command
     - name: migrations # unique
       run: bun run migrate # shell commands

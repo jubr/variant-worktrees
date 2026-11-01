@@ -52,6 +52,12 @@ export const UI_INSTANCE_KEY = "variant-ui";
 /** The segment of environment variables derived from an instance key: `my-api` becomes `MY_API`. */
 export const envSegment = (key: string): string => key.toUpperCase().replace(/[^A-Z0-9]/g, "_");
 
+/** The environment segment of the `variant.ui` settings: `VARIANT_UI_PORT` is `variant.ui.port`. No instance key may use it. */
+export const UI_ENV_SEGMENT = "UI";
+
+/** The environment override of `variant.ui.port`. */
+export const UI_PORT_ENV = `VARIANT_${UI_ENV_SEGMENT}_PORT`;
+
 /** How an instance runs under `up`. */
 export const InstanceContainerSchema = z
   .strictObject({
@@ -168,6 +174,12 @@ export const VariantSuperviseSchema = z.strictObject({
   checkoutPollSeconds: seconds.optional(),
 });
 
+/** Settings of the `variant ui` server. The environment override of `variant.ui.<name>` is `VARIANT_UI_<NAME>`. */
+export const VariantUiSchema = z.strictObject({
+  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port that is not reserved. */
+  port: PortSchema.optional(),
+});
+
 export const VariantImplodeSchema = z.strictObject({
   /** Directory names removed below each instance directory before the worktree is removed. */
   preRm: z.array(plainName).optional(),
@@ -204,6 +216,7 @@ export const VariantRuntimeSchema = z
     steps: z.array(VariantStepSchema).optional(),
     supervise: VariantSuperviseSchema.optional(),
     implode: VariantImplodeSchema.optional(),
+    ui: VariantUiSchema.optional(),
     up: z.string().min(1).optional(),
     watch: z.string().min(1).optional(),
     /** Command that seeds a new variant database. A per-variant `seed` wins. */
@@ -239,6 +252,13 @@ export const VariantRuntimeSchema = z
     const segments = new Map<string, string>();
     for (const key of Object.keys(instances)) {
       const segment = envSegment(key);
+      if (segment === UI_ENV_SEGMENT) {
+        context.addIssue({
+          code: "custom",
+          path: ["instances", key],
+          message: `the instance key ${key} is reserved: its port variable ${UI_PORT_ENV} belongs to the variant ui server`,
+        });
+      }
       const other = segments.get(segment);
       if (other !== undefined) {
         context.addIssue({
