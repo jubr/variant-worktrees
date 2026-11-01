@@ -1,3 +1,4 @@
+import "@vscode/codicons/dist/codicon.css";
 import { createRoot } from "react-dom/client";
 
 createRoot(document.getElementById("root") as HTMLElement).render(<p>Variants</p>);
