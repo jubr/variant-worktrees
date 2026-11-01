@@ -1,0 +1,290 @@
+import { afterEach, describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { createServer } from "node:net";
+import { join } from "node:path";
+import { createClient } from "variant-api";
+import { parse as parseYaml } from "yaml";
+import { runUi, type UiCommandOptions } from "./index.js";
+import { readEntry, readToken, tokenPath } from "./ui-instance.js";
+
+const SERVE_SCRIPT = (module: string): string => `
+import { runUi } from ${JSON.stringify(module)};
+const abort = new AbortController();
+process.on("SIGTERM", () => abort.abort());
+process.on("SIGINT", () => abort.abort());
+process.exit(await runUi({ cwd: process.argv[2], staticDir: process.argv[3], print: console.log, signal: abort.signal }));
+`;
+
+const toKill: number[] = [];
+afterEach(() => {
+  for (const pid of toKill.splice(0)) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // already gone
+    }
+  }
+});
+
+interface Project {
+  directory: string;
+  printed: string[];
+  /** Runs `runUi` in this process; `abort` ends an attached run. */
+  run: (options?: Partial<UiCommandOptions>) => Promise<number>;
+  options: () => UiCommandOptions;
+  put: (path: string, content: string) => void;
+  runtime: () => { instances?: Record<string, unknown> } & Record<string, unknown>;
+}
+
+const withProject = async (
+  run: (project: Project) => Promise<void>,
+  yaml = "variant:\n  abbr: vw\n",
+): Promise<void> => {
+  const directory = realpathSync(mkdtempSync(join("/tmp", "variant-ui-command-")));
+  const put = (path: string, content: string): void => {
+    mkdirSync(join(directory, path, ".."), { recursive: true });
+    writeFileSync(join(directory, path), content);
+  };
+  try {
+    put("variants.yaml", `db:\n  dialect: sqlite\n${yaml}`);
+    put("app/index.html", "<!doctype html>");
+    const printed: string[] = [];
+    const options = (): UiCommandOptions => ({
+      cwd: directory,
+      env: { ...process.env, VARIANT_OPEN: "0" },
+      print: (line) => printed.push(line),
+      staticDir: join(directory, "app"),
+      respawn: [process.execPath, join(directory, "serve.ts"), directory, join(directory, "app")],
+    });
+    put("serve.ts", SERVE_SCRIPT(join(import.meta.dir, "index.ts")));
+    await run({
+      directory,
+      printed,
+      put,
+      options,
+      run: (overrides = {}) => runUi({ ...options(), ...overrides }),
+      runtime: () =>
+        (parseYaml(readFileSync(join(directory, "variants.local.yaml"), "utf8")) as { runtime: never }).runtime,
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
+const until = async (condition: () => boolean, ms = 5000): Promise<void> => {
+  for (const deadline = Date.now() + ms; !condition(); await new Promise((r) => setTimeout(r, 25))) {
+    if (Date.now() > deadline) {
+      throw new Error("condition not met in time");
+    }
+  }
+};
+
+const freePort = (): Promise<number> =>
+  new Promise((resolve) => {
+    const probe = createServer();
+    probe.listen(0, "127.0.0.1", () => {
+      const port = (probe.address() as { port: number }).port;
+      probe.close(() => resolve(port));
+    });
+  });
+
+/** An attached run in this process, started and ended through its abort signal. */
+const attached = async (project: Project, overrides: Partial<UiCommandOptions> = {}) => {
+  const abort = new AbortController();
+  const done = project.run({ ...overrides, signal: abort.signal });
+  await until(() => project.printed.length > 0 || existsSync(tokenPath(project.directory)));
+  return { stop: () => (abort.abort(), done), done };
+};
+
+describe("variant ui", () => {
+  it("prints http://ui.<abbr>.localhost:<port>/?token=<token> and keeps running", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      try {
+        expect(project.printed[0]).toMatch(/^http:\/\/ui\.vw\.localhost:\d+\/\?token=[A-Za-z0-9_-]{22,}$/);
+        const response = await fetch(`http://127.0.0.1:${new URL(project.printed[0] as string).port}/api/variants`, {
+          headers: { authorization: `Bearer ${new URL(project.printed[0] as string).searchParams.get("token")}` },
+        });
+        expect(response.status).toBe(200);
+      } finally {
+        expect(await server.stop()).toBe(0);
+      }
+    }));
+
+  it("uses the abbreviation of the project in the host name", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      try {
+        expect(project.printed[0]).toMatch(/^http:\/\/ui\.shop\.localhost:/);
+      } finally {
+        await server.stop();
+      }
+    }, "variant:\n  abbr: shop\n"));
+
+  it("listens on VARIANT_VARIANT_UI_PORT", () =>
+    withProject(async (project) => {
+      const port = await freePort();
+      const server = await attached(project, {
+        env: { ...project.options().env, VARIANT_VARIANT_UI_PORT: String(port) },
+      });
+      try {
+        expect(new URL(project.printed[0] as string).port).toBe(String(port));
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("never picks a reserved port", () =>
+    withProject(async (project) => {
+      const reserved = await freePort();
+      const free = await freePort();
+      const candidates = [reserved, reserved, free][Symbol.iterator]();
+      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  reservedPorts: [${reserved}]\n`);
+      const server = await attached(project, { candidatePort: async () => candidates.next().value as number });
+      try {
+        expect(new URL(project.printed[0] as string).port).toBe(String(free));
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("--detach prints the URL and returns while the server keeps serving", () =>
+    withProject(async (project) => {
+      const code = await project.run({ detach: true });
+      const entry = readEntry(project.directory);
+      toKill.push(entry?.pid as number);
+
+      expect(code).toBe(0);
+      expect(project.printed[0]).toMatch(/^http:\/\/ui\.vw\.localhost:\d+\/\?token=/);
+      const url = new URL(project.printed[0] as string);
+      const response = await fetch(`http://127.0.0.1:${url.port}/api/variants`, {
+        headers: { authorization: `Bearer ${url.searchParams.get("token")}` },
+      });
+      expect(response.status).toBe(200);
+      expect(await project.run({ stop: true })).toBe(0);
+    }));
+});
+
+describe("variant ui as an instance of main", () => {
+  it("records its port, pid and URL without the token, which variant list shows", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      try {
+        const entry = readEntry(project.directory);
+        expect(entry).toEqual({
+          port: Number(new URL(project.printed[0] as string).port),
+          pid: process.pid,
+          url: `http://ui.vw.localhost:${new URL(project.printed[0] as string).port}`,
+        });
+
+        const main = (await createClient({ cwd: project.directory, worktree: false }).list()).find(
+          (variant) => variant.slug === "main",
+        );
+        expect(main?.instances?.["variant-ui"]).toMatchObject({ pid: process.pid, alive: true, url: entry?.url });
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("keeps the other runtime entries of main and removes only its own, with the token file, on exit", () =>
+    withProject(async (project) => {
+      project.put(
+        "variants.local.yaml",
+        "runtime:\n  slug: main\n  mode: watch\n  instances:\n    fe: { port: 62060, pid: 4242 }\n",
+      );
+      const server = await attached(project);
+      expect(project.runtime().instances).toMatchObject({ fe: { port: 62060 }, "variant-ui": { pid: process.pid } });
+      expect(existsSync(tokenPath(project.directory))).toBe(true);
+
+      await server.stop();
+
+      expect(project.runtime()).toEqual({ slug: "main", mode: "watch", instances: { fe: { port: 62060, pid: 4242 } } });
+      expect(existsSync(tokenPath(project.directory))).toBe(false);
+    }));
+
+  it("leaves no file behind when the runtime held nothing but the server", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      await server.stop();
+
+      expect(existsSync(join(project.directory, "variants.local.yaml"))).toBe(false);
+    }));
+
+  it("keeps the token in a file only its owner can read and write", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      try {
+        expect(statSync(tokenPath(project.directory)).mode & 0o777).toBe(0o600);
+        expect(readToken(project.directory)).toBe(
+          new URL(project.printed[0] as string).searchParams.get("token") as string,
+        );
+      } finally {
+        await server.stop();
+      }
+    }));
+});
+
+describe("one server per project", () => {
+  it("prints the running server's URL with its token and starts nothing", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      try {
+        const before = readEntry(project.directory);
+        const second: string[] = [];
+
+        const code = await project.run({ print: (line) => second.push(line) });
+
+        expect(code).toBe(0);
+        expect(second).toEqual([project.printed[0] as string]);
+        expect(readEntry(project.directory)).toEqual(before);
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("replaces an entry whose process is dead", () =>
+    withProject(async (project) => {
+      const dead = spawnSync("true").pid;
+      project.put(
+        "variants.local.yaml",
+        `runtime:\n  instances:\n    variant-ui: { port: 62100, pid: ${dead}, url: 'http://ui.vw.localhost:62100' }\n`,
+      );
+      const server = await attached(project);
+      try {
+        expect(readEntry(project.directory)?.pid).toBe(process.pid);
+        expect(project.printed[0]).not.toContain("62100");
+      } finally {
+        await server.stop();
+      }
+    }));
+});
+
+describe("variant ui --stop", () => {
+  it("stops the server, removes its entry and token file, and exits 0", () =>
+    withProject(async (project) => {
+      expect(await project.run({ detach: true })).toBe(0);
+      const pid = readEntry(project.directory)?.pid as number;
+      toKill.push(pid);
+
+      expect(await project.run({ stop: true })).toBe(0);
+
+      expect(() => process.kill(pid, 0)).toThrow();
+      expect(readEntry(project.directory)).toBeUndefined();
+      expect(existsSync(tokenPath(project.directory))).toBe(false);
+    }));
+
+  it("exits 0 when no server runs", () =>
+    withProject(async (project) => {
+      expect(await project.run({ stop: true })).toBe(0);
+    }));
+});
