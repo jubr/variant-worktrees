@@ -57,6 +57,12 @@ export const commands: CommandDefinition[] = [
     execute: (client) => client.list(),
   },
   {
+    name: "status",
+    description: "Show everything known about one variant: its runtime state, uptime and watch log file",
+    args: [slugArg, verboseArg],
+    execute: (client, args) => client.status(slugString(args)),
+  },
+  {
     name: "provision",
     description: "Run configured variant runtime and seed commands",
     args: [slugArg, verboseArg],

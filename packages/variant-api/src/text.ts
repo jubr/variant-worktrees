@@ -73,14 +73,47 @@ const count = (n: number, singular: string, plural = `${singular}s`): string => 
 const section = (title: string, lines: readonly string[]): string[] =>
   lines.length > 0 ? [`${title}:`, ...indented(lines)] : [];
 
+const SECOND = 1;
+const UNITS = [
+  ["d", 86400 * SECOND],
+  ["h", 3600 * SECOND],
+  ["m", 60 * SECOND],
+  ["s", SECOND],
+] as const;
+
+/** A duration as its two largest units that are not zero: `45s`, `1m 30s`, `5m`, `2h 5m`, `3d 1h`. */
+export const formatDuration = (seconds: number): string => {
+  let rest = Math.max(0, Math.floor(seconds));
+  const parts: string[] = [];
+  for (const [name, size] of UNITS) {
+    const count = Math.floor(rest / size);
+    rest -= count * size;
+    if (count > 0 && parts.length < 2) {
+      parts.push(`${count}${name}`);
+    }
+  }
+  return parts.length === 0 ? "0s" : parts.join(" ");
+};
+
+const pidCell = (instance: InstanceReport | InstanceFacts): string => {
+  if (instance.pid === undefined) {
+    return "";
+  }
+  const alive = "alive" in instance && instance.alive !== undefined ? ` ${instance.alive ? "alive" : "dead"}` : "";
+  return `pid ${instance.pid}${alive}`;
+};
+
 const instanceRow = (key: string, instance: InstanceReport | InstanceFacts): string[] =>
   [
     key,
     instance.port === undefined ? "" : `port ${instance.port}`,
-    instance.pid === undefined ? "" : `pid ${instance.pid}`,
+    pidCell(instance),
+    "uptimeSeconds" in instance && instance.uptimeSeconds !== undefined
+      ? `up ${formatDuration(instance.uptimeSeconds)}`
+      : "",
     instance.url ?? "",
     "container" in instance && instance.container ? instance.container : "",
-  ].filter((cell, index, row) => cell !== "" || index === 0 || row.slice(index).some((rest) => rest !== ""));
+  ].filter((cell, index, row) => index === 0 || cell !== "" || row.slice(index).some((rest) => rest !== ""));
 
 const instances = (all: Readonly<Record<string, InstanceReport | InstanceFacts>>): string[] =>
   section("instances", pad(Object.entries(all).map(([key, instance]) => instanceRow(key, instance))));
@@ -94,10 +127,24 @@ const recordPairs = (record: VariantRecord): string[] => [
     ["dialect", record.dialect],
     ["worktree", record.worktree],
     ["mode", record.mode],
+    ["uptime", record.uptimeSeconds === undefined ? undefined : formatDuration(record.uptimeSeconds)],
     ["url", record.url],
+    ["log", record.log],
   ]),
   ...instances(record.instances ?? {}),
 ];
+
+/** A variant as `status` shows it: its slug, its facts and, when it has a runtime state, all of that state. */
+const statusBlock = (record: VariantRecord): string[] => {
+  const { file, dir, db } = record.runtime ?? {};
+  return [
+    record.slug,
+    ...recordPairs(record),
+    ...(record.runtime
+      ? ["runtime:", ...indented(outline({ file, ...(dir ? { dir } : {}), ...(db ? { db } : {}) }))]
+      : []),
+  ];
+};
 
 const started = (result: UpResult | WatchResult): string[] => [
   `Started ${result.slug} (${result.mode})`,
@@ -110,6 +157,7 @@ const started = (result: UpResult | WatchResult): string[] => [
 
 const layouts: Record<string, (result: never, options: TextOptions) => string[] | string> = {
   list: (records: VariantRecord[], { variantRoot }) => formatTable(records, variantRoot),
+  status: (record: VariantRecord) => statusBlock(record),
   create: (record: VariantRecord) => [`Created ${record.slug}`, ...recordPairs(record)],
   provision: (result: { slug: string; commands: string[]; output: string }) => [
     `Provisioned ${result.slug}`,

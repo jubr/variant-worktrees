@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { renderOutput } from "../src/output.js";
+import { formatDuration } from "../src/text.js";
 
 const text = (command: string, result: unknown): string =>
   renderOutput(command, result, { format: "text", variantRoot: "/work" });
@@ -114,5 +115,87 @@ describe("text output of each command", () => {
 
   it("falls back to an outline for a command without a layout", () => {
     expect(text("future", { a: 1, nested: { b: [1, 2] } })).toBe("a: 1\nnested:\n  b:\n    - 1\n    - 2");
+  });
+});
+
+describe("duration text", () => {
+  it("shows the two largest units that are not zero", () => {
+    expect(formatDuration(0)).toBe("0s");
+    expect(formatDuration(45)).toBe("45s");
+    expect(formatDuration(90)).toBe("1m 30s");
+    expect(formatDuration(300)).toBe("5m");
+    expect(formatDuration(7500)).toBe("2h 5m");
+    expect(formatDuration(3 * 86400 + 3600 + 59)).toBe("3d 1h");
+  });
+});
+
+describe("status text", () => {
+  const status = {
+    slug: "demo",
+    target: "v_demo",
+    dialect: "postgres",
+    statePath: "",
+    worktree: "/work/_v-demo",
+    createdAt: "",
+    exists: true,
+    mode: "watch",
+    url: "http://demo.vw.localhost:62060/",
+    uptimeSeconds: 7500,
+    log: "/work/_v-demo/variants.watch.log",
+    instances: {
+      fe: { port: 62060, pid: 123, url: "http://demo.vw.localhost:62060/", alive: true, uptimeSeconds: 7500 },
+      be: { port: 62061, pid: 456, alive: false },
+    },
+    runtime: {
+      file: "/work/_v-demo/variants.local.yaml",
+      slug: "demo",
+      mode: "watch",
+      dir: "/work/_v-demo",
+      log: "/work/_v-demo/variants.watch.log",
+      db: { dialect: "postgres", host: "db.example", schema: "v_demo", password: "hunter2" },
+    },
+  };
+
+  it("starts with the slug and lists the facts of the variant", () => {
+    const out = text("status", status);
+
+    expect(out.split("\n")[0]).toBe("demo");
+    expect(out).toMatch(/target:\s+v_demo/);
+    expect(out).toMatch(/mode:\s+watch/);
+    expect(out).toMatch(/uptime:\s+2h 5m/);
+    expect(out).toMatch(/url:\s+http:\/\/demo\.vw\.localhost:62060\//);
+    expect(out).toMatch(/log:\s+\/work\/_v-demo\/variants\.watch\.log/);
+  });
+
+  it("shows each instance with its port, pid, liveness and uptime", () => {
+    const out = text("status", status);
+
+    expect(out).toMatch(/fe\s+port 62060\s+pid 123 alive\s+up 2h 5m\s+http:\/\/demo\.vw\.localhost:62060\//);
+    expect(out).toMatch(/be\s+port 62061\s+pid 456 dead/);
+  });
+
+  it("shows the runtime meta information without the password", () => {
+    const out = text("status", status);
+
+    expect(out).toContain("runtime:");
+    expect(out).toContain("file: /work/_v-demo/variants.local.yaml");
+    expect(out).toContain("schema: v_demo");
+    expect(out).toContain("password: ***");
+    expect(out).not.toContain("hunter2");
+  });
+
+  it("leaves out what a variant without a runtime state does not have", () => {
+    const out = text("status", {
+      slug: "orphan",
+      target: "v_orphan",
+      dialect: "sqlite",
+      statePath: "",
+      createdAt: "",
+      exists: true,
+    });
+
+    expect(out).toContain("orphan");
+    expect(out).not.toContain("runtime:");
+    expect(out).not.toContain("uptime");
   });
 });

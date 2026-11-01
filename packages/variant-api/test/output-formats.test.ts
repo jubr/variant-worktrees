@@ -101,4 +101,44 @@ describe("output formats", () => {
         expect(isJson(result.stdout)).toBe(false);
       }
     }));
+
+  describe("status", () => {
+    it("prints the facts and runtime meta information of one variant as text", () =>
+      withVariants(async (environment, directory) => {
+        const result = await runCli(["status", "alpha"], environment);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout.split("\n")[0]).toBe("alpha");
+        expect(result.stdout).toMatch(/mode:\s+watch/);
+        expect(result.stdout).toMatch(/fe\s+port 62060\s+http:\/\/alpha\.vw\.localhost:62060\//);
+        expect(result.stdout).toContain(`file: ${directory}/_v-alpha/variants.local.yaml`);
+        expect(result.stdout).not.toContain("beta");
+      }));
+
+    it("prints the same record as JSON and YAML", () =>
+      withVariants(async (environment) => {
+        const json = await runCli(["status", "alpha", "--json"], environment);
+        const yaml = await runCli(["status", "alpha", "--yaml"], environment);
+
+        expect(JSON.parse(json.stdout)).toMatchObject({ slug: "alpha", mode: "watch", runtime: { slug: "alpha" } });
+        expect(parseYaml(yaml.stdout)).toEqual(JSON.parse(json.stdout));
+      }));
+
+    it("takes the slug from -s as well as from the positional argument", () =>
+      withVariants(async (environment) => {
+        const positional = await runCli(["status", "alpha", "--json"], environment);
+        const flag = await runCli(["status", "-s", "alpha", "--json"], environment);
+
+        expect(flag.stdout).toBe(positional.stdout);
+      }));
+
+    it("fails with a message naming an unknown slug", () =>
+      withVariants(async (environment) => {
+        const result = await runCli(["status", "ghost"], environment);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("Unknown variant: ghost");
+        expect(result.stdout).toBe("");
+      }));
+  });
 });
