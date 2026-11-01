@@ -37,7 +37,13 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
       const args = collectArgs(definition, flags, positional);
       const client = createClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       const result = await definition.execute(client, args);
-      console.log(renderOutput(String(definition.name), result, { format, variantRoot: client.config().variant.root }));
+      console.log(
+        renderOutput(String(definition.name), result, {
+          format,
+          variantRoot: client.config().variant.root,
+          verbose: flags.verbose === true,
+        }),
+      );
       const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
       if (typeof exitCode === "number" && exitCode !== 0) {
         process.exitCode = exitCode;

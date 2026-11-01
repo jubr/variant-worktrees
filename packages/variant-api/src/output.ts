@@ -15,6 +15,8 @@ export interface OutputOptions {
   format: OutputFormat;
   /** The variant root, for directories shown relative to it. */
   variantRoot: string;
+  /** The command ran with `--verbose`; it changes the text layout of `list`. */
+  verbose?: boolean;
 }
 
 /** The result of a command as the string the CLI prints for the format, with secrets redacted. */

@@ -219,4 +219,28 @@ describe("output formats", () => {
         expect(result.stderr).toContain("--table");
       }));
   });
+
+  describe("list --verbose", () => {
+    it("prints each variant as status does, separated by a blank line, instead of the table", () =>
+      withVariants(async (environment) => {
+        const verbose = await runCli(["list", "-v"], environment);
+        const alpha = await runCli(["status", "alpha"], environment);
+        const beta = await runCli(["status", "beta"], environment);
+
+        expect(verbose.exitCode).toBe(0);
+        expect(verbose.stdout).toBe(`${alpha.stdout}\n${beta.stdout}`);
+        expect(verbose.stdout.split("\n")[0]).toBe("alpha");
+        expect(verbose.stdout).not.toContain("uptime  ");
+      }));
+
+    it("prints the records of status as JSON", () =>
+      withVariants(async (environment) => {
+        const verbose = JSON.parse((await runCli(["list", "--verbose", "--json"], environment)).stdout);
+        const alpha = JSON.parse((await runCli(["status", "alpha", "--json"], environment)).stdout);
+
+        expect(verbose).toHaveLength(2);
+        expect(verbose[0]).toEqual(alpha);
+        expect(verbose[1].runtime).toBeUndefined();
+      }));
+  });
 });

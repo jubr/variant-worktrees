@@ -66,6 +66,18 @@ describe("command registry", () => {
     expect(definition("implode").args).toContainEqual(expect.objectContaining({ name: "force", type: "boolean" }));
   });
 
+  it("routes list through the client with the verbose option", async () => {
+    const { client, calls } = recordingClient();
+
+    await definition("list").execute(client, {});
+    await definition("list").execute(client, { verbose: true });
+
+    expect(calls).toEqual([
+      ["list", {}],
+      ["list", { verbose: true }],
+    ]);
+  });
+
   it("routes status through the client with the slug", async () => {
     const { client, calls } = recordingClient();
 

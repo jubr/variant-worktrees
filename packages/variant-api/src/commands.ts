@@ -54,7 +54,7 @@ export const commands: CommandDefinition[] = [
     name: "list",
     description: "List known database variants",
     args: [verboseArg],
-    execute: (client) => client.list(),
+    execute: (client, args) => client.list(verbose(args)),
   },
   {
     name: "status",

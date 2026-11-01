@@ -254,3 +254,41 @@ describe("uptime of a variant", () => {
       expect(status.log).toBeUndefined();
     }));
 });
+
+describe("client.list with verbose", () => {
+  const populate = (put: (path: string, content: string) => void): void => {
+    put(
+      "_v-alpha/variants.local.yaml",
+      runtimeFile(
+        "slug: alpha",
+        "mode: watch",
+        "db: { dialect: postgres, host: h, password: secret }",
+        "instances:",
+        "  fe: { port: 62060 }",
+      ),
+    );
+    put(".cache/variants/beta.db", "");
+  };
+
+  it("gives every record what status gives for its slug", () =>
+    withProject(async ({ put, client }) => {
+      populate(put);
+
+      const verbose = await client().list({ verbose: true });
+
+      expect(verbose.map(({ slug }) => slug)).toEqual(["alpha", "beta"]);
+      for (const record of verbose) {
+        expect(record).toEqual(await client().status(record.slug));
+      }
+      expect(verbose[0]?.runtime?.db?.password).toBe("***");
+    }));
+
+  it("keeps the runtime object out of the records without verbose", () =>
+    withProject(async ({ put, client }) => {
+      populate(put);
+
+      for (const record of await client().list()) {
+        expect(record.runtime).toBeUndefined();
+      }
+    }));
+});

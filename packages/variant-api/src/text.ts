@@ -14,6 +14,8 @@ import type {
 export interface TextOptions {
   /** The variant root, for directories shown relative to it. */
   variantRoot: string;
+  /** Print what `--verbose` asks for: a block per variant, as `status` shows it, instead of the list table. */
+  verbose?: boolean;
 }
 
 const isScalar = (value: unknown): boolean => value === null || typeof value !== "object";
@@ -135,7 +137,8 @@ const started = (result: UpResult | WatchResult): string[] => [
 ];
 
 const layouts: Record<string, (result: never, options: TextOptions) => string[] | string> = {
-  list: (records: VariantRecord[], { variantRoot }) => formatTable(records, variantRoot),
+  list: (records: VariantRecord[], { variantRoot, verbose }) =>
+    verbose ? records.map((record) => statusBlock(record).join("\n")).join("\n\n") : formatTable(records, variantRoot),
   status: (record: VariantRecord) => statusBlock(record),
   create: (record: VariantRecord) => [`Created ${record.slug}`, ...recordPairs(record)],
   provision: (result: { slug: string; commands: string[]; output: string }) => [
