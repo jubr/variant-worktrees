@@ -7,6 +7,8 @@ export interface CliResult {
   exitCode: number;
 }
 
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+
 /** Runs `command` (with `args`) in a child process, without worktree handling unless `environment` says so. */
 export const runCommand = async (
   command: string[],
@@ -14,9 +16,11 @@ export const runCommand = async (
   environment: Record<string, string> = {},
   cwd = `${import.meta.dir}/../..`,
 ): Promise<CliResult> => {
+  // AIDEV-NOTE: a colored terminal or CI wraps help titles in escape codes; tests read plain text
+  const { FORCE_COLOR: _color, ...inherited } = process.env;
   const proc = Bun.spawn([...command, ...args], {
     cwd,
-    env: { ...process.env, VARIANT_WORKTREE: "0", ...environment },
+    env: { ...inherited, NO_COLOR: "1", VARIANT_WORKTREE: "0", ...environment },
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -25,7 +29,7 @@ export const runCommand = async (
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
   ]);
-  return { stdout, stderr, exitCode };
+  return { stdout: stdout.replace(ANSI, ""), stderr: stderr.replace(ANSI, ""), exitCode };
 };
 
 /** Runs `variant <args>` from source in a child process, without worktree handling unless `environment` says so. */
