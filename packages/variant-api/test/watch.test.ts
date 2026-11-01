@@ -529,6 +529,19 @@ describe("detached watch log", () => {
       expect(readFileSync(logIn(directory), "utf8")).not.toContain("old run");
     }, PRINTING));
 
+  it("leaves no log file or runtime log behind when a process cannot start", () =>
+    withProject(
+      async ({ watch, directory, localFile }) => {
+        const failure = await watch({ detach: true }).catch((error: Error) => error);
+
+        expect(failure).toBeInstanceOf(Error);
+        expect((failure as Error).message).toContain("Could not start be");
+        expect(existsSync(logIn(directory))).toBe(false);
+        expect(existsSync(localFile)).toBe(false);
+      },
+      PRINTING.replace("dir: be", "dir: gone"),
+    ));
+
   it("keeps the output of an attached watch on the console and writes no file", () =>
     withProject(async ({ attach, directory, runtime, started }) => {
       const { done, stop } = attach();

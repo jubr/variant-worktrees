@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { appendFileSync, closeSync, existsSync, openSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, openSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stopProcessTree } from "../processes.js";
 import { announce, logToStderr } from "../ready.js";
@@ -164,6 +164,9 @@ export const watchVariant = async (
         started.push(spawnProcess(launch, output));
       } catch (error) {
         await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
+        if (logFile) {
+          rmSync(logFile, { force: true });
+        }
         throw error;
       }
     }

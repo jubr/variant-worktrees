@@ -30,6 +30,10 @@
 - **BREAKING** `variant list` prints the table `slug, mode, uptime, url, log, dir` by default; the `schema`
   column moved to `list -v`/`--json`.
 
+### Fixed
+
+- A detached `watch` that cannot start a process no longer leaves an empty `variants.watch.log` behind.
+
 ### Removed
 
 - **BREAKING** `variant list --table`; the table is the default.
