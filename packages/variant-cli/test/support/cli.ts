@@ -7,10 +7,15 @@ export interface CliResult {
   exitCode: number;
 }
 
-/** Runs `variant <args>` from source in a child process, without worktree handling unless `environment` says so. */
-export const runCli = async (args: string[], environment: Record<string, string> = {}): Promise<CliResult> => {
-  const proc = Bun.spawn(["bun", "run", "src/cli.ts", ...args], {
-    cwd: `${import.meta.dir}/../..`,
+/** Runs `command` (with `args`) in a child process, without worktree handling unless `environment` says so. */
+export const runCommand = async (
+  command: string[],
+  args: string[],
+  environment: Record<string, string> = {},
+  cwd = `${import.meta.dir}/../..`,
+): Promise<CliResult> => {
+  const proc = Bun.spawn([...command, ...args], {
+    cwd,
     env: { ...process.env, VARIANT_WORKTREE: "0", ...environment },
     stdout: "pipe",
     stderr: "pipe",
@@ -22,6 +27,10 @@ export const runCli = async (args: string[], environment: Record<string, string>
   ]);
   return { stdout, stderr, exitCode };
 };
+
+/** Runs `variant <args>` from source in a child process, without worktree handling unless `environment` says so. */
+export const runCli = (args: string[], environment: Record<string, string> = {}): Promise<CliResult> =>
+  runCommand(["bun", "run", "src/cli.ts"], args, environment);
 
 /**
  * A SQLite project with variants `alpha` (a worktree with a runtime state) and `beta` (a database file only);
