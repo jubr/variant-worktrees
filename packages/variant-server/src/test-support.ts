@@ -64,6 +64,97 @@ export const fakeClient = (records: VariantRecord[] = []): FakeClient => {
   return fake;
 };
 
+export interface ServerEvent {
+  /** `message` unless the stream named it. */
+  event: string;
+  data: string;
+}
+
+export interface EventStream {
+  /** Everything received so far: events, and `: comment` lines as `{ event: ":", data: <comment> }`. */
+  events: ServerEvent[];
+  status: number;
+  headers: IncomingHttpHeaders;
+  /** The first event, received now or later, that satisfies `matches`. */
+  until: (matches: (event: ServerEvent) => boolean, timeoutMs?: number) => Promise<ServerEvent>;
+  close: () => void;
+}
+
+/** Opens `/api/events` and parses the stream. */
+export const openEvents = (
+  port: number,
+  token: string,
+  path = "/api/events",
+  headers: Record<string, string> = {},
+): Promise<EventStream> =>
+  new Promise((resolve, reject) => {
+    const events: ServerEvent[] = [];
+    const waiters: { matches: (event: ServerEvent) => boolean; resolve: (event: ServerEvent) => void }[] = [];
+    const outgoing = request(
+      { host: "127.0.0.1", port, path, headers: { authorization: `Bearer ${token}`, ...headers } },
+      (response) => {
+        let buffer = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => {
+          buffer += chunk;
+          for (let end = buffer.indexOf("\n\n"); end !== -1; end = buffer.indexOf("\n\n")) {
+            const block = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            const parsed: ServerEvent = { event: "message", data: "" };
+            for (const line of block.split("\n")) {
+              if (line.startsWith(":")) {
+                parsed.event = ":";
+                parsed.data = line.slice(1).trim();
+              } else if (line.startsWith("event:")) {
+                parsed.event = line.slice(6).trim();
+              } else if (line.startsWith("data:")) {
+                parsed.data += line.slice(5).trim();
+              }
+            }
+            events.push(parsed);
+            for (const waiter of [...waiters]) {
+              if (waiter.matches(parsed)) {
+                waiters.splice(waiters.indexOf(waiter), 1);
+                waiter.resolve(parsed);
+              }
+            }
+          }
+        });
+        resolve({
+          events,
+          status: response.statusCode ?? 0,
+          headers: response.headers,
+          until: (matches, timeoutMs = 3000) =>
+            new Promise((done, fail) => {
+              const seen = events.find(matches);
+              if (seen) {
+                done(seen);
+                return;
+              }
+              const timer = setTimeout(
+                () => fail(new Error(`no matching event in ${timeoutMs} ms; got ${JSON.stringify(events)}`)),
+                timeoutMs,
+              );
+              waiters.push({
+                matches,
+                resolve: (event) => {
+                  clearTimeout(timer);
+                  done(event);
+                },
+              });
+            }),
+          close: () => outgoing.destroy(),
+        });
+      },
+    );
+    outgoing.on("error", (error) => {
+      if ((error as NodeJS.ErrnoException).code !== "ECONNRESET") {
+        reject(error);
+      }
+    });
+    outgoing.end();
+  });
+
 export interface TestServer extends UiServer {
   directory: string;
   /** `http://127.0.0.1:<port>`: the address requests go to. */
@@ -80,7 +171,12 @@ export interface TestServer extends UiServer {
 /** Starts the server on a random port with a fake client and a static directory holding a tiny app. */
 export const withServer = async (
   run: (server: TestServer) => Promise<void>,
-  options: { records?: VariantRecord[]; files?: Record<string, string>; abbr?: string } = {},
+  options: {
+    records?: VariantRecord[] | ((directory: string) => VariantRecord[]);
+    files?: Record<string, string>;
+    abbr?: string;
+    keepAliveMs?: number;
+  } = {},
 ): Promise<void> => {
   const directory = mkdtempSync(join("/tmp", "variant-server-"));
   const staticDir = join(directory, "app");
@@ -90,8 +186,15 @@ export const withServer = async (
     mkdirSync(join(directory, path, ".."), { recursive: true });
     writeFileSync(join(directory, path), content);
   }
-  const client = fakeClient(options.records ?? []);
-  const server = await startUiServer({ client, port: 0, abbr: options.abbr ?? "vw", staticDir });
+  const given = options.records ?? [];
+  const client = fakeClient(typeof given === "function" ? given(directory) : given);
+  const server = await startUiServer({
+    client,
+    port: 0,
+    abbr: options.abbr ?? "vw",
+    staticDir,
+    ...(options.keepAliveMs === undefined ? {} : { keepAliveMs: options.keepAliveMs }),
+  });
   const origin = `http://127.0.0.1:${server.port}`;
   const call: TestServer["call"] = (method, path, callOptions = {}) =>
     new Promise((resolve, reject) => {
