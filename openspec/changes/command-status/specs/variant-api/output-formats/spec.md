@@ -6,22 +6,27 @@ The CLI prints results for people by default and as JSON or YAML on request, thr
 
 ### Requirement: Text is the default CLI output
 
-The `variant` CLI SHALL print a human-readable text summary of a command result to stdout, not JSON, when no output flag is given. The text SHALL be derived from the same result the JSON form holds and SHALL redact secrets like the other formats. `variant list` SHALL print its text table (columns `slug`, `dir`, `url` and `schema`, one row per variant sorted by slug, `-` for a missing value, directory relative to the variant root). `variant status` SHALL print the variant facts followed by its runtime meta information, one value per line.
+The `variant` CLI SHALL print a human-readable text summary of a command result to stdout, not JSON, when no output flag is given. The text SHALL be derived from the same result the JSON form holds and SHALL redact secrets like the other formats. `variant list` SHALL print its text table (see the commands capability). `variant status` SHALL print the variant facts, including its uptime and log file, followed by its runtime meta information, one value per line. Durations in text SHALL be human-readable (for example `2h 5m`), while JSON and YAML carry `uptimeSeconds` as a number.
 
 #### Scenario: Default is not JSON
 
 - **WHEN** a user runs `variant list` or `variant status demo` without an output flag
 - **THEN** stdout is not parseable as JSON
 
-#### Scenario: List table by default
-
-- **WHEN** variants `alpha` (with a directory, URL and schema) and `beta` (database only) exist and a user runs `variant list`
-- **THEN** stdout holds a header row and two rows in that order, and `beta` shows `-` for directory and URL
-
 #### Scenario: Status text
 
 - **WHEN** a user runs `variant status demo` for a variant with mode `watch` and instance `fe` on port 62060
 - **THEN** stdout names `demo`, the mode `watch`, and the port 62060 of `fe`
+
+#### Scenario: Status text shows uptime and log
+
+- **WHEN** variant `demo` runs a detached watch for 2 hours and 5 minutes with log `/work/_v-demo/variants.watch.log`
+- **THEN** stdout shows `2h 5m` and that log path
+
+#### Scenario: Uptime is a number in JSON
+
+- **WHEN** a user runs `variant status demo --json` for that variant
+- **THEN** `uptimeSeconds` is a number of about 7500
 
 #### Scenario: Every command has a text form
 

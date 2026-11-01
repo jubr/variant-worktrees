@@ -6,7 +6,7 @@ The `status` command answers what one variant is doing right now: what `list` kn
 
 ### Requirement: Status command
 
-The system SHALL provide a `status` command that takes the optional `slug` argument, resolved like every other command (explicit slug, else the current git worktree), and returns the record of that single variant. The record SHALL hold the facts `list` returns for the variant (`slug`, `target`, `dialect`, `statePath`, `worktree`, `createdAt`, `exists`, and, when a runtime state exists, `mode`, `url` and `instances`) and a `runtime` object. The command SHALL fail with an error naming the slug when no state file, database target or runtime state exists for it. It SHALL NOT change any state.
+The system SHALL provide a `status` command that takes the optional `slug` argument, resolved like every other command (explicit slug, else the current git worktree), and returns the record of that single variant. The record SHALL hold the facts `list` returns for the variant (`slug`, `target`, `dialect`, `statePath`, `worktree`, `createdAt`, `exists`, and, when a runtime state exists, `mode`, `url`, `instances`, `uptimeSeconds` and `log`) and a `runtime` object. The command SHALL fail with an error naming the slug when no state file, database target or runtime state exists for it. It SHALL NOT change any state.
 
 #### Scenario: Status of a running variant
 
@@ -56,3 +56,32 @@ The `runtime` object of a status result SHALL hold every value of the `runtime` 
 
 - **WHEN** variant `demo` has a state file but no runtime state
 - **THEN** the status result has no `runtime` object and no `mode`
+
+### Requirement: Uptime and watch log
+
+A variant record, in `status` and in `list`, SHALL carry `uptimeSeconds` when at least one of its instances has a recorded pid whose process is alive: the longest time any such process has been running, taken from the system process table. Each instance with such a process SHALL carry its own `uptimeSeconds`. A variant record SHALL carry `log`, the absolute path of the log file of its detached watch, when the runtime state records one. A variant without a live recorded process (for example one started with `up`) SHALL have no `uptimeSeconds`.
+
+#### Scenario: Uptime of a watch
+
+- **WHEN** instance `fe` has a recorded pid whose process started 90 seconds ago
+- **THEN** `instances.fe.uptimeSeconds` is about 90 and the variant `uptimeSeconds` is at least that of `fe`
+
+#### Scenario: Longest process wins
+
+- **WHEN** `be` has run for 300 seconds and `fe` for 90 seconds
+- **THEN** the variant `uptimeSeconds` is about 300
+
+#### Scenario: Dead pid has no uptime
+
+- **WHEN** the recorded pid of an instance belongs to no process
+- **THEN** that instance has `alive: false` and no `uptimeSeconds`, and the variant has no `uptimeSeconds` from it
+
+#### Scenario: Log path
+
+- **WHEN** the runtime state records `log` as `/work/_v-demo/variants.watch.log`
+- **THEN** the status record has `log` `/work/_v-demo/variants.watch.log`
+
+#### Scenario: Up has no uptime
+
+- **WHEN** variant `demo` was started with `up` and records no pids
+- **THEN** its record has no `uptimeSeconds` and no `log`
