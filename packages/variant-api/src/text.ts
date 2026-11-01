@@ -1,3 +1,4 @@
+import { formatDuration } from "./duration.js";
 import { formatTable } from "./table.js";
 import type {
   DownResult,
@@ -72,28 +73,6 @@ const count = (n: number, singular: string, plural = `${singular}s`): string => 
 
 const section = (title: string, lines: readonly string[]): string[] =>
   lines.length > 0 ? [`${title}:`, ...indented(lines)] : [];
-
-const SECOND = 1;
-const UNITS = [
-  ["d", 86400 * SECOND],
-  ["h", 3600 * SECOND],
-  ["m", 60 * SECOND],
-  ["s", SECOND],
-] as const;
-
-/** A duration as its two largest units that are not zero: `45s`, `1m 30s`, `5m`, `2h 5m`, `3d 1h`. */
-export const formatDuration = (seconds: number): string => {
-  let rest = Math.max(0, Math.floor(seconds));
-  const parts: string[] = [];
-  for (const [name, size] of UNITS) {
-    const count = Math.floor(rest / size);
-    rest -= count * size;
-    if (count > 0 && parts.length < 2) {
-      parts.push(`${count}${name}`);
-    }
-  }
-  return parts.length === 0 ? "0s" : parts.join(" ");
-};
 
 const pidCell = (instance: InstanceReport | InstanceFacts): string => {
   if (instance.pid === undefined) {

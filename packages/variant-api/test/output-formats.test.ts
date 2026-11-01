@@ -1,6 +1,14 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+import { type ChildProcess, spawn } from "node:child_process";
 import { parse as parseYaml } from "yaml";
 import { runCli, withVariants } from "./support/cli.js";
+
+const sleepers: ChildProcess[] = [];
+afterEach(() => {
+  for (const child of sleepers.splice(0)) {
+    child.kill("SIGKILL");
+  }
+});
 
 const isJson = (text: string): boolean => {
   try {
@@ -139,6 +147,76 @@ describe("output formats", () => {
         expect(result.exitCode).toBe(1);
         expect(result.stderr).toContain("Unknown variant: ghost");
         expect(result.stdout).toBe("");
+      }));
+  });
+
+  describe("list table", () => {
+    const rowsOf = (stdout: string): string[][] =>
+      stdout
+        .trim()
+        .split("\n")
+        .map((line) => line.trim().split(/\s{2,}/));
+
+    it("has the columns slug, mode, uptime, url, log and dir, with - for missing values", () =>
+      withVariants(async (environment) => {
+        const result = await runCli(["list"], environment);
+        const rows = rowsOf(result.stdout);
+
+        expect(result.exitCode).toBe(0);
+        expect(rows[0]).toEqual(["slug", "mode", "uptime", "url", "log", "dir"]);
+        expect(rows[1]).toEqual(["alpha", "watch", "-", "http://alpha.vw.localhost:62060/", "-", "_v-alpha"]);
+        expect(rows[2]).toEqual(["beta", "-", "-", "-", "-", "-"]);
+        expect(rows).toHaveLength(3);
+      }));
+
+    it("shows the uptime of a live watch and the absolute path of its log file", () => {
+      const sleeper = spawn("sleep", ["30"], { stdio: "ignore" });
+      sleepers.push(sleeper);
+      return withVariants(
+        async (environment, directory) => {
+          const row = rowsOf((await runCli(["list"], environment)).stdout)[1] ?? [];
+
+          expect(row[0]).toBe("alpha");
+          expect(row[2]).toMatch(/^\d+s$/);
+          expect(row[4]).toBe(`${directory}/_v-alpha/variants.watch.log`);
+        },
+        (directory) => ({
+          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  log: ${directory}/_v-alpha/variants.watch.log\n  instances:\n    fe: { port: 62060, pid: ${sleeper.pid}, url: 'http://alpha.vw.localhost:62060/' }\n`,
+        }),
+      );
+    });
+
+    it("never shortens a long URL", () => {
+      const url = `http://alpha.vw.localhost:62060/${"deep/".repeat(30)}`;
+      return withVariants(
+        async (environment) => {
+          const rows = rowsOf((await runCli(["list"], environment)).stdout);
+
+          expect(rows[1]?.[3]).toBe(url);
+        },
+        {
+          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  instances:\n    fe: { port: 62060, url: '${url}' }\n`,
+        },
+      );
+    });
+
+    it("keeps the schema out of the table and carries it in the JSON records", () =>
+      withVariants(async (environment) => {
+        const table = await runCli(["list"], environment);
+        const json = JSON.parse((await runCli(["list", "--json"], environment)).stdout);
+
+        expect(table.stdout).not.toContain("schema");
+        expect(json[0]).toMatchObject({ slug: "alpha", mode: "watch", url: "http://alpha.vw.localhost:62060/" });
+        expect(json[0].target).toEndWith("alpha.db");
+        expect(json[0].runtime).toBeUndefined();
+      }));
+
+    it("no longer has a --table flag", () =>
+      withVariants(async (environment) => {
+        const result = await runCli(["list", "--table"], environment);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.stderr).toContain("--table");
       }));
   });
 });

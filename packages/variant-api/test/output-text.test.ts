@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { formatDuration } from "../src/duration.js";
 import { renderOutput } from "../src/output.js";
-import { formatDuration } from "../src/text.js";
 
 const text = (command: string, result: unknown): string =>
   renderOutput(command, result, { format: "text", variantRoot: "/work" });

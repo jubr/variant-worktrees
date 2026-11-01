@@ -9,11 +9,6 @@ import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 
 const { version } = pkg;
 
-/** Flags that only the CLI has: they change how a result is printed, not what a command does. */
-const CLI_ONLY_FLAGS: Record<string, Record<string, { type: BooleanConstructor; description: string }>> = {
-  list: { table: { type: Boolean, description: "Print a table instead of JSON" } },
-};
-
 const flagTypes = { string: String, number: Number, boolean: Boolean } as const;
 
 const flagsFor = (definition: CommandDefinition) =>
@@ -26,7 +21,6 @@ const flagsFor = (definition: CommandDefinition) =>
         description: arg.name === "slug" ? "Explicit variant slug; overrides git detection" : arg.description,
       },
     ]),
-    ...Object.entries(CLI_ONLY_FLAGS[String(definition.name)] ?? {}),
   ]);
 
 const runCommand = (definition: CommandDefinition, format: OutputFormat) =>

@@ -29,7 +29,7 @@ export const runCli = async (args: string[], environment: Record<string, string>
  */
 export const withVariants = async (
   run: (environment: Record<string, string>, directory: string) => Promise<void>,
-  files: Record<string, string> = {},
+  files: Record<string, string> | ((directory: string) => Record<string, string>) = {},
   yaml = "db:\n  dialect: sqlite\n",
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-")));
@@ -45,7 +45,8 @@ export const withVariants = async (
       "_v-alpha/variants.local.yaml",
       "runtime:\n  slug: alpha\n  mode: watch\n  instances:\n    fe: { port: 62060, url: 'http://alpha.vw.localhost:62060/' }\n",
     );
-    for (const [path, content] of Object.entries(files)) {
+    const extra = typeof files === "function" ? files(directory) : files;
+    for (const [path, content] of Object.entries(extra)) {
       put(path, content);
     }
     await run({ VARIANT_CONFIG: join(directory, "variants.yaml") }, directory);
