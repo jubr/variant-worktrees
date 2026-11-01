@@ -1,0 +1,112 @@
+import { basename, join } from "node:path";
+import { type DiscoveredRuntime, LOCAL_FILENAME, readRuntimes } from "variant-config";
+import { redacted } from "../redact.js";
+import { isProcessAlive } from "../runtime-state.js";
+import { readState, stateSlugs } from "../state.js";
+import type { InstanceFacts, RuntimeStatus, VariantRecord } from "../types.js";
+import { processUptimeSeconds } from "../uptime.js";
+import type { OperationContext } from "./types.js";
+
+const slugFromTarget = (target: string, dialect: string): string => {
+  if (dialect === "sqlite") {
+    return target;
+  }
+  return target.replace(/^v_/, "").replaceAll("_", "-");
+};
+
+/** The runtime state of every variant: `<root>/<prefix>*` worktrees and the main checkout, keyed by slug. */
+const runtimeBySlug = (context: OperationContext): Map<string, DiscoveredRuntime> => {
+  const { prefix, root, main } = context.config.variant;
+  const { states } = readRuntimes({ root, prefix, main });
+  return new Map(
+    states.map((state) => {
+      const name = basename(state.dir);
+      const derived = state.dir !== main && name.startsWith(prefix) ? name.slice(prefix.length) : "main";
+      return [state.runtime.slug ?? derived, state] as const;
+    }),
+  );
+};
+
+const instanceFacts = (runtime: DiscoveredRuntime["runtime"]): Record<string, InstanceFacts> =>
+  Object.fromEntries(
+    Object.entries(runtime.instances ?? {}).map(([key, instance]) => {
+      const alive = instance.pid === undefined ? undefined : isProcessAlive(instance.pid);
+      const uptimeSeconds = alive && instance.pid !== undefined ? processUptimeSeconds(instance.pid) : undefined;
+      return [
+        key,
+        {
+          ...instance,
+          ...(alive === undefined ? {} : { alive }),
+          ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }),
+        },
+      ];
+    }),
+  );
+
+/** The longest uptime among the instances that have one. */
+const longestUptime = (instances: Record<string, InstanceFacts>): number | undefined => {
+  const all = Object.values(instances).flatMap(({ uptimeSeconds }) =>
+    uptimeSeconds === undefined ? [] : [uptimeSeconds],
+  );
+  return all.length === 0 ? undefined : Math.max(...all);
+};
+
+const runtimeStatus = (found: DiscoveredRuntime, instances: Record<string, InstanceFacts>): RuntimeStatus => {
+  const { slug, mode, dir, log, db, instances: _recorded } = found.runtime;
+  return {
+    file: join(found.dir, LOCAL_FILENAME),
+    ...(slug ? { slug } : {}),
+    ...(mode ? { mode } : {}),
+    ...(dir ? { dir } : {}),
+    ...(log ? { log } : {}),
+    ...(db ? { db: redacted(db) as RuntimeStatus["db"] } : {}),
+    ...(Object.keys(instances).length > 0 ? { instances } : {}),
+  };
+};
+
+export interface CollectOptions {
+  /** Attach `runtime` to every record. */
+  verbose?: boolean;
+  /** Only this variant. */
+  slug?: string;
+}
+
+/**
+ * The records of the known variants, sorted by slug: those with a state file, a database target or a runtime state.
+ * `list` and `status` both build their records here, so a record of `list` with `verbose` equals the one of `status`.
+ */
+export const collectRecords = async (
+  context: OperationContext,
+  options: CollectOptions = {},
+): Promise<VariantRecord[]> => {
+  const { dialect } = context.adapter;
+  const databaseSlugs = new Map(
+    (await context.adapter.list()).map((target) => [slugFromTarget(target, dialect), target] as const),
+  );
+  const runtimes = runtimeBySlug(context);
+  const known = new Set([...stateSlugs(context.stateDir), ...databaseSlugs.keys(), ...runtimes.keys()]);
+  const slugs = [...known].filter((slug) => options.slug === undefined || slug === options.slug).sort();
+  return slugs.map((slug) => {
+    const state = readState(context.stateDir, slug);
+    const found = runtimes.get(slug);
+    const instances = found ? instanceFacts(found.runtime) : undefined;
+    const url = Object.values(instances ?? {}).find((instance) => instance.url !== undefined)?.url;
+    const uptimeSeconds = instances ? longestUptime(instances) : undefined;
+    const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
+    return {
+      slug,
+      target: state?.target ?? runtimeTarget ?? (databaseSlugs.has(slug) ? context.adapter.target(slug) : ""),
+      dialect: state?.dialect ?? context.adapter.dialect,
+      statePath: state?.statePath ?? "",
+      worktree: state?.worktree ?? found?.runtime.dir ?? found?.dir,
+      createdAt: state?.createdAt ?? "",
+      exists: true,
+      ...(found?.runtime.mode ? { mode: found.runtime.mode } : {}),
+      ...(url ? { url } : {}),
+      ...(instances && Object.keys(instances).length > 0 ? { instances } : {}),
+      ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }),
+      ...(found?.runtime.log ? { log: found.runtime.log } : {}),
+      ...(options.verbose && found ? { runtime: runtimeStatus(found, instances ?? {}) } : {}),
+    };
+  });
+};

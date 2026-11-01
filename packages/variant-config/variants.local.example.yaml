@@ -10,6 +10,7 @@ runtime:
   slug: demo-embody-assume-user
   mode: watch # up
   dir: /Users/me/work/_v-demo-embody-assume-user # the variant's worktree
+  log: /Users/me/work/_v-demo-embody-assume-user/variants.watch.log # output of a detached watch; follow it with tail -f
   db: # the same settings as `db` in variants.yaml; only `port` may also be a {{NAME}} template
     dialect: postgres # sqlite | mysql
     url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set

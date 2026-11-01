@@ -105,6 +105,18 @@ describe("down", () => {
       expect(existsSync(localFile)).toBe(false);
     }));
 
+  it("drops the recorded watch log from the runtime and keeps the file", () =>
+    withProject(async ({ directory, down, localFile }) => {
+      const log = join(directory, "variants.watch.log");
+      writeFileSync(log, "[fe] bun run dev\n");
+      writeFileSync(localFile, `runtime:\n  slug: demo\n  mode: watch\n  log: ${log}\n`);
+
+      await down();
+
+      expect(existsSync(localFile)).toBe(false);
+      expect(readFileSync(log, "utf8")).toBe("[fe] bun run dev\n");
+    }));
+
   it("ignores a stale pid and still clears the runtime", () =>
     withProject(async ({ down, localFile }) => {
       writeFileSync(localFile, "runtime:\n  slug: demo\n  instances:\n    fe: { pid: 2147483000 }\n");

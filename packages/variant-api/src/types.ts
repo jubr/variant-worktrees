@@ -1,4 +1,4 @@
-import type { ResolvedConfig } from "variant-config";
+import type { ResolvedConfig, ResolvedRuntime } from "variant-config";
 
 export interface VariantState {
   slug: string;
@@ -15,6 +15,22 @@ export interface InstanceFacts {
   pid?: number;
   url?: string;
   alive?: boolean;
+  /** How long the process of the recorded pid has been running; set only when it is alive. */
+  uptimeSeconds?: number;
+}
+
+/** The runtime state of a variant as `status` reports it: the `runtime` section of its `variants.local.yaml`. */
+export interface RuntimeStatus {
+  /** The `variants.local.yaml` it was read from. */
+  file: string;
+  slug?: string;
+  mode?: "up" | "watch";
+  dir?: string;
+  /** The log file of a detached watch. */
+  log?: string;
+  /** The database settings, with the password redacted. */
+  db?: ResolvedRuntime["db"];
+  instances?: Record<string, InstanceFacts>;
 }
 
 export interface VariantRecord extends VariantState {
@@ -24,6 +40,12 @@ export interface VariantRecord extends VariantState {
   /** The URL of the first instance that has one. */
   url?: string;
   instances?: Record<string, InstanceFacts>;
+  /** The longest time any live recorded process of the variant has been running. */
+  uptimeSeconds?: number;
+  /** The absolute path of the log file of its detached watch. */
+  log?: string;
+  /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
+  runtime?: RuntimeStatus;
 }
 
 export interface VariantClientOptions {
@@ -131,13 +153,21 @@ export interface UpResult {
   output: string;
 }
 
+/** What `list` returns. */
+export interface ListOptions {
+  /** Give every record all the meta information `status` returns. */
+  verbose?: boolean;
+}
+
 export interface VariantClient {
   create(slug?: string): Promise<VariantRecord>;
   implode(slug?: string, options?: ImplodeOptions): Promise<ImplodeResult>;
   up(slug?: string, options?: UpOptions): Promise<UpResult>;
   watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
   down(slug?: string, options?: DownOptions): Promise<DownResult>;
-  list(): Promise<VariantRecord[]>;
+  /** One variant: its record with all runtime meta information. Fails when the slug is unknown. */
+  status(slug?: string): Promise<VariantRecord>;
+  list(options?: ListOptions): Promise<VariantRecord[]>;
   provision(
     slug?: string,
     options?: { verbose?: boolean; log?: (line: string) => void },

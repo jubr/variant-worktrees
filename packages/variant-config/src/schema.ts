@@ -282,6 +282,8 @@ export const RuntimeSchema = z.strictObject({
   slug: z.string().min(1).optional(),
   mode: z.enum(["up", "watch"]).optional(),
   dir: z.string().min(1).optional(),
+  /** The log file of a detached `watch`: the output of all its processes. */
+  log: z.string().min(1).optional(),
   db: RuntimeDbSchema.optional(),
   /** Keyed by the key of the entry in `variant.instances`. */
   instances: z.record(z.string().min(1), RuntimeInstanceSchema).optional(),

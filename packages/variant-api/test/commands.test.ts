@@ -32,6 +32,7 @@ describe("command registry", () => {
       "config",
       "create",
       "list",
+      "status",
       "provision",
       "up",
       "down",
@@ -63,6 +64,26 @@ describe("command registry", () => {
   it("gives watch a detach argument and implode a force argument", () => {
     expect(definition("watch").args).toContainEqual(expect.objectContaining({ name: "detach", type: "boolean" }));
     expect(definition("implode").args).toContainEqual(expect.objectContaining({ name: "force", type: "boolean" }));
+  });
+
+  it("routes list through the client with the verbose option", async () => {
+    const { client, calls } = recordingClient();
+
+    await definition("list").execute(client, {});
+    await definition("list").execute(client, { verbose: true });
+
+    expect(calls).toEqual([
+      ["list", {}],
+      ["list", { verbose: true }],
+    ]);
+  });
+
+  it("routes status through the client with the slug", async () => {
+    const { client, calls } = recordingClient();
+
+    await definition("status").execute(client, { slug: "demo" });
+
+    expect(calls).toEqual([["status", "demo"]]);
   });
 
   it("routes create through the client", async () => {

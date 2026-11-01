@@ -70,7 +70,7 @@ describe("list with runtime facts", () => {
 
       const record = (await list()).find((variant) => variant.slug === "demo");
 
-      expect(record?.instances?.fe).toEqual({ pid: process.pid, alive: true });
+      expect(record?.instances?.fe).toEqual({ pid: process.pid, alive: true, uptimeSeconds: expect.any(Number) });
       expect(record?.instances?.be?.alive).toBe(false);
     }));
 
