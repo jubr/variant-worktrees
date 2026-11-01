@@ -3,7 +3,6 @@ import { type DiscoveredRuntime, readRuntimes } from "variant-config";
 import { isProcessAlive } from "../runtime-state.js";
 import { readState, stateSlugs } from "../state.js";
 import type { InstanceFacts, VariantRecord } from "../types.js";
-import { primaryWorktree } from "../worktree.js";
 import type { OperationContext } from "./types.js";
 
 const slugFromTarget = (target: string, dialect: string): string => {
@@ -13,18 +12,9 @@ const slugFromTarget = (target: string, dialect: string): string => {
   return target.replace(/^v_/, "").replaceAll("_", "-");
 };
 
-const mainWorktree = (cwd: string): string => {
-  try {
-    return primaryWorktree(cwd);
-  } catch {
-    return cwd;
-  }
-};
-
 /** The runtime state of every variant: `<root>/<prefix>*` worktrees and the main checkout, keyed by slug. */
 const runtimeBySlug = (context: OperationContext): Map<string, DiscoveredRuntime> => {
-  const { prefix, root } = context.config.variant;
-  const main = mainWorktree(context.cwd);
+  const { prefix, root, main } = context.config.variant;
   const { states } = readRuntimes({ root, prefix, main });
   return new Map(
     states.map((state) => {
