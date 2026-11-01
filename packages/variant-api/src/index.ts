@@ -7,6 +7,7 @@ import { downVariant } from "./operations/down.js";
 import { implodeVariant } from "./operations/implode.js";
 import { listVariants } from "./operations/list.js";
 import { provisionVariant } from "./operations/provision.js";
+import { statusVariant } from "./operations/status.js";
 import type { OperationContext } from "./operations/types.js";
 import { upVariant } from "./operations/up.js";
 import { watchVariant } from "./operations/watch.js";
@@ -43,7 +44,8 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     watch: (slug, options) => withAdapter((context) => watchVariant(context, slug, options)),
     down: (slug, options) => withAdapter((context) => downVariant(context, slug, options)),
     implode: (slug, options) => withAdapter((context) => implodeVariant(context, slug, options)),
-    list: () => withAdapter((context) => listVariants(context)),
+    list: (options) => withAdapter((context) => listVariants(context, options)),
+    status: (slug) => withAdapter((context) => statusVariant(context, slug)),
     provision: (slug, options) => withAdapter((context) => provisionVariant(context, slug, options)),
     config: () => config,
   };
@@ -53,6 +55,8 @@ export { loadConfig } from "variant-config";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
   DatabaseAdapter,
+  ListOptions,
+  RuntimeStatus,
   VariantClient,
   VariantClientOptions,
   VariantRecord,
