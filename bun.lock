@@ -69,6 +69,7 @@
       },
       "devDependencies": {
         "variant-server": "workspace:*",
+        "variant-ui": "workspace:*",
       },
     },
     "packages/variant-config": {

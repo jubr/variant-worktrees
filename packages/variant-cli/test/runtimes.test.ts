@@ -1,28 +1,43 @@
 /**
- * Specification: openspec/specs/variant-cli/package/spec.md (Runs on Node and Bun)
+ * Specification: openspec/specs/variant-cli/package/spec.md (Runs on Node and Bun, The UI server is part of the CLI)
  *
  * Runs the built `dist/cli.js` under Node and Bun and a compiled single-file executable: `bun run test` builds first.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
+import { compileCli } from "../../../scripts/package-cli.ts";
 import { runCommand, withVariants } from "./support/cli.js";
 
 const root = join(import.meta.dir, "..");
-const dist = join(root, "dist/cli.js");
+const built = join(root, "dist");
 const { version } = (await Bun.file(join(root, "package.json")).json()) as { version: string };
 
 let compiledDirectory: string;
 let compiled: string;
+let dist: string;
+
+/**
+ * The built package as an install of it from the registry: `dist` next to the dependencies a registry install brings.
+ * Workspace-only packages (the server and the app are not dependencies of the CLI) are left out of `node_modules`.
+ */
+const installLikeRegistry = (directory: string): string => {
+  const modules = join(root, "../../node_modules");
+  mkdirSync(join(directory, "package/node_modules"), { recursive: true });
+  for (const name of readdirSync(modules)) {
+    if (name !== "variant-server" && name !== "variant-ui") {
+      symlinkSync(join(modules, name), join(directory, "package/node_modules", name));
+    }
+  }
+  cpSync(built, join(directory, "package/dist"), { recursive: true });
+  return join(directory, "package/dist/cli.js");
+};
 
 beforeAll(async () => {
   compiledDirectory = mkdtempSync(join("/tmp", "variant-compiled-"));
+  dist = installLikeRegistry(compiledDirectory);
   compiled = join(compiledDirectory, "variant");
-  const build = Bun.spawnSync(["bun", "build", join(root, "src/cli.ts"), "--compile", "--outfile", compiled], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  expect(build.exitCode).toBe(0);
+  await compileCli(join(root, "../.."), compiled);
 }, 60_000);
 
 afterAll(() => {
@@ -66,5 +81,51 @@ describe("variant on Node, Bun and as a compiled executable", () => {
           "gamma",
         ]);
       }));
+
+    it(
+      `serves the variants app with variant ui under ${name}`,
+      () =>
+        withVariants(async (environment, directory) => {
+          try {
+            const started = await runCommand(command(), ["ui", "--detach"], environment, directory);
+            expect(started.stderr).toBe("");
+            expect(started.exitCode).toBe(0);
+            const url = new URL(started.stdout.trim());
+            const get = (path: string) =>
+              fetch(`http://127.0.0.1:${url.port}${path}`, {
+                headers: { authorization: `Bearer ${url.searchParams.get("token")}` },
+              });
+
+            const page = await get("/");
+            const html = await page.text();
+            const script = /src="\.?(\/[^"]+\.js)"/.exec(html)?.[1];
+            const bundle = await get(script ?? "/missing.js");
+
+            expect(page.status).toBe(200);
+            expect(html).toContain('<div id="root">');
+            expect(bundle.status).toBe(200);
+            expect(bundle.headers.get("content-type")).toContain("javascript");
+          } finally {
+            await runCommand(command(), ["ui", "--stop"], environment, directory);
+          }
+        }),
+      60_000,
+    );
   }
+});
+
+describe("the UI server is not a binary of its own", () => {
+  it("leaves variant the only bin among the CLI, the library and the server", async () => {
+    const bins = await Promise.all(
+      ["variant-cli", "variant-api", "variant-server"].map(async (name) => {
+        const manifest = (await Bun.file(join(root, "..", name, "package.json")).json()) as { bin?: object | string };
+        return [
+          name,
+          manifest.bin === undefined ? [] : typeof manifest.bin === "string" ? [name] : Object.keys(manifest.bin),
+        ];
+      }),
+    );
+
+    expect(Object.fromEntries(bins)).toEqual({ "variant-cli": ["variant"], "variant-api": [], "variant-server": [] });
+  });
 });
