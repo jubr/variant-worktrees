@@ -67,6 +67,9 @@
         "variant-api": "workspace:*",
         "yaml": "^2.9.1",
       },
+      "devDependencies": {
+        "variant-server": "workspace:*",
+      },
     },
     "packages/variant-config": {
       "name": "variant-config",
