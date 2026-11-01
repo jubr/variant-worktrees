@@ -76,6 +76,14 @@ The abbreviation is derived in `variant-config` from the basename of the main ch
 
 React 19, built by `bun build` (JSX, CSS and font assets), no Vite and no UI library (the VS Code webview toolkit is deprecated). Icons are `@vscode/codicons` in the app; the native tree uses `ThemeIcon`s with the same names (`eye` for watching, `play-circle` for up, `circle-outline` for down; actions `play`, `debug-stop`, `trash`). Styling is plain CSS over `--vscode-*` variables with a light/dark fallback keyed on `prefers-color-scheme`. The webview HTML is generated with a nonce CSP and `asWebviewUri` paths; the server uses a strict same-origin CSP.
 
+### Decisions made while implementing
+
+- The browser transport reads the event stream with `fetch` streaming, not `EventSource`: `EventSource` is missing in Bun and happy-dom, so the one implementation would be untestable, and `fetch` also lets the client apply backoff and an idle timeout of its own.
+- `Transport.origin` (`"editor"` or `"server"`) decides whether the `variant-ui` row has a stop control. The editor stops the server with `down("variant-ui")`, which the extension maps to a `SIGTERM` of the recorded pid; the page served by the server shows the row without a stop control, since it would cut its own connection.
+- The webview transport and its host half (`createWebviewTransport`, `attachWebviewHost`) live together in `variant-ui/protocol`, so the two ends cannot drift, and the shared contract suite runs against both ends over an in-memory channel. The host subscribes when the page says `ready`, so a snapshot is never posted before the page listens.
+- The extension loads `variant-api` lazily. Where its sqlite module is missing, the Variants view shows the load error as its only item instead of the extension failing to activate.
+- The `variant ui` core is `runUi` in `variant-server` (flags as options). Registering the `ui` command and its flags in `variant-cli` waits for the `cli-package-node-runtime` change that creates that package; until then the core is tested but no `variant ui` binary entry exists.
+
 ### Where the view sits
 
 An extension contributes `views.explorer` entries; the host orders them relative to built-ins itself and the user can drag them. The view is visible and expanded by default; placing it above Timeline cannot be guaranteed from the manifest.
