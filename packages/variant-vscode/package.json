@@ -7,10 +7,12 @@
   "icon": "media/icon-256.png",
   "main": "./dist/extension.cjs",
   "dependencies": {
-    "@types/vscode": "^1.86.0",
+    "@types/vscode": "^1.101.0",
     "chat-renamer": "workspace:*",
+    "variant-api": "workspace:*",
     "variant-config": "workspace:*",
-    "variant-ipc": "workspace:*"
+    "variant-ipc": "workspace:*",
+    "variant-ui": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -36,7 +38,7 @@
     "directory": "packages/variant-vscode"
   },
   "engines": {
-    "vscode": "^1.86.0"
+    "vscode": "^1.101.0"
   },
   "activationEvents": [
     "onStartupFinished",
