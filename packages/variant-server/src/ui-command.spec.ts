@@ -103,7 +103,11 @@ const attached = async (project: Project, overrides: Partial<UiCommandOptions> =
   const abort = new AbortController();
   const done = project.run({ ...overrides, signal: abort.signal });
   await until(() => project.printed.length > 0 || existsSync(tokenPath(project.directory)));
-  return { stop: () => (abort.abort(), done), done };
+  const stop = (): Promise<number> => {
+    abort.abort();
+    return done;
+  };
+  return { stop, done };
 };
 
 describe("variant ui", () => {

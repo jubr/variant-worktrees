@@ -74,7 +74,7 @@ const detached = async (options: UiCommandOptions): Promise<number> => {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const entry = runningEntry(options.cwd);
     const token = readToken(options.cwd);
-    if (entry?.pid === child.pid && entry.url !== undefined && token !== undefined) {
+    if (entry?.pid === child.pid && entry?.url !== undefined && token !== undefined) {
       options.print(withToken(entry.url, token));
       return 0;
     }
