@@ -60,6 +60,18 @@
         "yaml": "^2.9.1",
       },
     },
+    "packages/variant-cli": {
+      "name": "variant-cli",
+      "version": "0.0.4",
+      "bin": {
+        "variant": "./dist/cli.js",
+      },
+      "dependencies": {
+        "cleye": "^2.6.0",
+        "variant-api": "workspace:*",
+        "yaml": "^2.9.1",
+      },
+    },
     "packages/variant-config": {
       "name": "variant-config",
       "version": "0.0.4",
@@ -1046,6 +1058,8 @@
     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
 
     "variant-api": ["variant-api@workspace:packages/variant-api"],
+
+    "variant-cli": ["variant-cli@workspace:packages/variant-cli"],
 
     "variant-config": ["variant-config@workspace:packages/variant-config"],
 
