@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `variant.main`: the main checkout the worktrees are made from (default: the target of a parent `AGENTS.md`
+  symlink, else the git checkout).
+- A worktree created inside the main tree adds `_v-*` (the configured prefix) to an existing `.gitignore`.
+
+### Changed
+
+- **BREAKING** `variant.root` is only the directory that holds the worktrees. With a parent `AGENTS.md` symlink into
+  the main checkout it now defaults to the directory that holds the symlink, so `variant watch foo` creates
+  `<parent>/_v-foo` instead of `<main>/_v-foo`. Without the symlink it stays the main checkout. The resolved
+  `variant.root` of `loadConfig` follows; use the new `variant.main` for the main checkout. Set `variant.root` to
+  the main checkout to keep the old place; existing worktrees are still found by slug.
+
 ## 0.0.4
 
 ### Fixed

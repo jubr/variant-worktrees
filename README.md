@@ -28,7 +28,7 @@ variant watch -s feature-forty-two
 variant implode -s feature-forty-two
 ```
 
-`watch` creates the worktree `_v-feature-forty-two`, starts the dev processes, and keeps them up so you can see the progress. `implode` stops them and removes the worktree.
+`watch` creates the worktree `_v-feature-forty-two` (next to the repository when a parent `AGENTS.md` symlinks into it, else inside it; see `variant.root`), starts the dev processes, and keeps them up so you can see the progress. `implode` stops them and removes the worktree.
 
 ### Human
 
