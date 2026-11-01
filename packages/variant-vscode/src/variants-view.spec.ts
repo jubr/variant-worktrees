@@ -127,7 +127,11 @@ describe("inline actions", () => {
 
     await command("variant.implode")(node("demo"));
 
-    const [message, options, ...buttons] = showWarningMessage.mock.calls[0] as [string, { modal: boolean }, string];
+    const [message, options, ...buttons] = showWarningMessage.mock.calls[0] as unknown as [
+      string,
+      { modal: boolean },
+      string,
+    ];
     expect(message).toContain("demo");
     expect(options.modal).toBe(true);
     expect(buttons).toEqual(["Implode"]);

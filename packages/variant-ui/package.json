@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./build": "./scripts/build.ts",
     "./protocol": "./src/protocol.ts",
     "./state": "./src/state.ts",
     "./testing": "./src/testing/index.ts",
