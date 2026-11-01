@@ -1,6 +1,6 @@
 import { relative } from "node:path";
+import type { VariantRecord } from "variant-api";
 import { formatDuration } from "./duration.js";
-import type { VariantRecord } from "./types.js";
 
 const COLUMNS = ["slug", "mode", "uptime", "url", "log", "dir"] as const;
 

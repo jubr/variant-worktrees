@@ -47,11 +47,7 @@
     "packages/variant-api": {
       "name": "variant-api",
       "version": "0.0.4",
-      "bin": {
-        "variant": "./dist/cli.js",
-      },
       "dependencies": {
-        "cleye": "^2.6.0",
         "drizzle-orm": "^0.45.2",
         "mysql2": "^3.24.4",
         "postgres": "^3.4.9",

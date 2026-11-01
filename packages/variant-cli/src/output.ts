@@ -1,5 +1,5 @@
+import { redacted } from "variant-api";
 import { stringify as stringifyYaml } from "yaml";
-import { redacted } from "./redact.js";
 import { renderText } from "./text.js";
 
 /** How the CLI prints a command result: a text summary for people, or the result as JSON or YAML. */
