@@ -1,6 +1,12 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { type DiscoveredRuntime, LOCAL_FILENAME, type ResolvedConfig, readRuntimes } from "variant-config";
+import {
+  type DiscoveredRuntime,
+  LOCAL_FILENAME,
+  type ResolvedConfig,
+  readRuntimes,
+  UI_INSTANCE_KEY,
+} from "variant-config";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { readState, stateSlugs } from "../state.js";
@@ -55,9 +61,15 @@ const instanceFacts = (runtime: DiscoveredRuntime["runtime"]): Record<string, In
     }),
   );
 
+/** The instances that belong to the variant's own run: not the UI server, which `main` only hosts. */
+const ownInstances = (instances: Record<string, InstanceFacts>): InstanceFacts[] =>
+  Object.entries(instances)
+    .filter(([key]) => key !== UI_INSTANCE_KEY)
+    .map(([, instance]) => instance);
+
 /** The longest uptime among the instances that have one. */
 const longestUptime = (instances: Record<string, InstanceFacts>): number | undefined => {
-  const all = Object.values(instances).flatMap(({ uptimeSeconds }) =>
+  const all = ownInstances(instances).flatMap(({ uptimeSeconds }) =>
     uptimeSeconds === undefined ? [] : [uptimeSeconds],
   );
   return all.length === 0 ? undefined : Math.max(...all);
@@ -102,7 +114,7 @@ export const collectRecords = async (
     const state = readState(context.stateDir, slug);
     const found = runtimes.get(slug);
     const instances = found ? instanceFacts(found.runtime) : undefined;
-    const url = Object.values(instances ?? {}).find((instance) => instance.url !== undefined)?.url;
+    const url = ownInstances(instances ?? {}).find((instance) => instance.url !== undefined)?.url;
     const uptimeSeconds = instances ? longestUptime(instances) : undefined;
     const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
     return {

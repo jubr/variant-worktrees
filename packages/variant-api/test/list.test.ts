@@ -61,6 +61,24 @@ describe("list with runtime facts", () => {
       });
     }));
 
+  it("does not take the url or uptime of main from the variant-ui server recorded in its runtime", () =>
+    withProject(async (_directory, put, list) => {
+      put(
+        "variants.local.yaml",
+        `runtime:\n  slug: main\n  instances:\n    variant-ui: { port: 62100, pid: ${process.pid}, url: 'http://ui.vw.localhost:62100' }\n`,
+      );
+
+      const main = (await list()).find((variant) => variant.slug === "main");
+
+      expect(main?.instances?.["variant-ui"]).toMatchObject({
+        port: 62100,
+        url: "http://ui.vw.localhost:62100",
+        alive: true,
+      });
+      expect(main?.url).toBeUndefined();
+      expect(main?.uptimeSeconds).toBeUndefined();
+    }));
+
   it("reports whether each recorded pid is alive", () =>
     withProject(async (_directory, put, list) => {
       put(
