@@ -29,6 +29,8 @@ export interface UiServer {
   close(): Promise<void>;
 }
 
+type ActionName = "watch" | "down" | "implode";
+
 const COOKIE = "variant_ui_token";
 
 const same = (a: string, b: string): boolean => {
@@ -72,6 +74,21 @@ const eventStream = (client: UiClient, response: ServerResponse, keepAliveMs: nu
     clearInterval(keepAlive);
     unsubscribe();
   });
+};
+
+const MAX_BODY_BYTES = 64 * 1024;
+
+const readBody = async (request: IncomingMessage): Promise<string> => {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY_BYTES) {
+      throw new Error("The request body is too large");
+    }
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 };
 
 const sendJson = (response: ServerResponse, status: number, body: unknown): void => {
@@ -124,7 +141,49 @@ export const startUiServer = async (options: UiServerOptions): Promise<UiServer>
       response.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
       return void response.end(tail);
     }
+    const action =
+      request.method === "POST" ? /^\/api\/variants\/([^/]+)\/(watch|down|implode)$/.exec(url.pathname) : null;
+    if (action) {
+      return runAction(request, response, decodeURIComponent(action[1] as string), action[2] as ActionName);
+    }
     return empty(response, 404);
+  };
+
+  const runAction = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    slug: string,
+    name: ActionName,
+  ): Promise<void> => {
+    if (!/^application\/json(?:\s*;|$)/i.test(request.headers["content-type"] ?? "")) {
+      return empty(response, 415);
+    }
+    let body: unknown;
+    try {
+      const text = await readBody(request);
+      body = text.trim() === "" ? {} : JSON.parse(text);
+    } catch {
+      return empty(response, 400);
+    }
+    // main is the project's own checkout: it is always there, with or without a record.
+    if (slug !== "main" && !(await options.client.list()).some((variant) => variant.slug === slug)) {
+      return empty(response, 404);
+    }
+    if (name === "implode" && (slug === "main" || (body as { confirm?: unknown } | null)?.confirm !== true)) {
+      return empty(response, 400);
+    }
+    try {
+      const quiet = { log: () => {} };
+      const result =
+        name === "watch"
+          ? await options.client.watch(slug, { ...quiet, detach: true })
+          : name === "down"
+            ? await options.client.down(slug, quiet)
+            : await options.client.implode(slug, quiet);
+      sendJson(response, 200, result);
+    } catch (error) {
+      sendJson(response, 500, { error: error instanceof Error ? error.message : String(error) });
+    }
   };
 
   const server: Server = createServer((request, response) => {

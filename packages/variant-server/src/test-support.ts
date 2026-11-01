@@ -17,6 +17,8 @@ export const record = (slug: string, extra: Partial<VariantRecord> = {}): Varian
 export interface FakeClient extends UiClient {
   /** Every action the server asked for, in order, as `name slug`. */
   calls: string[];
+  /** The options of every `watch` the server asked for. */
+  watchOptions: unknown[];
   /** The records `list` and new subscribers get. */
   records: VariantRecord[];
   /** Delivers a set to every subscriber, like the state subscription does. */
@@ -32,6 +34,7 @@ export const fakeClient = (records: VariantRecord[] = []): FakeClient => {
   let failure: string | undefined;
   const fake: FakeClient = {
     calls: [],
+    watchOptions: [],
     records,
     publish: (update) => {
       for (const listener of [...listeners]) {
@@ -48,7 +51,10 @@ export const fakeClient = (records: VariantRecord[] = []): FakeClient => {
       queueMicrotask(() => listener({ records: fake.records }));
       return () => listeners.delete(listener);
     },
-    watch: async (slug) => act("watch", slug),
+    watch: async (slug, watchOptions) => {
+      fake.watchOptions.push(watchOptions);
+      return act("watch", slug);
+    },
     down: async (slug) => act("down", slug),
     implode: async (slug) => act("implode", slug),
   } as FakeClient;
