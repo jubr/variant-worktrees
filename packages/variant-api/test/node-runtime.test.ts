@@ -4,7 +4,7 @@
  * These tests run the built library (`dist/`) in a child process: `bun run test` builds `variant-api` first.
  */
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -30,6 +30,19 @@ const run = async (
 };
 
 describe("variant-api on Node and Bun", () => {
+  it("declares Node 22.13 as the floor", () => {
+    const manifest = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8"));
+    expect(manifest.engines.node).toBe(">=22.13.0");
+  });
+
+  for (const entry of ["index.js", "commands.js"]) {
+    it(`builds ${entry} without a Bun-only module or global at load time`, () => {
+      const source = readFileSync(join(dist, entry), "utf8");
+      expect(source).not.toMatch(/(?:from|import)\s*\(?\s*["']bun:/);
+      expect(source).not.toMatch(/\bBun\./);
+    });
+  }
+
   for (const runtime of ["node", "bun"] as const) {
     it(`imports the built library and its commands under ${runtime}`, async () => {
       const result = await run(
@@ -70,6 +83,45 @@ describe("variant-api on Node and Bun", () => {
         });
       } finally {
         rmSync(directory, { recursive: true, force: true });
+      }
+    });
+  }
+
+  for (const runtime of ["node", "bun"] as const) {
+    it(`removes the untracked files matching the implode patterns under ${runtime}`, async () => {
+      const parent = realpathSync(mkdtempSync(join("/tmp", "variant-node-implode-")));
+      try {
+        const result = await run(
+          runtime,
+          `import { execFileSync } from "node:child_process";
+           import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+           import { join } from "node:path";
+           const { createClient } = await import(${JSON.stringify(entries.index)});
+           const repo = join(${JSON.stringify(parent)}, "repo");
+           const git = (...args) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" });
+           const put = (root, path, content = "x\\n") => { mkdirSync(join(root, path, ".."), { recursive: true }); writeFileSync(join(root, path), content); };
+           execFileSync("git", ["init", "-q", "-b", "main", repo]);
+           git("config", "user.email", "variant@example.test");
+           git("config", "user.name", "Variant Tests");
+           put(repo, "variants.yaml", "db:\\n  dialect: sqlite\\nvariant:\\n  implode:\\n    untracked: ['{out,dist}/**', '.cache/*', 'rec/{{slug}}/pr*-demo.webm', 'tracked/*.js']\\n");
+           put(repo, "tracked/keep.js");
+           git("add", ".");
+           git("commit", "-q", "-m", "initial");
+           const client = createClient({ cwd: repo, configPath: join(repo, "variants.yaml"), stateDir: join(repo, ".state") });
+           const { worktree } = await client.create("demo");
+           for (const path of ["out/a/b.js", "dist/c.js", ".cache/d", "rec/demo/pr7-demo.webm", "src/keep.js", "tracked/new.js"]) put(worktree, path);
+           const { report } = await client.implode("demo", { force: true, log: () => {} });
+           console.log(JSON.stringify(report));`,
+        );
+        expect(result.stderr).toBe("");
+        const report = JSON.parse(result.stdout) as string;
+        // `git status` of the worktree after the matching files were removed
+        expect(report).toContain("src/");
+        for (const removed of ["out/", "dist/", ".cache/", "pr7-demo.webm", "tracked/new.js"]) {
+          expect(report).not.toContain(removed);
+        }
+      } finally {
+        rmSync(parent, { recursive: true, force: true });
       }
     });
   }

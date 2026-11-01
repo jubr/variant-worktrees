@@ -1,12 +1,24 @@
 import { existsSync, rmSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import { globSync } from "tinyglobby";
 import { git, runGit } from "./git.js";
 
-/** Deletes the untracked files below `worktree` that match `patterns` (`{{slug}}` replaced); tracked files stay. */
+/**
+ * Deletes the untracked files below `worktree` that match `patterns` (`{{slug}}` replaced); tracked files stay.
+ *
+ * Specification: openspec/specs/variant-api/node-runtime/spec.md (Implode cleanup patterns on both runtimes)
+ */
 export const removeUntracked = (worktree: string, patterns: readonly string[], slug: string): string[] => {
   const removed: string[] = [];
   for (const pattern of patterns) {
-    for (const match of new Bun.Glob(pattern.replaceAll("{{slug}}", slug)).scanSync({ cwd: worktree, dot: true })) {
+    for (const match of globSync(pattern.replaceAll("{{slug}}", slug), {
+      cwd: worktree,
+      dot: true,
+      onlyFiles: true,
+      // AIDEV-NOTE: files only, matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
+      expandDirectories: false,
+      followSymbolicLinks: false,
+    })) {
       const outside = relative(worktree, resolve(worktree, match));
       if (outside.startsWith("..") || isAbsolute(outside)) {
         continue;
