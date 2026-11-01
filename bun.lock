@@ -90,6 +90,15 @@
         "zod": "^4.3.6",
       },
     },
+    "packages/variant-server": {
+      "name": "variant-server",
+      "version": "0.0.4",
+      "dependencies": {
+        "variant-api": "workspace:*",
+        "variant-config": "workspace:*",
+        "variant-ui": "workspace:*",
+      },
+    },
     "packages/variant-ui": {
       "name": "variant-ui",
       "version": "0.0.4",
@@ -1101,6 +1110,8 @@
     "variant-ipc": ["variant-ipc@workspace:packages/variant-ipc"],
 
     "variant-mcp": ["variant-mcp@workspace:packages/variant-mcp"],
+
+    "variant-server": ["variant-server@workspace:packages/variant-server"],
 
     "variant-ui": ["variant-ui@workspace:packages/variant-ui"],
 
