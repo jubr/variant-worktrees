@@ -51,8 +51,10 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `baseBranch` | New variant branches start here; a variant must be merged here before `implode` (default `main`) |
 | `branchPrefixes` | The first prefixes a new branch; all are dropped to derive a slug (default `feat/`, `fix/`) |
 | `containerEngine` | `docker` or `podman`; `CONTAINER_ENGINE` wins; absent: `docker` if installed, else `podman` |
+| `main` | The main checkout the worktrees are made from, relative to `variants.yaml`. Default: the directory a parent `AGENTS.md` symlink points into, else the git checkout |
 | `open` | `false` prints URLs without opening a browser; `VARIANT_OPEN=0` wins |
 | `prefix` | Starts every name derived from a slug, such as worktree directories (default `_v-`) |
+| `root` | Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into `main` (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `main` itself (`./_v-foo`). A worktree directory inside `main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created |
 | `reservedPorts` | Ports that are never picked for an instance (default 3000, 4200, 5432) |
 | `storage` | `{ dir, env }`: a per-variant directory (default `.storage`) and the variable that carries it (default `STORAGE_ROOT`) |
 | `steps` | Named commands that run between the `up` commands and the seed command |
