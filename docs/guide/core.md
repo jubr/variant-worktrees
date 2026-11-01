@@ -101,7 +101,7 @@ variant ui --detach
 variant ui --stop
 ```
 
-The server picks a free port the way an instance does (reserved ports are never picked; `VARIANT_VARIANT_UI_PORT` pins it), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
+The port is `VARIANT_UI_PORT`, else `variant.ui.port` from `variants.yaml`, else a free port picked the way an instance's is (reserved ports are never picked), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
 
 There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the instance `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved: `variant.instances` must not define it.
 

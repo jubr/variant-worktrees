@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { primaryWorktree } from "variant-api";
 import {
   clearRuntime,
-  envSegment,
   pickFreePort,
   type ResolvedConfig,
   readRuntime,
   resolveMainVscodeDir,
   UI_INSTANCE_KEY,
+  UI_PORT_ENV,
   writeRuntime,
 } from "variant-config";
 
@@ -96,22 +96,21 @@ export const removeEntry = (cwd: string, pid?: number): void => {
 };
 
 /**
- * The port of the server: `VARIANT_VARIANT_UI_PORT` when set, otherwise a free port that is not reserved. A reserved
- * port that is named explicitly is kept, as for any instance.
+ * The port of the server: `VARIANT_UI_PORT` when set, else `variant.ui.port`, otherwise a free port that is not
+ * reserved. A reserved port that is named explicitly is kept, as for any instance.
  */
 export const chooseUiPort = async (
   config: ResolvedConfig,
   env: NodeJS.ProcessEnv = process.env,
   candidate?: () => Promise<number>,
 ): Promise<number> => {
-  const name = `VARIANT_${envSegment(UI_INSTANCE_KEY)}_PORT`;
-  const given = env[name];
+  const given = env[UI_PORT_ENV];
   if (given !== undefined && given !== "") {
     const port = Number(given);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new Error(`${name} must be a port number, got "${given}"`);
+      throw new Error(`${UI_PORT_ENV} must be a port number, got "${given}"`);
     }
     return port;
   }
-  return pickFreePort(config.variant.reservedPorts, candidate);
+  return config.variant.ui?.port ?? pickFreePort(config.variant.reservedPorts, candidate);
 };

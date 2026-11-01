@@ -135,17 +135,67 @@ describe("variant ui", () => {
       }
     }, "variant:\n  abbr: shop\n"));
 
-  it("listens on VARIANT_VARIANT_UI_PORT", () =>
+  it("listens on VARIANT_UI_PORT", () =>
     withProject(async (project) => {
       const port = await freePort();
       const server = await attached(project, {
-        env: { ...project.options().env, VARIANT_VARIANT_UI_PORT: String(port) },
+        env: { ...project.options().env, VARIANT_UI_PORT: String(port) },
       });
       try {
         expect(new URL(project.printed[0] as string).port).toBe(String(port));
       } finally {
         await server.stop();
       }
+    }));
+
+  it("listens on variant.ui.port when VARIANT_UI_PORT is not set", () =>
+    withProject(async (project) => {
+      const port = await freePort();
+      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${port}\n`);
+      const server = await attached(project, { env: { ...project.options().env, VARIANT_UI_PORT: undefined } });
+      try {
+        expect(new URL(project.printed[0] as string).port).toBe(String(port));
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("lets VARIANT_UI_PORT win over variant.ui.port", () =>
+    withProject(async (project) => {
+      const configured = await freePort();
+      const given = await freePort();
+      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${configured}\n`);
+      const server = await attached(project, {
+        env: { ...project.options().env, VARIANT_UI_PORT: String(given) },
+      });
+      try {
+        expect(new URL(project.printed[0] as string).port).toBe(String(given));
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("treats an empty VARIANT_UI_PORT as unset", () =>
+    withProject(async (project) => {
+      const port = await freePort();
+      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${port}\n`);
+      const server = await attached(project, { env: { ...project.options().env, VARIANT_UI_PORT: "" } });
+      try {
+        expect(new URL(project.printed[0] as string).port).toBe(String(port));
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("fails naming VARIANT_UI_PORT when it is not a port number", () =>
+    withProject(async (project) => {
+      const failure = await project
+        .run({ env: { ...project.options().env, VARIANT_UI_PORT: "abc" } })
+        .catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain("VARIANT_UI_PORT");
+      expect(project.printed).toEqual([]);
     }));
 
   it("never picks a reserved port", () =>

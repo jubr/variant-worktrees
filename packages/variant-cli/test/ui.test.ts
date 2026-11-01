@@ -84,7 +84,7 @@ describe("variant ui", () => {
   );
 
   it(
-    "uses VARIANT_VARIANT_UI_PORT as the port",
+    "uses VARIANT_UI_PORT as the port",
     () =>
       withVariants(async (environment, directory) => {
         const port = 40000 + Math.floor(Math.random() * 20000);
@@ -92,7 +92,7 @@ describe("variant ui", () => {
           const started = await runCommand(
             cli,
             ["ui", "--detach"],
-            { ...environment, VARIANT_VARIANT_UI_PORT: String(port) },
+            { ...environment, VARIANT_UI_PORT: String(port) },
             directory,
           );
 
