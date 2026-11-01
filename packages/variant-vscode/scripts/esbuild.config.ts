@@ -16,6 +16,10 @@ const config: BuildOptions = {
   // AIDEV-NOTE: since variant-api picks its sqlite driver at run time (node:sqlite on Node 22.13+), `bun:sqlite` here is only
   // a safety net; the lazy import stays so an older host gets an error in the view.
   external: ["vscode", "bun:sqlite"],
+  // AIDEV-NOTE: a CommonJS bundle has no `import.meta`, and esbuild leaves `import.meta.url` undefined; dependencies such
+  // as fdir (through variant-api's glob) pass it to `createRequire` when they load. It is the bundle's own file URL.
+  define: { "import.meta.url": "__importMetaUrl" },
+  banner: { js: 'const __importMetaUrl = require("node:url").pathToFileURL(__filename).href;' },
   loader: {
     ".ts": "ts",
     ".js": "js",
