@@ -4,44 +4,44 @@ import { globSync } from "tinyglobby";
 import { git, runGit } from "./git.js";
 
 /**
- * Deletes the untracked files below `worktree` that match `patterns` (`{{slug}}` replaced); tracked files stay.
+ * Deletes every path below `worktree` that matches one of `patterns` (`{{slug}}` replaced), matched from each of
+ * `bases`. A match that is, or contains, a tracked file stays; so does `.git`. Symlinks are not followed.
  *
  * Specification: openspec/specs/variant-api/node-runtime/spec.md (Implode cleanup patterns on both runtimes)
  */
-export const removeUntracked = (worktree: string, patterns: readonly string[], slug: string): string[] => {
+export const removeMatching = (
+  worktree: string,
+  bases: readonly string[],
+  patterns: readonly string[],
+  slug: string,
+): string[] => {
   const removed: string[] = [];
-  for (const pattern of patterns) {
-    for (const match of globSync(pattern.replaceAll("{{slug}}", slug), {
-      cwd: worktree,
-      dot: true,
-      onlyFiles: true,
-      // AIDEV-NOTE: files only, matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
-      expandDirectories: false,
-      followSymbolicLinks: false,
-    })) {
-      const outside = relative(worktree, resolve(worktree, match));
-      if (outside.startsWith("..") || isAbsolute(outside)) {
-        continue;
-      }
-      if (git(worktree, ["--literal-pathspecs", "ls-files", "--", match]).trim() === "") {
-        rmSync(join(worktree, match), { recursive: true, force: true });
-        removed.push(match);
+  for (const base of new Set(bases)) {
+    for (const pattern of patterns) {
+      for (const found of globSync(pattern.replaceAll("{{slug}}", slug), {
+        cwd: base,
+        dot: true,
+        onlyFiles: false,
+        // AIDEV-NOTE: matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
+        expandDirectories: false,
+        followSymbolicLinks: false,
+      })) {
+        const match = found.replace(/\/+$/, "");
+        const inside = relative(worktree, resolve(base, match));
+        if (inside === "" || inside.startsWith("..") || isAbsolute(inside) || basename(match) === ".git") {
+          continue;
+        }
+        if (
+          existsSync(join(base, match)) &&
+          git(base, ["--literal-pathspecs", "ls-files", "--", match]).trim() === ""
+        ) {
+          rmSync(join(base, match), { recursive: true, force: true });
+          removed.push(join(base, match));
+        }
       }
     }
   }
   return removed;
-};
-
-/** Deletes each of `names` below every directory of `directories`. */
-export const removeDirectories = (directories: readonly string[], names: readonly string[]): void => {
-  for (const directory of directories) {
-    for (const name of names) {
-      const path = join(directory, name);
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
-      }
-    }
-  }
 };
 
 /** What would be lost with the worktree: `git status`, `git diff --stat` and, when short enough, `git diff`. */
