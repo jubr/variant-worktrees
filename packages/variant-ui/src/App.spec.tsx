@@ -51,7 +51,10 @@ describe("controls per state", () => {
   });
 
   it("keeps implode rightmost, foreground when clean and red when implode would fail", () => {
-    renderApp([{ slug: "clean", implodeClean: true }, { slug: "dirty", implodeClean: false }]);
+    renderApp([
+      { slug: "clean", implodeClean: true },
+      { slug: "dirty", implodeClean: false },
+    ]);
 
     const clean = control("clean", "Implode");
     const dirty = within(row("dirty")).getByRole("button", { name: "Implode dirty, implode would fail" });
