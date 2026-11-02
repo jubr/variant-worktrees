@@ -29,7 +29,7 @@
 
 ## 5. variant ui command
 
-- [ ] 5.1 Write failing tests for `variant ui` (printed URL shape with `<abbr>` and token, port override `VARIANT_VARIANT_UI_PORT`, reserved ports skipped, `--detach` returns); implement in `variant-cli` and verify they pass
+- [ ] 5.1 Write failing tests for `variant ui` (printed URL shape with `<abbr>` and token, port override `VARIANT_UI_PORT`, reserved ports skipped, `--detach` returns); implement in `variant-cli` and verify they pass
 - [ ] 5.2 Add failing tests for recording the `variant-ui` instance in `main`'s runtime (listed by `variant list` and `status`, kept across `main`'s watch and down, removed on exit, owner-only token file); implement and verify they pass
 - [ ] 5.3 Add failing tests for one server per project (second run prints the URL and exits 0, stale entry replaced) and `--stop` (stops, cleans up, exits 0 with no server); implement and verify they pass
 
