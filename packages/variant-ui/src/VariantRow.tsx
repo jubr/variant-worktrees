@@ -50,7 +50,7 @@ export const VariantRow = ({ variant }: { variant: Variant }) => {
         {pending ? <Busy /> : null}
         <IconButton
           icon="play"
-          label={`Play ${slug}`}
+          label={`variant watch ${slug}`}
           disabled={!idle || state === "watching"}
           onClick={() => void run(() => transport.watch(slug))}
         />

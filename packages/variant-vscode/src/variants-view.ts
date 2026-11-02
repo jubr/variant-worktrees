@@ -128,7 +128,7 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
       const slug = slugOf(node);
       return slug === undefined
         ? Promise.resolve()
-        : attempt("play", () => store.run(slug, () => actions.watch(slug)), { slug });
+        : attempt("watch", () => store.run(slug, () => actions.watch(slug)), { slug });
     }),
     register("variant.stop", (node) => {
       const slug = slugOf(node);

@@ -29,7 +29,7 @@ describe("controls per state", () => {
   it("enables play and implode, and disables stop, for a down variant", () => {
     renderApp([down]);
 
-    expect(control("demo", "Play").disabled).toBe(false);
+    expect(control("demo", "variant watch").disabled).toBe(false);
     expect(control("demo", "Implode").disabled).toBe(false);
     expect(control("demo", "Stop").disabled).toBe(true);
   });
@@ -39,13 +39,13 @@ describe("controls per state", () => {
 
     expect(control("demo", "Stop").disabled).toBe(false);
     expect(control("demo", "Implode").disabled).toBe(false);
-    expect(control("demo", "Play").disabled).toBe(true);
+    expect(control("demo", "variant watch").disabled).toBe(true);
   });
 
   it("enables play, stop and implode for an up variant", () => {
     renderApp([up]);
 
-    for (const name of ["Play", "Stop", "Implode"]) {
+    for (const name of ["variant watch", "Stop", "Implode"]) {
       expect(control("demo", name).disabled).toBe(false);
     }
   });
@@ -54,13 +54,13 @@ describe("controls per state", () => {
     renderApp([{ slug: "main" }]);
 
     expect(within(row("main")).queryByRole("button", { name: "Implode main" })).toBeNull();
-    expect(control("main", "Play")).toBeTruthy();
+    expect(control("main", "variant watch")).toBeTruthy();
   });
 
   it("starts a watch when play is pressed and brings the variant down when stop is pressed", async () => {
     const transport = renderApp([up]);
 
-    fireEvent.click(control("demo", "Play"));
+    fireEvent.click(control("demo", "variant watch"));
     await waitFor(() => expect(control("demo", "Stop").disabled).toBe(false));
     fireEvent.click(control("demo", "Stop"));
 
@@ -78,19 +78,19 @@ describe("pending action", () => {
     const transport = renderApp([down, { slug: "other" }]);
     const held = transport.host.hold();
 
-    fireEvent.click(control("demo", "Play"));
+    fireEvent.click(control("demo", "variant watch"));
 
-    await waitFor(() => expect(control("demo", "Play").disabled).toBe(true));
-    for (const name of ["Play", "Stop", "Implode"]) {
+    await waitFor(() => expect(control("demo", "variant watch").disabled).toBe(true));
+    for (const name of ["variant watch", "Stop", "Implode"]) {
       expect(control("demo", name).disabled).toBe(true);
     }
     expect(within(row("demo")).getByRole("status", { name: "Working" })).toBeTruthy();
-    expect(control("other", "Play").disabled).toBe(false);
+    expect(control("other", "variant watch").disabled).toBe(false);
     expect(within(row("other")).queryByRole("status")).toBeNull();
 
     await act(async () => held.release());
 
-    await waitFor(() => expect(control("demo", "Play").disabled).toBe(false));
+    await waitFor(() => expect(control("demo", "variant watch").disabled).toBe(false));
     expect(within(row("demo")).queryByRole("status")).toBeNull();
   });
 });
@@ -218,6 +218,6 @@ describe("connection state", () => {
 
     expect(screen.queryByRole("alert")).toBeNull();
     expect(within(row("demo")).getByTestId("state").textContent).toBe("down");
-    expect(control("demo", "Play").disabled).toBe(false);
+    expect(control("demo", "variant watch").disabled).toBe(false);
   });
 });

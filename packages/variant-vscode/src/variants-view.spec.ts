@@ -165,7 +165,7 @@ describe("inline actions", () => {
     const reported = fake.calls[0]?.options as { log?: (line: string) => void } | undefined;
     reported?.log?.("nothing was started");
 
-    expect(entries).toEqual(['play {"slug":"demo"}', 'play finished {"slug":"demo"}', "nothing was started {}"]);
+    expect(entries).toEqual(['watch {"slug":"demo"}', 'watch finished {"slug":"demo"}', "nothing was started {}"]);
   });
 
   it("shows the message of a failing action as an error notification", async () => {
@@ -342,6 +342,13 @@ describe("manifest contributions", () => {
     ).contributes.configuration.properties;
     expect(settings["variant.autoExpand"]?.default).toBe(true);
     expect(settings["variant.sort"]?.default).toBe("name-asc");
+  });
+
+  it("names the play command variant watch and keeps the play icon", () => {
+    const play = commands.find((entry) => entry.command === "variant.play");
+
+    expect(play?.title).toBe("variant watch");
+    expect(play?.icon).toBe("$(play)");
   });
 
   it("puts Sort in the view title immediately left of Open Variants Panel", () => {

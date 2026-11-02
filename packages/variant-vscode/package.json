@@ -60,7 +60,7 @@
       },
       {
         "command": "variant.play",
-        "title": "Variant: Play",
+        "title": "variant watch",
         "icon": "$(play)"
       },
       {
