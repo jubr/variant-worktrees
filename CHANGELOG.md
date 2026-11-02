@@ -4,6 +4,9 @@
 
 ### Added
 
+- `variant completions <shell>` prints a completion script for `zsh`, `bash`, or `fish`. It completes the subcommands,
+  their flags, and the slugs of existing variants; the scripts derive from the CLI's own command definitions.
+  `variant completions --list-slugs` prints those slugs from local variant state and worktrees.
 - The README and the configuration guide describe how each `VARIANT_*` environment variable maps to a
   `variants.yaml` setting or template placeholder, and in which direction it works.
 - The Variant Worktrees view sorts by name, created or changed (`variant.sort`, default name ascending). Created is the

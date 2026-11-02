@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { command } from "cleye";
 import { runUi, type StaticApp } from "variant-server";
+import { UI_DESCRIPTION, UI_FLAGS } from "./cli-flags.js";
 import { embeddedApp } from "./embedded-app.js";
 import { renderHelp } from "./help.js";
 
@@ -43,13 +44,10 @@ export const uiCommand = () =>
     {
       name: "ui",
       help: {
-        description: "Serve the variants web page on a local port and print its URL with the token",
+        description: UI_DESCRIPTION,
         render: renderHelp,
       },
-      flags: {
-        detach: { type: Boolean, description: "Start the server in the background and return after printing the URL" },
-        stop: { type: Boolean, description: "Stop the server of the project" },
-      },
+      flags: UI_FLAGS,
     },
     async (argv) => {
       const abort = new AbortController();
