@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
+import { abbreviate, detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
 import { readRuntime } from "./local.js";
 import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
 import {
@@ -69,6 +69,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     ...variant,
     main,
     root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
+    abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
     instances: resolveInstances(config, configDir),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
@@ -170,7 +171,14 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
 
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
-export { detectConnection, detectInstances, detectVariantMain, detectVariantRoot, findMiseFile } from "./autodetect.js";
+export {
+  abbreviate,
+  detectConnection,
+  detectInstances,
+  detectVariantMain,
+  detectVariantRoot,
+  findMiseFile,
+} from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
@@ -193,6 +201,8 @@ export {
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
+  UI_INSTANCE_KEY,
+  UI_PORT_ENV,
   VariantsConfigSchema,
   VariantsLocalSchema,
   variantsJsonSchema,

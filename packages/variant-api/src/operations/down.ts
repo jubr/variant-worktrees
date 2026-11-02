@@ -1,3 +1,4 @@
+import { UI_INSTANCE_KEY } from "variant-config";
 import { containerName, engineHas, findContainerEngine, networkName, runEngine } from "../containers.js";
 import type { ProgressLog } from "../echo.js";
 import { locateWorktree } from "../locate.js";
@@ -16,7 +17,8 @@ export const stopHostProcesses = async (
   const runtime = readVariantRuntime(context.config, worktree);
   const stopped: DownResult["processes"] = [];
   for (const [key, instance] of Object.entries(runtime?.instances ?? {})) {
-    if (instance.pid !== undefined && ownedByWorktree(instance.pid, worktree)) {
+    // The UI server is not part of main's own lifecycle; `variant ui --stop` ends it.
+    if (key !== UI_INSTANCE_KEY && instance.pid !== undefined && ownedByWorktree(instance.pid, worktree)) {
       await stopProcessTree(instance.pid);
       stopped.push({ key, pid: instance.pid });
     }

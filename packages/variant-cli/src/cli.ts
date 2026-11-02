@@ -6,6 +6,7 @@ import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { renderHelp } from "./help.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
+import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
 
 const { version } = pkg;
 
@@ -64,7 +65,9 @@ const takeFormat = (argv: string[]): { args: string[]; format: OutputFormat } =>
 try {
   const { args, format } = takeFormat(process.argv.slice(2));
   const requested = args.find((arg) => !arg.startsWith("-"));
-  if (requested !== undefined && !commands.some((definition) => definition.name === requested)) {
+  const known = (name: string): boolean =>
+    commands.some((definition) => definition.name === name) || (CLI_ONLY_COMMANDS as readonly string[]).includes(name);
+  if (requested !== undefined && !known(requested)) {
     throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
   }
   await cli(
@@ -76,7 +79,7 @@ try {
         render: renderHelp,
       },
       strictFlags: true,
-      commands: commands.map((definition) => runCommand(definition, format)),
+      commands: [...commands.map((definition) => runCommand(definition, format)), uiCommand()],
     },
     undefined,
     args.length === 0 ? ["--help"] : args,

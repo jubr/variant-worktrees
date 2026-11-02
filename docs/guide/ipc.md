@@ -4,6 +4,10 @@
 `implode` run in `variant-api`. The CLI and the MCP server call that logic in-process. Those
 commands are not sent to the VS Code extension.
 
+The extension's own views, the Variants view and the panel, call `variant-api` in-process inside the extension host
+for `list`, `watch`, `down` and `implode`. Those calls do not use the socket, and a socket request with one of the
+lifecycle names above still fails.
+
 Requests that need the editor are the socket traffic. Each request line is one
 JSON object, `{"name":"<command>","args":{...}}`. The success response line is
 the handler's return value, with no extra envelope.

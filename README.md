@@ -101,7 +101,9 @@ Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
-Instances take an optional `url` template (`{{slug}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.vw.localhost:{{port}}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
+Instances take an optional `url` template (`{{slug}}`, `{{abbr}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.{{abbr}}.localhost:{{port}}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
+
+`variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. The instance key `variant-ui` is reserved for the UI server, and so is `ui`: `VARIANT_UI_PORT` (or `variant.ui.port`) sets the server's port.
 
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
@@ -124,6 +126,7 @@ The `VARIANT_*` variables map to `variants.yaml` settings and template placehold
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
 | `VARIANT_ENV_SOURCE` | read as an override | `env.sourceFile`: the file an instance's env file is copied from, instead of the primary worktree's |
 | `VARIANT_STEP_<NAME>` | read as an override | the `name` of a step in `variant.steps`; `no` skips the step |
+| `VARIANT_UI_PORT` | read as an override | `variant.ui.port`: the port of the `variant ui` server |
 
 `<KEY>` is the key of an instance and `<NAME>` the `name` of a step, with letters uppercased and every other character replaced by `_`: `VARIANT_BE_PORT` for `be`, `VARIANT_STEP_DEMO_USER=no` for `demo-user`. A variable that is set for commands is part of the environment of the install, `up`, step and seed commands and of containers (which receive the variables only, see `container`); an override is read from the environment of the `variant` process.
 
@@ -140,6 +143,8 @@ variant up -s preview-one              # instances as containers on a fresh data
 variant watch -s preview-one --detach  # instances as host processes
 variant down -s preview-one            # stop them, keep the data
 variant implode -s preview-one         # tear down and remove the worktree
+variant ui --detach                    # the variants web page: print its URL with the token, keep serving
+variant ui --stop                      # end the UI server of the project
 ```
 
 Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
@@ -166,6 +171,12 @@ flags in `variant --help` and `variant <command> --help`.
 | `--version` | Show the version (top level only) |
 
 Give at most one of `--json` and `--yaml`.
+
+## See your variants
+
+The extension adds a **Variant Worktrees** section to the Explorer. Each variant shows a watching, up or down icon and its uptime. **Sort**, left of Open Variants Panel, orders by name, created or changed (`variant.sort`, default name ascending). The play icon is **variant watch** (a detached `watch`). Stop brings the variant down. The trash icon sits at the right of every row except `main`: theme foreground when implode would succeed, red when it would fail. The context menu shows a variant's watch output, opens its URL, opens the panel and the web page. The view follows changes made by the CLI, an agent over MCP or another window within seconds. **Variant: Open Variants Panel** shows the same list, in the same order, in an editor panel.
+
+`variant ui` serves the same app as a web page. It listens on loopback only, prints `http://ui.<abbr>.localhost:<port>/?token=<token>`, rejects requests without the token or with a foreign `Host`, accepts POSTs as `application/json` only, and implodes only after an explicit confirmation (never `main`). It records itself as the reserved `variant-ui` instance of `main`, so `variant list` shows it, and keeps its token in an owner-only file next to the editor socket. **Variant: Open Variants in Browser** opens a running server; without one it names `variant ui --detach`. The extension needs VS Code 1.101 or a host with Node.js 22.13 or newer.
 
 ## MCP
 
@@ -199,6 +210,10 @@ detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/var
 - [`variant-cli`](./packages/variant-cli) — the `variant` command.
 - [`variant-mcp`](./packages/variant-mcp) — MCP tools for variant lifecycle
   operations.
+- [`variant-ui`](./packages/variant-ui) — the variants React app for the editor
+  webview and the browser.
+- [`variant-server`](./packages/variant-server) — the local web server behind
+  `variant ui`; bundled into `variant-cli` and its executables, not a program of its own.
 - [`variant-vscode`](./packages/variant-vscode) — VS Code extension package.
   Embeds chat renamer.
 - [`chat-renamer-api`](./packages/chat-renamer-api) — parse a Cursor chat rename

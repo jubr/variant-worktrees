@@ -21,6 +21,7 @@ db:
 variant:
   main: . # the main checkout the worktrees are made from; default: detected (target of a parent AGENTS.md symlink, else the git checkout)
   root: .. # directory that holds the variant worktrees; default: the directory of a parent AGENTS.md symlink into main, else main
+  abbr: vw # short project label for hostnames and `{{abbr}}`; default: initials of the main checkout directory name, e.g. variant-worktrees is vw
   prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
   baseBranch: main # new variant branches start here, and a variant must be merged here before `implode`
   branchPrefixes: # the first prefixes a new branch; all of them are dropped from a branch name to get a slug
@@ -35,6 +36,8 @@ variant:
   storage: # per-variant data directory; absent: none
     dir: .storage # relative to the worktree
     envVarName: STORAGE_ROOT # variable amended for commands, set in instance .env
+  ui: # the `variant ui` web server
+    port: 62100 # VARIANT_UI_PORT wins. Absent: a free port that is not reserved
   steps: # run in order between the `up` commands and the seed command
     - name: migrations # unique, only [A-Za-z0-9_-]+, VARIANT_STEP_MIGRATIONS=no skips
       run: bun run migrate # shell commands

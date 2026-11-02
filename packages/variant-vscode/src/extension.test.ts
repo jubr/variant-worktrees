@@ -153,6 +153,30 @@ describe("extension", () => {
       expect(manifest.activationEvents).toContain("onStartupFinished");
     });
 
+    it("registers the Variants view and its commands for the first workspace folder", () => {
+      const createTreeView = spyOn(vscode.window, "createTreeView");
+      createTreeView.mockClear();
+      vscode.workspace.workspaceFolders = [{ uri: { fsPath: "/tmp/variant-vscode-no-config" } }];
+      try {
+        activate(extensionContext);
+      } finally {
+        vscode.workspace.workspaceFolders = undefined;
+      }
+
+      const ids = registerCommand.mock.calls.map((entry) => entry[0]);
+      expect(createTreeView.mock.calls.map((call) => call[0])).toEqual(["variant.variants"]);
+      expect(ids).toEqual(expect.arrayContaining(["variant.play", "variant.stop", "variant.implode"]));
+    });
+
+    it("registers no Variants view without a workspace folder", () => {
+      const createTreeView = spyOn(vscode.window, "createTreeView");
+      createTreeView.mockClear();
+
+      activate(extensionContext);
+
+      expect(createTreeView).not.toHaveBeenCalled();
+    });
+
     it("does not register a hello world command", () => {
       activate(extensionContext);
 

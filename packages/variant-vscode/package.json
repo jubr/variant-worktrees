@@ -7,10 +7,12 @@
   "icon": "media/icon-256.png",
   "main": "./dist/extension.cjs",
   "dependencies": {
-    "@types/vscode": "^1.86.0",
+    "@types/vscode": "^1.101.0",
     "chat-renamer": "workspace:*",
+    "variant-api": "workspace:*",
     "variant-config": "workspace:*",
-    "variant-ipc": "workspace:*"
+    "variant-ipc": "workspace:*",
+    "variant-ui": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -36,7 +38,7 @@
     "directory": "packages/variant-vscode"
   },
   "engines": {
-    "vscode": "^1.86.0"
+    "vscode": "^1.101.0"
   },
   "activationEvents": [
     "onStartupFinished",
@@ -55,11 +57,106 @@
       {
         "command": "variant.renameActiveChat",
         "title": "Variant: Rename active chat"
+      },
+      {
+        "command": "variant.play",
+        "title": "variant watch",
+        "icon": "$(play)"
+      },
+      {
+        "command": "variant.stop",
+        "title": "Variant: Stop",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "variant.implode",
+        "title": "Implode (would succeed)",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "variant.implodeDirty",
+        "title": "Implode (would fail)",
+        "icon": {
+          "light": "media/trash-dirty-light.svg",
+          "dark": "media/trash-dirty-dark.svg"
+        }
+      },
+      {
+        "command": "variant.showOutput",
+        "title": "Variant: Show Output"
+      },
+      {
+        "command": "variant.openUrl",
+        "title": "Variant: Open URL"
+      },
+      {
+        "command": "variant.openPanel",
+        "title": "Variant: Open Variants Panel",
+        "icon": "$(layout-panel)"
+      },
+      {
+        "command": "variant.openInBrowser",
+        "title": "Variant: Open Variants in Browser",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "variant.stopUiServer",
+        "title": "Variant: Stop UI Server",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "variant.sort.nameAsc",
+        "title": "Name (A-Z)"
+      },
+      {
+        "command": "variant.sort.nameDesc",
+        "title": "Name (Z-A)"
+      },
+      {
+        "command": "variant.sort.createdAsc",
+        "title": "Created (oldest)"
+      },
+      {
+        "command": "variant.sort.createdDesc",
+        "title": "Created (newest)"
+      },
+      {
+        "command": "variant.sort.changedAsc",
+        "title": "Changed (oldest)"
+      },
+      {
+        "command": "variant.sort.changedDesc",
+        "title": "Changed (newest)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "variant.sort",
+        "label": "Sort",
+        "icon": "$(list-filter)"
       }
     ],
     "configuration": {
       "title": "Variant Worktrees",
       "properties": {
+        "variant.autoExpand": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Expand the Variant Worktrees section in the Explorer when the editor starts, then return focus to the editor. `false` leaves the section as it was last collapsed. Default `true`."
+        },
+        "variant.sort": {
+          "type": "string",
+          "enum": [
+            "name-asc",
+            "name-desc",
+            "created-asc",
+            "created-desc",
+            "changed-asc",
+            "changed-desc"
+          ],
+          "default": "name-asc",
+          "markdownDescription": "Order of the Variant Worktrees section and the Variants panel. `name` is the slug. `created` is the earlier birth time of the variant directory and `variants.local.yaml`. `changed` is the later modification time of those two. A missing time sorts as older than every known time. Default `name-asc`."
+        },
         "variant.enable": {
           "type": "boolean",
           "default": true,
@@ -124,6 +221,145 @@
           "markdownDescription": "Which hooks.json receives the hook when `#variant.trigger#` is `hook`."
         }
       }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "variant.variants",
+          "name": "Variant Worktrees",
+          "when": "workspaceFolderCount > 0",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "variant.variants",
+        "contents": "No variants.yaml was found for this workspace. Add one to start using variants.",
+        "when": "variant.noConfig"
+      },
+      {
+        "view": "variant.variants",
+        "contents": "No variants yet. Run `variant create` in a terminal to make one.",
+        "when": "variant.noVariants"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "variant.play",
+          "when": "false"
+        },
+        {
+          "command": "variant.stop",
+          "when": "false"
+        },
+        {
+          "command": "variant.implode",
+          "when": "false"
+        },
+        {
+          "command": "variant.implodeDirty",
+          "when": "false"
+        },
+        {
+          "command": "variant.showOutput",
+          "when": "false"
+        },
+        {
+          "command": "variant.openUrl",
+          "when": "false"
+        },
+        {
+          "command": "variant.stopUiServer",
+          "when": "false"
+        },
+        {
+          "command": "variant.openPanel",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "variant.openInBrowser",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
+      "view/title": [
+        {
+          "submenu": "variant.sort",
+          "when": "view == variant.variants",
+          "group": "navigation@0"
+        },
+        {
+          "command": "variant.openPanel",
+          "when": "view == variant.variants",
+          "group": "navigation@1"
+        },
+        {
+          "command": "variant.openInBrowser",
+          "when": "view == variant.variants",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "variant.play",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up)( |$)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "variant.stop",
+          "when": "view == variant.variants && viewItem =~ /^variant (watching|up)( |$)/",
+          "group": "inline@2"
+        },
+        {
+          "command": "variant.implode",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) removable/ && viewItem =~ / clean/",
+          "group": "inline@9"
+        },
+        {
+          "command": "variant.implodeDirty",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) removable/ && viewItem =~ / dirty/",
+          "group": "inline@9"
+        },
+        {
+          "command": "variant.showOutput",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) .*has-log/",
+          "group": "1_output@1"
+        },
+        {
+          "command": "variant.openUrl",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) .*has-url/",
+          "group": "1_output@2"
+        },
+        {
+          "command": "variant.openPanel",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) /",
+          "group": "2_open@1"
+        },
+        {
+          "command": "variant.openInBrowser",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) /",
+          "group": "2_open@2"
+        },
+        {
+          "command": "variant.openInBrowser",
+          "when": "view == variant.variants && viewItem =~ /^ui-server$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "variant.stopUiServer",
+          "when": "view == variant.variants && viewItem =~ /^ui-server$/",
+          "group": "inline@2"
+        }
+      ],
+      "variant.sort": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+      ]
     }
   }
 }

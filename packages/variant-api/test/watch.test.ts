@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { OperationContext } from "../src/operations/types.js";
 import { watchVariant } from "../src/operations/watch.js";
 import { isProcessAlive } from "../src/runtime-state.js";
@@ -271,6 +271,17 @@ describe("watch starts host processes", () => {
       },
       BASE.replace("    fe: { kind: vite, dir: fe,", "    fe: { kind: vite, dir: gone,"),
     ));
+
+  it("keeps the variant-ui entry that the server recorded in the runtime state of main", () =>
+    withProject(async ({ watch, localFile, runtime }) => {
+      const ui = { port: 62100, pid: process.pid, url: "http://ui.vw.localhost:62100" };
+      writeFileSync(localFile, stringifyYaml({ runtime: { instances: { "variant-ui": ui } } }));
+
+      await watch({ detach: true }, "main");
+
+      expect(runtime().instances["variant-ui"]).toEqual(ui);
+      expect(Object.keys(runtime().instances).sort()).toEqual(["be", "fe", "variant-ui"]);
+    }));
 
   it("never touches the database target of main", () =>
     withProject(async ({ watch, database }) => {

@@ -3,7 +3,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { createClient } from "../src/index.js";
 import { isProcessAlive } from "../src/runtime-state.js";
 import { type EngineStub, installEngineStub } from "./support/engine-stub.js";
@@ -174,6 +174,26 @@ describe("down", () => {
 
       expect(result.slug).toBe("main");
       expect(await untilDead(watcher.pid)).toBe(true);
+    }));
+
+  it("leaves the variant-ui server of main running and recorded", () =>
+    withProject(async ({ directory, down, localFile }) => {
+      const watcher = await startWatcher(join(directory, "fe"));
+      const server = await startWatcher(join(directory, "be"));
+      const ui = { port: 62100, pid: server.pid, url: "http://ui.vw.localhost:62100" };
+      writeFileSync(
+        localFile,
+        stringifyYaml({
+          runtime: { slug: "main", instances: { fe: { pid: watcher.pid }, "variant-ui": ui } },
+        }),
+      );
+
+      const result = await down("main");
+
+      expect(result.processes.map(({ key }) => key)).toEqual(["fe"]);
+      expect(await untilDead(watcher.pid)).toBe(true);
+      expect(isProcessAlive(server.pid)).toBe(true);
+      expect(parseYaml(readFileSync(localFile, "utf8"))).toEqual({ runtime: { instances: { "variant-ui": ui } } });
     }));
 
   it("succeeds and reports nothing stopped when nothing runs", () =>

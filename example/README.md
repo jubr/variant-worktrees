@@ -34,4 +34,4 @@ variant implode demo          # remove the variant, its database and its worktre
 - A container receives only the `VARIANT_*` and database variables, not `env.overrides`. `watch` uses the seeded host
   SQLite file; `up` runs `be` with a fresh database inside its image (`/data/variant.sqlite`).
 - A container engine in a VM (colima, podman machine) can only mount directories it shares, usually below `$HOME`.
-- `url` on `fe` is the URL of the app: `http://<slug>.vw.localhost:<port>`.
+- `url` on `fe` is the URL of the app: `http://<slug>.<abbr>.localhost:<port>` (`variant.abbr` is `vw` here).

@@ -46,6 +46,12 @@ export interface VariantRecord extends VariantState {
   log?: string;
   /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
   runtime?: RuntimeStatus;
+  /** Earlier birth time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  createdMs?: number;
+  /** Later modification time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  changedMs?: number;
+  /** Whether `implode` of this slug without `force` would succeed. Always false for `main`. */
+  implodeClean: boolean;
 }
 
 export interface VariantClientOptions {
@@ -54,6 +60,20 @@ export interface VariantClientOptions {
   cwd?: string;
   stateDir?: string;
   worktree?: boolean;
+  /** Timing of `subscribe`; the defaults are 200 ms and 5 s. */
+  subscription?: {
+    /** Changes that follow each other within this time produce one delivery. */
+    debounceMs?: number;
+    /** How often records are read although no file changed, to notice a process that ended. */
+    livenessIntervalMs?: number;
+  };
+}
+
+/** What a subscriber receives: the current records, and the reason the last read failed, when it did. */
+export interface VariantUpdate {
+  /** The records `list` returns; after a failed read, those of the last successful read. */
+  records: VariantRecord[];
+  error?: string;
 }
 
 /** How `down` talks to the person running it. */
@@ -173,6 +193,11 @@ export interface VariantClient {
     options?: { verbose?: boolean; log?: (line: string) => void },
   ): Promise<{ slug: string; commands: string[]; output: string }>;
   config(): ResolvedConfig;
+  /**
+   * Delivers the records now and again whenever they change: a state file, a runtime file or a worktree changes, or a
+   * recorded process ends. `uptimeSeconds` alone is no change. Returns the function that ends the subscription.
+   */
+  subscribe(listener: (update: VariantUpdate) => void): () => void;
 }
 
 export interface DatabaseAdapter {

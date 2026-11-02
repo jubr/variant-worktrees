@@ -6,6 +6,7 @@ db:
   dialect: sqlite
 
 variant:
+  abbr: vw # the host of the open URL below; without it the abbreviation would come from this directory's name
   seed: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
   storage: {} # a per-variant .storage directory, passed to commands in STORAGE_ROOT
   steps:
@@ -34,7 +35,7 @@ variant:
       kind: vite
       dir: fe
       watch: bun run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://{{slug}}.{{abbr}}.localhost:{{port}}
       env:
         overrides:
           PORT: '{{port}}'

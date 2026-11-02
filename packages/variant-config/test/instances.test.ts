@@ -8,6 +8,10 @@ import { DEFAULT_URL } from "../src/schema.js";
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-instances-"));
 
 describe("runtime instance discovery", () => {
+  it("gives a detected Vite instance the default template with the abbreviation placeholder", () => {
+    expect(DEFAULT_URL).toBe("http://{{slug}}.{{abbr}}.localhost:{{port}}");
+  });
+
   it("detects Vite and NestJS applications below the config directory", () => {
     const directory = tempDirectory();
     try {
