@@ -7,7 +7,7 @@ import { parse as parseToml } from "smol-toml";
 import { parse as parseYaml } from "yaml";
 import { detectInstances } from "../src/autodetect.js";
 import { dotenvFor, loadConfig, openUrlFor, writeRuntime } from "../src/index.js";
-import { DEFAULT_OPEN_URL, VariantsConfigSchema } from "../src/schema.js";
+import { DEFAULT_URL, VariantsConfigSchema } from "../src/schema.js";
 
 /** The example project of the repository: the fixture of these tests. */
 const exampleDirectory = fileURLToPath(new URL("../../../example/", import.meta.url));
@@ -32,14 +32,14 @@ describe("the example project", () => {
     expect(VariantsConfigSchema.safeParse(parsed).success).toBe(true);
   });
 
-  it("lists fe (Vite, open) and be (NestJS, dotenv) with a seed command on SQLite", () => {
+  it("lists fe (Vite, url) and be (NestJS, env.sourceFile) with a seed command on SQLite", () => {
     const config = loadConfig({ cwd: exampleDirectory });
 
     expect(config.db.dialect).toBe("sqlite");
     expect(config.variant?.seed).toBe("bun scripts/seed.mjs");
     expect(config.variant.instances).toMatchObject({
-      fe: { kind: "vite", dir: "fe", open: DEFAULT_OPEN_URL },
-      be: { kind: "nestjs", dir: "be", dotenv: ".env" },
+      fe: { kind: "vite", dir: "fe", url: DEFAULT_URL },
+      be: { kind: "nestjs", dir: "be", env: { sourceFile: ".env" } },
     });
     expect(Object.keys(config.variant.instances)).toEqual(["be", "fe"]);
   });
@@ -47,23 +47,32 @@ describe("the example project", () => {
   it("uses the options for storage, steps, implode, readiness, environment and containers", () => {
     const { variant } = loadConfig({ cwd: exampleDirectory });
 
-    expect(variant.storage).toEqual({ dir: ".storage", env: "STORAGE_ROOT" });
+    expect(variant.storage).toEqual({ dir: ".storage", envVarName: "STORAGE_ROOT" });
     expect(variant.steps?.map((step) => step.name)).toEqual(["storage"]);
-    expect(variant.implode).toMatchObject({ preRm: ["dist", "node_modules", ".cache", "out"], restore: ["bun.lock"] });
+    expect(variant.implode).toMatchObject({ preRm: ["dist", "node_modules", ".cache", "out"], discard: ["bun.lock"] });
     expect(variant.instances.be).toMatchObject({
       ready: "/api",
-      env: { PORT: "{{port}}", SQLITE_DATABASE: "{{schema}}" },
-      container: { dockerfile: "be/Dockerfile", port: 3000 },
+      env: { sourceFile: ".env", overrides: { PORT: "{{port}}", SQLITE_DATABASE: "{{schema}}" } },
+      container: { dockerfile: "be/Dockerfile", internalPort: 3000 },
     });
     expect(variant.instances.fe).toMatchObject({
       ready: "/",
-      env: { VARIANT_API_PORT: "{{port.be}}" },
-      container: { static: "dist", proxy: { path: "/api/", to: "be" } },
+      env: { overrides: { PORT: "{{port}}", VARIANT_API_PORT: "{{be.port}}" } },
+      container: { dockerfile: "fe/Dockerfile" },
     });
   });
 
-  it("ships the Dockerfile that the be container builds", () => {
-    expect(existsSync(join(exampleDirectory, "be/Dockerfile"))).toBe(true);
+  it("ships the Dockerfile of every container, and the fe one serves with nginx:alpine and proxies to be", () => {
+    const { variant } = loadConfig({ cwd: exampleDirectory });
+
+    for (const instance of Object.values(variant.instances)) {
+      expect(existsSync(join(exampleDirectory, instance.container?.dockerfile ?? "missing"))).toBe(true);
+    }
+    const fe = readFileSync(join(exampleDirectory, "fe/Dockerfile"), "utf8");
+    const template = readFileSync(join(exampleDirectory, "fe/nginx.conf.template"), "utf8");
+
+    expect(fe).toMatch(/^FROM nginx:alpine$/m);
+    expect(template).toMatch(/proxy_pass http:\/\/v-be-\$\{VARIANT_SLUG\}:3000\/api\/;/);
   });
 
   it("autodetects the same instances the config lists", () => {
@@ -76,7 +85,7 @@ describe("the example project", () => {
     expect(detected).toEqual([...explicit].sort((left, right) => left.dir.localeCompare(right.dir)));
   });
 
-  it("derives be's dotenv from .env.example with the variant's values", () => {
+  it("derives be's env file from .env.example with the variant's values", () => {
     const config = loadConfig({ cwd: exampleDirectory });
     const be = config.variant.instances.be;
     if (!be) {

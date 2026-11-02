@@ -12,7 +12,7 @@ const PROJECT = [
   "    fe:",
   "      kind: vite",
   "      dir: fe",
-  "      open: http://{{slug}}.vw.localhost:{{port}}",
+  "      url: http://{{slug}}.vw.localhost:{{port}}",
   "    be:",
   "      kind: nestjs",
   "      dir: be",

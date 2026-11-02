@@ -12,7 +12,7 @@ import {
   DEFAULT_PREFIX,
   DEFAULT_RESERVED_PORTS,
   DEFAULT_STORAGE_DIR,
-  DEFAULT_STORAGE_ENV,
+  DEFAULT_STORAGE_ENV_VAR,
   VariantsConfigSchema,
   variantsJsonSchema,
 } from "./schema.js";
@@ -76,7 +76,12 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     open: resolveOpen(variant.open, env),
     reservedPorts: variant.reservedPorts ?? [...DEFAULT_RESERVED_PORTS],
     ...(storage
-      ? { storage: { dir: storage.dir ?? DEFAULT_STORAGE_DIR, env: storage.env ?? DEFAULT_STORAGE_ENV } }
+      ? {
+          storage: {
+            dir: storage.dir ?? DEFAULT_STORAGE_DIR,
+            envVarName: storage.envVarName ?? DEFAULT_STORAGE_ENV_VAR,
+          },
+        }
       : {}),
     supervise: {
       startDelaySeconds: supervise?.startDelaySeconds ?? 2,
@@ -85,8 +90,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     },
     implode: {
       preRm: implode?.preRm ?? [],
-      restore: implode?.restore ?? [],
-      untracked: implode?.untracked ?? [],
+      discard: implode?.discard ?? [],
       requireMerged: implode?.requireMerged ?? true,
       maxDiffLines: implode?.maxDiffLines ?? DEFAULT_MAX_DIFF_LINES,
     },
@@ -129,11 +133,8 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
   config.variants?.[slug]?.seed ?? config.variant.seed;
 
-export const runtimeCommandFor = (
-  config: ResolvedConfig,
-  kind: "up" | "watch",
-  instance?: VariantInstance,
-): string | undefined => instance?.[kind] ?? config.variant[kind];
+export const runtimeCommandFor = (kind: "up" | "watch", instance: VariantInstance): string | undefined =>
+  instance[kind];
 
 /**
  * Only the variant name prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
@@ -188,8 +189,8 @@ export type {
   VariantsLocal,
 } from "./schema.js";
 export {
-  DEFAULT_OPEN_URL,
   DEFAULT_PREFIX,
+  DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
   VariantsConfigSchema,
