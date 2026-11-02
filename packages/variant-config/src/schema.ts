@@ -175,6 +175,9 @@ export const VariantImplodeSchema = z.strictObject({
 
 export const VariantRuntimeSchema = z
   .strictObject({
+    /** The main git checkout the worktrees are made from; default: detected. */
+    main: z.string().min(1).optional(),
+    /** The directory that holds the worktrees; default: the directory of a parent `AGENTS.md` symlink, else `main`. */
     root: z.string().min(1).optional(),
     prefix: prefixSchema.optional(),
     /** Branch that new variant branches start from, and that a variant is merged into before it is imploded. */
@@ -279,6 +282,8 @@ export const RuntimeSchema = z.strictObject({
   slug: z.string().min(1).optional(),
   mode: z.enum(["up", "watch"]).optional(),
   dir: z.string().min(1).optional(),
+  /** The log file of a detached `watch`: the output of all its processes. */
+  log: z.string().min(1).optional(),
   db: RuntimeDbSchema.optional(),
   /** Keyed by the key of the entry in `variant.instances`. */
   instances: z.record(z.string().min(1), RuntimeInstanceSchema).optional(),
@@ -296,6 +301,7 @@ export type VariantsLocal = z.infer<typeof VariantsLocalSchema>;
 /** `variant` as resolved by `loadConfig`: defaults applied, instances always a record. */
 export type ResolvedVariant = Omit<
   VariantRuntime,
+  | "main"
   | "root"
   | "prefix"
   | "instances"
@@ -307,6 +313,7 @@ export type ResolvedVariant = Omit<
   | "supervise"
   | "implode"
 > & {
+  main: string;
   root: string;
   prefix: string;
   instances: Record<string, VariantInstance>;

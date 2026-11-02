@@ -58,6 +58,16 @@ for response types.
 Documentation-only baseline changes do not require new product tests, but they
 must run the existing checks cited as evidence by the selected OpenSpec change.
 
+## Documenting new commands and functionality
+
+Any extra commands or functionality that you add must also be added to the
+[`README.md`](README.md) and to the documentation under `docs/`, in the same
+pull request: a new CLI command appears in the README CLI section, as a section in
+`docs/guide/core.md`, and, when it is a lifecycle command, as a tool in
+`docs/mcp.md`; a new flag, output format, or configuration key appears wherever
+its command or section is described. `scripts/docs-coverage.spec.ts` fails for a
+registered command that is missing from them. Record the change in `CHANGELOG.md`.
+
 ## Tool execution
 
 **All commands** and project tools (`openspec`, `task`, `bun`, `hk`, `commitlint`, etc)
@@ -131,8 +141,9 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
   `v<version>`. No release when that tag already exists. Manual dispatch with
   `dry-run` (default) builds the assets without releasing.
 - `publish-extensions.yaml` — publishes the `.vsix` files of a release tag to the
-  Visual Studio Marketplace and/or Open VSX. Called as the last job of
-  `ci-release.yaml` when that run created the release; also manually dispatchable.
+  Visual Studio Marketplace and/or Open VSX. Triggered by `workflow_run` after
+  `ci-release.yaml` completes, and only when that run created the release; also
+  manually dispatchable.
 - `docs.yml` — TypeDoc + VitePress to GitHub Pages (main)
 
 When adding a gate, expose it as a `task` and call that task from the workflow.
@@ -147,9 +158,8 @@ by hand, dispatch `publish-extensions.yaml` with the tag. One-time setup: enviro
 `marketplace` holding the secret `VSCE_PAT` (Visual Studio Marketplace; its trusted publishing is not supported
 yet, see [vsmarketplace#1422](https://github.com/microsoft/vsmarketplace/issues/1422)).
 Open VSX needs no token: register a trusted publisher per extension on open-vsx.org
-(workflow `ci-release.yaml`, environment `marketplace`; Open VSX checks the calling
-workflow when publishing runs from the release workflow, so also register
-`publish-extensions.yaml` to keep manual dispatch working). The first Open VSX
+(workflow `publish-extensions.yaml`, environment `marketplace`; it runs as its own
+workflow both after a release and on manual dispatch). The first Open VSX
 version of an extension must be published once with a token, since a trusted
 publisher needs an existing extension. The workflow keeps the Marketplace Entra
 variant as commented-out lines; it needs `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and

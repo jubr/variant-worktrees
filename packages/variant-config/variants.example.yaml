@@ -19,7 +19,8 @@ db:
 
 # Runtime layout of variants.
 variant:
-  root: .. # directory that holds the variant worktrees; default: detected from the git checkout
+  main: . # the main checkout the worktrees are made from; default: detected (target of a parent AGENTS.md symlink, else the git checkout)
+  root: .. # directory that holds the variant worktrees; default: the directory of a parent AGENTS.md symlink into main, else main
   prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
   baseBranch: main # new variant branches start here, and a variant must be merged here before `implode`
   branchPrefixes: # the first prefixes a new branch; all of them are dropped from a branch name to get a slug

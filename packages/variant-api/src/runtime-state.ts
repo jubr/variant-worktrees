@@ -24,6 +24,10 @@ export const variantConfigDir = (config: ResolvedConfig, worktree: string): stri
   }
 };
 
+/** The log file of the detached watch of the variant in `worktree`, next to its `variants.local.yaml`. */
+export const watchLogPath = (config: ResolvedConfig, worktree: string): string =>
+  join(variantConfigDir(config, worktree), "variants.watch.log");
+
 /** The runtime state recorded in `worktree`, with `VARIANT_<KEY>_*` overrides applied to the configured instances. */
 export const readVariantRuntime = (
   config: ResolvedConfig,

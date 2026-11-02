@@ -31,12 +31,14 @@ export const runtimeOf = (
   run: VariantRun,
   mode: "up" | "watch",
   pids: Readonly<Record<string, number>> = {},
+  log?: string,
 ): Runtime => {
   const db = config.db;
   return {
     slug: run.slug,
     mode,
     dir: run.worktree,
+    ...(log ? { log } : {}),
     db: {
       ...(db.dialect ? { dialect: db.dialect } : {}),
       ...(db.dialect === "sqlite" ? { filename: run.target } : { schema: run.target }),

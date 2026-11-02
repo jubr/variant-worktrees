@@ -2,15 +2,20 @@ name: Publish extensions
 
 # Specification: openspec/specs/meta/release-artifacts/spec.md (Manual registry publication)
 # Publishes the .vsix files attached to one GitHub Release, without rebuilding.
-# Runs by manual dispatch, and as the last job of ci-release.yaml (workflow_call)
-# right after a new release is created. Open VSX uses OIDC trusted publishing (no
-# token). The Visual Studio Marketplace still needs the repository secret VSCE_PAT: its
-# trusted publishing is not supported yet, see
+# Runs by manual dispatch, and automatically after the "Release" workflow
+# (ci-release.yaml) completes on main. It is a separate top-level workflow, not a
+# workflow_call from ci-release.yaml, so the OIDC token of Open VSX trusted publishing
+# names this file as the workflow. The Visual Studio Marketplace still needs the
+# repository secret VSCE_PAT: its trusted publishing is not supported yet, see
 # https://github.com/microsoft/vsmarketplace/issues/1422
 # Needs a `marketplace` environment with secret VSCE_PAT, and an Open VSX trusted
-# publisher registered for the calling workflow (ci-release.yaml, or this file for
-# manual dispatch) and the `marketplace` environment.
+# publisher registered for this workflow (publish-extensions.yaml) and the
+# `marketplace` environment.
 on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -22,16 +27,6 @@ on:
         type: choice
         options: [both, marketplace, openvsx]
         default: both
-  workflow_call:
-    inputs:
-      tag:
-        description: "Release tag to publish, for example v1.2.3"
-        type: string
-        required: true
-      registry:
-        description: "Which registry receives the .vsix files: both, marketplace or openvsx"
-        type: string
-        default: both
 
 permissions:
   contents: read
@@ -41,13 +36,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Validate release
+  # Picks the tag to publish. Dispatch: the input. After a Release run: the tag that
+  # points at the commit that run released; none means that run created no release
+  # (version already tagged, dry run), so nothing is published.
+  resolve:
+    name: Resolve release tag
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      TAG: ${{ inputs.tag }}
+      INPUT_TAG: ${{ inputs.tag }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - id: resolve
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            tag="$INPUT_TAG"
+          else
+            tag="$(gh api "repos/${GH_REPO}/git/matching-refs/tags/v" --paginate \
+              --jq '.[] | select(.object.sha == env.HEAD_SHA) | .ref | ltrimstr("refs/tags/")' | head -n 1)"
+          fi
+          if [ -z "$tag" ]; then
+            echo "No release tag points at ${HEAD_SHA}; nothing to publish." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: Validate release
+    needs: resolve
+    if: needs.resolve.outputs.tag != ''
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.resolve.outputs.tag }}
     steps:
       - name: Download .vsix assets
         run: |
@@ -62,16 +92,35 @@ jobs:
             exit 1
           fi
           ls -l vsix
+      # One publish job per registry x .vsix file. Empty registry (workflow_run) means both.
+      - id: matrix
+        env:
+          REGISTRY: ${{ inputs.registry }}
+        run: |
+          files="$(printf '%s\n' vsix/*.vsix | jq -R . | jq -cs .)"
+          matrix="$(jq -cn --arg reg "$REGISTRY" --argjson files "$files" '
+            {include: [
+              (if $reg == "" or $reg == "both" then ["marketplace", "openvsx"] else [$reg] end)[] as $r
+              | $files[] as $f
+              | {registry: $r, file: $f}
+            ]}')"
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
       - uses: actions/upload-artifact@v4
         with:
           name: vsix
           path: vsix/*.vsix
           if-no-files-found: error
 
+  # AIDEV-NOTE: one job per registry x .vsix file; fail-fast off so one failure never
+  # cancels or blocks the other combinations, and they all run in parallel.
   publish:
-    name: Publish to registries
+    name: Publish ${{ matrix.registry }} ${{ matrix.file }}
     needs: validate
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.validate.outputs.matrix) }}
     environment: marketplace
     permissions:
       contents: read
@@ -86,11 +135,12 @@ jobs:
         with:
           name: vsix
           path: vsix
-      - name: Require downloaded .vsix files
+      - name: Require downloaded .vsix file
+        env:
+          FILE: ${{ matrix.file }}
         run: |
-          count="$(find vsix -name '*.vsix' | wc -l)"
-          if [ "$count" -lt 1 ]; then
-            echo "::error::publish directory has no .vsix file"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::${FILE} not found"
             exit 1
           fi
       # AIDEV-NOTE: Marketplace trusted publishing is not supported yet
@@ -101,24 +151,22 @@ jobs:
       # required, on the `marketplace` environment) for a managed identity that has a
       # GitHub federated credential and is a member of the Marketplace publisher.
       # - name: Azure login (Entra workload identity federation)
-      #   if: inputs.registry == 'both' || inputs.registry == 'marketplace'
+      #   if: matrix.registry == 'marketplace'
       #   uses: azure/login@v2
       #   with:
       #     client-id: ${{ vars.AZURE_CLIENT_ID }}
       #     tenant-id: ${{ vars.AZURE_TENANT_ID }}
       #     subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Visual Studio Marketplace
-        if: inputs.registry == 'both' || inputs.registry == 'marketplace'
+        if: matrix.registry == 'marketplace'
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          FILE: ${{ matrix.file }}
         run: |
-          for file in vsix/*.vsix; do
-            bunx @vscode/vsce@2.32.0 publish --packagePath "$file"
-            # bunx @vscode/vsce@2.32.0 publish --azure-credential --packagePath "$file"
-          done
+          bunx @vscode/vsce@2.32.0 publish --packagePath "$FILE"
+          # bunx @vscode/vsce@2.32.0 publish --azure-credential --packagePath "$FILE"
       - name: Open VSX
-        if: inputs.registry == 'both' || inputs.registry == 'openvsx'
-        run: |
-          for file in vsix/*.vsix; do
-            bunx ovsx@1.3.0 publish "$file" --trusted-publishing
-          done
+        if: matrix.registry == 'openvsx'
+        env:
+          FILE: ${{ matrix.file }}
+        run: bunx ovsx@1.3.0 publish "$FILE" --trusted-publishing
