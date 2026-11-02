@@ -90,6 +90,16 @@ tasks:
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun run --filter ./packages/chat-renamer-vscode vsce-package
 
+  package:vsix:unpacked:
+    desc: "Variant worktree only: build, package the variant-worktrees vsix, and unpack it into the main checkout at out/variant-worktrees-main"
+    preconditions:
+      - sh: bun scripts/package-vsix-unpacked.ts --check
+        msg: "package:vsix:unpacked runs only in a variant worktree"
+    cmds:
+      - task: build
+      - bun run --filter ./packages/variant-vscode vsce-package
+      - bun scripts/package-vsix-unpacked.ts
+
   package:cli:
     desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host)"
     cmds:
@@ -109,6 +119,26 @@ tasks:
   version:incr:patch:
     desc: "Bump the patch version in the root and every packages/*/package.json, and in bun.lock"
     cmds: ["bun scripts/version-incr.ts"]
+
+  release:check:
+    desc: "Fail unless this is a clean, current main with one release version and an authenticated gh"
+    cmds: ["bun scripts/release-prepare.ts check"]
+
+  release:changelog:
+    desc: "Move Unreleased to the new version in every CHANGELOG*.md and add the GitHub-generated release notes"
+    cmds: ["bun scripts/release-changelog.ts"]
+
+  release:pr:
+    desc: "Commit on release/v<version>, push it and open a pull request into main (no tag)"
+    cmds: ["bun scripts/release-prepare.ts pr"]
+
+  release:prepare:
+    desc: "Prepare a patch release: check, bump the version, write release notes, open the release pull request"
+    cmds:
+      - task: release:check
+      - task: version:incr:patch
+      - task: release:changelog
+      - task: release:pr
 
   clean:
     desc: "Remove package dist directories"

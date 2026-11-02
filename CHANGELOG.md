@@ -4,6 +4,9 @@
 
 ### Added
 
+- `task release:prepare` prepares a patch release from `main`: version bump, GitHub-generated release notes in every
+  `CHANGELOG*.md`, a `chore(release): v<version>` commit on `release/v<version>`, and a pull request into `main`. The
+  parts are `release:check`, `release:changelog` and `release:pr`. It does not tag; the release workflow does at merge.
 - `variant completions <shell>` prints a completion script for `zsh`, `bash`, or `fish`. It completes the subcommands,
   their flags, and the slugs of existing variants; the scripts derive from the CLI's own command definitions.
   `variant completions --list-slugs` prints those slugs from local variant state and worktrees.
@@ -52,6 +55,8 @@
 
 ### Changed
 
+- The extension description and README tagline are `Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode`.
+  The extension README no longer embeds the icon by a relative path, which rendered broken on the extension pages.
 - **BREAKING** `variants.yaml` options are renamed or merged. Migrate with this table:
   - `open` (instance) becomes `url`.
   - `dotenv`, `dotenvSource`, `env` and `envAlways` become `env: { sourceFile, overrides }`. The overrides and the

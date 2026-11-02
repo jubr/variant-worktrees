@@ -8,12 +8,12 @@ The repository README and the `variant-worktrees` extension README introduce the
 
 ### Requirement: Extension description
 
-The `variant-vscode` manifest `description` SHALL be `Isolated worktree+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode`.
+The `variant-vscode` manifest `description` SHALL be `Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode`.
 
 #### Scenario: Marketplace tagline
 
 - **WHEN** the `variant-vscode` `package.json` is read
-- **THEN** its `description` is `Isolated worktree+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode`
+- **THEN** its `description` is `Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode`
 
 ### Requirement: README tagline
 
@@ -94,3 +94,12 @@ The repository README and the configuration guide of the documentation site SHAL
 
 - **WHEN** the mapping is read
 - **THEN** `VARIANT_SLUG` is tied to `{{slug}}`, `VARIANT_TARGET` to `{{schema}}`, `VARIANT_<KEY>_PORT` to `{{<key>.port}}` and `runtime.instances.<key>.port`, `VARIANT_OPEN` to `variant.open`, `VARIANT_ENV_SOURCE` to `env.sourceFile` and `VARIANT_STEP_<NAME>` to the step `name`
+
+### Requirement: Extension README has no relative images
+
+The `variant-vscode` package README SHALL NOT embed an image by a repository-relative path, because the extension pages of the marketplaces do not resolve it and render a broken image. The extension icon stays the manifest `icon`.
+
+#### Scenario: No relative image
+
+- **WHEN** the `variant-vscode` package README is read
+- **THEN** it contains no markdown image whose target is not an absolute `https://` URL

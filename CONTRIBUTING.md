@@ -156,9 +156,19 @@ When adding a gate, expose it as a `task` and call that task from the workflow.
 ### Releasing
 
 The root package, `variant-api`, `variant-vscode` and `chat-renamer` share one
-version (`task release:version` fails when they differ). Run `task version:incr:patch`
-to bump every package and `bun.lock`, merge to `main`; a green build tags and releases
-that version and then runs `publish-extensions.yaml` for it. To publish an older tag
+version (`task release:version` fails when they differ). Run `task release:prepare` on a
+clean, current `main` (tracked files unchanged; `gh` authenticated). It chains four tasks, each
+runnable alone to resume after a failure:
+
+1. `task release:check`: refuses unless on `main`, tracked files unchanged, not behind `origin/main`, versions agree, `gh` authenticated.
+2. `task version:incr:patch`: bumps every package and `bun.lock`.
+3. `task release:changelog`: in every `CHANGELOG*.md` moves `Unreleased` under `## [<version>] - <date>` and adds the
+   GitHub-generated pull request list as `### Release notes`.
+4. `task release:pr`: commits `chore(release): v<version>` on `release/v<version>`, pushes it and opens a pull request into
+   `main` with the generated notes as its body. If the push fails, fix the remote and run `task release:pr` again.
+
+It never tags or merges. A human reviews and merges the pull request; a green build then tags and releases
+that version and runs `publish-extensions.yaml` for it. To publish an older tag
 by hand, dispatch `publish-extensions.yaml` with the tag. One-time setup: environment
 `marketplace` holding the secret `VSCE_PAT` (Visual Studio Marketplace; its trusted publishing is not supported
 yet, see [vsmarketplace#1422](https://github.com/microsoft/vsmarketplace/issues/1422)).
