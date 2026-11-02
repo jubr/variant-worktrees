@@ -11,6 +11,7 @@ export const record = (slug: string, extra: Partial<VariantRecord> = {}): Varian
   statePath: "",
   createdAt: "",
   exists: true,
+  implodeClean: slug !== "main",
   ...extra,
 });
 

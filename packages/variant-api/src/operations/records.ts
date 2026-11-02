@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
   type DiscoveredRuntime,
@@ -7,6 +7,7 @@ import {
   readRuntimes,
   UI_INSTANCE_KEY,
 } from "variant-config";
+import { implodeWouldSucceed } from "../implode-clean.js";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { readState, stateSlugs } from "../state.js";
@@ -67,6 +68,40 @@ const ownInstances = (instances: Record<string, InstanceFacts>): InstanceFacts[]
     .filter(([key]) => key !== UI_INSTANCE_KEY)
     .map(([, instance]) => instance);
 
+/** Birth and modification times of one path, or nothing when it cannot be read. */
+const momentOf = (path: string): { birth: number; mtime: number } | undefined => {
+  try {
+    const stat = statSync(path);
+    return { birth: stat.birthtimeMs, mtime: stat.mtimeMs };
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * `createdMs` is the earlier birth time of the variant directory and its `variants.local.yaml`.
+ * `changedMs` is the later modification time of those paths. A missing path is skipped.
+ */
+const timesOf = (
+  directory: string | undefined,
+  yaml: string | undefined,
+): { createdMs?: number; changedMs?: number } => {
+  const moments = [directory, yaml].flatMap((path) => {
+    if (path === undefined || !existsSync(path)) {
+      return [];
+    }
+    const moment = momentOf(path);
+    return moment === undefined ? [] : [moment];
+  });
+  if (moments.length === 0) {
+    return {};
+  }
+  return {
+    createdMs: Math.min(...moments.map((moment) => moment.birth)),
+    changedMs: Math.max(...moments.map((moment) => moment.mtime)),
+  };
+};
+
 /** The longest uptime among the instances that have one. */
 const longestUptime = (instances: Record<string, InstanceFacts>): number | undefined => {
   const all = ownInstances(instances).flatMap(({ uptimeSeconds }) =>
@@ -117,6 +152,8 @@ export const collectRecords = async (
     const url = ownInstances(instances ?? {}).find((instance) => instance.url !== undefined)?.url;
     const uptimeSeconds = instances ? longestUptime(instances) : undefined;
     const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
+    const directory = [state?.worktree, found?.dir].find((path) => path !== undefined && existsSync(path));
+    const yaml = found ? join(found.dir, LOCAL_FILENAME) : directory ? join(directory, LOCAL_FILENAME) : undefined;
     return {
       slug,
       target: state?.target ?? runtimeTarget ?? (databaseSlugs.has(slug) ? context.adapter.target(slug) : ""),
@@ -124,6 +161,8 @@ export const collectRecords = async (
       statePath: state?.statePath ?? "",
       worktree: state?.worktree ?? found?.runtime.dir ?? found?.dir,
       createdAt: state?.createdAt ?? "",
+      ...timesOf(directory, yaml),
+      implodeClean: implodeWouldSucceed(context, slug, state?.worktree ?? found?.dir),
       exists: true,
       ...(found?.runtime.mode ? { mode: found.runtime.mode } : {}),
       ...(url ? { url } : {}),

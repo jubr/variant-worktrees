@@ -14,6 +14,7 @@ const record = (slug: string, extra: Partial<VariantRecord> = {}): VariantRecord
   statePath: "",
   createdAt: "",
   exists: true,
+  implodeClean: slug !== "main",
   ...extra,
 });
 

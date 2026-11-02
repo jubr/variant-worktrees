@@ -46,6 +46,12 @@ export interface VariantRecord extends VariantState {
   log?: string;
   /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
   runtime?: RuntimeStatus;
+  /** Earlier birth time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  createdMs?: number;
+  /** Later modification time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  changedMs?: number;
+  /** Whether `implode` of this slug without `force` would succeed. Always false for `main`. */
+  implodeClean: boolean;
 }
 
 export interface VariantClientOptions {
