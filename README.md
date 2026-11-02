@@ -172,6 +172,25 @@ flags in `variant --help` and `variant <command> --help`.
 
 Give at most one of `--json` and `--yaml`.
 
+### Shell completion
+
+Completion scripts for `zsh`, `bash`, and `fish` come from `variant completions <shell>`. They complete the
+subcommands, the flags of each one, and the slugs of existing variants, read live from the local variant state and
+`_v-*` worktrees (never the database). Regenerate the script after you upgrade `variant`; the `eval`/`source` forms do
+it on every shell start.
+
+```bash
+# zsh: after compinit, in ~/.zshrc
+eval "$(variant completions zsh)"
+# or save it where $fpath finds it: variant completions zsh > ~/.zsh/completions/_variant
+
+# bash: in ~/.bashrc
+source <(variant completions bash)
+
+# fish
+variant completions fish > ~/.config/fish/completions/variant.fish
+```
+
 ## See your variants
 
 The extension adds a **Variant Worktrees** section to the Explorer. Each variant shows a watching, up or down icon and its uptime. **Sort**, left of Open Variants Panel, orders by name, created or changed (`variant.sort`, default name ascending). The play icon is **variant watch** (a detached `watch`). Stop brings the variant down. The trash icon sits at the right of every row except `main`: theme foreground when implode would succeed, red when it would fail. The context menu shows a variant's watch output, opens its URL, opens the panel and the web page. The view follows changes made by the CLI, an agent over MCP or another window within seconds. **Variant: Open Variants Panel** shows the same list, in the same order, in an editor panel.

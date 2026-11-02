@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { LOCAL_FILENAME, loadConfig } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
 import { createVariant } from "./operations/create.js";
@@ -12,7 +12,7 @@ import { statusVariant } from "./operations/status.js";
 import type { OperationContext } from "./operations/types.js";
 import { upVariant } from "./operations/up.js";
 import { watchVariant } from "./operations/watch.js";
-import { migrateJsonStates } from "./state.js";
+import { defaultStateDir, migrateJsonStates } from "./state.js";
 import { createStateSubscriptions, type WatchTarget } from "./subscribe.js";
 import type { VariantClient, VariantClientOptions } from "./types.js";
 
@@ -20,7 +20,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
   const cwd = resolve(options.cwd ?? process.cwd());
   const config = options.config ?? loadConfig({ cwd, configPath: options.configPath ?? process.env.VARIANT_CONFIG });
   const variantRoot = config.variant?.root ?? config.configDir;
-  const stateDir = resolve(options.stateDir ?? join(config.configDir, ".cache", "variants"));
+  const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));
   mkdirSync(stateDir, { recursive: true });
   migrateJsonStates(stateDir);
 
@@ -73,6 +73,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 };
 
 export { loadConfig } from "variant-config";
+export { listSlugs } from "./list-slugs.js";
 export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
