@@ -118,7 +118,7 @@ The system SHALL resolve two directories for the `<prefix><slug>` worktrees (def
 
 ### Requirement: Instance URL
 
-The system SHALL accept an optional `url` string on any entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}` and `{{port}}`, for example `http://{{slug}}.vw.localhost:{{port}}`. `url` SHALL NOT be an empty string. The key `open` on an instance SHALL fail validation. A Vite instance found by autodetection SHALL carry the default template `http://{{slug}}.vw.localhost:{{port}}`; a detected NestJS instance and an explicit instance carry only what they set. The system SHALL offer a function that returns the template of an instance with both placeholders replaced, or nothing when the instance has no template. This change does not launch the URL.
+The system SHALL accept an optional `url` string on any entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}`, `{{abbr}}` (the resolved `variant.abbr`) and `{{port}}`, for example `http://{{slug}}.{{abbr}}.localhost:{{port}}`. `url` SHALL NOT be an empty string. The key `open` on an instance SHALL fail validation. A Vite instance found by autodetection SHALL carry the default template `http://{{slug}}.{{abbr}}.localhost:{{port}}`; a detected NestJS instance and an explicit instance carry only what they set. The system SHALL offer a function that returns the template of an instance with all placeholders replaced, or nothing when the instance has no template. This change does not launch the URL.
 
 #### Scenario: Open template accepted
 
@@ -142,8 +142,13 @@ The system SHALL accept an optional `url` string on any entry of `variant.instan
 
 #### Scenario: Placeholders replaced
 
-- **WHEN** the URL of an instance with the default template is requested for slug `add-auth` and the instance's port is 62060
+- **WHEN** the URL of an instance with the default template is requested for slug `add-auth`, the abbreviation is `vw` and the instance's port is 62060
 - **THEN** the result is `http://add-auth.vw.localhost:62060`
+
+#### Scenario: Abbreviation placeholder in an explicit template
+
+- **WHEN** an instance sets `url: http://{{abbr}}-{{slug}}.localhost:{{port}}`, the abbreviation is `otc`, the slug is `demo` and the port is 62060
+- **THEN** the result is `http://otc-demo.localhost:62060`
 
 ### Requirement: Instance env
 
