@@ -6,7 +6,7 @@ What the variants React app shows for each variant and how play, stop and implod
 
 ### Requirement: Variant rows and states
 
-The app SHALL list every variant record, `main` first and the rest by slug, one row each with the slug, a state icon with a text label, the URL when the record has one, and the uptime when it has one. The state SHALL be `watching` when `mode` is `watch` and an instance is alive, `up` when `mode` is `up` and an instance is alive, and `down` otherwise, which includes a recorded mode whose processes are all dead (the row then also says the record is stale). The three states SHALL differ by icon shape and by label, not by colour alone. With no records the app SHALL show an empty state that names `variant create`.
+The app SHALL list every variant record, one row each with the slug, a state icon with a text label, the URL when the record has one, and the uptime when it has one, in the sort its host reports. The orders are `name-asc`, `name-desc`, `created-asc`, `created-desc`, `changed-asc` and `changed-desc`. A host that reports none SHALL be treated as `name-asc`. `name` compares slugs, `created` compares `createdMs` and `changed` compares `changedMs`. A missing time SHALL sort as older than every known time. Ascending SHALL be smaller first. An equal key SHALL break the tie by slug ascending. The UI server row stays above the variants. The state SHALL be `watching` when `mode` is `watch` and an instance is alive, `up` when `mode` is `up` and an instance is alive, and `down` otherwise, which includes a recorded mode whose processes are all dead (the row then also says the record is stale). The three states SHALL differ by icon shape and by label, not by colour alone. With no records the app SHALL show an empty state that names `variant create`.
 
 #### Scenario: Watching row
 
@@ -30,8 +30,13 @@ The app SHALL list every variant record, `main` first and the rest by slug, one 
 
 #### Scenario: Ordering
 
-- **WHEN** the records are `zeta`, `main` and `alpha`
-- **THEN** the rows are `main`, `alpha`, `zeta`
+- **WHEN** the records are `zeta`, `main` and `alpha` and the host reports no sort
+- **THEN** the rows are `alpha`, `main`, `zeta`
+
+#### Scenario: Changed descending
+
+- **WHEN** the host reports `changed-desc` and `old` has `changedMs` earlier than `new`
+- **THEN** the rows are `new` then `old`
 
 #### Scenario: No variants
 
@@ -40,7 +45,7 @@ The app SHALL list every variant record, `main` first and the rest by slug, one 
 
 ### Requirement: Controls per state
 
-Each row SHALL offer play, stop and implode. Play SHALL be enabled when the state is `down` or `up` and starts a watch. Stop SHALL be enabled when the state is `watching` or `up` and brings the variant down. Implode SHALL be enabled for every variant except `main`, which has no implode control. While an action of a row is pending, all controls of that row SHALL be disabled and the row SHALL show a busy indicator. Every control SHALL have an accessible name and be operable by keyboard.
+Each row SHALL offer play, stop and implode. The play control SHALL use the play icon and its accessible name and tooltip SHALL be `variant watch` plus the slug. Play SHALL be enabled when the state is `down` or `up` and starts a watch. Stop SHALL be enabled when the state is `watching` or `up` and brings the variant down. Implode SHALL be shown for every variant except `main`, which has no implode control, whether or not implode would succeed, and it SHALL be the rightmost control on the row. Its icon SHALL be a trash icon in the foreground colour when `implodeClean` is not false, so it is dark on a light background and light on a dark background, and red when `implodeClean` is false. That red SHALL stay readable on white and on a near-black background, and the accessible name SHALL say that implode would fail so the colour is not the only signal. While an action of a row is pending, all controls of that row SHALL be disabled and the row SHALL show a busy indicator. Every control SHALL have an accessible name and be operable by keyboard.
 
 #### Scenario: Down variant
 
@@ -61,6 +66,16 @@ Each row SHALL offer play, stop and implode. Play SHALL be enabled when the stat
 
 - **WHEN** the row is `main`
 - **THEN** it shows no implode control
+
+#### Scenario: Dirty implode icon
+
+- **WHEN** `demo` has `implodeClean` false
+- **THEN** its implode control is the rightmost control, its icon is red, and its accessible name says implode would fail
+
+#### Scenario: Clean implode icon
+
+- **WHEN** `demo` has no `implodeClean` or `implodeClean` true
+- **THEN** its implode icon uses the foreground colour
 
 #### Scenario: Pending action
 

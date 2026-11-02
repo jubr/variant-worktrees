@@ -6,7 +6,7 @@ An editor panel that shows the variants React app in a webview, and a command th
 
 ### Requirement: Variants panel
 
-The command `Variant: Open Variants Panel` SHALL open one webview panel that renders the variants app and wires it to the extension through the editor-message transport, so the panel shows the same records and runs the same actions as the Variants view. Running the command again SHALL reveal the existing panel. The webview SHALL load only scripts and styles from the extension's own files, under a content security policy with a per-load nonce, and SHALL use the editor theme variables. Closing the panel SHALL end its subscription.
+The command `Variant: Open Variants Panel` SHALL open one webview panel that renders the variants app and wires it to the extension through the editor-message transport, so the panel shows the same records, the same `variant.sort` order and runs the same actions as the Variants view. Changing `variant.sort` while the panel is open SHALL reorder it. Running the command again SHALL reveal the existing panel. The webview SHALL load only scripts and styles from the extension's own files, under a content security policy with a per-load nonce, and SHALL use the editor theme variables. Closing the panel SHALL end its subscription.
 
 #### Scenario: Open
 
@@ -17,6 +17,11 @@ The command `Variant: Open Variants Panel` SHALL open one webview panel that ren
 
 - **WHEN** the command runs while the panel is open
 - **THEN** that panel is revealed and no second panel opens
+
+#### Scenario: Sort follows the setting
+
+- **WHEN** `variant.sort` changes to `name-desc` while the panel is open
+- **THEN** the panel lists the variants in that order
 
 #### Scenario: Same actions
 

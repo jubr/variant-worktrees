@@ -47,3 +47,21 @@
 - [ ] 7.1 Reword `AGENTS.md` (the socket carries editor requests only; the extension's views call `variant-api` in-process) and `CONTRIBUTING.md` (new packages, test commands); verify the text matches the reworded spec
 - [ ] 7.2 Update `README.md`, the VS Code README and `docs/` for the Variants view, the panel, `variant ui` and the security model, `variant.abbr` and `{{abbr}}`, and the `variant-ui` reserved key; add `CHANGELOG.md` entries including **BREAKING** for the default `open` host and the VS Code 1.101 floor; verify `task docs:build` passes
 - [ ] 7.3 Run `task lint`, `task test`, `task build`, `task check:full` and `openspec validate --all --strict --no-interactive` and verify all pass
+
+## 8. Amendments: UI port setting and CLI packaging
+
+- [ ] 8.1 Add failing `variant-config` tests for `variant.ui.port` (set, absent, invalid, unknown key) and for rejecting the instance keys `ui` and `UI`; add `ui.port` to the schema, `variants.yaml.schema.json` and `variants.example.yaml`, and verify they pass
+- [ ] 8.2 Add failing `variant-server` tests for the port order (`VARIANT_UI_PORT`, then `variant.ui.port`, then a free unreserved port; empty variable unset; invalid variable names itself); replace `VARIANT_VARIANT_UI_PORT` in code, tests and docs, and verify they pass
+- [ ] 8.3 Bundle the server and the app into the `variant-cli` package: failing test that the built `dist/cli.js` has no `variant-server` import and `dist/ui/index.html` exists, then change the build and resolve the app next to the CLI file; verify `variant ui --detach` serves the app from the built CLI
+- [ ] 8.4 Embed the app in the compiled executables (`scripts/package-cli.ts`) and serve it from a name-to-path map; verify with a test of the map serving and by running a compiled executable outside the repository
+- [ ] 8.5 Update `AGENTS.md`, `README.md`, `docs/`, `CHANGELOG.md` for `variant.ui.port`, `VARIANT_UI_PORT` and the packaging; run `task check:full` and `openspec validate --all --strict --no-interactive`
+
+## 9. Sort, watch name, implode cleanliness
+
+- [ ] 9.1 Add failing tests that a record's `createdMs` is the earlier birth time of its directory and `variants.local.yaml`, and `changedMs` is the later modification time (directory only when the file is absent); implement on `list` and verify
+- [ ] 9.2 Add failing tests that `implodeClean` is false for `main` and for unmerged work, true for a clean merged worktree, true when the only dirt is a `preRm` untracked directory or a `restore` lockfile, and false for a modified source file; implement without deleting anything and verify
+- [ ] 9.3 Add failing tests for the six sort orders (missing times sort as older, ties by slug, UI server stays first) and for `variant.sort` default `name-asc`; contribute the Sort menu immediately left of Open Variants Panel and apply the setting to the tree and the panel
+- [ ] 9.4 Rename the play tooltip and the logged activity to `variant watch` / `watch`; keep the play icon; verify the view and the React row
+- [ ] 9.5 Show the trash icon on every row except `main`, rightmost, foreground when `implodeClean` is not false and red when it is false, readable on white and on a dark background; verify the tree contribution and the React row
+- [ ] 9.6 Update the README, the VS Code README, `docs/` and `CHANGELOG.md`; run `task check:full` and `openspec validate --all --strict --no-interactive`
+
