@@ -64,6 +64,13 @@ describe("styles", () => {
     }
   });
 
+  it("paints a clean implode in the foreground and a dirty one in the error colour", () => {
+    expect(declarations(css, ".implode-clean").color).toBe("var(--vv-fg)");
+    expect(declarations(css, ".implode-dirty").color).toBe("var(--vv-error)");
+    expect(declarations(css, ".implode-clean")["margin-left"]).toBe("auto");
+    expect(declarations(css, ".implode-dirty")["margin-left"]).toBe("auto");
+  });
+
   it("never hides the state label, so colour is not the only state signal", () => {
     for (const selector of [".state", ".state-watching", ".state-up", ".state-down"]) {
       const rule = declarations(css, selector);

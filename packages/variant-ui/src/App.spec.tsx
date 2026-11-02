@@ -50,6 +50,17 @@ describe("controls per state", () => {
     }
   });
 
+  it("keeps implode rightmost, foreground when clean and red when implode would fail", () => {
+    renderApp([{ slug: "clean", implodeClean: true }, { slug: "dirty", implodeClean: false }]);
+
+    const clean = control("clean", "Implode");
+    const dirty = within(row("dirty")).getByRole("button", { name: "Implode dirty, implode would fail" });
+    expect(clean.className).toContain("implode-clean");
+    expect(dirty.className).toContain("implode-dirty");
+    expect(within(row("clean")).getAllByRole("button").at(-1)).toBe(clean);
+    expect(within(row("dirty")).getAllByRole("button").at(-1)).toBe(dirty);
+  });
+
   it("gives main no implode control", () => {
     renderApp([{ slug: "main" }]);
 

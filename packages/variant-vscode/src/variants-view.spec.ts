@@ -302,7 +302,7 @@ describe("manifest contributions", () => {
   type Menu = { command: string; when?: string; group?: string };
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
     contributes: {
-      commands: Array<{ command: string; title: string; icon?: string }>;
+      commands: Array<{ command: string; title: string; icon?: string | { light: string; dark: string } }>;
       views: Record<string, Array<{ id: string; name: string; when?: string; visibility?: string }>>;
       viewsWelcome: Array<{ view: string; contents: string; when?: string }>;
       menus: Record<string, Menu[]>;
@@ -382,6 +382,7 @@ describe("manifest contributions", () => {
       "variant.play",
       "variant.stop",
       "variant.implode",
+      "variant.implodeDirty",
       "variant.showOutput",
       "variant.openUrl",
       "variant.openPanel",
@@ -401,14 +402,43 @@ describe("manifest contributions", () => {
     expect(matches(inline("variant.stop")?.when, "variant down removable")).toBe(false);
   });
 
-  it("offers implode on every item except main", () => {
-    expect(matches(inline("variant.implode")?.when, "variant down removable")).toBe(true);
-    expect(matches(inline("variant.implode")?.when, "variant watching removable")).toBe(true);
-    expect(matches(inline("variant.implode")?.when, "variant down main")).toBe(false);
+  it("offers implode on every item except main, foreground when clean and red when dirty", () => {
+    expect(matches(inline("variant.implode")?.when, "variant down removable clean")).toBe(true);
+    expect(matches(inline("variant.implode")?.when, "variant watching removable clean")).toBe(true);
+    expect(matches(inline("variant.implode")?.when, "variant down removable dirty")).toBe(false);
+    expect(matches(inline("variant.implodeDirty")?.when, "variant down removable dirty")).toBe(true);
+    expect(matches(inline("variant.implodeDirty")?.when, "variant down main dirty")).toBe(false);
+    expect(inline("variant.implode")?.group).toBe("inline@9");
+    expect(inline("variant.implodeDirty")?.group).toBe("inline@9");
+
+    const clean = commands.find((entry) => entry.command === "variant.implode");
+    const dirty = commands.find((entry) => entry.command === "variant.implodeDirty");
+    expect(clean?.title).toBe("Implode (would succeed)");
+    expect(clean?.icon).toBe("$(trash)");
+    expect(dirty?.title).toBe("Implode (would fail)");
+    expect(dirty?.icon).toEqual({
+      light: "media/trash-dirty-light.svg",
+      dark: "media/trash-dirty-dark.svg",
+    });
+    const fill = (file: string): string =>
+      /fill="(#[0-9a-fA-F]{6})"/.exec(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"))?.[1] ?? "";
+    const luminance = (hex: string): number => {
+      const [r, g, b] = [1, 3, 5].map((at) => {
+        const channel = Number.parseInt(hex.slice(at, at + 2), 16) / 255;
+        return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      }) as [number, number, number];
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contrast = (a: string, b: string): number => {
+      const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    expect(contrast(fill("media/trash-dirty-light.svg"), "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(fill("media/trash-dirty-dark.svg"), "#1e1e1e")).toBeGreaterThanOrEqual(4.5);
   });
 
   it("offers no inline action while an action runs, or on the error item", () => {
-    for (const command of ["variant.play", "variant.stop", "variant.implode"]) {
+    for (const command of ["variant.play", "variant.stop", "variant.implode", "variant.implodeDirty"]) {
       expect(matches(inline(command)?.when, "variant pending")).toBe(false);
       expect(matches(inline(command)?.when, "error")).toBe(false);
     }
@@ -440,6 +470,7 @@ describe("manifest contributions", () => {
         "variant.play",
         "variant.stop",
         "variant.implode",
+        "variant.implodeDirty",
         "variant.showOutput",
         "variant.openUrl",
         "variant.stopUiServer",

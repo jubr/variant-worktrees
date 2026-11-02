@@ -7,6 +7,8 @@
 !dist/*
 !dist/webview/*
 !media/icon-256.png
+!media/trash-dirty-light.svg
+!media/trash-dirty-dark.svg
 !CHANGELOG.md
 !LICENSE.txt
 !README.md

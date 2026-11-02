@@ -192,7 +192,7 @@ describe("variants tree", () => {
 
     const [demo, main] = items(provider);
 
-    expect(demo?.item.contextValue).toBe("variant up removable has-log has-url");
-    expect(main?.item.contextValue).toBe("variant down main");
+    expect(demo?.item.contextValue).toBe("variant up removable clean has-log has-url");
+    expect(main?.item.contextValue).toBe("variant down main dirty");
   });
 });

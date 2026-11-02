@@ -6,13 +6,22 @@ export const IconButton = ({
   label,
   disabled,
   onClick,
+  className,
 }: {
   icon: string;
   label: string;
   disabled: boolean;
   onClick: () => void;
+  className?: string;
 }) => (
-  <button type="button" className="icon-button" aria-label={label} title={label} disabled={disabled} onClick={onClick}>
+  <button
+    type="button"
+    className={className === undefined ? "icon-button" : `icon-button ${className}`}
+    aria-label={label}
+    title={label}
+    disabled={disabled}
+    onClick={onClick}
+  >
     <span className={`codicon codicon-${icon}`} aria-hidden="true" />
   </button>
 );

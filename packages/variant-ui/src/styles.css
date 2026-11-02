@@ -112,7 +112,20 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+}
+
+.implode-clean {
   margin-left: auto;
+  color: var(--vv-fg);
+}
+
+.implode-dirty {
+  margin-left: auto;
+  color: var(--vv-error);
+}
+
+.icon-button.implode-dirty:disabled {
+  opacity: 1;
 }
 
 .icon-button {

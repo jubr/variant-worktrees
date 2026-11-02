@@ -31,6 +31,7 @@ export const VariantRow = ({ variant }: { variant: Variant }) => {
   const { slug } = variant;
   const { state } = stateOf(variant);
   const idle = connected && !pending;
+  const dirty = variant.implodeClean === false;
 
   return (
     <li className="variant-row" data-slug={slug} aria-labelledby={`variant-${slug}`} aria-busy={pending}>
@@ -66,10 +67,16 @@ export const VariantRow = ({ variant }: { variant: Variant }) => {
           disabled={!idle || variant.log === undefined}
           onClick={() => void run(() => transport.showOutput(slug))}
         />
-        {slug === "main" ? null : (
-          <IconButton icon="trash" label={`Implode ${slug}`} disabled={!idle} onClick={() => setConfirming(true)} />
-        )}
       </span>
+      {slug === "main" ? null : (
+        <IconButton
+          className={dirty ? "implode-dirty" : "implode-clean"}
+          icon="trash"
+          label={dirty ? `Implode ${slug}, implode would fail` : `Implode ${slug}`}
+          disabled={!idle}
+          onClick={() => setConfirming(true)}
+        />
+      )}
       {error === undefined ? null : <RowError>{error}</RowError>}
       {confirming ? (
         <ImplodeDialog

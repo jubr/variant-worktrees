@@ -70,8 +70,16 @@
       },
       {
         "command": "variant.implode",
-        "title": "Variant: Implode",
+        "title": "Implode (would succeed)",
         "icon": "$(trash)"
+      },
+      {
+        "command": "variant.implodeDirty",
+        "title": "Implode (would fail)",
+        "icon": {
+          "light": "media/trash-dirty-light.svg",
+          "dark": "media/trash-dirty-dark.svg"
+        }
       },
       {
         "command": "variant.showOutput",
@@ -251,6 +259,10 @@
           "when": "false"
         },
         {
+          "command": "variant.implodeDirty",
+          "when": "false"
+        },
+        {
           "command": "variant.showOutput",
           "when": "false"
         },
@@ -301,8 +313,13 @@
         },
         {
           "command": "variant.implode",
-          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) removable/",
-          "group": "inline@3"
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) removable/ && viewItem =~ / clean/",
+          "group": "inline@9"
+        },
+        {
+          "command": "variant.implodeDirty",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) removable/ && viewItem =~ / dirty/",
+          "group": "inline@9"
         },
         {
           "command": "variant.showOutput",

@@ -60,6 +60,7 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
     "variant",
     state,
     record.slug === "main" ? "main" : "removable",
+    record.implodeClean === false ? "dirty" : "clean",
     ...(record.log === undefined ? [] : ["has-log"]),
     ...(record.url === undefined ? [] : ["has-url"]),
   ].join(" ");

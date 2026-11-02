@@ -108,6 +108,18 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     }
   };
 
+  const implode = async (node?: VariantNode): Promise<void> => {
+    const slug = slugOf(node);
+    if (slug === undefined) {
+      return;
+    }
+    if (slug !== "main" && !(await confirmImplode(slug))) {
+      log?.info("implode cancelled", { slug });
+      return;
+    }
+    return attempt("implode", () => store.run(slug, () => actions.implode(slug)), { slug });
+  };
+
   const confirmImplode = async (slug: string): Promise<boolean> => {
     const choice = await vscode.window.showWarningMessage(
       `Implode ${slug}?`,
@@ -136,17 +148,8 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
         ? Promise.resolve()
         : attempt("stop", () => store.run(slug, () => actions.down(slug)), { slug });
     }),
-    register("variant.implode", async (node) => {
-      const slug = slugOf(node);
-      if (slug === undefined) {
-        return Promise.resolve();
-      }
-      if (slug !== "main" && !(await confirmImplode(slug))) {
-        log?.info("implode cancelled", { slug });
-        return;
-      }
-      return attempt("implode", () => store.run(slug, () => actions.implode(slug)), { slug });
-    }),
+    register("variant.implode", implode),
+    register("variant.implodeDirty", implode),
     register("variant.showOutput", (node) => {
       const slug = slugOf(node);
       return slug === undefined ? Promise.resolve() : attempt("show output", () => actions.showOutput(slug), { slug });
