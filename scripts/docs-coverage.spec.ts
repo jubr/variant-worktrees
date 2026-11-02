@@ -89,3 +89,44 @@ describe("documentation", () => {
     expect(read("docs/guide/configuration.md")).toContain("variants.watch.log");
   });
 });
+
+describe("VARIANT_* environment variables", () => {
+  const variables = [
+    "VARIANT_SLUG",
+    "VARIANT_TARGET",
+    "VARIANT_CONFIG",
+    "VARIANT_<KEY>_PORT",
+    "VARIANT_<KEY>_URL",
+    "VARIANT_<KEY>_PID",
+    "VARIANT_OPEN",
+    "VARIANT_ENV_SOURCE",
+    "VARIANT_STEP_<NAME>",
+  ];
+
+  for (const path of ["README.md", "docs/guide/configuration.md"]) {
+    test(`${path} names every variable`, () => {
+      const text = read(path);
+      for (const variable of variables) {
+        expect(text).toContain(variable);
+      }
+    });
+
+    test(`${path} ties each variable to its setting or placeholder`, () => {
+      const text = read(path);
+      for (const setting of [
+        "{{slug}}",
+        "{{schema}}",
+        "{{<key>.port}}",
+        "runtime.instances.<key>.port",
+        "variant.open",
+        "env.sourceFile",
+      ]) {
+        expect(text).toContain(setting);
+      }
+    });
+
+    test(`${path} says how <KEY> and <NAME> are derived`, () => {
+      expect(read(path).replace(/\s+/g, " ")).toMatch(/uppercase[^.]*every other character[^.]*`_`/i);
+    });
+  }
+});

@@ -50,26 +50,27 @@ db:
   port: 5432
   database: variants
 variant:
-  up: bun run db:migrate
-  watch: bun run dev
   seed: bun run db:seed
   instances:
     fe:
       kind: vite
       dir: fe
-      open: http://{{slug}}.vw.localhost:{{port}}
+      watch: bun run dev
+      url: http://{{slug}}.vw.localhost:{{port}}
     be:
       kind: nestjs
       dir: be
+      up: bun run db:migrate
+      watch: bun run start:dev
 ```
 
 ::: v-pre
 
 Use `variant.instances` for explicit Vite/NestJS directories, keyed by instance name (the key is the
-name in runtime state, templates such as `{{port.be}}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
-environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `open` is a URL template
-with `{{slug}}` and `{{port}}` placeholders; `dotenv` names an env file, relative to `dir`, that is
-copied for a variant and amended with its values. The port is `VARIANT_<KEY>_PORT`, else `runtime.instances.<key>.port`
+name in runtime state, templates such as `{{be.port}}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
+environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `url` is a URL template
+with `{{slug}}` and `{{port}}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
+copied for a variant and amended with `env.overrides`. The port is `VARIANT_<KEY>_PORT`, else `runtime.instances.<key>.port`
 from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
 port that is not in `variant.reservedPorts` (default 3000, 4200, 5432). If `variant.instances` is omitted, subdirectories below the configuration file are
 searched automatically.

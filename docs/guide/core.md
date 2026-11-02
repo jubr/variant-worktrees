@@ -49,7 +49,7 @@ variant status -s feature-forty-two --json
 
 ## provision
 
-Run the configured install, dotenv, `up`, step, and seed commands. This prepares the variant without leaving a supervised `watch` in the foreground.
+Run the configured install, env file, `up`, step, and seed commands. This prepares the variant without leaving a supervised `watch` in the foreground.
 
 ```bash
 variant provision -s feature-forty-two

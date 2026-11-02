@@ -77,17 +77,21 @@ Create `variants.yaml` at workspace root:
 
 ```yaml
 variant:
-  up: bun run db:migrate
-  watch: bun run dev
   seed: bun run db:seed
   instances:
     fe:
       kind: vite
       dir: fe
-      open: http://{{slug}}.vw.localhost:{{port}}
+      watch: bun run dev
+      url: http://{{slug}}.vw.localhost:{{port}}
     be:
       kind: nestjs
       dir: be
+      up: bun run db:migrate
+      watch: bun run start:dev
+      env:
+        sourceFile: .env # copied for a variant
+        overrides: { PORT: '{{port}}' }
 ```
 
 The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite). The
@@ -97,13 +101,31 @@ Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
-Instances take an optional `open` URL template (`{{slug}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.vw.localhost:{{port}}`) and an optional `dotenv` file, relative to `dir`, that is copied for a variant and amended with its values (`amendDotenv`, `dotenvFor`). Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
+Instances take an optional `url` template (`{{slug}}`, `{{port}}`; autodetected Vite instances get `http://{{slug}}.vw.localhost:{{port}}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `instances.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.instances.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
 
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
 configures the Cursor chat renamer in `variant-vscode`. Every option is listed in
 [`variants.example.yaml`](./packages/variant-config/variants.example.yaml), next to the
 [JSON schema](./packages/variant-config/variants.yaml.schema.json).
+
+### Environment variables
+
+The `VARIANT_*` variables map to `variants.yaml` settings and template placeholders, in one or both directions.
+
+| Variable | Direction | Setting or placeholder |
+| --- | --- | --- |
+| `VARIANT_SLUG` | set for commands | `{{slug}}` |
+| `VARIANT_TARGET` | set for commands | `{{schema}}`: the database schema, or the SQLite file |
+| `VARIANT_CONFIG` | set for commands | the path of the loaded `variants.yaml` |
+| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.instances.<key>.port` |
+| `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.instances.<key>.url` |
+| `VARIANT_<KEY>_PID` | read as an override | `runtime.instances.<key>.pid` |
+| `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
+| `VARIANT_ENV_SOURCE` | read as an override | `env.sourceFile`: the file an instance's env file is copied from, instead of the primary worktree's |
+| `VARIANT_STEP_<NAME>` | read as an override | the `name` of a step in `variant.steps`; `no` skips the step |
+
+`<KEY>` is the key of an instance and `<NAME>` the `name` of a step, with letters uppercased and every other character replaced by `_`: `VARIANT_BE_PORT` for `be`, `VARIANT_STEP_DEMO_USER=no` for `demo-user`. A variable that is set for commands is part of the environment of the install, `up`, step and seed commands and of containers (which receive the variables only, see `container`); an override is read from the environment of the `variant` process.
 
 ## CLI
 

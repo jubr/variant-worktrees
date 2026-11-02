@@ -4,6 +4,8 @@
 
 ### Added
 
+- The README and the configuration guide describe how each `VARIANT_*` environment variable maps to a
+  `variants.yaml` setting or template placeholder, and in which direction it works.
 - `variant status [slug]` (and the `variant_status` MCP tool): everything known about one variant, including all
   meta information of its runtime state (mode, directory, database settings with the password hidden, and per
   instance the port, pid, URL, liveness and uptime).
@@ -26,6 +28,21 @@
 
 ### Changed
 
+- **BREAKING** `variants.yaml` options are renamed or merged. Migrate with this table:
+  - `open` (instance) becomes `url`.
+  - `dotenv`, `dotenvSource`, `env` and `envAlways` become `env: { sourceFile, overrides }`. The overrides and the
+    storage variable are written into the env file copy once, when it is created. Use `VARIANT_ENV_SOURCE` to pick
+    another source.
+  - `{{port.<key>}}` becomes `{{<key>.port}}`.
+  - `storage.env` becomes `storage.envVarName`.
+  - Step `show` becomes `filterLinesRegex`, and step `unlessEnv` is replaced by `VARIANT_STEP_<NAME>=no`.
+  - `implode.untracked` is merged into `implode.preRm`, which now holds globs for files and directories matched from
+    the project directory and each instance directory. `implode.restore` becomes `implode.discard`.
+  - `variant.up` and `variant.watch` are removed: set `up` and `watch` on an instance.
+  - `container` is `{ dockerfile, internalPort? }`. `image`, `build`, `static`, `proxy`, `volumes`, `env` and `port`
+    are removed together with the generated nginx configuration; the image is `v-<key>:v-<slug>`, and a container
+    receives the `VARIANT_*` and database variables only, without `SQLITE_DATABASE` and the storage variable. Put a
+    web server and its proxy in the Dockerfile, as `example/fe/Dockerfile` does.
 - **BREAKING** `variant` moves from `variant-api` to the new `variant-cli` package: `npm install -g variant-cli`
   provides it, `variant-api` is the library only and no longer depends on the command-line parser. Commands, flags
   and output are unchanged, and the release executables keep their names. `variant --version` reports the version

@@ -79,7 +79,7 @@ variant:
       watch: bun run build:watch
       env:
         sourceFile: .env # relative to {{dir}}, copied to variant `{{worktree}}/{{dir}}/.env` and amended
-        overrides: # templated values for the instance's commands and the dotenv copy when it is created
+        overrides: # templated values for the instance's commands and the env file copy when it is created
           PORT: '{{be.port}}' # free one will be passed
       container:
         dockerfile: be/Dockerfile # `docker run --rm -it $(docker build -f {{dir}}/Dockerfile -q .)`

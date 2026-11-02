@@ -31,7 +31,7 @@ MCP client configuration:
   object with its runtime state (mode, directory, database settings with the password hidden, and per instance the
   port, pid, URL, liveness and uptime). An unknown slug is an error.
 - `variant_create({ slug })` — create an isolated variant.
-- `variant_provision({ slug, verbose })` — run configured install, dotenv, `up`, step and seed commands.
+- `variant_provision({ slug, verbose })` — run configured install, env file, `up`, step and seed commands.
 - `variant_up({ slug, verbose })` — recreate the database and run the instances as containers; returns the
   mode, worktree, database target, and the port, URL and container name of each instance.
 - `variant_down({ slug })` — stop the processes and containers of a variant and keep its data.
