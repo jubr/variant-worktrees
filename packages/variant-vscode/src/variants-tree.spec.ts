@@ -57,6 +57,7 @@ describe("variants tree", () => {
       record("a-watching", { ...watching, url: "http://a.vw.localhost:62100", worktree: "/work/_v-a-watching" }),
       record("b-up", up),
       record("c-down"),
+      record("d-dirty", { implodeClean: false }),
     ]);
 
     const tips = items(provider).map(({ item }) => String(item.tooltip));
@@ -65,8 +66,10 @@ describe("variants tree", () => {
     expect(tips[0]).toContain("Mode: watch");
     expect(tips[0]).toContain("URL: http://a.vw.localhost:62100");
     expect(tips[0]).toContain("Worktree: /work/_v-a-watching");
+    expect(tips[0]).toContain("Implode would succeed");
     expect(tips[1]).toContain("up");
     expect(tips[2]).toContain("down");
+    expect(tips[3]).toContain("Implode would fail");
   });
 
   it("notes a stale record in the tooltip of a down variant", async () => {

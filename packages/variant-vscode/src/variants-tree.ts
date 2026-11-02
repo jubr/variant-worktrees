@@ -49,6 +49,7 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
     `Mode: ${record.mode ?? "none"}`,
     `URL: ${record.url ?? "none"}`,
     `Worktree: ${record.worktree ?? "none"}`,
+    `Implode would ${record.implodeClean === false ? "fail" : "succeed"}`,
   ].join("\n");
   if (busy) {
     item.iconPath = new vscode.ThemeIcon("loading~spin");
