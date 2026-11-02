@@ -4,6 +4,12 @@
 
 ### Added
 
+- The Variant Worktrees view sorts by name, created or changed (`variant.sort`, default name ascending). Created is the
+  earlier birth time of the variant directory and `variants.local.yaml`; changed is the later modification time. The
+  panel follows that setting; the browser page stays in name order. Records carry `createdMs`, `changedMs` and
+  `implodeClean` (whether implode without `--force` would succeed, including `preRm`, untracked and restore).
+- The play action is named **variant watch**; the icon stays play. The trash icon sits at the right of every row except
+  `main`: theme foreground when implode would succeed, red when it would fail.
 - A **Variant Worktrees** section in the Explorer: every variant with a watching, up or down icon, the uptime, and inline play,
   stop and implode (after a confirmation). The context menu shows a variant's output, opens its URL, opens the panel
   and the web page. It follows changes made by the CLI, an agent or another window within seconds.

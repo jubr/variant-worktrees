@@ -93,7 +93,7 @@ variant implode -s feature-forty-two --force
 
 ## ui
 
-Serve the variants app as a web page on a local port, the same app as the Variants view and panel of the VS Code extension. It lists every variant with its state (watching, up, down) and offers play, stop and implode.
+Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension. It lists every variant with its state (watching, up, down) in name order and offers variant watch (the play icon), stop and implode. In the editor, **Sort** (also the setting `variant.sort`) orders the Explorer view and the panel by name, created or changed. The trash icon is at the right of every row except `main`: theme foreground when implode would succeed, red when it would fail.
 
 ```bash
 variant ui
