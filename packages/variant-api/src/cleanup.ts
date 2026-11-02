@@ -4,44 +4,60 @@ import { globSync } from "tinyglobby";
 import { git, runGit } from "./git.js";
 
 /**
- * Deletes the untracked files below `worktree` that match `patterns` (`{{slug}}` replaced); tracked files stay.
+ * The paths below `worktree` that match one of `patterns` (`{{slug}}` replaced), matched from each of `bases`, and that
+ * `removeMatching` would delete: not `.git`, not a tracked file, not a directory that holds one. Symlinks are not
+ * followed. Paths are relative to `worktree`; nothing is deleted.
+ */
+export const findRemovable = (
+  worktree: string,
+  bases: readonly string[],
+  patterns: readonly string[],
+  slug: string,
+): Array<{ base: string; match: string; path: string }> => {
+  const found: Array<{ base: string; match: string; path: string }> = [];
+  for (const base of new Set(bases)) {
+    for (const pattern of patterns) {
+      for (const entry of globSync(pattern.replaceAll("{{slug}}", slug), {
+        cwd: base,
+        dot: true,
+        onlyFiles: false,
+        // AIDEV-NOTE: matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
+        expandDirectories: false,
+        followSymbolicLinks: false,
+      })) {
+        const match = entry.replace(/\/+$/, "");
+        const path = relative(worktree, resolve(base, match));
+        if (path === "" || path.startsWith("..") || isAbsolute(path) || basename(match) === ".git") {
+          continue;
+        }
+        if (git(base, ["--literal-pathspecs", "ls-files", "--", match]).trim() === "") {
+          found.push({ base, match, path });
+        }
+      }
+    }
+  }
+  return found;
+};
+
+/**
+ * Deletes every path below `worktree` that `findRemovable` reports. Returns the removed paths relative to `worktree`.
  *
  * Specification: openspec/specs/variant-api/node-runtime/spec.md (Implode cleanup patterns on both runtimes)
  */
-export const removeUntracked = (worktree: string, patterns: readonly string[], slug: string): string[] => {
+export const removeMatching = (
+  worktree: string,
+  bases: readonly string[],
+  patterns: readonly string[],
+  slug: string,
+): string[] => {
   const removed: string[] = [];
-  for (const pattern of patterns) {
-    for (const match of globSync(pattern.replaceAll("{{slug}}", slug), {
-      cwd: worktree,
-      dot: true,
-      onlyFiles: true,
-      // AIDEV-NOTE: files only, matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
-      expandDirectories: false,
-      followSymbolicLinks: false,
-    })) {
-      const outside = relative(worktree, resolve(worktree, match));
-      if (outside.startsWith("..") || isAbsolute(outside)) {
-        continue;
-      }
-      if (git(worktree, ["--literal-pathspecs", "ls-files", "--", match]).trim() === "") {
-        rmSync(join(worktree, match), { recursive: true, force: true });
-        removed.push(match);
-      }
+  for (const { base, match, path } of findRemovable(worktree, bases, patterns, slug)) {
+    if (existsSync(join(base, match))) {
+      rmSync(join(base, match), { recursive: true, force: true });
+      removed.push(path);
     }
   }
   return removed;
-};
-
-/** Deletes each of `names` below every directory of `directories`. */
-export const removeDirectories = (directories: readonly string[], names: readonly string[]): void => {
-  for (const directory of directories) {
-    for (const name of names) {
-      const path = join(directory, name);
-      if (existsSync(path)) {
-        rmSync(path, { recursive: true, force: true });
-      }
-    }
-  }
 };
 
 /** What would be lost with the worktree: `git status`, `git diff --stat` and, when short enough, `git diff`. */

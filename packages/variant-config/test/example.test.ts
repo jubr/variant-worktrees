@@ -17,7 +17,10 @@ type JsonSchema = {
 const exampleText = readFileSync(new URL("../variants.example.yaml", import.meta.url), "utf8");
 const example: unknown = parseYaml(exampleText);
 
-/** Paths of schema options the example does not set. Arrays and records are checked through their first entry. */
+/**
+ * Paths of schema options the example does not set. An array is checked through its first entry; an option of a record
+ * entry (an instance) counts as set when any entry of the record sets it.
+ */
 const missingOptions = (schema: JsonSchema, value: unknown, path: string): string[] => {
   const missing: string[] = [];
   if (schema.properties) {
@@ -40,11 +43,14 @@ const missingOptions = (schema: JsonSchema, value: unknown, path: string): strin
     }
   }
   if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
-    const first = Object.entries((value ?? {}) as Record<string, unknown>)[0];
-    if (first === undefined) {
+    const entries = Object.values((value ?? {}) as Record<string, unknown>);
+    if (entries.length === 0) {
       missing.push(`${path}.<name>`);
     } else {
-      missing.push(...missingOptions(schema.additionalProperties, first[1], `${path}.${first[0]}`));
+      const perEntry = entries.map((entry) =>
+        missingOptions(schema.additionalProperties as JsonSchema, entry, `${path}.<name>`),
+      );
+      missing.push(...(perEntry[0] ?? []).filter((option) => perEntry.every((options) => options.includes(option))));
     }
   }
   return missing;

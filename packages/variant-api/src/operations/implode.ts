@@ -1,13 +1,6 @@
 import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
-import {
-  isMerged,
-  removeDirectories,
-  removeUntracked,
-  removeWorktree,
-  restoreTracked,
-  worktreeReport,
-} from "../cleanup.js";
+import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
 import { locateWorktree } from "../locate.js";
 import { logToStderr } from "../ready.js";
 import { clearVariantRuntime, variantConfigDir } from "../runtime-state.js";
@@ -88,7 +81,7 @@ export const implodeVariant = async (
   }
   const located = locateWorktree(context, slug);
   const removable = removableWorktree(context, located);
-  const { requireMerged, preRm, restore, untracked, maxDiffLines } = config.variant.implode;
+  const { requireMerged, preRm, discard, maxDiffLines } = config.variant.implode;
 
   if (removable && requireMerged && !options.force) {
     const { merged, into } = isMerged(removable, config.variant.baseBranch);
@@ -104,17 +97,16 @@ export const implodeVariant = async (
     return { slug, removed, worktreeRemoved: false };
   }
 
-  removeUntracked(removable, untracked, slug);
-  const instances = Object.values(config.variant.instances);
-  removeDirectories(
-    instances.length > 0
-      ? instances.map((instance) => resolve(variantConfigDir(config, removable), instance.dir))
-      : [removable],
+  const projectDir = variantConfigDir(config, removable);
+  removeMatching(
+    removable,
+    [projectDir, ...Object.values(config.variant.instances).map((instance) => resolve(projectDir, instance.dir))],
     preRm,
+    slug,
   );
   const report = worktreeReport(removable, maxDiffLines);
   log(report);
-  restoreTracked(removable, restore);
+  restoreTracked(removable, discard);
   removeWorktree(primaryWorktree(context.cwd), removable, options.force === true);
   return { slug, removed, worktreeRemoved: true, worktree: removable, report };
 };

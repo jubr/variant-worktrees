@@ -35,9 +35,9 @@ export const pickFreePort = async (
 export const resolveInstancePort = async (config: ResolvedConfig, key: string): Promise<number> =>
   config.runtime?.instances?.[key]?.port ?? (await pickFreePort(config.variant.reservedPorts));
 
-/** The `open` template of the instance with the given key, `{{slug}}`, `{{abbr}}` and `{{port}}` replaced, or nothing without one. */
+/** The `url` template of the instance with the given key, `{{slug}}`, `{{abbr}}` and `{{port}}` replaced, or nothing without one. */
 export const openUrlFor = async (config: ResolvedConfig, slug: string, key: string): Promise<string | undefined> => {
-  const template = config.variant.instances[key]?.open;
+  const template = config.variant.instances[key]?.url;
   if (template === undefined) {
     return undefined;
   }

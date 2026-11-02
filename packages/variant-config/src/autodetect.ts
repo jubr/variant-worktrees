@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
-import { type DbConfig, type DbDialect, DEFAULT_OPEN_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
+import { type DbConfig, type DbDialect, DEFAULT_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
 
 const MISE_FILENAMES = ["mise.local.toml", "mise.toml"] as const;
 const ENV_KEYS = [
@@ -355,7 +355,7 @@ export const detectInstances = (configDir: string): Record<string, VariantInstan
       if (kind) {
         const dir = relative(configDir, child) || ".";
         const watch = detectWatch(kind, child);
-        found.push(kind === "vite" ? { kind, dir, open: DEFAULT_OPEN_URL, watch } : { kind, dir, watch });
+        found.push(kind === "vite" ? { kind, dir, url: DEFAULT_URL, watch } : { kind, dir, watch });
       }
       walk(child);
     }

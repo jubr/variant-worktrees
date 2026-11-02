@@ -47,17 +47,27 @@ The system SHALL prepare a variant for both `up` and `watch` in this order: ensu
 
 ### Requirement: Up runs instances as containers
 
-The system SHALL start every instance that has a `container` as a container named `v-<key>-<slug>` on a network named `v-net-<slug>`, creating the network when missing and replacing a container of that name that already exists. The container SHALL publish the instance's assigned port, on all interfaces, to the container `port`. Before starting an instance the system SHALL run its `container.build` command in the instance directory. An instance with `dockerfile` SHALL be built from it with the worktree as context into the image `<image>:v-<slug>` (`image` defaulting to `v-<key>`); an instance with only `image` SHALL run that image. An instance with `static` SHALL run the image mounted read-only with the static directory. The container SHALL receive the database connection settings with the host unchanged, the database target variable, the instance `env`, and `container.env`, with later ones winning, and the mounts of `container.volumes`. When the database host is `host.docker.internal`, the container SHALL be able to resolve it to the host. Instances SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. An instance without `container` SHALL NOT be started by `up`.
+The system SHALL start every instance that has a `container` as a container named `v-<key>-<slug>` on a network named `v-net-<slug>`, creating the network when missing and replacing a container of that name that already exists. The image SHALL be built from `container.dockerfile` with the worktree as context into `v-<key>:v-<slug>`, so a Dockerfile can build and serve an instance on its own. The container SHALL publish the instance's assigned port, on all interfaces, to `container.internalPort` (80 when it is not set). The container SHALL receive as environment the variant variables of the command environment: the database connection settings with the host unchanged, the database target variable, `VARIANT_SLUG`, `VARIANT_TARGET` and `VARIANT_<K>_PORT` and `VARIANT_<K>_URL` of every instance. It SHALL NOT receive the instance `env.overrides`, which describe the host process, and SHALL NOT receive `SQLITE_DATABASE` or the storage variable, which hold host paths. When the database host is `host.docker.internal`, the container SHALL be able to resolve it to the host. A container SHALL reach another container of the variant by the name `v-<key>-<slug>` on the shared network. Instances SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. An instance without `container` SHALL NOT be started by `up`.
 
 #### Scenario: Application container
 
-- **WHEN** instance `be` sets `container: { dockerfile: be/Dockerfile, port: 3000, image: app }` and `up` runs for slug `demo` with assigned port 62061
-- **THEN** the engine builds `app:v-demo`, creates network `v-net-demo` and runs container `v-be-demo` publishing `0.0.0.0:62061` to container port 3000
+- **WHEN** instance `be` sets `container: { dockerfile: be/Dockerfile, internalPort: 3000 }` and `up` runs for slug `demo` with assigned port 62061
+- **THEN** the engine builds `v-be:v-demo`, creates network `v-net-demo` and runs container `v-be-demo` publishing `0.0.0.0:62061` to container port 3000
 
 #### Scenario: Static site
 
-- **WHEN** instance `fe` sets `container: { build: "bunx vite build", static: dist }` and `up` runs
-- **THEN** the build command runs in the `fe` directory and container `v-fe-demo` mounts `fe/dist` read-only into an `nginx:alpine` container
+- **WHEN** instance `fe` sets `container: { dockerfile: fe/Dockerfile }` and `up` runs with assigned port 62060
+- **THEN** container `v-fe-demo` publishes `0.0.0.0:62060` to container port 80 and no build command runs on the host
+
+#### Scenario: Container environment
+
+- **WHEN** `be` sets `env: { overrides: { PORT: "{{port}}" } }` and `up` starts its container
+- **THEN** the container receives `VARIANT_SLUG=demo` and `VARIANT_BE_PORT`, and no `PORT`
+
+#### Scenario: Host paths withheld
+
+- **WHEN** the dialect is SQLite, storage is configured and `up` starts a container
+- **THEN** the container receives neither `SQLITE_DATABASE` nor the storage variable
 
 #### Scenario: Replacing a running container
 
@@ -74,28 +84,9 @@ The system SHALL start every instance that has a `container` as a container name
 - **WHEN** no container engine is available
 - **THEN** `up` fails before building or starting anything, naming `docker` and `podman`
 
-### Requirement: Static site proxy
-
-The system SHALL serve a `static` container through a generated web server configuration that answers requests for files, falls back to `index.html` for unknown paths, accepts the host name of the instance's rendered `open` URL, and, when `container.proxy` is set, forwards requests below `proxy.path` to the container `v-<to>-<slug>` at its `container.port`, including WebSocket upgrades. The generated configuration SHALL be removed when the variant is stopped.
-
-#### Scenario: Proxy configuration
-
-- **WHEN** `fe` sets `proxy: { path: /api/, to: be }`, `be` has container port 3000, and the slug is `demo`
-- **THEN** the configuration forwards `/api/` to `http://v-be-demo:3000/api/`
-
-#### Scenario: Host name from the open URL
-
-- **WHEN** `fe.open` is `http://{{slug}}.vw.localhost:{{port}}` and the slug is `demo`
-- **THEN** the configuration accepts the host `demo.vw.localhost`
-
-#### Scenario: Fallback to index
-
-- **WHEN** a request path matches no file
-- **THEN** the configuration serves `index.html`
-
 ### Requirement: Watch runs instances as host processes
 
-The system SHALL start the `watch` command of every instance as a process in the instance directory with the command environment, stdout and stderr attached to the console, and SHALL record the process id of each in the runtime state. An instance without a `watch` command SHALL NOT be started; when no instance has one and `variant.watch` is set, that command SHALL run once in the worktree root under the key `variant`. Instances SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each instance.
+The system SHALL start the `watch` command of every instance as a process in the instance directory with the command environment, stdout and stderr attached to the console, and SHALL record the process id of each in the runtime state. An instance without a `watch` command SHALL NOT be started. Instances SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each instance.
 
 #### Scenario: Two watchers
 
@@ -109,8 +100,8 @@ The system SHALL start the `watch` command of every instance as a process in the
 
 #### Scenario: Variant-wide command
 
-- **WHEN** no instance has `watch` and `variant.watch` is `bun run dev`
-- **THEN** that command runs once in the worktree root under the key `variant`
+- **WHEN** no instance has `watch`
+- **THEN** no process is started, whatever else the configuration holds
 
 ### Requirement: Watch supervision
 
@@ -162,11 +153,11 @@ The system SHALL allow only one runtime per slug. `watch` SHALL stop the variant
 
 ### Requirement: Runtime state recording
 
-The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after instances start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every instance by key, `port`, the rendered `url` when it has an `open` template and, for host processes, `pid`. Other top-level keys of the file SHALL be kept.
+The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after instances start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every instance by key, `port`, the rendered `url` when it has a `url` template and, for host processes, `pid`. Other top-level keys of the file SHALL be kept.
 
 #### Scenario: Written after up
 
-- **WHEN** `up` finishes for slug `demo` with `fe` on port 62060 and an `open` template
+- **WHEN** `up` finishes for slug `demo` with `fe` on port 62060 and a `url` template
 - **THEN** `variants.local.yaml` holds `runtime.mode: up`, `runtime.slug: demo` and `runtime.instances.fe` with port 62060 and `url: http://demo.vw.localhost:62060`
 
 #### Scenario: Pids written for watch
@@ -181,11 +172,11 @@ The system SHALL write the `runtime` section of the variant's `variants.local.ya
 
 ### Requirement: Readiness and opening
 
-The system SHALL, after instances start in attached `up` and attached `watch`, poll `http://127.0.0.1:<port><ready>` once per second for every instance that sets `ready`, up to `supervise.readyTimeoutSeconds`. When all answer with a success status it SHALL print the URL of each instance with an `open` template and open each in the system browser, unless opening is disabled. When no instance sets `ready` it SHALL print and open the URLs right after start. On timeout it SHALL print a warning and leave the instances running. Failure to launch a browser SHALL NOT fail the command.
+The system SHALL, after instances start in attached `up` and attached `watch`, poll `http://127.0.0.1:<port><ready>` once per second for every instance that sets `ready`, up to `supervise.readyTimeoutSeconds`. When all answer with a success status it SHALL print the URL of each instance with a `url` template and open each in the system browser, unless opening is disabled. When no instance sets `ready` it SHALL print and open the URLs right after start. On timeout it SHALL print a warning and leave the instances running. Failure to launch a browser SHALL NOT fail the command.
 
 #### Scenario: Open after ready
 
-- **WHEN** `be` has `ready: /health` that starts answering after 2 seconds and `fe` has an `open` template
+- **WHEN** `be` has `ready: /health` that starts answering after 2 seconds and `fe` has a `url` template
 - **THEN** the URL of `fe` is opened after `be` answers
 
 #### Scenario: Open disabled
@@ -200,7 +191,7 @@ The system SHALL, after instances start in attached `up` and attached `watch`, p
 
 ### Requirement: Down
 
-The system SHALL provide `down` for a slug that stops every recorded host process with its descendants, removes the variant's containers, its network and its generated web server configurations, and removes the `runtime` section from `variants.local.yaml` while keeping other top-level keys. It SHALL keep the database target, the storage directory and the variant state, and SHALL work for slug `main`. A variant that has nothing running SHALL succeed without changes.
+The system SHALL provide `down` for a slug that stops every recorded host process with its descendants, removes the variant's containers and its network, and removes the `runtime` section from `variants.local.yaml` while keeping other top-level keys. It SHALL keep the database target, the storage directory and the variant state, and SHALL work for slug `main`. A variant that has nothing running SHALL succeed without changes.
 
 #### Scenario: Down after watch
 
@@ -224,12 +215,12 @@ The system SHALL provide `down` for a slug that stops every recorded host proces
 
 ### Requirement: Container command echo
 
-The system SHALL print the line `+ <command>` to the progress log before it runs each command of the container runtime that changes state: an instance `container.build`, an image build, a network create or remove, and a container remove or run. The engine commands SHALL be printed as the engine name followed by its arguments, and the value of every `-e NAME=value` argument SHALL be printed as `-e NAME=***`. Read-only `inspect` calls SHALL NOT be printed. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error. This applies to `up`, to `down` and to the stop that `watch`, `up` and `implode` run first.
+The system SHALL print the line `+ <command>` to the progress log before it runs each command of the container runtime that changes state: an image build, a network create or remove, and a container remove or run. The engine commands SHALL be printed as the engine name followed by its arguments, and the value of every `-e NAME=value` argument SHALL be printed as `-e NAME=***`. Read-only `inspect` calls SHALL NOT be printed. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error. This applies to `up`, to `down` and to the stop that `watch`, `up` and `implode` run first.
 
 #### Scenario: Up prints its engine commands
 
-- **WHEN** `up` starts an instance with a `container.build` and an image
-- **THEN** the progress log receives the build command, then `+ <engine> network create`, then `+ <engine> run ...`
+- **WHEN** `up` starts an instance with a `container`
+- **THEN** the progress log receives `+ <engine> build ...`, then `+ <engine> network create`, then `+ <engine> run ...`
 
 #### Scenario: Environment values are hidden
 
@@ -243,12 +234,12 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 
 ### Requirement: Watch without commands
 
-The system SHALL print a warning to the progress log when `watch` starts no process because no instance has a `watch` command and `variant.watch` is not set. The warning SHALL say that nothing was started and name `watch` on an instance and `variant.watch` as the ways to set a command. The command SHALL otherwise behave as before.
+The system SHALL print a warning to the progress log when `watch` starts no process because no instance has a `watch` command. The warning SHALL say that nothing was started and name `watch` on an instance as the way to set a command. The command SHALL otherwise behave as before.
 
 #### Scenario: Nothing to start
 
-- **WHEN** `watch` runs for instances that have no `watch` command and `variant.watch` is not set
-- **THEN** the progress log receives a warning that no process was started and names `watch` and `variant.watch`
+- **WHEN** `watch` runs for instances that have no `watch` command
+- **THEN** the progress log receives a warning that no process was started and names `watch`
 
 #### Scenario: Commands present
 

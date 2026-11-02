@@ -3,9 +3,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { removeUntracked } from "../src/cleanup.js";
+import { removeMatching } from "../src/cleanup.js";
 
 let parent: string;
 let worktree: string;
@@ -30,12 +30,14 @@ afterEach(() => {
   rmSync(parent, { recursive: true, force: true });
 });
 
-describe("removeUntracked", () => {
+describe("removeMatching", () => {
+  const removeFromRoot = (patterns: string[]) => removeMatching(worktree, [worktree], patterns, "demo");
+
   it("removes files matching a wildcard and replaces the slug", () => {
     put(worktree, "rec/demo/pr7-demo.webm");
     put(worktree, "rec/demo/notes.txt");
 
-    const removed = removeUntracked(worktree, ["rec/{{slug}}/pr*-demo.webm"], "demo");
+    const removed = removeFromRoot(["rec/{{slug}}/pr*-demo.webm"]);
 
     expect(removed).toEqual(["rec/demo/pr7-demo.webm"]);
     expect(existsSync(join(worktree, "rec/demo/pr7-demo.webm"))).toBe(false);
@@ -47,7 +49,7 @@ describe("removeUntracked", () => {
     put(worktree, "a22.log");
     put(worktree, "b1.log");
 
-    const removed = removeUntracked(worktree, ["?1.log", "[b]*.log"], "demo");
+    const removed = removeFromRoot(["?1.log", "[b]*.log"]);
 
     expect(removed.sort()).toEqual(["a1.log", "b1.log"]);
     expect(existsSync(join(worktree, "a22.log"))).toBe(true);
@@ -59,25 +61,65 @@ describe("removeUntracked", () => {
     put(worktree, ".cache/d");
     put(worktree, "src/keep.js");
 
-    const removed = removeUntracked(worktree, ["{out,dist}/**", ".cache/*"], "demo");
+    removeFromRoot(["{out,dist}/**", ".cache/*"]);
 
-    expect(removed.sort()).toEqual([".cache/d", "dist/c.js", "out/a/b.js"]);
+    expect(existsSync(join(worktree, "out/a/b.js"))).toBe(false);
+    expect(existsSync(join(worktree, "dist/c.js"))).toBe(false);
+    expect(existsSync(join(worktree, ".cache/d"))).toBe(false);
     expect(existsSync(join(worktree, "src/keep.js"))).toBe(true);
+  });
+
+  it("removes a whole directory by its name", () => {
+    put(worktree, "node_modules/dep/index.js");
+
+    expect(removeFromRoot(["node_modules"])).toEqual(["node_modules"]);
+    expect(existsSync(join(worktree, "node_modules"))).toBe(false);
+  });
+
+  it("matches from every base directory", () => {
+    put(worktree, "fe/dist/a.js");
+    put(worktree, "be/dist/b.js");
+
+    const removed = removeMatching(worktree, [worktree, join(worktree, "fe"), join(worktree, "be")], ["dist"], "demo");
+
+    expect(removed.sort()).toEqual(["be/dist", "fe/dist"]);
   });
 
   it("keeps a tracked file that matches a pattern", () => {
     put(worktree, "tracked/new.js");
 
-    const removed = removeUntracked(worktree, ["tracked/*.js"], "demo");
+    const removed = removeFromRoot(["tracked/*.js"]);
 
     expect(removed).toEqual(["tracked/new.js"]);
     expect(existsSync(join(worktree, "tracked/keep.js"))).toBe(true);
   });
 
+  it("keeps a matching directory that holds a tracked file", () => {
+    put(worktree, "tracked/new.js");
+
+    expect(removeFromRoot(["tracked"])).toEqual([]);
+    expect(existsSync(join(worktree, "tracked/new.js"))).toBe(true);
+  });
+
+  it("never removes .git", () => {
+    removeFromRoot(["*", ".*", ".git"]);
+
+    expect(existsSync(join(worktree, ".git"))).toBe(true);
+  });
+
+  it("does not follow symlinks", () => {
+    put(parent, "outside/file.txt");
+    symlinkSync(join(parent, "outside"), join(worktree, "link"));
+
+    removeFromRoot(["link/**"]);
+
+    expect(existsSync(join(parent, "outside/file.txt"))).toBe(true);
+  });
+
   it("ignores a match outside the worktree", () => {
     put(parent, "outside.txt");
 
-    const removed = removeUntracked(worktree, ["../outside.txt", "../*.txt"], "demo");
+    const removed = removeFromRoot(["../outside.txt", "../*.txt"]);
 
     expect(removed).toEqual([]);
     expect(existsSync(join(parent, "outside.txt"))).toBe(true);

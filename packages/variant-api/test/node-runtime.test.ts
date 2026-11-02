@@ -88,7 +88,7 @@ describe("variant-api on Node and Bun", () => {
   }
 
   for (const runtime of ["node", "bun"] as const) {
-    it(`removes the untracked files matching the implode patterns under ${runtime}`, async () => {
+    it(`removes the untracked files matching the preRm patterns under ${runtime}`, async () => {
       const parent = realpathSync(mkdtempSync(join("/tmp", "variant-node-implode-")));
       try {
         const result = await run(
@@ -103,7 +103,7 @@ describe("variant-api on Node and Bun", () => {
            execFileSync("git", ["init", "-q", "-b", "main", repo]);
            git("config", "user.email", "variant@example.test");
            git("config", "user.name", "Variant Tests");
-           put(repo, "variants.yaml", "db:\\n  dialect: sqlite\\nvariant:\\n  implode:\\n    untracked: ['{out,dist}/**', '.cache/*', 'rec/{{slug}}/pr*-demo.webm', 'tracked/*.js']\\n");
+           put(repo, "variants.yaml", "db:\\n  dialect: sqlite\\nvariant:\\n  implode:\\n    preRm: ['{out,dist}/**', '.cache/*', 'rec/{{slug}}/pr*-demo.webm', 'tracked/*.js']\\n");
            put(repo, "tracked/keep.js");
            git("add", ".");
            git("commit", "-q", "-m", "initial");

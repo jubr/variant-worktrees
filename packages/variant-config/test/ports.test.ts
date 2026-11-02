@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { DEFAULT_OPEN_URL, loadConfig, openUrlFor, resolveInstancePort } from "../src/index.js";
+import { DEFAULT_URL, loadConfig, openUrlFor, resolveInstancePort } from "../src/index.js";
 import { pickFreePort } from "../src/ports.js";
 
 const PROJECT = [
@@ -12,7 +12,7 @@ const PROJECT = [
   "    fe:",
   "      kind: vite",
   "      dir: fe",
-  "      open: http://{{slug}}.vw.localhost:{{port}}",
+  "      url: http://{{slug}}.vw.localhost:{{port}}",
   "    be:",
   "      kind: nestjs",
   "      dir: be",
@@ -159,8 +159,7 @@ describe("openUrlFor with an abbreviation", () => {
 
   it("renders the default Vite template with the project abbreviation", () =>
     withAbbr(
-      "variant:\n  abbr: vw\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n      open: " +
-        `${DEFAULT_OPEN_URL}\n`,
+      `variant:\n  abbr: vw\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n      url: ${DEFAULT_URL}\n`,
       async (config) => {
         expect(await openUrlFor(config, "add-auth", "fe")).toBe("http://add-auth.vw.localhost:62060");
       },
@@ -168,7 +167,7 @@ describe("openUrlFor with an abbreviation", () => {
 
   it("renders {{abbr}} in an explicit template", () =>
     withAbbr(
-      "variant:\n  abbr: otc\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n      open: http://{{abbr}}-{{slug}}.localhost:{{port}}\n",
+      "variant:\n  abbr: otc\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n      url: http://{{abbr}}-{{slug}}.localhost:{{port}}\n",
       async (config) => {
         expect(await openUrlFor(config, "demo", "fe")).toBe("http://otc-demo.localhost:62060");
       },

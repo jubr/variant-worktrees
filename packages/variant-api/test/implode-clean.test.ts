@@ -105,21 +105,31 @@ describe("implode cleanliness", () => {
       expect(existsSync(join(worktree, "fe", "dist", "out.js"))).toBe(true);
     }, `${CONFIG}  implode: { preRm: [dist] }\n`));
 
-  it("treats a tracked modification whose base name is in restore as clean and leaves the file", () =>
+  it("treats a tracked modification whose base name is in discard as clean and leaves the file", () =>
     withProject(async ({ list, worktree }) => {
       writeFileSync(join(worktree, "bun.lock"), "lock v2\n");
 
       expect((await list()).find((variant) => variant.slug === "demo")?.implodeClean).toBe(true);
       expect(existsSync(join(worktree, "bun.lock"))).toBe(true);
-    }, `${CONFIG}  implode: { restore: [bun.lock] }\n`));
+    }, `${CONFIG}  implode: { discard: [bun.lock] }\n`));
 
-  it("counts a tracked file inside a preRm directory as dirt unless restore would put it back", () =>
+  it("keeps a tracked file inside a preRm directory, which is clean", () =>
     withProject(async ({ list, commit, worktree }) => {
       commit("fe/dist/kept.js", "tracked\n");
 
-      expect((await list()).find((variant) => variant.slug === "demo")?.implodeClean).toBe(false);
+      expect((await list()).find((variant) => variant.slug === "demo")?.implodeClean).toBe(true);
       expect(existsSync(join(worktree, "fe", "dist", "kept.js"))).toBe(true);
     }, `${CONFIG}  implode: { requireMerged: false, preRm: [dist] }\n`));
+
+  it("treats an untracked file that a preRm glob matches as clean and an unmatched one as dirt", () =>
+    withProject(async ({ list, worktree }) => {
+      mkdirSync(join(worktree, "rec", "demo"), { recursive: true });
+      writeFileSync(join(worktree, "rec", "demo", "pr7-demo.webm"), "x");
+      expect((await list()).find((variant) => variant.slug === "demo")?.implodeClean).toBe(true);
+
+      writeFileSync(join(worktree, "rec", "demo", "notes.txt"), "x");
+      expect((await list()).find((variant) => variant.slug === "demo")?.implodeClean).toBe(false);
+    }, `${CONFIG}  implode: { preRm: ['rec/{{slug}}/pr*-demo.webm'] }\n`));
 
   it("reports main as not clean", () =>
     withProject(async ({ list, repo }) => {

@@ -34,11 +34,11 @@ The system SHALL accept `variant.instances` as a record whose keys are the insta
 - **THEN** the keys are `web` and `web-2`
 
 ### Requirement: Instance runtime options
-The system SHALL accept on any entry of `variant.instances` these optional settings: `env` and `envAlways` (maps of templated values), `dotenvSource` (a path of an environment file; absolute, or relative to the primary worktree), `install` (a shell command) and `ready` (a URL path starting with `/`). `env` SHALL be passed to the commands of that instance in `up` and `watch` and written into its dotenv copy when the copy is created; `envAlways` SHALL be passed likewise and written again into the copy on every run. `install` SHALL run in the instance directory when that directory has no `node_modules`. `ready` SHALL be a path that answers an HTTP request with a success status when the instance serves.
+The system SHALL accept on any entry of `variant.instances` these optional settings: `env` (an object with `sourceFile` and `overrides`, see the instance env requirement of `variant-config/core`), `install` (a shell command) and `ready` (a URL path starting with `/`). The templated `env.overrides` SHALL be passed to the commands of that instance in `up` and `watch` and written into its env file copy when the copy is created. `install` SHALL run in the instance directory when that directory has no `node_modules`. `ready` SHALL be a path that answers an HTTP request with a success status when the instance serves.
 
 #### Scenario: Options accepted
 
-- **WHEN** an instance sets `env: { PORT: "{{port}}" }`, `envAlways: { PUBLIC_BASE_URL: "{{url}}" }`, `install: bun install --frozen-lockfile` and `ready: /api/health/live`
+- **WHEN** an instance sets `env: { overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } }`, `install: bun install --frozen-lockfile` and `ready: /api/health/live`
 - **THEN** loading succeeds and the resolved instance carries them
 
 #### Scenario: Ready path without slash
@@ -47,22 +47,32 @@ The system SHALL accept on any entry of `variant.instances` these optional setti
 - **THEN** loading the configuration fails validation
 
 ### Requirement: Instance container
-The system SHALL accept an optional `container` on any entry of `variant.instances` that describes how the instance runs under `up`. It has optional `image`, `dockerfile` (relative to the worktree, built with the worktree as context), `build` (a shell command that runs in the instance directory before the container starts), `static` (a directory relative to the instance directory whose files are served), `port` (the port inside the container), `proxy` (`{ path, to }`: requests below the path `path`, starting and ending with `/`, are forwarded to the instance with the key `to`), `volumes` (a list of `host:container` mounts, templated) and `env` (a map of templated values). An instance with `static` SHALL be served by the image `nginx:alpine` unless `image` is set; its `port` defaults to 80. An instance without `static` SHALL set `image` or `dockerfile`, and `port`. `proxy.to` SHALL name another instance that has `container.port`. Unknown keys SHALL fail validation.
+The system SHALL accept an optional `container` on any entry of `variant.instances` that describes how the instance runs under `up`. It has a required `dockerfile` (relative to the worktree, built with the worktree as context) and an optional `internalPort` (the port inside the container, defaulting to 80). The Dockerfile owns everything else about the container: its base image, its build, the files it serves and its web server configuration. A `container` without `dockerfile`, with an `internalPort` that is not a positive integer, or with any other key (including the former `image`, `build`, `static`, `port`, `proxy`, `volumes` and `env`) SHALL fail validation.
 
 #### Scenario: Static site with proxy
 
-- **WHEN** an instance `fe` sets `container: { build: "bunx vite build", static: dist, proxy: { path: /api/, to: be } }` and `be` sets `container: { dockerfile: be/Dockerfile, port: 3000 }`
-- **THEN** loading succeeds
+- **WHEN** an instance `fe` sets `container: { dockerfile: fe/Dockerfile }` and `be` sets `container: { dockerfile: be/Dockerfile, internalPort: 3000 }`
+- **THEN** loading succeeds; the Dockerfile of `fe` builds, serves and proxies
 
 #### Scenario: Application container without port
 
-- **WHEN** an instance sets `container: { image: app:latest }` and no `static`
+- **WHEN** an instance sets `container: { dockerfile: be/Dockerfile }` without `internalPort`
+- **THEN** loading succeeds and `up` publishes the instance to container port 80
+
+#### Scenario: Container without Dockerfile
+
+- **WHEN** an instance sets `container: { internalPort: 3000 }` or `container: { image: app:latest }`
 - **THEN** loading the configuration fails validation
 
 #### Scenario: Proxy to unknown instance
 
-- **WHEN** `proxy.to` names an instance that does not exist or has no `container.port`
-- **THEN** loading the configuration fails validation naming the target
+- **WHEN** a container sets `proxy: { path: /api/, to: be }`, whether or not `be` exists
+- **THEN** loading the configuration fails validation naming `proxy`
+
+#### Scenario: Other former container keys refused
+
+- **WHEN** a container sets `static: dist`, `build: "bunx vite build"`, `volumes: [...]`, `env: {...}` or `port: 3000`
+- **THEN** loading the configuration fails validation
 
 ### Requirement: Autodetected watch commands
 The system SHALL give every autodetected instance a `watch` command that keeps the console across rebuilds, so the output of several instances stays readable in one terminal. For a Vite instance the command SHALL be `bun run dev` when its `package.json` has a `dev` script, otherwise `bunx --bun vite`, followed by `--clearScreen false` unless a Vite configuration file of the instance sets `clearScreen`. For a NestJS instance the command SHALL be `bun run start:dev` when its `package.json` has a `start:dev` script, otherwise `bunx nest start --watch`, followed by `--preserveWatchOutput` unless the `tsconfig.json` of the instance sets `preserveWatchOutput` to `true`. When the `start:dev` script of a NestJS instance starts with `bun --watch` or `bun --hot`, the command SHALL be that script with `--no-clear-screen` inserted after the watch flag and nothing appended, unless the script already has it. Explicit instances SHALL keep exactly the `watch` they configure.

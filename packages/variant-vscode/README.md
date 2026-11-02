@@ -39,17 +39,18 @@ mise use github:jubr/variant-worktrees
 
 ```yaml
 variant:
-  up: npm run db:migrate
-  watch: npm run dev
   seed: npm run db:seed
   instances:
     fe:
       kind: vite
       dir: fe
-      open: http://{{slug}}.vw.localhost:{{port}}
+      watch: npm run dev
+      url: http://{{slug}}.vw.localhost:{{port}}
     be:
       kind: nestjs
       dir: be
+      up: npm run db:migrate
+      watch: npm run start:dev
 ```
 
 Vite and NestJS apps are detected automatically, so a small project may need no instances at all. Database settings are read from `mise.local.toml`, then from environment variables. Every option, including templates, steps, and the `implode` safety rules, is in the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).

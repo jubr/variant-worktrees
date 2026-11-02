@@ -74,7 +74,7 @@ describe("output formats", () => {
         expect(result.exitCode).toBe(1);
       },
       {},
-      "db:\n  dialect: sqlite\nvariant:\n  watch: exit 0\n  open: false\n",
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
     ));
 
   it("redacts the password in text, JSON and YAML", () =>

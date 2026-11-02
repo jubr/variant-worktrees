@@ -3,13 +3,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { detectInstances } from "../src/autodetect.js";
 import { loadConfig } from "../src/index.js";
-import { DEFAULT_OPEN_URL } from "../src/schema.js";
+import { DEFAULT_URL } from "../src/schema.js";
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-instances-"));
 
 describe("runtime instance discovery", () => {
   it("gives a detected Vite instance the default template with the abbreviation placeholder", () => {
-    expect(DEFAULT_OPEN_URL).toBe("http://{{slug}}.{{abbr}}.localhost:{{port}}");
+    expect(DEFAULT_URL).toBe("http://{{slug}}.{{abbr}}.localhost:{{port}}");
   });
 
   it("detects Vite and NestJS applications below the config directory", () => {
@@ -23,7 +23,7 @@ describe("runtime instance discovery", () => {
       const instances = detectInstances(directory);
 
       expect(instances).toEqual({
-        app: { kind: "vite", dir: "app", open: DEFAULT_OPEN_URL, watch: "bunx --bun vite --clearScreen false" },
+        app: { kind: "vite", dir: "app", url: DEFAULT_URL, watch: "bunx --bun vite --clearScreen false" },
         server: { kind: "nestjs", dir: "server", watch: "bunx nest start --watch --preserveWatchOutput" },
       });
       expect(Object.keys(instances)).toEqual(["app", "server"]);

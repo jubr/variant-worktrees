@@ -8,9 +8,6 @@ export type ContainerEngine = string;
 
 export const containerName = (key: string, slug: string): string => `v-${key}-${slug}`;
 export const networkName = (slug: string): string => `v-net-${slug}`;
-/** The generated web server configuration of a static instance, next to the state files. */
-export const nginxConfigPath = (stateDir: string, slug: string, key: string): string =>
-  join(stateDir, `${slug}.${key}.nginx.conf`);
 
 const onPath = (name: string, env: NodeJS.ProcessEnv): boolean =>
   (env.PATH ?? "").split(delimiter).some((directory) => {

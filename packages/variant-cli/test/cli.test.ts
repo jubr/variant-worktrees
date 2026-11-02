@@ -68,7 +68,10 @@ describe("variant CLI", () => {
   it("sets the exit code of an attached watch from its result", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
     const configPath = join(directory, "variants.yaml");
-    writeFileSync(configPath, "db:\n  dialect: sqlite\nvariant:\n  watch: exit 0\n  open: false\n");
+    writeFileSync(
+      configPath,
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
+    );
     try {
       const result = await runCli(["watch", "-s", "demo", "--json"], { VARIANT_CONFIG: configPath });
 

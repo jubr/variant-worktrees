@@ -237,7 +237,7 @@ describe("implode teardown and worktree", () => {
 });
 
 describe("implode cleanup", () => {
-  it("deletes the preRm directories below every instance directory", () =>
+  it("deletes the preRm matches below every instance directory", () =>
     withProject(async ({ implode, worktree, messages }) => {
       mkdirSync(join(worktree, "fe", "dist"));
       writeFileSync(join(worktree, "fe", "dist", "out.js"), "x");
@@ -251,7 +251,7 @@ describe("implode cleanup", () => {
       expect(messages.join("\n")).not.toContain("node_modules");
     }, `${CONFIG}  implode: { preRm: [dist, node_modules] }\n`));
 
-  it("deletes the preRm directories in the root when there are no instances", () =>
+  it("deletes the preRm matches in the project directory too", () =>
     withProject(
       async ({ implode, worktree, messages }) => {
         mkdirSync(join(worktree, "dist"));
@@ -264,6 +264,20 @@ describe("implode cleanup", () => {
       lines("db:", "  dialect: sqlite", "variant:", "  implode: { preRm: [dist] }"),
     ));
 
+  it("keeps a matching directory that contains a tracked file", () =>
+    withProject(async ({ implode, commit, worktree, messages }) => {
+      commit("fe/dist/keep.txt", "tracked\n");
+      writeFileSync(join(worktree, "fe/dist/extra.js"), "untracked\n");
+      mkdirSync(join(worktree, "fe/node_modules"));
+      writeFileSync(join(worktree, "fe/node_modules/dep.js"), "x");
+
+      await implode({ force: true });
+
+      // the report is taken after the removal: the untracked file in the kept directory is still listed
+      expect(messages.join("\n")).toContain("fe/dist/extra.js");
+      expect(messages.join("\n")).not.toContain("node_modules");
+    }, `${CONFIG}  implode: { preRm: [dist, node_modules] }\n`));
+
   it("deletes untracked files matching a pattern and keeps tracked ones", () =>
     withProject(async ({ implode, commit, worktree, messages }) => {
       commit("rec/demo/pr2-demo.webm", "tracked\n");
@@ -275,7 +289,7 @@ describe("implode cleanup", () => {
       const report = messages.join("\n");
       expect(report).not.toContain("pr7-demo.webm");
       expect(report).toContain("modified:   rec/demo/pr2-demo.webm");
-    }, `${CONFIG}  implode: { untracked: ['rec/{{slug}}/pr*-demo.webm'] }\n`));
+    }, `${CONFIG}  implode: { preRm: ['rec/{{slug}}/pr*-demo.webm'] }\n`));
 
   it("discards modified lockfiles after the report and leaves other modified files", () =>
     withProject(async ({ implode, worktree, messages }) => {
@@ -287,14 +301,14 @@ describe("implode cleanup", () => {
       expect(messages.join("\n")).toContain("modified:   bun.lock");
       expect(readFileSync(join(worktree, "bun.lock"), "utf8")).toBe("lock v1\n");
       expect(readFileSync(join(worktree, "src/a.ts"), "utf8")).toBe("export const a = 99;\n");
-    }, `${CONFIG}  implode: { restore: [bun.lock] }\n`));
+    }, `${CONFIG}  implode: { discard: [bun.lock] }\n`));
 
   it("removes a worktree whose only changes are discarded lockfiles", () =>
     withProject(async ({ implode, worktree }) => {
       writeFileSync(join(worktree, "bun.lock"), "lock v2\n");
 
       expect((await implode()).worktreeRemoved).toBe(true);
-    }, `${CONFIG}  implode: { restore: [bun.lock] }\n`));
+    }, `${CONFIG}  implode: { discard: [bun.lock] }\n`));
 
   it("removes a worktree with local changes when forced", () =>
     withProject(async ({ implode, worktree }) => {

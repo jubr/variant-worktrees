@@ -45,14 +45,14 @@ describe("provisioning command echo", () => {
       "  instances:",
       '    fe: { kind: vite, dir: fe, up: "echo up" }',
       "  steps:",
-      '    - { name: one, run: "echo one", show: "^never$" }',
-      '    - { name: skipped, run: "echo skipped", unlessEnv: { VARIANT_ECHO_SKIP: "1" } }',
+      '    - { name: one, run: "echo one", filterLinesRegex: "^never$" }',
+      '    - { name: skipped, run: "echo skipped" }',
       `    - { name: two, run: "echo two > ${d}/two.txt" }`,
     );
 
   it("prints each command before it runs, in order, without verbose", () =>
     withProject(PROVISIONED, async ({ directory, client }) => {
-      process.env.VARIANT_ECHO_SKIP = "0";
+      process.env.VARIANT_STEP_SKIPPED = "yes";
       const log: string[] = [];
 
       await client.provision("demo", { log: (line) => log.push(line) });
@@ -68,11 +68,11 @@ describe("provisioning command echo", () => {
 
   it("prints nothing for a step that is skipped", () =>
     withProject(PROVISIONED, async ({ client }) => {
-      process.env.VARIANT_ECHO_SKIP = "1";
+      process.env.VARIANT_STEP_SKIPPED = "no";
       const log: string[] = [];
 
       await client.provision("demo", { log: (line) => log.push(line) });
-      delete process.env.VARIANT_ECHO_SKIP;
+      delete process.env.VARIANT_STEP_SKIPPED;
 
       expect(log).not.toContain("+ echo skipped");
       expect(log).toContain("+ echo one");
@@ -100,7 +100,7 @@ const CONTAINERS = lines(
   "  dialect: sqlite",
   "variant:",
   "  instances:",
-  '    be: { kind: nestjs, dir: be, container: { build: "echo building", image: app, port: 3000 } }',
+  "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",
   "  supervise: { startDelaySeconds: 0 }",
 );
 
@@ -114,7 +114,7 @@ describe("container command echo", () => {
         await client.up("demo", { opener: async () => {}, log: (line) => log.push(line) });
 
         const echoed = log.filter((line) => line.startsWith("+ "));
-        expect(echoed[0]).toBe("+ echo building");
+        expect(echoed[0]).toStartWith("+ docker build -f ");
         expect(echoed[1]).toBe("+ docker network create v-net-demo");
         expect(echoed[2]).toStartWith("+ docker run -d --name v-be-demo --network v-net-demo");
         expect(echoed.some((line) => line.includes("inspect"))).toBe(false);
@@ -129,7 +129,7 @@ describe("container command echo", () => {
           "  dialect: sqlite",
           "variant:",
           "  instances:",
-          "    be: { kind: nestjs, dir: be, env: { TOKEN: hunter2 }, container: { image: app, port: 3000 } }",
+          "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",
           "  supervise: { startDelaySeconds: 0 }",
         ),
       async ({ client }) => {
@@ -138,9 +138,9 @@ describe("container command echo", () => {
         await client.up("demo", { opener: async () => {}, log: (line) => log.push(line) });
 
         const run = log.find((line) => line.startsWith("+ docker run")) as string;
-        expect(run).toContain("-e TOKEN=***");
+        expect(run).toContain("-e VARIANT_CONFIG=***");
         expect(run).toContain("-e VARIANT_SLUG=***");
-        expect(log.join("\n")).not.toContain("hunter2");
+        expect(log.join("\n")).not.toContain("variants.yaml");
       },
     ));
 

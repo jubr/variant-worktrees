@@ -105,8 +105,8 @@ export const prepareRun = async (
     ...(storage ? { storage } : {}),
   };
   for (const [key, instance] of Object.entries(config.variant.instances)) {
-    if (instance.open !== undefined) {
-      run.urls[key] = renderTemplate(instance.open, templateContext(run, key));
+    if (instance.url !== undefined) {
+      run.urls[key] = renderTemplate(instance.url, templateContext(run, key));
     }
   }
   return run;
@@ -188,7 +188,7 @@ export const variantVariables = (
     variables.SQLITE_DATABASE = run.target;
   }
   if (run.storage && config.variant.storage) {
-    variables[config.variant.storage.env] = run.storage;
+    variables[config.variant.storage.envVarName] = run.storage;
   }
   for (const key of Object.keys(config.variant.instances)) {
     const segment = envSegment(key);

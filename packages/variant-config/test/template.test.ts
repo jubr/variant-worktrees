@@ -25,11 +25,16 @@ describe("renderTemplate", () => {
   });
 
   it("replaces the port of another instance by its key", () => {
-    expect(renderTemplate("{{port.be}}", { ports: { be: 62061 } })).toBe("62061");
+    expect(renderTemplate("{{be.port}}", { ports: { be: 62061 } })).toBe("62061");
+    expect(renderTemplate("{{my-api.port}}", { ports: { "my-api": 62062 } })).toBe("62062");
   });
 
   it("fails naming an instance that has no port", () => {
-    expect(() => renderTemplate("{{port.nope}}", { ports: { be: 62061 } })).toThrow("nope");
+    expect(() => renderTemplate("{{nope.port}}", { ports: { be: 62061 } })).toThrow("nope");
+  });
+
+  it("fails on the former {{port.<key>}} form, naming {{<key>.port}}", () => {
+    expect(() => renderTemplate("{{port.be}}", { ports: { be: 62061 } })).toThrow("{{be.port}}");
   });
 
   it("leaves a placeholder without a value empty", () => {

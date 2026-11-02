@@ -12,42 +12,34 @@ variant:
   steps:
     - name: storage
       run: echo "Preparing $VARIANT_SLUG with storage in $STORAGE_ROOT"
-      show: ^Preparing
+      filterLinesRegex: ^Preparing
   implode:
-    preRm: [dist, node_modules, .cache, out] # removed below fe/ and be/ before the worktree goes
-    restore: [bun.lock] # a lockfile touched by `bun install` does not block the removal
+    preRm: [dist, node_modules, .cache, out] # removed below the project and fe/ and be/ before the worktree goes
+    discard: [bun.lock] # a lockfile touched by `bun install` does not block the removal
   # be comes first: the nginx of fe resolves the be container by name when it starts.
   instances:
     be:
       kind: nestjs
       dir: be
       watch: bun run start:dev
-      dotenv: .env # copied from .env.example and amended with the variant's PORT and SQLITE_DATABASE
       env:
-        PORT: '{{port}}'
-        SQLITE_DATABASE: '{{schema}}'
+        sourceFile: .env # copied from .env.example and amended with the variant's values
+        overrides:
+          PORT: '{{port}}'
+          SQLITE_DATABASE: '{{schema}}'
       ready: /api # answers 200 once the server runs
       container:
-        dockerfile: be/Dockerfile
-        image: example-be
-        port: 3000
-        volumes:
-          - '{{schema}}:/data/variant.sqlite' # the variant's database file
-        env:
-          PORT: '3000'
-          SQLITE_DATABASE: /data/variant.sqlite
+        dockerfile: be/Dockerfile # SQLITE_DATABASE and PORT are set in the image
+        internalPort: 3000
     fe:
       kind: vite
       dir: fe
       watch: bun run dev
-      open: http://{{slug}}.{{abbr}}.localhost:{{port}}
+      url: http://{{slug}}.{{abbr}}.localhost:{{port}}
       env:
-        PORT: '{{port}}'
-        VARIANT_API_PORT: '{{port.be}}'
+        overrides:
+          PORT: '{{port}}'
+          VARIANT_API_PORT: '{{be.port}}'
       ready: /
       container:
-        build: bun run build
-        static: dist
-        proxy:
-          path: /api/
-          to: be
+        dockerfile: fe/Dockerfile # builds the app, serves it with nginx and proxies /api/ to the be container
