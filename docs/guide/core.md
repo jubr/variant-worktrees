@@ -91,6 +91,31 @@ variant implode -s feature-forty-two
 variant implode -s feature-forty-two --force
 ```
 
+## ui
+
+Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension. It lists every variant with its state (watching, up, down) in name order and offers variant watch (the play icon), stop and implode. In the editor, **Sort** (also the setting `variant.sort`) orders the Explorer view and the panel by name, created or changed. The trash icon is at the right of every row except `main`: theme foreground when implode would succeed, red when it would fail.
+
+```bash
+variant ui
+variant ui --detach
+variant ui --stop
+```
+
+The port is `VARIANT_UI_PORT`, else `variant.ui.port` from `variants.yaml`, else a free port picked the way an instance's is (reserved ports are never picked), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
+
+There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the instance `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): `variant.instances` must not define either.
+
+The server is part of `variant`, not a program of its own: the npm package and every compiled executable carry it together with the app, so `variant ui` works from the `variant` you run, with nothing installed next to it.
+
+Security model:
+
+- Loopback only, no remote access.
+- A random 128-bit token is required. The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie. The token lives in an owner-only file next to the [editor socket](./ipc) and is removed when the server ends.
+- The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
+- POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
+- `implode` needs `confirm: true` in the request body, and `main` is never imploded.
+- A content security policy allows scripts and styles from the server's own origin only.
+
 ## Global flags
 
 These flags work on every command, before or after the command name. `variant --help` and `variant <command> --help` list them in a `Global flags` section, apart from the flags of the command.

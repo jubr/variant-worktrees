@@ -27,8 +27,8 @@ export const VariantEntrySchema = z.strictObject({
 });
 export type VariantEntry = z.infer<typeof VariantEntrySchema>;
 
-/** Template of the URL that opens a Vite instance. `{{slug}}` and `{{port}}` are placeholders. */
-export const DEFAULT_OPEN_URL = "http://{{slug}}.vw.localhost:{{port}}";
+/** Template of the URL that opens a Vite instance. `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
+export const DEFAULT_OPEN_URL = "http://{{slug}}.{{abbr}}.localhost:{{port}}";
 
 /** A relative path that stays below its base directory: not absolute, never `..`. */
 const insideDirectory = (value: string): boolean => !isAbsolute(value) && !value.split(/[\\/]/).includes("..");
@@ -46,8 +46,17 @@ const envMapSchema = z.record(z.string().min(1), z.string());
 /** Key of an instance: starts with a letter, then letters, digits, `-` and `_`. */
 export const INSTANCE_KEY = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
+/** Key of the instance that `variant ui` records for itself in the runtime state of `main`; no project may define it. */
+export const UI_INSTANCE_KEY = "variant-ui";
+
 /** The segment of environment variables derived from an instance key: `my-api` becomes `MY_API`. */
 export const envSegment = (key: string): string => key.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+
+/** The environment segment of the `variant.ui` settings: `VARIANT_UI_PORT` is `variant.ui.port`. No instance key may use it. */
+export const UI_ENV_SEGMENT = "UI";
+
+/** The environment override of `variant.ui.port`. */
+export const UI_PORT_ENV = `VARIANT_${UI_ENV_SEGMENT}_PORT`;
 
 /** How an instance runs under `up`. */
 export const InstanceContainerSchema = z
@@ -87,7 +96,7 @@ export const VariantInstanceSchema = z.strictObject({
   dir: z.string().min(1),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
-  /** URL template to open the instance; `{{slug}}` and `{{port}}` are placeholders. */
+  /** URL template to open the instance; `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
   open: z.string().min(1).optional(),
   /** Environment file, relative to `dir`, that is copied for a variant and amended with that variant's values. */
   dotenv: z.string().min(1).optional(),
@@ -118,6 +127,9 @@ const prefixSchema = z
   .refine((value) => !/[\\/]/.test(value), "prefix must not contain a path separator");
 
 const seconds = z.number().int().nonnegative();
+
+/** A project abbreviation: lowercase letters and digits, optionally separated by single hyphens. */
+export const ABBR_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export const VariantStepSchema = z.strictObject({
   name: z.string().min(1),
@@ -162,6 +174,12 @@ export const VariantSuperviseSchema = z.strictObject({
   checkoutPollSeconds: seconds.optional(),
 });
 
+/** Settings of the `variant ui` server. The environment override of `variant.ui.<name>` is `VARIANT_UI_<NAME>`. */
+export const VariantUiSchema = z.strictObject({
+  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port that is not reserved. */
+  port: PortSchema.optional(),
+});
+
 export const VariantImplodeSchema = z.strictObject({
   /** Directory names removed below each instance directory before the worktree is removed. */
   preRm: z.array(plainName).optional(),
@@ -179,6 +197,11 @@ export const VariantRuntimeSchema = z
     main: z.string().min(1).optional(),
     /** The directory that holds the worktrees; default: the directory of a parent `AGENTS.md` symlink, else `main`. */
     root: z.string().min(1).optional(),
+    /** Short project label for hostnames and `{{abbr}}` in `open` templates. Derived from the checkout name when absent. */
+    abbr: z
+      .string()
+      .regex(ABBR_PATTERN, "must be lowercase letters and digits, optionally separated by single -")
+      .optional(),
     prefix: prefixSchema.optional(),
     /** Branch that new variant branches start from, and that a variant is merged into before it is imploded. */
     baseBranch: z.string().min(1).optional(),
@@ -193,6 +216,7 @@ export const VariantRuntimeSchema = z
     steps: z.array(VariantStepSchema).optional(),
     supervise: VariantSuperviseSchema.optional(),
     implode: VariantImplodeSchema.optional(),
+    ui: VariantUiSchema.optional(),
     up: z.string().min(1).optional(),
     watch: z.string().min(1).optional(),
     /** Command that seeds a new variant database. A per-variant `seed` wins. */
@@ -218,9 +242,23 @@ export const VariantRuntimeSchema = z
       names.add(step.name);
     }
     const instances = variant.instances ?? {};
+    if (UI_INSTANCE_KEY in instances) {
+      context.addIssue({
+        code: "custom",
+        path: ["instances", UI_INSTANCE_KEY],
+        message: `the instance key ${UI_INSTANCE_KEY} is reserved for the variant ui server`,
+      });
+    }
     const segments = new Map<string, string>();
     for (const key of Object.keys(instances)) {
       const segment = envSegment(key);
+      if (segment === UI_ENV_SEGMENT) {
+        context.addIssue({
+          code: "custom",
+          path: ["instances", key],
+          message: `the instance key ${key} is reserved: its port variable ${UI_PORT_ENV} belongs to the variant ui server`,
+        });
+      }
       const other = segments.get(segment);
       if (other !== undefined) {
         context.addIssue({
@@ -303,6 +341,7 @@ export type ResolvedVariant = Omit<
   VariantRuntime,
   | "main"
   | "root"
+  | "abbr"
   | "prefix"
   | "instances"
   | "baseBranch"
@@ -315,6 +354,7 @@ export type ResolvedVariant = Omit<
 > & {
   main: string;
   root: string;
+  abbr: string;
   prefix: string;
   instances: Record<string, VariantInstance>;
   baseBranch: string;

@@ -38,9 +38,11 @@ describe("embedded chat renamer manifest", () => {
 
     expect(Object.keys(properties).sort()).toEqual([
       "variant.activationPatterns",
+      "variant.autoExpand",
       "variant.enable",
       "variant.hookScope",
       "variant.renameExistingDays",
+      "variant.sort",
       "variant.titleEventPromptLines",
       "variant.trigger",
       "variant.worktreePrefixes",

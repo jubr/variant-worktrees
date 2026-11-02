@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
   clearVariantRuntime,
   isProcessAlive,
@@ -85,6 +85,24 @@ describe("runtime state of a variant", () => {
       clearVariantRuntime(config, worktree);
 
       expect(readVariantRuntime(config, worktree)).toBeUndefined();
+    }));
+
+  it("keeps the reserved variant-ui entry when the runtime of main is rewritten or cleared", () =>
+    withRepo("", (repo) => {
+      const config = loadConfig({ cwd: repo });
+      const file = join(repo, "variants.local.yaml");
+      const ui = { port: 62100, pid: 4242, url: "http://ui.vw.localhost:62100" };
+      writeFileSync(file, stringifyYaml({ runtime: { instances: { "variant-ui": ui } } }));
+
+      writeVariantRuntime(config, repo, { slug: "main", mode: "watch", instances: { fe: { port: 62060, pid: 7 } } });
+
+      expect(parseYaml(readFileSync(file, "utf8"))).toEqual({
+        runtime: { slug: "main", mode: "watch", instances: { fe: { port: 62060, pid: 7 }, "variant-ui": ui } },
+      });
+
+      clearVariantRuntime(config, repo);
+
+      expect(parseYaml(readFileSync(file, "utf8"))).toEqual({ runtime: { instances: { "variant-ui": ui } } });
     }));
 
   it("reads nothing for a worktree without a file", () =>

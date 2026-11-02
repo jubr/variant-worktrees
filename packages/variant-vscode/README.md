@@ -71,6 +71,21 @@ The same operations are available as an MCP server, so Cursor, Claude, or any MC
 
 The tools are `variant_config`, `variant_list`, `variant_create`, `variant_switch`, `variant_provision`, `variant_up`, `variant_down`, `variant_watch`, and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
 
+## See your variants
+
+A **Variant Worktrees** section in the Explorer lists every variant of the first workspace folder. It expands when the editor starts; `variant.autoExpand` set to `false` leaves it collapsed. **Sort**, immediately left of Open Variants Panel, orders the list by name, created or changed, ascending or descending. The same choice is the setting `variant.sort` (default `name-asc`). Created is the earlier birth time of the variant directory and `variants.local.yaml`; changed is the later modification time of those two. A missing time sorts as older. The UI server item stays above the list.
+
+Each item has a watching, up or down icon, the uptime as description and a tooltip with its state, mode, URL, worktree and whether implode would succeed.
+
+- Inline: the play icon is **variant watch** and starts a detached `watch`. **Stop** brings the variant down. **Implode** sits at the right of every row except `main` and removes the variant after a confirmation. The trash icon uses the theme foreground when implode would succeed and red when it would fail (readable on white and on a dark background). While an action runs the item shows a progress icon.
+- Context menu: show the watch output (the `variants.watch.log` file), open the URL, open the panel, open the web page.
+- A `UI server` item above the variants appears while `variant ui` runs, with open and stop actions.
+- Without a `variants.yaml` the view says so; without variants it names `variant create`.
+
+**Variant: Open Variants Panel** opens the same app in an editor panel and follows `variant.sort`. **Variant: Open Variants in Browser** opens the page of a running `variant ui` server with its token; start one with `variant ui --detach`. That page stays in name order.
+
+The view and the panel call `variant-api` inside the extension host. The extension socket does not carry these actions. Requires VS Code 1.101 or a host with Node.js 22.13 or newer.
+
 ## One chat per variant
 
 Every agent chat deserves a name that says which variant it works on. This extension renames a Cursor chat from its first prompt:

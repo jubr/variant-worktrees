@@ -1,0 +1,228 @@
+/*
+ * The palette comes from the editor theme (`--vscode-*`) when the page runs in a webview. Outside an editor those
+ * variables are unset, so each one has a fallback, light by default and dark when the browser prefers it.
+ */
+:root {
+  --vv-bg: var(--vscode-editor-background, #ffffff);
+  --vv-fg: var(--vscode-foreground, #1f2328);
+  --vv-muted: var(--vscode-descriptionForeground, #57606a);
+  --vv-border: var(--vscode-panel-border, #d0d7de);
+  --vv-hover: var(--vscode-list-hoverBackground, #f3f4f6);
+  --vv-error: var(--vscode-errorForeground, #b42318);
+  --vv-accent: var(--vscode-textLink-foreground, #0550ae);
+  --vv-button-bg: var(--vscode-button-background, #0550ae);
+  --vv-button-fg: var(--vscode-button-foreground, #ffffff);
+  --vv-font: var(--vscode-font-family, system-ui, sans-serif);
+  --vv-font-size: var(--vscode-font-size, 13px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vv-bg: var(--vscode-editor-background, #1e1e1e);
+    --vv-fg: var(--vscode-foreground, #d4d4d4);
+    --vv-muted: var(--vscode-descriptionForeground, #a0a0a0);
+    --vv-border: var(--vscode-panel-border, #3c3c3c);
+    --vv-hover: var(--vscode-list-hoverBackground, #2a2d2e);
+    --vv-error: var(--vscode-errorForeground, #f48771);
+    --vv-accent: var(--vscode-textLink-foreground, #3794ff);
+    --vv-button-bg: var(--vscode-button-background, #0e639c);
+    --vv-button-fg: var(--vscode-button-foreground, #ffffff);
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--vv-bg);
+  color: var(--vv-fg);
+  font-family: var(--vv-font);
+  font-size: var(--vv-font-size);
+}
+
+.app {
+  padding: 8px 12px;
+}
+
+.notice {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--vv-error);
+  color: var(--vv-error);
+}
+
+.empty {
+  color: var(--vv-muted);
+}
+
+.variant-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.variant-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--vv-border);
+}
+
+.variant-row:hover {
+  background: var(--vv-hover);
+}
+
+.variant-row[aria-busy="true"] {
+  opacity: 0.8;
+}
+
+.slug {
+  font-weight: 600;
+}
+
+/* The icon shape and the label carry the state; the colour only supports them. */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.state-watching {
+  color: var(--vv-accent);
+}
+
+.state-up {
+  color: var(--vv-fg);
+}
+
+.state-down {
+  color: var(--vv-muted);
+}
+
+.stale,
+.uptime {
+  color: var(--vv-muted);
+}
+
+.url {
+  color: var(--vv-accent);
+}
+
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.implode-clean {
+  margin-left: auto;
+  color: var(--vv-fg);
+}
+
+.implode-dirty {
+  margin-left: auto;
+  color: var(--vv-error);
+}
+
+.icon-button.implode-dirty:disabled {
+  opacity: 1;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vv-fg);
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--vv-hover);
+}
+
+.icon-button:focus-visible {
+  outline: 1px solid var(--vv-accent);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.busy {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.row-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--vv-error);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.dialog {
+  max-width: 420px;
+  padding: 12px 16px;
+  border: 1px solid var(--vv-border);
+  background: var(--vv-bg);
+  color: var(--vv-fg);
+}
+
+.dialog h2 {
+  margin: 0 0 8px;
+  font-size: 1.1em;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-actions button {
+  padding: 4px 12px;
+  border: 1px solid var(--vv-border);
+  background: transparent;
+  color: var(--vv-fg);
+  cursor: pointer;
+}
+
+.dialog-actions .danger {
+  border-color: var(--vv-button-bg);
+  background: var(--vv-button-bg);
+  color: var(--vv-button-fg);
+}
+
+.dialog.output {
+  width: min(90vw, 720px);
+  max-width: none;
+}
+
+.dialog .log {
+  max-height: 60vh;
+  margin: 0 0 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+}

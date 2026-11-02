@@ -18,6 +18,12 @@ describe("renderTemplate", () => {
     );
   });
 
+  it("replaces {{abbr}} with the project abbreviation", () => {
+    expect(renderTemplate("http://{{abbr}}-{{slug}}.localhost", { abbr: "otc", slug: "demo" })).toBe(
+      "http://otc-demo.localhost",
+    );
+  });
+
   it("replaces the port of another instance by its key", () => {
     expect(renderTemplate("{{port.be}}", { ports: { be: 62061 } })).toBe("62061");
   });

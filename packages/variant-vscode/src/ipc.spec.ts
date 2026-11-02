@@ -154,11 +154,7 @@ describe("extension socket", () => {
   });
 
   it("refuses create without calling variant-api", async () => {
-    const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
-      dependencies?: Record<string, string>;
-    };
-    const source = readFileSync(new URL("./extension.ts", import.meta.url), "utf8");
-    expect(manifest.dependencies?.["variant-api"]).toBeUndefined();
+    const source = readFileSync(new URL("./socket.ts", import.meta.url), "utf8");
     expect(source.includes("variant-api")).toBe(false);
 
     const layout = singleRepoLayout();

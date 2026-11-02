@@ -20,6 +20,65 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
+  it("rejects an instance with the reserved key variant-ui, naming it", () => {
+    const result = VariantsConfigSchema.safeParse({
+      variant: { instances: { "variant-ui": { kind: "vite", dir: "ui" } } },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (candidate) => candidate.path.join(".") === "variant.instances.variant-ui",
+      );
+      expect(issue?.message).toContain("variant-ui");
+      expect(issue?.message).toContain("reserved");
+    }
+  });
+
+  it.each([
+    "ui",
+    "UI",
+    "Ui",
+  ])("rejects an instance with the key %s, which shares VARIANT_UI_PORT with the server", (key) => {
+    const result = VariantsConfigSchema.safeParse({ variant: { instances: { [key]: { kind: "vite", dir: "ui" } } } });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === `variant.instances.${key}`);
+      expect(issue?.message).toContain(key);
+      expect(issue?.message).toContain("VARIANT_UI_PORT");
+    }
+  });
+
+  it("accepts instance keys that merely contain ui", () => {
+    const instance = { kind: "vite", dir: "ui" };
+
+    expect(
+      VariantsConfigSchema.safeParse({ variant: { instances: { ui2: instance, "my-ui": instance } } }).success,
+    ).toBe(true);
+  });
+
+  describe("variant.ui", () => {
+    it("accepts a port", () => {
+      const result = VariantsConfigSchema.safeParse({ variant: { ui: { port: 62100 } } });
+
+      expect(result.success && result.data.variant?.ui?.port).toBe(62100);
+    });
+
+    it("accepts the setting absent", () => {
+      expect(VariantsConfigSchema.safeParse({ variant: {} }).success).toBe(true);
+      expect(VariantsConfigSchema.safeParse({ variant: { ui: {} } }).success).toBe(true);
+    });
+
+    it.each([0, "abc", 1.5, -1])("rejects the port %p", (port) => {
+      expect(VariantsConfigSchema.safeParse({ variant: { ui: { port } } }).success).toBe(false);
+    });
+
+    it("rejects an unknown key", () => {
+      expect(VariantsConfigSchema.safeParse({ variant: { ui: { color: "red" } } }).success).toBe(false);
+    });
+  });
+
   it("accepts a custom prefix", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "_work-" } }).success).toBe(true);
   });
