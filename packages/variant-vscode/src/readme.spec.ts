@@ -9,7 +9,7 @@ import { join } from "node:path";
 const repoRoot = join(import.meta.dirname, "../../..");
 const read = (file: string): string => readFileSync(join(repoRoot, file), "utf8");
 
-const description = "Isolated worktree+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode";
+const description = "Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode";
 const docsUrl = "https://jubr.github.io/variant-worktrees/";
 
 const readmes = [
@@ -50,6 +50,13 @@ for (const { name, text } of readmes) {
 
 describe("extension README", () => {
   const text = read("packages/variant-vscode/README.md");
+
+  it("embeds no image by a repository-relative path", () => {
+    const targets = [...text.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)].map((match) => match[1] ?? "");
+    for (const target of targets) {
+      expect(target).toStartWith("https://");
+    }
+  });
 
   it("has no development information", () => {
     for (const forbidden of ["bun install", "bun run", "bun test", "F5", "Extension Development Host"]) {
