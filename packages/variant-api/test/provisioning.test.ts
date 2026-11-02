@@ -140,18 +140,18 @@ describe("provisioning order", () => {
     ));
 });
 
-describe("conditional and quiet steps", () => {
+describe("skippable and quiet steps", () => {
   const yaml = (d: string) =>
     lines(
       "db:",
       "  dialect: sqlite",
       "variant:",
       "  steps:",
-      `    - { name: demo-user, run: "echo ran > ${d}/ran.out", unlessEnv: { SEED_DEMO_USER: "false" } }`,
+      `    - { name: demo-user, run: "echo ran > ${d}/ran.out" }`,
     );
 
-  it("skips a step whose unlessEnv matches and says so", () => {
-    setEnv("SEED_DEMO_USER", "false");
+  it("skips a step whose VARIANT_STEP_<NAME> is no and says so", () => {
+    setEnv("VARIANT_STEP_DEMO_USER", "no");
     return withProject(yaml, async (directory, provision) => {
       const { output } = await provision();
 
@@ -161,13 +161,15 @@ describe("conditional and quiet steps", () => {
     });
   });
 
-  it("runs the step when the variable differs or is unset", () => {
-    setEnv("SEED_DEMO_USER", undefined);
-    return withProject(yaml, async (directory, provision) => {
-      await provision();
+  it("runs the step when the variable differs, is empty or is unset", async () => {
+    for (const value of ["yes", "", undefined]) {
+      setEnv("VARIANT_STEP_DEMO_USER", value);
+      await withProject(yaml, async (directory, provision) => {
+        await provision();
 
-      expect(read(directory, "ran.out").trim()).toBe("ran");
-    });
+        expect(read(directory, "ran.out").trim()).toBe("ran");
+      });
+    }
   });
 
   const noisy = lines(
@@ -177,10 +179,10 @@ describe("conditional and quiet steps", () => {
     "  steps:",
     "    - name: migrations",
     '      run: "echo query-noise; echo Migration Init applied"',
-    '      show: "^Migration "',
+    '      filterLinesRegex: "^Migration "',
   );
 
-  it("prints only the lines that match show", () =>
+  it("prints only the lines that match filterLinesRegex", () =>
     withProject(
       () => noisy,
       async (_directory, provision) => {
@@ -258,7 +260,7 @@ describe("command environment", () => {
       "  database: appdb",
       "variant:",
       "  instances:",
-      "    fe: { kind: vite, dir: fe, open: 'http://{{slug}}.vw.localhost:{{port}}' }",
+      "    fe: { kind: vite, dir: fe, url: 'http://{{slug}}.vw.localhost:{{port}}' }",
       "    be: { kind: nestjs, dir: be }",
       "  steps:",
       `    - { name: dump, ${step} }`,
@@ -323,9 +325,29 @@ describe("command environment", () => {
       { "variants.local.yaml": "runtime:\n  instances:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
     ));
 
+  it("lets the expanded instance overrides win for the instance's up command", () =>
+    withProject(
+      () =>
+        dump().replace(
+          "    be: { kind: nestjs, dir: be }",
+          "    be: { kind: nestjs, dir: be, up: 'env > ../up.env', env: { overrides: { POSTGRES_SCHEMA: 'mine', PORT: '{{port}}' } } }",
+        ),
+      async (directory, provision) => {
+        await provision();
+        const env = parseEnv(read(directory, "up.env"));
+
+        expect(env.POSTGRES_SCHEMA).toBe("mine");
+        expect(env.PORT).toBe("62061");
+      },
+      {
+        "be/.keep": "",
+        "variants.local.yaml": "runtime:\n  instances:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n",
+      },
+    ));
+
   it("lets the expanded step env win", () =>
     withProject(
-      () => dump([], 'run: "env > env.out", env: { POSTGRES_SCHEMA: "custom", PEER: "{{port.be}}" }'),
+      () => dump([], 'run: "env > env.out", env: { POSTGRES_SCHEMA: "custom", PEER: "{{be.port}}" }'),
       async (directory, provision) => {
         await provision();
         const env = parseEnv(read(directory, "env.out"));
@@ -354,7 +376,7 @@ describe("variant storage", () => {
 
   it("uses a custom variable", () =>
     withProject(
-      () => yaml(["  storage:", "    env: APP_DATA"]),
+      () => yaml(["  storage:", "    envVarName: APP_DATA"]),
       async (directory, provision) => {
         await provision();
         const env = parseEnv(read(directory, "env.out"));
@@ -427,12 +449,13 @@ const DOTENV_YAML = (extra: string[] = []) =>
     "    be:",
     "      kind: nestjs",
     "      dir: be",
-    "      dotenv: .env",
-    "      env: { PORT: '{{port}}' }",
+    "      env:",
+    "        sourceFile: .env",
+    "        overrides: { PORT: '{{port}}' }",
     ...extra,
   );
 
-describe("dotenv copy", () => {
+describe("env file copy", () => {
   it("copies the primary worktree's file with env applied and names the source", () =>
     withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\nKEEP=1\n" }, async (repo, worktree) => {
       const { output } = await provisionIn(repo);
@@ -442,42 +465,47 @@ describe("dotenv copy", () => {
       expect(read(repo, "be/.env")).toBe("PORT=3000\nKEEP=1\n");
     }));
 
-  it("keeps an existing file, says the copy was skipped and applies only envAlways", () =>
+  it("keeps an existing file unchanged and says the copy was skipped", () =>
     withRepo(
-      DOTENV_YAML(["      envAlways: { PUBLIC_BASE_URL: 'http://demo.localhost' }"]),
+      DOTENV_YAML(["        overrides: { PORT: '{{port}}', PUBLIC_BASE_URL: 'http://demo.localhost' }"]).replace(
+        "        overrides: { PORT: '{{port}}' }\n",
+        "",
+      ),
       { "be/.env": "PORT=3000\n" },
       async (repo, worktree) => {
         const { output } = await provisionIn(repo);
 
-        expect(read(worktree, "be/.env")).toBe("PORT=1\nPUBLIC_BASE_URL=http://demo.localhost\n");
+        expect(read(worktree, "be/.env")).toBe("PORT=1\n");
         expect(output.toLowerCase()).toContain("skip");
       },
       (worktree) => writeFileSync(join(worktree, "be", ".env"), "PORT=1\n"),
     ));
 
-  it("copies from dotenvSource, and from VARIANT_ENV_SOURCE over it", () =>
+  it("writes the storage variable into the copy", () =>
     withRepo(
-      DOTENV_YAML(["      dotenvSource: /tmp/variant-dotenv-source.env"]),
+      DOTENV_YAML().replace("variant:\n", "variant:\n  storage: {}\n"),
       { "be/.env": "PORT=3000\n" },
       async (repo, worktree) => {
-        writeFileSync("/tmp/variant-dotenv-source.env", "FROM=configured\n");
-        writeFileSync("/tmp/variant-dotenv-source-env.env", "FROM=environment\n");
-        try {
-          setEnv("VARIANT_ENV_SOURCE", "/tmp/variant-dotenv-source-env.env");
-          await provisionIn(repo);
+        await provisionIn(repo);
 
-          expect(read(worktree, "be/.env")).toContain("FROM=environment");
-          rmSync(join(worktree, "be", ".env"));
-          setEnv("VARIANT_ENV_SOURCE", undefined);
-          await provisionIn(repo);
-
-          expect(read(worktree, "be/.env")).toContain("FROM=configured");
-        } finally {
-          rmSync("/tmp/variant-dotenv-source.env", { force: true });
-          rmSync("/tmp/variant-dotenv-source-env.env", { force: true });
-        }
+        expect(read(worktree, "be/.env")).toContain(`STORAGE_ROOT=${join(worktree, ".storage")}\n`);
       },
     ));
+
+  it("copies from VARIANT_ENV_SOURCE rather than the primary worktree's file", () =>
+    withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\n" }, async (repo, worktree) => {
+      writeFileSync("/tmp/variant-dotenv-source-env.env", "FROM=environment\n");
+      try {
+        setEnv("VARIANT_ENV_SOURCE", "/tmp/variant-dotenv-source-env.env");
+        await provisionIn(repo);
+
+        expect(read(worktree, "be/.env")).toContain("FROM=environment");
+        expect(read(worktree, "be/.env")).not.toContain("PORT=3000");
+      } finally {
+        setEnv("VARIANT_ENV_SOURCE", undefined);
+        rmSync("/tmp/variant-dotenv-source-env.env", { force: true });
+      }
+    }));
 
   it("falls back to the .example file, then to an empty file with a warning", () =>
     withRepo(DOTENV_YAML(), { "be/.env.example": "FROM=example\n" }, async (repo, worktree) => {
@@ -492,8 +520,8 @@ describe("dotenv copy", () => {
       expect(output.toLowerCase()).toContain("warning");
     }));
 
-  it("applies only envAlways in the primary worktree and copies nothing", () =>
-    withRepo(DOTENV_YAML(["      envAlways: { EXTRA: x }"]), { "be/.env": "PORT=3000\n" }, async (repo) => {
+  it("copies and writes nothing in the primary worktree", () =>
+    withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\n" }, async (repo) => {
       const client = createClient({
         config: loadConfig({ cwd: repo, env: process.env }),
         cwd: repo,
@@ -503,6 +531,6 @@ describe("dotenv copy", () => {
 
       await client.provision("main");
 
-      expect(read(repo, "be/.env")).toBe("PORT=3000\nEXTRA=x\n");
+      expect(read(repo, "be/.env")).toBe("PORT=3000\n");
     }));
 });
