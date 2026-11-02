@@ -2,7 +2,7 @@
 
 ### Requirement: Release preparation task
 
-`task release:prepare` SHALL prepare a patch release from `main` in one command: bump the lockstep version, write release notes into the changelogs, commit them on the branch `release/v<version>`, push that branch, and open a GitHub pull request into `main`. It SHALL NOT create a tag, merge the pull request, or publish anything. It SHALL refuse to start, before changing any file, unless the checkout is on `main`, has a clean working tree, is not behind `origin/main`, the release packages share one version, and `gh` is authenticated.
+`task release:prepare` SHALL prepare a patch release from `main` in one command: bump the lockstep version, write release notes into the changelogs, commit them on the branch `release/v<version>`, push that branch, and open a GitHub pull request into `main`. It SHALL NOT create a tag, merge the pull request, or publish anything. It SHALL refuse to start, before changing any file, unless the checkout is on `main`, has no uncommitted changes to tracked files, is not behind `origin/main`, the release packages share one version, and `gh` is authenticated.
 
 #### Scenario: Prepare a release
 
@@ -16,9 +16,9 @@
 - **WHEN** the checkout is on a branch other than `main`
 - **THEN** the task fails naming the branch and no file is changed
 
-#### Scenario: Dirty working tree
+#### Scenario: Uncommitted changes
 
-- **WHEN** the working tree has uncommitted changes
+- **WHEN** a tracked file has uncommitted changes
 - **THEN** the task fails and no file is changed
 
 #### Scenario: Behind origin
@@ -58,7 +58,7 @@ For the new version, release preparation SHALL add to every `CHANGELOG*.md` of t
 
 ### Requirement: Release pull request
 
-The release pull request SHALL be titled `chore(release): v<version>`, SHALL target `main`, and SHALL carry the generated release notes as its body. A failure after the files changed SHALL leave the working tree for the maintainer to inspect, and `task release:pr` SHALL be re-runnable to retry the commit, push, and pull request.
+The release pull request SHALL be titled `chore(release): v<version>`, SHALL target `main`, and SHALL carry the generated release notes as its body. A failure after the files changed SHALL NOT roll them back, and `task release:pr` SHALL be re-runnable to retry the commit, push, and pull request.
 
 #### Scenario: Pull request content
 
@@ -68,4 +68,5 @@ The release pull request SHALL be titled `chore(release): v<version>`, SHALL tar
 #### Scenario: Push fails
 
 - **WHEN** pushing the release branch fails
-- **THEN** the task exits non-zero and the version bump and changelog edits remain in the working tree
+- **THEN** the task exits non-zero and the version bump and changelog edits remain in the checkout, committed on `release/v<version>`
+- **AND** running `task release:pr` again pushes the branch and opens the pull request
