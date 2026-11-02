@@ -100,6 +100,11 @@
     "configuration": {
       "title": "Variant Worktrees",
       "properties": {
+        "variant.autoExpand": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Expand the Variant Worktrees section in the Explorer when the editor starts, then return focus to the editor. `false` leaves the section as it was last collapsed. Default `true`."
+        },
         "variant.enable": {
           "type": "boolean",
           "default": true,
@@ -169,7 +174,7 @@
       "explorer": [
         {
           "id": "variant.variants",
-          "name": "Variants",
+          "name": "Variant Worktrees",
           "when": "workspaceFolderCount > 0",
           "visibility": "visible"
         }

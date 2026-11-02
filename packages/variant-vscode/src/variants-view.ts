@@ -1,18 +1,23 @@
 import { existsSync } from "node:fs";
 import { findConfigFile } from "variant-config";
 import * as vscode from "vscode";
-import { createActions, type VariantActions } from "./variants-actions.ts";
+import { type ActivityLog, createActions, type VariantActions } from "./variants-actions.ts";
 import { openInBrowser, readServerToken } from "./variants-browser.ts";
 import { type LoadClient, loadVariantClient, messageOf } from "./variants-client.ts";
+import { autoExpandEnabled, expandVariantsView } from "./variants-expand.ts";
 import { createPanelManager } from "./variants-panel.ts";
 import { createVariantsStore, type VariantsStore } from "./variants-store.ts";
 import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
 
 export const VIEW_ID = "variant.variants";
 
+export type { ActivityLog } from "./variants-actions.ts";
+
 export interface ViewDeps {
   /** The first workspace folder: the project the view shows. */
   root: string;
+  /** Receives one entry per action and the lines the action reports. Absent in tests that do not read it. */
+  log?: ActivityLog;
   loadClient?: LoadClient;
   hasConfig?: () => boolean;
   kill?: (pid: number, signal: NodeJS.Signals) => void;
@@ -45,16 +50,19 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     loadClient,
     hasConfig: deps.hasConfig ?? (() => findConfigFile(deps.root) !== undefined && existsSync(deps.root)),
   });
+  const log = deps.log;
   const actions = createActions({
     loadClient,
     records: store.records,
     ...(deps.kill ? { kill: deps.kill } : {}),
+    ...(log ? { log } : {}),
   });
   const panel = createPanelManager({
     extensionUri: context.extensionUri,
     loadClient,
     actions,
     store,
+    ...(log ? { log } : {}),
     ...(deps.readIndex ? { readIndex: deps.readIndex } : {}),
   });
   const provider = new VariantsTreeProvider(store);
@@ -64,10 +72,25 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   };
   store.onDidChange(syncContexts);
 
-  /** Runs a task; a failure becomes an error notification. */
-  const attempt = async (task: () => Promise<void>): Promise<void> => {
+  /**
+   * Records an action, then runs it. A failure is recorded with its message and rethrown.
+   * Cancelling before this is called leaves no finished entry.
+   */
+  const record = async (name: string, task: () => Promise<void>, fields?: Record<string, unknown>): Promise<void> => {
+    log?.info(name, fields);
     try {
       await task();
+      log?.info(`${name} finished`, fields);
+    } catch (error) {
+      log?.error(`${name} failed`, error, fields);
+      throw error;
+    }
+  };
+
+  /** Runs a task; a failure becomes an error notification and a log entry. */
+  const attempt = async (name: string, task: () => Promise<void>, fields?: Record<string, unknown>): Promise<void> => {
+    try {
+      await record(name, task, fields);
     } catch (error) {
       void vscode.window.showErrorMessage(messageOf(error));
     }
@@ -91,43 +114,50 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     { dispose: () => store.dispose() },
     register("variant.play", (node) => {
       const slug = slugOf(node);
-      return slug === undefined ? Promise.resolve() : attempt(() => store.run(slug, () => actions.watch(slug)));
+      return slug === undefined
+        ? Promise.resolve()
+        : attempt("play", () => store.run(slug, () => actions.watch(slug)), { slug });
     }),
     register("variant.stop", (node) => {
       const slug = slugOf(node);
-      return slug === undefined ? Promise.resolve() : attempt(() => store.run(slug, () => actions.down(slug)));
+      return slug === undefined
+        ? Promise.resolve()
+        : attempt("stop", () => store.run(slug, () => actions.down(slug)), { slug });
     }),
-    register("variant.implode", (node) => {
+    register("variant.implode", async (node) => {
       const slug = slugOf(node);
       if (slug === undefined) {
         return Promise.resolve();
       }
-      return attempt(async () => {
-        // main is refused by the action itself, before anyone is asked.
-        if (slug !== "main" && !(await confirmImplode(slug))) {
-          return;
-        }
-        await store.run(slug, () => actions.implode(slug));
-      });
+      if (slug !== "main" && !(await confirmImplode(slug))) {
+        log?.info("implode cancelled", { slug });
+        return;
+      }
+      return attempt("implode", () => store.run(slug, () => actions.implode(slug)), { slug });
     }),
     register("variant.showOutput", (node) => {
       const slug = slugOf(node);
-      return slug === undefined ? Promise.resolve() : attempt(() => actions.showOutput(slug));
+      return slug === undefined ? Promise.resolve() : attempt("show output", () => actions.showOutput(slug), { slug });
     }),
     register("variant.openUrl", (node) => {
       const slug = slugOf(node);
-      return slug === undefined ? Promise.resolve() : attempt(() => actions.openUrl(slug));
+      return slug === undefined ? Promise.resolve() : attempt("open url", () => actions.openUrl(slug), { slug });
     }),
-    register("variant.stopUiServer", () => attempt(() => actions.stopUiServer())),
-    register("variant.openPanel", () => attempt(() => panel.open())),
+    register("variant.stopUiServer", () => attempt("stop ui server", () => actions.stopUiServer())),
+    register("variant.openPanel", () => attempt("open panel", () => panel.open())),
     register("variant.openInBrowser", () =>
-      attempt(() =>
+      attempt("open in browser", () =>
         openInBrowser({ records: store.records, readToken: deps.readToken ?? (() => readServerToken(deps.root)) }),
       ),
     ),
     { dispose: () => panel.dispose() },
   );
 
+  // The host remembers a collapsed section. Expand it unless the setting opts out, then leave the editor focused.
+  void expandVariantsView(
+    autoExpandEnabled(vscode.workspace.getConfiguration("variant").get("autoExpand")),
+    (command) => Promise.resolve(vscode.commands.executeCommand(command)),
+  );
   syncContexts();
   void store.start();
   return { store, actions, loadClient };

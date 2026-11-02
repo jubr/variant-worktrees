@@ -137,7 +137,7 @@ describe("variants panel", () => {
       { enableScripts: boolean; localResourceRoots: vscode.Uri[] },
     ];
     expect(type).toBe("variant.panel");
-    expect(title).toBe("Variants");
+    expect(title).toBe("Variant Worktrees");
     expect(options.enableScripts).toBe(true);
     expect(options.localResourceRoots.map((uri) => uri.fsPath)).toEqual(["/ext/dist/webview"]);
   });

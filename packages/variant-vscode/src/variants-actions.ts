@@ -3,12 +3,20 @@ import { UI_INSTANCE_KEY } from "variant-ui/state";
 import * as vscode from "vscode";
 import type { LoadClient } from "./variants-client.ts";
 
+/** The extension log an action writes to. */
+export interface ActivityLog {
+  info(message: string, fields?: Record<string, unknown>): void;
+  error(message: string, cause?: unknown, fields?: Record<string, unknown>): void;
+}
+
 export interface ActionDeps {
   loadClient: LoadClient;
   /** The current records, to find the log, URL and process of a variant. */
   records: () => readonly VariantRecord[];
   /** Ends a process; `process.kill` by default. */
   kill?: (pid: number, signal: NodeJS.Signals) => void;
+  /** Receives the lines an action reports. */
+  log?: ActivityLog;
 }
 
 /**
@@ -30,9 +38,8 @@ export interface VariantActions {
   stopUiServer(): Promise<void>;
 }
 
-const quiet = { log: () => {} };
-
 export const createActions = (deps: ActionDeps): VariantActions => {
+  const report = { log: (line: string) => deps.log?.info(line) };
   const find = (slug: string): VariantRecord | undefined => deps.records().find((entry) => entry.slug === slug);
   const stopUiServer = async (): Promise<void> => {
     const pid = find("main")?.instances?.[UI_INSTANCE_KEY]?.pid;
@@ -43,19 +50,19 @@ export const createActions = (deps: ActionDeps): VariantActions => {
   };
   return {
     watch: async (slug) => {
-      await (await deps.loadClient()).watch(slug, { ...quiet, detach: true });
+      await (await deps.loadClient()).watch(slug, { ...report, detach: true });
     },
     down: async (slug) => {
       if (slug === UI_INSTANCE_KEY) {
         return stopUiServer();
       }
-      await (await deps.loadClient()).down(slug, quiet);
+      await (await deps.loadClient()).down(slug, report);
     },
     implode: async (slug) => {
       if (slug === "main") {
         throw new Error("main cannot be imploded");
       }
-      await (await deps.loadClient()).implode(slug, quiet);
+      await (await deps.loadClient()).implode(slug, report);
     },
     showOutput: async (slug) => {
       const log = find(slug)?.log;

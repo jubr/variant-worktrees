@@ -4,7 +4,7 @@
 
 ### Added
 
-- A **Variants** view in the Explorer: every variant with a watching, up or down icon, the uptime, and inline play,
+- A **Variant Worktrees** section in the Explorer: every variant with a watching, up or down icon, the uptime, and inline play,
   stop and implode (after a confirmation). The context menu shows a variant's output, opens its URL, opens the panel
   and the web page. It follows changes made by the CLI, an agent or another window within seconds.
 - **Variant: Open Variants Panel** shows the same list in an editor panel; **Variant: Open Variants in Browser** opens

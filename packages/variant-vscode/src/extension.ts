@@ -32,7 +32,7 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
     log,
   });
   if (workspaceRoot !== undefined) {
-    registerVariantsView(context, { root: workspaceRoot });
+    registerVariantsView(context, { root: workspaceRoot, log });
   }
   context.subscriptions.push({
     dispose: () => {

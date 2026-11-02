@@ -73,7 +73,7 @@ The tools are `variant_config`, `variant_list`, `variant_create`, `variant_switc
 
 ## See your variants
 
-A **Variants** view in the Explorer lists every variant of the first workspace folder, `main` first. Each item has a watching, up or down icon, the uptime as description and a tooltip with its state, mode, URL and worktree.
+A **Variant Worktrees** section in the Explorer lists every variant of the first workspace folder, `main` first. It expands when the editor starts; `variant.autoExpand` set to `false` leaves it collapsed. Each item has a watching, up or down icon, the uptime as description and a tooltip with its state, mode, URL and worktree.
 
 - Inline: **play** starts a detached `watch`, **stop** brings the variant down, **implode** removes it after a confirmation in a modal dialog. While an action runs the item shows a progress icon.
 - Context menu: show the watch output (the `variants.watch.log` file), open the URL, open the panel, open the web page.

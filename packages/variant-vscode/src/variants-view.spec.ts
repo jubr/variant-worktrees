@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import * as vscode from "vscode";
 import { fakeClient, record } from "./variants-test-support.ts";
 import type { VariantNode } from "./variants-tree.ts";
-import { registerVariantsView, type ViewDeps } from "./variants-view.ts";
+import { type ActivityLog, registerVariantsView, type ViewDeps } from "./variants-view.ts";
 
 const registerCommand = spyOn(vscode.commands, "registerCommand");
 const executeCommand = spyOn(vscode.commands, "executeCommand");
@@ -139,21 +139,51 @@ describe("inline actions", () => {
   });
 
   it("implode does nothing when the modal is cancelled", async () => {
-    const { command, node, fake } = await open();
+    const entries: string[] = [];
+    const { command, node, fake } = await open([down], {
+      log: {
+        info: (message, fields) => entries.push(`${message} ${JSON.stringify(fields ?? {})}`),
+        error: () => entries.push("error"),
+      },
+    });
 
     await command("variant.implode")(node("demo"));
 
     expect(fake.calls).toEqual([]);
+    expect(entries).toEqual(['implode cancelled {"slug":"demo"}']);
+  });
+
+  it("records play in the extension log, including a line the watch reports", async () => {
+    const entries: string[] = [];
+    const log: ActivityLog = {
+      info: (message, fields) => entries.push(`${message} ${JSON.stringify(fields ?? {})}`),
+      error: (message, cause) => entries.push(`error ${message} ${cause instanceof Error ? cause.message : ""}`),
+    };
+    const { command, node, fake } = await open([down], { log });
+
+    await command("variant.play")(node("demo"));
+    const reported = fake.calls[0]?.options as { log?: (line: string) => void } | undefined;
+    reported?.log?.("nothing was started");
+
+    expect(entries).toEqual(['play {"slug":"demo"}', 'play finished {"slug":"demo"}', "nothing was started {}"]);
   });
 
   it("shows the message of a failing action as an error notification", async () => {
     showWarningMessage.mockImplementation((async () => "Implode") as never);
-    const { command, node, fake } = await open();
+    const entries: string[] = [];
+    const { command, node, fake } = await open([down], {
+      log: {
+        info: () => {},
+        error: (message, cause, fields) =>
+          entries.push(`${message} ${cause instanceof Error ? cause.message : ""} ${JSON.stringify(fields ?? {})}`),
+      },
+    });
     fake.failNext("Variant demo is not merged into main");
 
     await command("variant.implode")(node("demo"));
 
     expect(showErrorMessage).toHaveBeenCalledWith("Variant demo is not merged into main");
+    expect(entries).toEqual(['implode failed Variant demo is not merged into main {"slug":"demo"}']);
   });
 
   it("shows a progress icon and no actions on the item while the action runs", async () => {
@@ -290,12 +320,18 @@ describe("manifest contributions", () => {
     return regexes.every((regex) => regex.test(viewItem));
   };
 
-  it("contributes the Variants view to the Explorer, expanded, only with a folder open", () => {
+  it("contributes the Variant Worktrees section to the Explorer, expanded, only with a folder open", () => {
     const view = views.explorer?.find((entry) => entry.id === "variant.variants");
 
-    expect(view?.name).toBe("Variants");
+    expect(view?.name).toBe("Variant Worktrees");
     expect(view?.when).toBe("workspaceFolderCount > 0");
     expect(view?.visibility).toBe("visible");
+    const settings = (
+      JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+        contributes: { configuration: { properties: Record<string, { default?: boolean }> } };
+      }
+    ).contributes.configuration.properties;
+    expect(settings["variant.autoExpand"]?.default).toBe(true);
   });
 
   it("contributes a welcome message for no variants.yaml and one that names variant create", () => {

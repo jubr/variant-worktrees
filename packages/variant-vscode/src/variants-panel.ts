@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type ActionRequest, attachWebviewHost } from "variant-ui/protocol";
 import * as vscode from "vscode";
-import type { VariantActions } from "./variants-actions.ts";
+import type { ActivityLog, VariantActions } from "./variants-actions.ts";
 import { type LoadClient, messageOf, recordSource } from "./variants-client.ts";
 import type { VariantsStore } from "./variants-store.ts";
 
@@ -48,6 +48,8 @@ export interface PanelDeps {
   actions: VariantActions;
   /** Marks a slug as busy in the Variants view while a panel action on it runs. */
   store: VariantsStore;
+  /** Receives one entry per panel action. */
+  log?: ActivityLog;
   nonce?: () => string;
   readIndex?: (directory: string) => string;
 }
@@ -68,7 +70,7 @@ export const createPanelManager = (deps: PanelDeps): PanelManager => {
   let current: vscode.WebviewPanel | undefined;
   const source = recordSource(deps.loadClient);
 
-  const run = (request: ActionRequest): Promise<void> => {
+  const perform = (request: ActionRequest): Promise<void> => {
     const { actions, store } = deps;
     const { slug } = request;
     switch (request.action) {
@@ -86,6 +88,18 @@ export const createPanelManager = (deps: PanelDeps): PanelManager => {
     }
   };
 
+  const run = async (request: ActionRequest): Promise<void> => {
+    const fields = { slug: request.slug };
+    deps.log?.info(request.action, fields);
+    try {
+      await perform(request);
+      deps.log?.info(`${request.action} finished`, fields);
+    } catch (error) {
+      deps.log?.error(`${request.action} failed`, error, fields);
+      throw error;
+    }
+  };
+
   const open = async (): Promise<void> => {
     if (current !== undefined) {
       current.reveal();
@@ -99,7 +113,7 @@ export const createPanelManager = (deps: PanelDeps): PanelManager => {
       void vscode.window.showErrorMessage(`The variants app is not part of this installation: ${messageOf(error)}`);
       return;
     }
-    const panel = vscode.window.createWebviewPanel(PANEL_TYPE, "Variants", vscode.ViewColumn.Active, {
+    const panel = vscode.window.createWebviewPanel(PANEL_TYPE, "Variant Worktrees", vscode.ViewColumn.Active, {
       enableScripts: true,
       localResourceRoots: [directory],
     });
