@@ -90,6 +90,16 @@ tasks:
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun run --filter ./packages/chat-renamer-vscode vsce-package
 
+  package:vsix:unpacked:
+    desc: "Variant worktree only: build, package the variant-worktrees vsix, and unpack it into the main checkout at out/variant-worktrees-main"
+    preconditions:
+      - sh: bun scripts/package-vsix-unpacked.ts --check
+        msg: "package:vsix:unpacked runs only in a variant worktree"
+    cmds:
+      - task: build
+      - bun run --filter ./packages/variant-vscode vsce-package
+      - bun scripts/package-vsix-unpacked.ts
+
   package:cli:
     desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host)"
     cmds:
