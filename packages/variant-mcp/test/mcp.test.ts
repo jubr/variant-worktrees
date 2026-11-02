@@ -210,8 +210,8 @@ describe("MCP runtime tools", () => {
           "    be:",
           "      kind: nestjs",
           "      dir: be",
-          "      open: http://{{slug}}.vw.localhost:{{port}}",
-          "      container: { image: app, port: 3000 }",
+          "      url: http://{{slug}}.vw.localhost:{{port}}",
+          "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           "",
         ].join("\n"),
       );
