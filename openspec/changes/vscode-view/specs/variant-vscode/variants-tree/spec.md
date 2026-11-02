@@ -6,12 +6,22 @@ The Variants view in the Explorer sidebar: a native tree that lists variants wit
 
 ### Requirement: Variants view in the Explorer
 
-The extension SHALL contribute a view `Variants` to the Explorer container that is visible and expanded by default and can be collapsed with its chevron like any Explorer section. It SHALL list every variant record of the project of the first workspace folder, `main` first, each as a tree item with its slug as the label, a state icon, and as description the uptime when the record has one. The tooltip SHALL name the state in words, the mode, the URL and the worktree. The state SHALL follow the rules of `variant-ui/variants-view`: `watching`, `up` or `down`, with three different icons. With no `variants.yaml` the view SHALL show a welcome message saying so, and with no variants a welcome message naming `variant create`.
+The extension SHALL contribute a view titled `Variant Worktrees` to the Explorer container that is visible and expanded by default and can be collapsed with its chevron like any Explorer section. On startup, unless `variant.autoExpand` is `false`, the extension SHALL expand that section and then return focus to the editor. `variant.autoExpand` defaults to expanding. It SHALL list every variant record of the project of the first workspace folder, `main` first, each as a tree item with its slug as the label, a state icon, and as description the uptime when the record has one. The tooltip SHALL name the state in words, the mode, the URL and the worktree. The state SHALL follow the rules of `variant-ui/variants-view`: `watching`, `up` or `down`, with three different icons. With no `variants.yaml` the view SHALL show a welcome message saying so, and with no variants a welcome message naming `variant create`.
 
 #### Scenario: Default presentation
 
 - **WHEN** a workspace with a `variants.yaml` is opened for the first time
-- **THEN** the Variants view is present in the Explorer and expanded
+- **THEN** the Variant Worktrees section is present in the Explorer and expanded
+
+#### Scenario: Expanded again on startup
+
+- **WHEN** the editor starts with the section collapsed and `variant.autoExpand` is not `false`
+- **THEN** the section is expanded and the editor keeps focus
+
+#### Scenario: Auto-expand turned off
+
+- **WHEN** the editor starts with `variant.autoExpand` set to `false`
+- **THEN** the extension leaves the section as it was
 
 #### Scenario: Three states, three icons
 
@@ -35,7 +45,7 @@ The extension SHALL contribute a view `Variants` to the Explorer container that 
 
 ### Requirement: Inline actions
 
-Each item SHALL carry inline actions: play when the state is `down` or `up`, stop when it is `watching` or `up`, and implode for every item except `main`. Play SHALL start a detached watch, stop SHALL bring the variant down, and implode SHALL first ask for confirmation in a modal dialog that names the variant and calls `implode` only when the person accepts. The context menu SHALL add show output (opens the record's `log` file in an editor, enabled when it has one), open URL (when the record has one), open the panel and open the web page. A failing action SHALL show its error message as an error notification. While an action runs, the item SHALL show a progress icon and offer no inline action.
+Each item SHALL carry inline actions: play when the state is `down` or `up`, stop when it is `watching` or `up`, and implode for every item except `main`. Play SHALL start a detached watch, stop SHALL bring the variant down, and implode SHALL first ask for confirmation in a modal dialog that names the variant and calls `implode` only when the person accepts. The context menu SHALL add show output (opens the record's `log` file in an editor, enabled when it has one), open URL (when the record has one), open the panel and open the web page. A failing action SHALL show its error message as an error notification and record that failure, with the message, in the extension log. Every action SHALL be recorded in that log when it starts and when it finishes, with the slug it applies to, and the lines the action itself reports SHALL be recorded there too. A cancelled implode SHALL be recorded as cancelled and SHALL NOT be recorded as finished. While an action runs, the item SHALL show a progress icon and offer no inline action.
 
 #### Scenario: Play
 
@@ -66,6 +76,22 @@ Each item SHALL carry inline actions: play when the state is `down` or `up`, sto
 
 - **WHEN** implode fails with `Variant demo is not merged into main`
 - **THEN** an error notification shows that message
+- **AND** the extension log records that implode of `demo` failed with that message
+
+#### Scenario: Action recorded
+
+- **WHEN** a person presses play on `demo` and the watch starts
+- **THEN** the extension log records that play of `demo` started and that it finished
+
+#### Scenario: Reported lines recorded
+
+- **WHEN** a watch of `demo` reports `nothing was started`
+- **THEN** the extension log records that line
+
+#### Scenario: Implode cancelled is recorded
+
+- **WHEN** a person presses implode on `demo` and cancels the modal
+- **THEN** the extension log records that implode of `demo` was cancelled
 
 #### Scenario: Show output
 
