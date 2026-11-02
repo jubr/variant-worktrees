@@ -44,6 +44,10 @@ const checkout = (version = "1.2.3") => {
   mkdirSync(bin);
   git(base, "init", "-q", "--bare", "-b", "main", origin);
   git(base, "init", "-q", "-b", "main", root);
+  // The script commits with the repository's own identity; CI runners have no global one.
+  git(root, "config", "user.name", "Release Test");
+  git(root, "config", "user.email", "release-test@example.com");
+  git(root, "config", "commit.gpgsign", "false");
   const manifest = (name: string): string => `${JSON.stringify({ name, version })}\n`;
   writeFileSync(join(root, "package.json"), manifest("ws"));
   for (const name of PACKAGES) {
