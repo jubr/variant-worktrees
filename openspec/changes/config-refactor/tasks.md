@@ -5,7 +5,7 @@
 - [ ] 1.3 Add failing schema tests, then rename step `show` to `filterLinesRegex`, drop `unlessEnv`, restrict step names to `[A-Za-z0-9_-]+` and reject segment collisions; verify the step tests pass
 - [ ] 1.4 Add failing schema tests, then merge `implode.untracked` into `preRm` (globs, no absolute or `..`) and rename `restore` to `discard`; verify the settings tests pass
 - [ ] 1.5 Add failing schema tests, then reduce `container` to `dockerfile` and `internalPort`, remove the proxy cross-check and `variant.up`/`variant.watch`, update `runtimeCommandFor`, `ResolvedVariant`, `DEFAULT_URL` and autodetection (`url` on Vite instances); verify `bun test packages/variant-config` passes
-- [ ] 1.6 Adapt `dotenv.ts` (`dotenvFor` reads `env.sourceFile`) with its test; regenerate `variants.yaml.schema.json`; finish `variants.example.yaml` (remove `variant.up`, `variant.watch` and, from the `fe` container, `image`, `build`, `static`, `internalPort`, `proxy`, `env`); verify `example.test.ts` and `schema-file.test.ts` pass and `task lint` is clean
+- [ ] 1.6 Adapt `dotenv.ts` (`dotenvFor` reads `env.sourceFile`) with its test; regenerate `variants.yaml.schema.json` and check `variants.local.yaml.schema.json` and `variants.local.example.yaml` stay valid; rewrite `variants.example.yaml` (keep the user's edits and remove `variant.up`, `variant.watch` and, from the `fe` container, `image`, `build`, `static`, `internalPort`, `proxy`, `env`); verify `example.test.ts` and `schema-file.test.ts` pass and `task lint` is clean
 
 ## 2. Provisioning and run context (variant-api)
 
@@ -15,7 +15,7 @@
 
 ## 3. Implode cleanup
 
-- [ ] 3.1 Add failing tests, then implement `preRm` globs (project directory and each instance directory, tracked matches kept, `{{slug}}` replaced) and `discard`, removing `removeUntracked`/`removeDirectories` duplication; verify `implode.test.ts` scenarios pass, including removal before the report
+- [ ] 3.1 Add failing tests, then implement `preRm` globs (files and directories, project directory and each instance directory, tracked matches kept, symlinks not followed, `{{slug}}` replaced) and `discard`, replacing `removeUntracked`/`removeDirectories`; verify `implode.test.ts` and `node-runtime.test.ts` pass under Bun and Node, including removal before the report
 
 ## 4. Containers
 
@@ -31,7 +31,8 @@
 ## 6. Documentation
 
 - [ ] 6.1 Update `docs/guide/configuration.md` (including a table of old key to new key), `docs/guide/core.md`, `docs/guide/library.md`, `docs/mcp.md`, `README.md`, `packages/variant-vscode/README.md` and the MCP test fixtures; verify `task docs:build` passes
-- [ ] 6.2 Verify no stale term remains: `rg -n 'dotenv|envAlways|unlessEnv|untracked|restore:|\bshow:|open:|\{\{port\.|container\.(static|build|proxy|port|image|volumes|env)|variant\.(up|watch)'` over `packages/`, `docs/`, `example/` and `README.md` finds only intended uses
+- [ ] 6.2 Describe the `VARIANT_*` mapping (override or set for commands, `<KEY>`/`<NAME>` derivation) in `README.md` and `docs/guide/configuration.md`, with a failing test in `scripts/docs-coverage.spec.ts` first; add the `CHANGELOG.md` entry; verify the docs coverage test passes
+- [ ] 6.3 Verify no stale term remains: `rg -n 'dotenv|envAlways|unlessEnv|untracked|restore:|\bshow:|open:|\{\{port\.|container\.(static|build|proxy|port|image|volumes|env)|variant\.(up|watch)'` over `packages/`, `docs/`, `example/` and `README.md` finds only intended uses
 
 ## 7. Final verification
 

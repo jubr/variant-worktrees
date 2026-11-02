@@ -13,7 +13,8 @@
 - **BREAKING** `variant.up` and `variant.watch` are removed; only an instance has `up` and `watch`. `variant.seed` stays.
 - **BREAKING** Instance `container` shrinks to `dockerfile` (required) and `internalPort` (default 80, formerly `port`). `image`, `build`, `static`, `proxy`, `volumes` and `env` are removed, together with the generated nginx configuration. The container only receives the variant variables.
 - The example project's `fe` becomes a multi-stage `fe/Dockerfile` based on `nginx:alpine` that builds the app, serves it, and proxies `/api/` to the `be` container.
-- Schema, `variants.yaml.schema.json`, `variants.example.yaml`, autodetection, runtime code, tests, specs, docs, READMEs and `example/` follow the new shape.
+- Schema, `variants.yaml.schema.json`, `variants.example.yaml`, every tracked `variants*.yaml` (`example/variants.yaml`), autodetection, runtime code, tests, specs, docs, READMEs and `example/` follow the new shape.
+- The README and the configuration guide describe the `VARIANT_*` environment variables and how each maps to a setting or placeholder.
 
 Non-goals: aliases or a migration command for the old keys; new placeholders beyond `{{<key>.port}}`; container volumes or container-only environment under another name; changes to `db`, `variants`, `supervise`, `chatRenamer` or the other `variant` settings.
 
@@ -31,6 +32,8 @@ None.
 - `variant-config/cfg-provisioning`: provisioning steps, command templates.
 - `variant-api/provisioning`: order, command environment, step skipping and filtering, env file copy, storage directory, command echo, project directory.
 - `variant-api/implode`: implode cleanup.
+- `variant-api/node-runtime`: implode patterns come from `preRm` and match directories as well as files.
+- `docs/readmes`: README and configuration guide map the `VARIANT_*` environment variables to settings.
 - `variant-api/runtime`: container run, removal of the static site proxy, watch commands, state recording, readiness, down, container echo, watch warning.
 - `variant-mcp/tools`: `variant_provision` scenario that used `variant.up`.
 
