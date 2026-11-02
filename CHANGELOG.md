@@ -4,6 +4,9 @@
 
 ### Added
 
+- `task release:prepare` prepares a patch release from `main`: version bump, GitHub-generated release notes in every
+  `CHANGELOG*.md`, a `chore(release): v<version>` commit on `release/v<version>`, and a pull request into `main`. The
+  parts are `release:check`, `release:changelog` and `release:pr`. It does not tag; the release workflow does at merge.
 - The README and the configuration guide describe how each `VARIANT_*` environment variable maps to a
   `variants.yaml` setting or template placeholder, and in which direction it works.
 - The Variant Worktrees view sorts by name, created or changed (`variant.sort`, default name ascending). Created is the
@@ -49,6 +52,8 @@
 
 ### Changed
 
+- The extension description and README tagline are `Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode`.
+  The extension README no longer embeds the icon by a relative path, which rendered broken on the extension pages.
 - **BREAKING** `variants.yaml` options are renamed or merged. Migrate with this table:
   - `open` (instance) becomes `url`.
   - `dotenv`, `dotenvSource`, `env` and `envAlways` become `env: { sourceFile, overrides }`. The overrides and the
