@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useSyncExternalStore } from "react";
 import type { Variant } from "./model.js";
+import type { VariantSort } from "./sort.js";
 import type { ConnectionState, Transport } from "./transport.js";
 
 const TransportContext = createContext<Transport | undefined>(undefined);
@@ -21,6 +22,12 @@ export const useTransport = (): Transport => {
 export const useRecords = (): readonly Variant[] => {
   const transport = useTransport();
   return useSyncExternalStore(transport.subscribe, transport.records);
+};
+
+/** The host's sort; renders again when it changes. */
+export const useSort = (): VariantSort => {
+  const transport = useTransport();
+  return useSyncExternalStore(transport.subscribe, transport.sort);
 };
 
 export const useConnectionState = (): ConnectionState => {

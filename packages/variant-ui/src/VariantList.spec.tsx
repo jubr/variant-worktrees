@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { cleanup, render, screen, within } from "@testing-library/react";
+import { act } from "react";
 import { createMemoryTransport } from "./memory-transport.js";
 import type { Variant } from "./model.js";
 import { TransportProvider } from "./transport-context.js";
@@ -80,13 +81,34 @@ describe("variant rows", () => {
     ]);
   });
 
-  it("lists main first and the rest by slug", () => {
+  it("lists variants by slug ascending when the host reports no other sort", () => {
     renderList([{ slug: "zeta" }, { slug: "main" }, { slug: "alpha" }]);
 
     expect(screen.getAllByRole("listitem").map((item) => item.getAttribute("data-slug"))).toEqual([
-      "main",
       "alpha",
+      "main",
       "zeta",
+    ]);
+  });
+
+  it("reorders when the host changes the sort and keeps the UI server first", () => {
+    const transport = renderList([
+      { slug: "old", changedMs: 1 },
+      {
+        slug: "main",
+        changedMs: 3,
+        instances: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
+      },
+      { slug: "new", changedMs: 5 },
+    ]);
+
+    act(() => transport.host.setSort("changed-desc"));
+
+    expect(screen.getAllByRole("listitem").map((item) => item.getAttribute("data-slug") ?? "ui-server")).toEqual([
+      "ui-server",
+      "new",
+      "main",
+      "old",
     ]);
   });
 

@@ -1,4 +1,5 @@
 import type { Variant } from "./model.js";
+import type { VariantSort } from "./sort.js";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected";
 
@@ -14,7 +15,9 @@ export interface Transport {
   readonly origin: "editor" | "server";
   /** The current set of records. The same array until the set changes. */
   records(): readonly Variant[];
-  /** Calls `listener` after every change of the records or the connection state. Returns the way to stop. */
+  /** The order the host wants. `name-asc` when it does not choose. */
+  sort(): VariantSort;
+  /** Calls `listener` after every change of the records, the sort or the connection state. Returns the way to stop. */
   subscribe(listener: () => void): () => void;
   state(): ConnectionState;
   watch(slug: string): Promise<void>;

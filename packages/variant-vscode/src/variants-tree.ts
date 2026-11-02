@@ -1,5 +1,12 @@
 import type { VariantRecord } from "variant-api";
-import { formatUptime, stateOf, UI_INSTANCE_KEY, type VariantState } from "variant-ui/state";
+import {
+  formatUptime,
+  sortVariants,
+  stateOf,
+  UI_INSTANCE_KEY,
+  type VariantSort,
+  type VariantState,
+} from "variant-ui/state";
 import * as vscode from "vscode";
 import type { VariantsStore } from "./variants-store.ts";
 
@@ -16,21 +23,6 @@ const ICONS: Record<VariantState, string> = {
   up: "vm-running",
   down: "circle-outline",
 };
-
-/** `main` first, the rest by slug. */
-const ordered = (records: readonly VariantRecord[]): VariantRecord[] =>
-  [...records].sort((a, b) => {
-    if (a.slug === b.slug) {
-      return 0;
-    }
-    if (a.slug === "main") {
-      return -1;
-    }
-    if (b.slug === "main") {
-      return 1;
-    }
-    return a.slug < b.slug ? -1 : 1;
-  });
 
 /** The live UI server entry that `main` records, if there is one. */
 export const uiServerOf = (records: readonly VariantRecord[]): { url?: string; pid?: number } | undefined => {
@@ -74,14 +66,22 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
   return item;
 };
 
-/** The Variants view: the UI server above the variants, `main` first. */
+/** The Variants view: the UI server above the variants, then the variants in `variant.sort` order. */
 export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode> {
   private readonly changed = new vscode.EventEmitter<VariantNode | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
   private readonly stopListening: () => void;
 
-  constructor(private readonly store: VariantsStore) {
+  constructor(
+    private readonly store: VariantsStore,
+    private readonly sort: () => VariantSort = () => "name-asc",
+  ) {
     this.stopListening = store.onDidChange(() => this.changed.fire(undefined));
+  }
+
+  /** Asks the view to read the records again, for example after `variant.sort` changes. */
+  refresh(): void {
+    this.changed.fire(undefined);
   }
 
   getChildren(): VariantNode[] {
@@ -92,7 +92,7 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
     const server = uiServerOf(records);
     return [
       ...(server ? [{ kind: "ui" as const, ...server }] : []),
-      ...ordered(records).map((record) => ({ kind: "variant" as const, record })),
+      ...sortVariants(records, this.sort()).map((record) => ({ kind: "variant" as const, record })),
     ];
   }
 

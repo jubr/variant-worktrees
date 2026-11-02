@@ -1,4 +1,6 @@
 import type { Variant } from "./model.js";
+import type { VariantSort } from "./sort.js";
+import { variantSort } from "./sort.js";
 import type { ConnectionState, Transport } from "./transport.js";
 
 /**
@@ -18,7 +20,7 @@ export type WebviewMessage = { type: "ready" } | ({ type: "action"; id: number }
 
 /** Extension to webview. */
 export type HostMessage =
-  | { type: "snapshot"; records: Variant[]; connection: ConnectionState }
+  | { type: "snapshot"; records: Variant[]; connection: ConnectionState; sort?: VariantSort }
   | { type: "result"; id: number; error?: string };
 
 /** One end of the message channel. `listen` returns the way to stop listening. */
@@ -30,6 +32,7 @@ export interface MessagePort<Out, In> {
 /** The transport of the editor panel: records and connection state arrive as snapshots, actions as requests. */
 export const createWebviewTransport = (port: MessagePort<WebviewMessage, HostMessage>): Transport => {
   let records: readonly Variant[] = [];
+  let sort: VariantSort = "name-asc";
   let state: ConnectionState = "connecting";
   let nextId = 1;
   const listeners = new Set<() => void>();
@@ -43,6 +46,7 @@ export const createWebviewTransport = (port: MessagePort<WebviewMessage, HostMes
   port.listen((message) => {
     if (message.type === "snapshot") {
       records = message.records;
+      sort = variantSort(message.sort);
       state = message.connection;
       notify();
       return;
@@ -69,6 +73,7 @@ export const createWebviewTransport = (port: MessagePort<WebviewMessage, HostMes
   return {
     origin: "editor",
     records: () => records,
+    sort: () => sort,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -90,21 +95,40 @@ export interface RecordSource {
  * The extension's end of a webview. It subscribes to `source` once the webview says it is ready, and again if the
  * webview loads anew; it runs each requested action with `run` and answers with the outcome.
  */
+export interface WebviewHostOptions {
+  /** The order to send with each snapshot. `name-asc` when absent. */
+  sort?: () => VariantSort;
+  /** Tells the host that the sort changed, so it can send the records again. */
+  onSortChange?: (listener: () => void) => () => void;
+}
+
 export const attachWebviewHost = (
   port: MessagePort<HostMessage, WebviewMessage>,
   source: RecordSource,
   run: (request: ActionRequest) => Promise<void>,
+  options: WebviewHostOptions = {},
 ): { dispose(): void } => {
   let unsubscribe: (() => void) | undefined;
+  let stopSort: (() => void) | undefined;
+  let latest: { records: Variant[]; error?: string } | undefined;
+  const publish = (update: { records: Variant[]; error?: string }): void => {
+    latest = update;
+    port.post({
+      type: "snapshot",
+      records: update.records,
+      connection: update.error === undefined ? "connected" : "disconnected",
+      sort: options.sort?.() ?? "name-asc",
+    });
+  };
   const subscribe = (): void => {
     unsubscribe?.();
-    unsubscribe = source.subscribe((update) =>
-      port.post({
-        type: "snapshot",
-        records: update.records,
-        connection: update.error === undefined ? "connected" : "disconnected",
-      }),
-    );
+    stopSort?.();
+    unsubscribe = source.subscribe(publish);
+    stopSort = options.onSortChange?.(() => {
+      if (latest !== undefined) {
+        publish(latest);
+      }
+    });
   };
   const stopListening = port.listen((message) => {
     if (message.type === "ready") {
@@ -122,6 +146,7 @@ export const attachWebviewHost = (
     dispose: () => {
       stopListening();
       unsubscribe?.();
+      stopSort?.();
       unsubscribe = undefined;
     },
   };

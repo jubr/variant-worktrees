@@ -22,10 +22,26 @@ const watching = { mode: "watch" as const, instances: { fe: { alive: true } } };
 const up = { mode: "up" as const, instances: { fe: { alive: true } } };
 
 describe("variants tree", () => {
-  it("lists main first, then the others by slug, with the slug as label", async () => {
+  it("lists variants by slug ascending by default, with the slug as label", async () => {
     const { provider } = await started([record("zeta"), record("main"), record("alpha")]);
 
-    expect(items(provider).map(({ item }) => item.label)).toEqual(["main", "alpha", "zeta"]);
+    expect(items(provider).map(({ item }) => item.label)).toEqual(["alpha", "main", "zeta"]);
+  });
+
+  it("orders by the given sort and keeps the UI server above the variants", async () => {
+    const fake = fakeClient([
+      record("old", { changedMs: 1 }),
+      record("new", { changedMs: 5 }),
+      record("main", {
+        changedMs: 3,
+        instances: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
+      }),
+    ]);
+    const store = createVariantsStore({ loadClient: async () => fake.client, hasConfig: () => true });
+    const provider = new VariantsTreeProvider(store, () => "changed-desc");
+    await store.start();
+
+    expect(items(provider).map(({ item }) => item.label)).toEqual(["UI server", "new", "main", "old"]);
   });
 
   it("uses three different icons for watching, up and down", async () => {
@@ -74,13 +90,13 @@ describe("variants tree", () => {
       record("demo"),
     ]);
 
-    const [server, main, demo] = items(provider);
+    const [server, demo, main] = items(provider);
 
     expect(server?.item.label).toBe("UI server");
     expect(server?.item.description).toBe("http://ui.vw.localhost:62100");
     expect(server?.item.contextValue).toBe("ui-server");
-    expect(main?.item.label).toBe("main");
     expect(demo?.item.label).toBe("demo");
+    expect(main?.item.label).toBe("main");
   });
 
   it("shows no UI server item without a live instance", async () => {
@@ -174,9 +190,9 @@ describe("variants tree", () => {
       record("demo", { ...up, log: "/work/_v-demo/variants.watch.log", url: "http://demo" }),
     ]);
 
-    const [main, demo] = items(provider);
+    const [demo, main] = items(provider);
 
-    expect(main?.item.contextValue).toBe("variant down main");
     expect(demo?.item.contextValue).toBe("variant up removable has-log has-url");
+    expect(main?.item.contextValue).toBe("variant down main");
   });
 });

@@ -15,4 +15,10 @@ export interface Variant {
   instances?: Record<string, InstanceFacts>;
   uptimeSeconds?: number;
   log?: string;
+  /** Earlier birth time of the variant directory and its `variants.local.yaml`. */
+  createdMs?: number;
+  /** Later modification time of the variant directory and its `variants.local.yaml`. */
+  changedMs?: number;
+  /** Whether implode without force would succeed. Absent means the host did not say. */
+  implodeClean?: boolean;
 }

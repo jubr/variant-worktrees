@@ -1,4 +1,5 @@
 import type { Variant } from "./model.js";
+import type { VariantSort } from "./sort.js";
 import type { ConnectionState, Transport } from "./transport.js";
 
 export type ActionName = "watch" | "down" | "implode" | "showOutput";
@@ -19,6 +20,8 @@ export interface MemoryHost {
   failNext(message: string): void;
   /** Holds every action until `release` is called, to look at the pending state. */
   hold(): { release: () => void };
+  /** The order the app should list variants in. */
+  setSort(sort: VariantSort): void;
 }
 
 export interface MemoryTransport extends Transport {
@@ -31,6 +34,7 @@ export const createMemoryTransport = (
   origin: Transport["origin"] = "editor",
 ): MemoryTransport => {
   let records: readonly Variant[] = initial;
+  let sort: VariantSort = "name-asc";
   let state: ConnectionState = "connected";
   let failure: string | undefined;
   let held: Promise<void> | undefined;
@@ -55,6 +59,7 @@ export const createMemoryTransport = (
   return {
     origin,
     records: () => records,
+    sort: () => sort,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -76,6 +81,10 @@ export const createMemoryTransport = (
       received,
       failNext: (message) => {
         failure = message;
+      },
+      setSort: (next) => {
+        sort = next;
+        notify();
       },
       hold: () => {
         let release = (): void => {};

@@ -167,7 +167,12 @@ describe("variants panel", () => {
     await page.send({ type: "ready" });
 
     expect(page.posted).toEqual([
-      { type: "snapshot", records: [expect.objectContaining({ slug: "demo" })], connection: "connected" },
+      {
+        type: "snapshot",
+        records: [expect.objectContaining({ slug: "demo" })],
+        connection: "connected",
+        sort: "name-asc",
+      },
     ]);
   });
 

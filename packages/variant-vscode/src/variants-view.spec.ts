@@ -320,6 +320,15 @@ describe("manifest contributions", () => {
     return regexes.every((regex) => regex.test(viewItem));
   };
 
+  it("stores the sort chosen from the menu", async () => {
+    const update = spyOn(vscode.configuration, "update");
+    const { command } = await open();
+
+    await command("variant.sort.createdAsc")();
+
+    expect(update).toHaveBeenCalledWith("sort", "created-asc", vscode.ConfigurationTarget.Global);
+  });
+
   it("contributes the Variant Worktrees section to the Explorer, expanded, only with a folder open", () => {
     const view = views.explorer?.find((entry) => entry.id === "variant.variants");
 
@@ -328,10 +337,26 @@ describe("manifest contributions", () => {
     expect(view?.visibility).toBe("visible");
     const settings = (
       JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
-        contributes: { configuration: { properties: Record<string, { default?: boolean }> } };
+        contributes: { configuration: { properties: Record<string, { default?: boolean | string }> } };
       }
     ).contributes.configuration.properties;
     expect(settings["variant.autoExpand"]?.default).toBe(true);
+    expect(settings["variant.sort"]?.default).toBe("name-asc");
+  });
+
+  it("puts Sort in the view title immediately left of Open Variants Panel", () => {
+    const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+      contributes: {
+        menus: { "view/title": Array<{ command?: string; submenu?: string; group?: string }> };
+      };
+    };
+    const title = manifest.contributes.menus["view/title"].filter((entry) => entry.group?.startsWith("navigation"));
+
+    expect(title.map((entry) => entry.submenu ?? entry.command)).toEqual([
+      "variant.sort",
+      "variant.openPanel",
+      "variant.openInBrowser",
+    ]);
   });
 
   it("contributes a welcome message for no variants.yaml and one that names variant create", () => {

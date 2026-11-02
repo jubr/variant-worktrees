@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { findConfigFile } from "variant-config";
+import { type VariantSort, variantSort } from "variant-ui/state";
 import * as vscode from "vscode";
 import { type ActivityLog, createActions, type VariantActions } from "./variants-actions.ts";
 import { openInBrowser, readServerToken } from "./variants-browser.ts";
@@ -10,6 +11,17 @@ import { createVariantsStore, type VariantsStore } from "./variants-store.ts";
 import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
 
 export const VIEW_ID = "variant.variants";
+
+const SORT_COMMANDS: Record<string, VariantSort> = {
+  "variant.sort.nameAsc": "name-asc",
+  "variant.sort.nameDesc": "name-desc",
+  "variant.sort.createdAsc": "created-asc",
+  "variant.sort.createdDesc": "created-desc",
+  "variant.sort.changedAsc": "changed-asc",
+  "variant.sort.changedDesc": "changed-desc",
+};
+
+const readSort = (): VariantSort => variantSort(vscode.workspace.getConfiguration("variant").get("sort"));
 
 export type { ActivityLog } from "./variants-actions.ts";
 
@@ -65,7 +77,7 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     ...(log ? { log } : {}),
     ...(deps.readIndex ? { readIndex: deps.readIndex } : {}),
   });
-  const provider = new VariantsTreeProvider(store);
+  const provider = new VariantsTreeProvider(store, readSort);
   const syncContexts = (): void => {
     setContext("variant.noConfig", store.status() === "no-config");
     setContext("variant.noVariants", store.status() === "empty");
@@ -150,6 +162,16 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
         openInBrowser({ records: store.records, readToken: deps.readToken ?? (() => readServerToken(deps.root)) }),
       ),
     ),
+    ...Object.entries(SORT_COMMANDS).map(([id, value]) =>
+      register(id, async () => {
+        await vscode.workspace.getConfiguration("variant").update("sort", value, vscode.ConfigurationTarget.Global);
+      }),
+    ),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("variant.sort")) {
+        provider.refresh();
+      }
+    }),
     { dispose: () => panel.dispose() },
   );
 

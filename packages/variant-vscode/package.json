@@ -95,6 +95,37 @@
         "command": "variant.stopUiServer",
         "title": "Variant: Stop UI Server",
         "icon": "$(debug-stop)"
+      },
+      {
+        "command": "variant.sort.nameAsc",
+        "title": "Name (A-Z)"
+      },
+      {
+        "command": "variant.sort.nameDesc",
+        "title": "Name (Z-A)"
+      },
+      {
+        "command": "variant.sort.createdAsc",
+        "title": "Created (oldest)"
+      },
+      {
+        "command": "variant.sort.createdDesc",
+        "title": "Created (newest)"
+      },
+      {
+        "command": "variant.sort.changedAsc",
+        "title": "Changed (oldest)"
+      },
+      {
+        "command": "variant.sort.changedDesc",
+        "title": "Changed (newest)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "variant.sort",
+        "label": "Sort",
+        "icon": "$(list-filter)"
       }
     ],
     "configuration": {
@@ -104,6 +135,19 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Expand the Variant Worktrees section in the Explorer when the editor starts, then return focus to the editor. `false` leaves the section as it was last collapsed. Default `true`."
+        },
+        "variant.sort": {
+          "type": "string",
+          "enum": [
+            "name-asc",
+            "name-desc",
+            "created-asc",
+            "created-desc",
+            "changed-asc",
+            "changed-desc"
+          ],
+          "default": "name-asc",
+          "markdownDescription": "Order of the Variant Worktrees section and the Variants panel. `name` is the slug. `created` is the earlier birth time of the variant directory and `variants.local.yaml`. `changed` is the later modification time of those two. A missing time sorts as older than every known time. Default `name-asc`."
         },
         "variant.enable": {
           "type": "boolean",
@@ -229,6 +273,11 @@
       ],
       "view/title": [
         {
+          "submenu": "variant.sort",
+          "when": "view == variant.variants",
+          "group": "navigation@0"
+        },
+        {
           "command": "variant.openPanel",
           "when": "view == variant.variants",
           "group": "navigation@1"
@@ -285,6 +334,14 @@
           "when": "view == variant.variants && viewItem =~ /^ui-server$/",
           "group": "inline@2"
         }
+      ],
+      "variant.sort": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
       ]
     }
   }

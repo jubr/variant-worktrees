@@ -4149,6 +4149,12 @@ export class TreeItem {
   ) {}
 }
 
+export enum ConfigurationTarget {
+  Global = 1,
+  Workspace = 2,
+  WorkspaceFolder = 3,
+}
+
 export enum ProgressLocation {
   SourceControl = 1,
   Window = 10,
@@ -4176,15 +4182,38 @@ export const commands = {
   executeCommand: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
+export const configuration = {
+  get: (_key: string): unknown => undefined,
+  update: async (_key: string, _value: unknown, _target?: ConfigurationTarget): Promise<void> => {},
+};
+
+const configurationListeners = new Set<(event: { affectsConfiguration: (section: string) => boolean }) => void>();
+
 export const workspace: {
   workspaceFolders?: Array<{ uri: { fsPath: string } }>;
-  getConfiguration: (section: string) => { get: (key: string) => unknown };
-  onDidChangeConfiguration: (listener: unknown) => { dispose: () => void };
+  getConfiguration: (section: string) => typeof configuration;
+  onDidChangeConfiguration: (
+    listener: (event: { affectsConfiguration: (section: string) => boolean }) => void,
+  ) => { dispose: () => void };
   openTextDocument: (target: Uri | string) => Promise<unknown>;
   onDidChangeWorkspaceFolders: (listener: unknown) => { dispose: () => void };
+  /** Tells every configuration listener that `section` changed. Tests use this. */
+  fireConfiguration: (section: string) => void;
 } = {
-  getConfiguration: (_section: string) => ({ get: (_key: string): unknown => undefined }),
-  onDidChangeConfiguration: (_listener: unknown) => ({ dispose: () => {} }),
+  getConfiguration: (_section: string) => configuration,
+  onDidChangeConfiguration: (listener) => {
+    configurationListeners.add(listener);
+    return {
+      dispose: () => {
+        configurationListeners.delete(listener);
+      },
+    };
+  },
+  fireConfiguration: (section: string) => {
+    for (const listener of [...configurationListeners]) {
+      listener({ affectsConfiguration: (candidate) => candidate === section });
+    }
+  },
   openTextDocument: async (_target: Uri | string): Promise<unknown> => ({}),
   onDidChangeWorkspaceFolders: (_listener: unknown) => ({ dispose: () => {} }),
 };

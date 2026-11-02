@@ -157,6 +157,7 @@ export const createHttpTransport = (options: HttpTransportOptions = {}): HttpTra
   return {
     origin: "server",
     records: () => records,
+    sort: () => "name-asc",
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);

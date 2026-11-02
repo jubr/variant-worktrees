@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type ActionRequest, attachWebviewHost } from "variant-ui/protocol";
+import { variantSort } from "variant-ui/state";
 import * as vscode from "vscode";
 import type { ActivityLog, VariantActions } from "./variants-actions.ts";
 import { type LoadClient, messageOf, recordSource } from "./variants-client.ts";
@@ -134,6 +135,17 @@ export const createPanelManager = (deps: PanelDeps): PanelManager => {
       },
       source,
       run,
+      {
+        sort: () => variantSort(vscode.workspace.getConfiguration("variant").get("sort")),
+        onSortChange: (listener) => {
+          const subscription = vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration("variant.sort")) {
+              listener();
+            }
+          });
+          return () => subscription.dispose();
+        },
+      },
     );
     panel.onDidDispose(() => {
       host.dispose();

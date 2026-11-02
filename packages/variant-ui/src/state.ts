@@ -1,5 +1,7 @@
 import type { Variant } from "./model.js";
 
+export { sortVariants, type VariantSort, variantSort } from "./sort.js";
+
 export type VariantState = "watching" | "up" | "down";
 
 /** The key under which the UI server records itself in the runtime state of `main`; it is not part of main's own run. */
