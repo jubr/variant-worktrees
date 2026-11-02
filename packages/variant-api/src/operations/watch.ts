@@ -12,9 +12,6 @@ import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 import { instanceReports, runtimeOf } from "./up.js";
 
-/** The key of the one process that runs `variant.watch` when no instance has a command of its own. */
-const VARIANT_KEY = "variant";
-
 interface Launch {
   key: string;
   command: string;
@@ -31,29 +28,18 @@ type Outcome = "interrupted" | "ended" | "checkout";
 
 const launches = (context: OperationContext, run: VariantRun): Launch[] => {
   const { config } = context;
-  const own = Object.entries(config.variant.instances).flatMap(([key, instance]) =>
+  return Object.entries(config.variant.instances).flatMap(([key, instance]) =>
     instance.watch
       ? [
           {
             key,
             command: instance.watch,
             cwd: resolve(run.projectDir, instance.dir),
-            env: commandEnvironment(config, run, instance.env, key),
+            env: commandEnvironment(config, run, instance.env?.overrides, key),
           },
         ]
       : [],
   );
-  if (own.length > 0 || !config.variant.watch) {
-    return own;
-  }
-  return [
-    {
-      key: VARIANT_KEY,
-      command: config.variant.watch,
-      cwd: run.projectDir,
-      env: commandEnvironment(config, run, undefined),
-    },
-  ];
 };
 
 /** `output` is the descriptor a detached process writes its stdout and stderr to; an attached one uses the console. */
@@ -139,10 +125,7 @@ export const watchVariant = async (
   const started: Started[] = [];
   const toStart = launches(context, run);
   if (toStart.length === 0) {
-    log(
-      "Warning: nothing was started: no instance has a watch command and variant.watch is not set. " +
-        "Set `watch` on an instance or `variant.watch` in variants.yaml.",
-    );
+    log("Warning: nothing was started: no instance has a watch command. Set `watch` on an instance in variants.yaml.");
   }
   // AIDEV-NOTE: a detached watch has no console, so every process appends to one file the kernel writes directly
   // (no pipe), which keeps the output real-time and alive after this process exits. Truncated on each start.

@@ -2,9 +2,9 @@ import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import { type ChildProcess, spawn } from "node:child_process";
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -15,7 +15,6 @@ import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { parse as parseYaml } from "yaml";
 import { createClient } from "../src/index.js";
-import { downVariant } from "../src/operations/down.js";
 import type { OperationContext } from "../src/operations/types.js";
 import { upVariant } from "../src/operations/up.js";
 import { isProcessAlive } from "../src/runtime-state.js";
@@ -64,12 +63,12 @@ const FE_BE = lines(
   "    be:",
   "      kind: nestjs",
   "      dir: be",
-  "      container: { dockerfile: be/Dockerfile, port: 3000, image: app }",
+  "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
   "    fe:",
   "      kind: vite",
   "      dir: fe",
-  "      open: http://{{slug}}.vw.localhost:{{port}}",
-  "      container: { static: dist, proxy: { path: /api/, to: be } }",
+  "      url: http://{{slug}}.vw.localhost:{{port}}",
+  "      container: { dockerfile: fe/Dockerfile }",
   "  supervise: { startDelaySeconds: 0 }",
 );
 
@@ -243,48 +242,33 @@ describe("up containers", () => {
       await up();
 
       const calls = engine.calls();
-      expect(calls).toContainEqual(["build", "-f", join(directory, "be/Dockerfile"), "-t", "app:v-demo", directory]);
+      expect(calls).toContainEqual(["build", "-f", join(directory, "be/Dockerfile"), "-t", "v-be:v-demo", directory]);
       expect(calls).toContainEqual(["network", "create", "v-net-demo"]);
       const run = runCall(engine, "v-be-demo");
       expect(run.slice(0, 6)).toEqual(["run", "-d", "--name", "v-be-demo", "--network", "v-net-demo"]);
       expect(flagValues(run, "-p")[0]).toMatch(/^0\.0\.0\.0:\d+:3000$/);
-      expect(run.at(-1)).toBe("app:v-demo");
+      expect(run.at(-1)).toBe("v-be:v-demo");
       expect(engine.state()).toEqual({ containers: ["v-be-demo", "v-fe-demo"], networks: ["v-net-demo"] });
     }));
 
-  it("runs the build command of a static instance in its directory and mounts the output read-only", () =>
-    withProject(
-      async ({ up, engine, directory }) => {
-        await up();
+  it("builds a site from its Dockerfile alone and publishes port 80 by default", () =>
+    withProject(async ({ up, engine, directory }) => {
+      await up();
 
-        expect(readFileSync(join(directory, "fe", "built.txt"), "utf8")).toBe("built\n");
-        const run = runCall(engine, "v-fe-demo");
-        expect(flagValues(run, "-v")).toContain(`${join(directory, "fe/dist")}:/usr/share/nginx/html:ro`);
-        expect(run.at(-1)).toBe("nginx:alpine");
-      },
-      FE_BE.replace("container: { static: dist,", 'container: { build: "echo built > built.txt", static: dist,'),
-    ));
+      const calls = engine.calls();
+      expect(calls).toContainEqual(["build", "-f", join(directory, "fe/Dockerfile"), "-t", "v-fe:v-demo", directory]);
+      const run = runCall(engine, "v-fe-demo");
+      expect(flagValues(run, "-p")[0]).toMatch(/^0\.0\.0\.0:\d+:80$/);
+      expect(flagValues(run, "-v")).toEqual([]);
+      expect(run.at(-1)).toBe("v-fe:v-demo");
+    }));
 
-  it("runs an image without building it", () =>
-    withProject(
-      async ({ up, engine }) => {
-        await up();
+  it("writes no web server configuration", () =>
+    withProject(async ({ up, context }) => {
+      await up();
 
-        expect(engine.calls().some((call) => call[0] === "build")).toBe(false);
-        expect(runCall(engine, "v-be-demo").at(-1)).toBe("redis:7");
-      },
-      FE_BE.replace("dockerfile: be/Dockerfile, port: 3000, image: app", "port: 3000, image: redis:7"),
-    ));
-
-  it("defaults the image name to v-<key>", () =>
-    withProject(
-      async ({ up, engine }) => {
-        await up();
-
-        expect(runCall(engine, "v-be-demo").at(-1)).toBe("v-be:v-demo");
-      },
-      FE_BE.replace("dockerfile: be/Dockerfile, port: 3000, image: app", "dockerfile: be/Dockerfile, port: 3000"),
-    ));
+      expect(readdirSync(context.stateDir).filter((name) => name.endsWith(".nginx.conf"))).toEqual([]);
+    }));
 
   it("replaces a container of the same name", () =>
     withProject(async ({ up, engine }) => {
@@ -316,34 +300,45 @@ describe("up containers", () => {
       ),
     ));
 
-  it("orders the environment: database, instance env, container env; and expands volumes", () =>
+  it("passes the variant variables only, without instance overrides or host paths", () =>
     withProject(
-      async ({ up, engine, directory }) => {
+      async ({ up, engine }) => {
         await up();
 
-        const run = runCall(engine, "v-be-demo");
-        const environment = flagValues(run, "-e");
-        expect(environment).toContain("SHARED=container");
-        expect(environment).not.toContain("SHARED=instance");
-        expect(environment).toContain("ONLY_INSTANCE=slug-demo");
-        expect(environment).toContain("POSTGRES_USER=other");
-        expect(flagValues(run, "-v")).toContain(`${directory}/data-demo:/data`);
+        const environment = flagValues(runCall(engine, "v-be-demo"), "-e");
+        expect(environment).toContain("VARIANT_SLUG=demo");
+        expect(environment).toContain("POSTGRES_USER=u");
+        expect(environment.some((entry) => entry.startsWith("VARIANT_BE_PORT="))).toBe(true);
+        expect(environment.some((entry) => entry.startsWith("ONLY_INSTANCE="))).toBe(false);
+        expect(environment.some((entry) => entry.startsWith("PORT="))).toBe(false);
+        expect(environment.some((entry) => entry.startsWith("STORAGE_ROOT="))).toBe(false);
+        expect(flagValues(runCall(engine, "v-be-demo"), "-v")).toEqual([]);
       },
       FE_BE.replace(
         "  dialect: sqlite",
         "  dialect: postgres\n  host: localhost\n  user: u\n  password: p\n  database: d",
-      ).replace(
-        "      container: { dockerfile: be/Dockerfile, port: 3000, image: app }",
-        [
-          "      env: { SHARED: instance, ONLY_INSTANCE: 'slug-{{slug}}', POSTGRES_USER: other }",
-          "      container:",
-          "        dockerfile: be/Dockerfile",
-          "        port: 3000",
-          "        image: app",
-          "        env: { SHARED: container }",
-          "        volumes: ['{{worktree}}/data-{{slug}}:/data']",
-        ].join("\n"),
-      ),
+      )
+        .replace("variant:\n", "variant:\n  storage: {}\n")
+        .replace(
+          "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
+          [
+            "      env: { overrides: { ONLY_INSTANCE: 'slug-{{slug}}', PORT: '{{port}}' } }",
+            "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
+          ].join("\n"),
+        ),
+    ));
+
+  it("withholds the host paths of SQLite and storage from a container", () =>
+    withProject(
+      async ({ up, engine }) => {
+        await up();
+
+        const environment = flagValues(runCall(engine, "v-be-demo"), "-e");
+        expect(environment.some((entry) => entry.startsWith("SQLITE_DATABASE="))).toBe(false);
+        expect(environment.some((entry) => entry.startsWith("STORAGE_ROOT="))).toBe(false);
+        expect(environment).toContain("VARIANT_TARGET=v_demo");
+      },
+      FE_BE.replace("variant:\n", "variant:\n  storage: {}\n"),
     ));
 
   it("starts instances in their listed order and waits between two of them", () =>
@@ -389,18 +384,14 @@ describe("up containers", () => {
     }));
 
   it("fails before building or starting anything when there is no engine", () =>
-    withProject(
-      async ({ up, directory, database }) => {
-        process.env.PATH = "/nonexistent";
+    withProject(async ({ up, database }) => {
+      process.env.PATH = "/nonexistent";
 
-        const failure = await up().catch((error: Error) => error);
+      const failure = await up().catch((error: Error) => error);
 
-        expect((failure as Error).message).toMatch(/docker.*podman/);
-        expect(existsSync(join(directory, "fe", "built.txt"))).toBe(false);
-        expect(database).toEqual([]);
-      },
-      FE_BE.replace("container: { static: dist,", 'container: { build: "echo built > built.txt", static: dist,'),
-    ));
+      expect((failure as Error).message).toMatch(/docker.*podman/);
+      expect(database).toEqual([]);
+    }));
 
   it("does not start an instance without a container", () =>
     withProject(
@@ -410,7 +401,7 @@ describe("up containers", () => {
         expect(engine.calls().some((call) => call.includes("v-be-demo"))).toBe(false);
         expect(engine.state().containers).toEqual(["v-fe-demo"]);
       },
-      FE_BE.replace(/ {6}container: \{ dockerfile[^\n]*\n/, "").replace(", proxy: { path: /api/, to: be }", ""),
+      FE_BE.replace(/ {6}container: \{ dockerfile: be[^\n]*\n/, ""),
     ));
 });
 
@@ -466,7 +457,7 @@ describe("up mode switch and runtime state", () => {
 });
 
 describe("up opening", () => {
-  it("opens the URL of an instance with an open template after the start", () =>
+  it("opens the URL of an instance with an url template after the start", () =>
     withProject(
       async ({ context }) => {
         const opened: string[] = [];
@@ -480,29 +471,4 @@ describe("up opening", () => {
       FE_BE,
       { "variants.local.yaml": "runtime:\n  instances:\n    fe: { port: 62060 }\n" },
     ));
-});
-
-describe("static site configuration", () => {
-  it("is written for a static instance and removed by down", () =>
-    withProject(async ({ up, context }) => {
-      await up();
-      const path = join(context.stateDir, "demo.fe.nginx.conf");
-      expect(existsSync(path)).toBe(true);
-
-      await downVariant(context, "demo");
-
-      expect(existsSync(path)).toBe(false);
-    }));
-
-  it("forwards the proxy path to the target container and accepts the open URL host", () =>
-    withProject(async ({ up, context, engine }) => {
-      await up();
-
-      const text = readFileSync(join(context.stateDir, "demo.fe.nginx.conf"), "utf8");
-      expect(text).toContain("server_name demo.vw.localhost;");
-      expect(text).toContain("proxy_pass http://v-be-demo:3000/api/;");
-      expect(flagValues(runCall(engine, "v-fe-demo"), "-v")).toContain(
-        `${join(context.stateDir, "demo.fe.nginx.conf")}:/etc/nginx/conf.d/default.conf:ro`,
-      );
-    }, FE_BE));
 });

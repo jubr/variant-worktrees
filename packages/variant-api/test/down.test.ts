@@ -13,8 +13,8 @@ const CONFIG = [
   "  dialect: sqlite",
   "variant:",
   "  instances:",
-  "    fe: { kind: vite, dir: fe, container: { static: dist } }",
-  "    be: { kind: nestjs, dir: be, container: { image: app, port: 3000 } }",
+  "    fe: { kind: vite, dir: fe, container: { dockerfile: fe/Dockerfile } }",
+  "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",
   "",
 ].join("\n");
 
@@ -139,21 +139,15 @@ describe("down", () => {
       expect(isProcessAlive(outsider.pid as number)).toBe(true);
     }));
 
-  it("removes containers, the network and generated nginx configuration through the engine", () =>
-    withProject(async ({ directory, engine, down }) => {
+  it("removes containers and the network through the engine", () =>
+    withProject(async ({ engine, down }) => {
       engine.seed({ containers: ["v-fe-demo", "v-be-demo", "v-fe-other"], networks: ["v-net-demo", "v-net-other"] });
-      const stateDir = join(directory, ".cache", "variants");
-      mkdirSync(stateDir, { recursive: true });
-      writeFileSync(join(stateDir, "demo.fe.nginx.conf"), "server {}\n");
-      writeFileSync(join(stateDir, "other.fe.nginx.conf"), "server {}\n");
 
       const result = await down();
 
       expect(engine.state()).toEqual({ containers: ["v-fe-other"], networks: ["v-net-other"] });
       expect(result.containers.sort()).toEqual(["v-be-demo", "v-fe-demo"]);
       expect(result.networks).toEqual(["v-net-demo"]);
-      expect(existsSync(join(stateDir, "demo.fe.nginx.conf"))).toBe(false);
-      expect(existsSync(join(stateDir, "other.fe.nginx.conf"))).toBe(true);
     }));
 
   it("clears only the runtime section and keeps data and state", () =>

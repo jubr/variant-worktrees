@@ -5,7 +5,7 @@ import { git, runGit } from "./git.js";
 
 /**
  * Deletes every path below `worktree` that matches one of `patterns` (`{{slug}}` replaced), matched from each of
- * `bases`. A match that is, or contains, a tracked file stays; so does `.git`. Symlinks are not followed.
+ * `bases`. Returns the removed paths relative to `worktree`. A match that is, or contains, a tracked file stays; so does `.git`. Symlinks are not followed.
  *
  * Specification: openspec/specs/variant-api/node-runtime/spec.md (Implode cleanup patterns on both runtimes)
  */
@@ -36,7 +36,7 @@ export const removeMatching = (
           git(base, ["--literal-pathspecs", "ls-files", "--", match]).trim() === ""
         ) {
           rmSync(join(base, match), { recursive: true, force: true });
-          removed.push(join(base, match));
+          removed.push(inside);
         }
       }
     }

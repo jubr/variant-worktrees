@@ -26,14 +26,14 @@ const withProject = async (instance: string, run: (log: string[], watch: () => P
 };
 
 describe("watch without commands", () => {
-  it("warns that nothing was started and names the ways to set a command", () =>
+  it("warns that nothing was started and names `watch` as the way to set a command", () =>
     withProject("", async (log, watch) => {
       await watch();
 
       const warning = log.find((line) => line.includes("nothing was started"));
       expect(warning).toBeDefined();
       expect(warning).toContain("watch");
-      expect(warning).toContain("variant.watch");
+      expect(warning).not.toContain("variant.watch");
     }));
 
   it("does not warn when an instance has a watch command", () =>

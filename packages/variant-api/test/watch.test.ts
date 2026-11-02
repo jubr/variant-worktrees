@@ -55,7 +55,7 @@ if (process.env.DIE_AFTER) setTimeout(() => process.exit(3), Number(process.env.
 const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
 
 const watcher = (who: string, extra = ""): string =>
-  `{ kind: ${who === "be" ? "nestjs" : "vite"}, dir: ${who}, watch: "${process.execPath} ../watch.js", env: { WHO: ${who}, ORDER_LOG: "{{worktree}}/order.log" }${extra} }`;
+  `{ kind: ${who === "be" ? "nestjs" : "vite"}, dir: ${who}, watch: "${process.execPath} ../watch.js", env: { overrides: { WHO: ${who}, ORDER_LOG: "{{worktree}}/order.log" } }${extra} }`;
 
 /** `watcher`, with a process that also prints one line to stdout and one to stderr. */
 const printingWatcher = (who: string): string => watcher(who).replace("ORDER_LOG:", "PRINT: '1', ORDER_LOG:");
@@ -67,7 +67,7 @@ const BASE = lines(
   "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 3, checkoutPollSeconds: 0 }",
   "  instances:",
   `    be: ${watcher("be")}`,
-  `    fe: ${watcher("fe", ", open: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
+  `    fe: ${watcher("fe", ", url: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
 );
 
 interface Project {
@@ -229,25 +229,6 @@ describe("watch starts host processes", () => {
       BASE.replace(/ {4}be: .*\n/, "    be: { kind: nestjs, dir: be }\n"),
     ));
 
-  it("runs variant.watch once in the worktree root when no instance has a command", () =>
-    withProject(
-      async ({ watch, directory, runtime }) => {
-        const result = await watch({ detach: true });
-        await until(() => existsSync(join(directory, "started-variant.txt")));
-
-        expect(result.processes.map(({ key }) => key)).toEqual(["variant"]);
-        expect(runtime().instances.variant?.pid).toBe(result.processes[0]?.pid);
-      },
-      lines(
-        "db:",
-        "  dialect: sqlite",
-        "variant:",
-        `  watch: "${process.execPath} watch.js"`,
-        "  instances:",
-        "    be: { kind: nestjs, dir: be }",
-      ),
-    ));
-
   it("terminates the processes of an earlier run before starting new ones", () =>
     withProject(async ({ watch, started }) => {
       const first = await watch({ detach: true });
@@ -270,7 +251,10 @@ describe("watch starts host processes", () => {
         expect(engine.state()).toEqual({ containers: [], networks: [] });
         expect(database).toEqual(["create demo"]);
       },
-      BASE.replace("kind: nestjs, dir: be,", "kind: nestjs, dir: be, container: { image: app, port: 3000 },"),
+      BASE.replace(
+        "kind: nestjs, dir: be,",
+        "kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 },",
+      ),
     ));
 
   it("fails naming the directory when a process cannot be started and stops the ones already running", () =>
@@ -338,7 +322,7 @@ describe("watch supervision", () => {
         expect(result.exitCode).toBe(1);
         await untilDead(fe);
       },
-      BASE.replace("env: { WHO: be,", "env: { DIE_AFTER: '600', WHO: be,"),
+      BASE.replace("overrides: { WHO: be,", "overrides: { DIE_AFTER: '600', WHO: be,"),
     ));
 
   it("drops the database target and ends with 1 when the worktree disappears", () =>
@@ -496,7 +480,7 @@ describe("watch readiness and opening", () => {
 
 describe("detached watch log", () => {
   const PRINTING = BASE.replace(`    be: ${watcher("be")}`, `    be: ${printingWatcher("be")}`).replace(
-    `    fe: ${watcher("fe", ", open: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
+    `    fe: ${watcher("fe", ", url: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
     `    fe: ${printingWatcher("fe")}`,
   );
   const logIn = (directory: string): string => join(directory, "variants.watch.log");
