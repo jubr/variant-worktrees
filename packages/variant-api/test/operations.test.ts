@@ -25,6 +25,7 @@ describe("variant client operations", () => {
 
       const created = await client.create("test-feature");
       expect(created.slug).toBe("test-feature");
+      expect(created.implodeClean).toBe(true);
       expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);
 

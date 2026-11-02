@@ -1,3 +1,4 @@
+import { implodeWouldSucceed } from "../implode-clean.js";
 import { resolveSlug } from "../slug.js";
 import { readState, statePath, writeState } from "../state.js";
 import type { VariantRecord } from "../types.js";
@@ -23,11 +24,7 @@ export const createVariant = async (context: OperationContext, requestedSlug?: s
   if (slug !== "main") {
     await context.adapter.create(slug);
   }
-  if (existing) {
-    return { ...existing, exists: true };
-  }
-
-  const state = {
+  const state = existing ?? {
     slug,
     target,
     dialect: context.adapter.dialect,
@@ -35,6 +32,11 @@ export const createVariant = async (context: OperationContext, requestedSlug?: s
     worktree,
     createdAt: new Date().toISOString(),
   };
-  const persistedPath = writeState(context.stateDir, state);
-  return { ...state, statePath: persistedPath, exists: true };
+  const persistedPath = existing ? state.statePath : writeState(context.stateDir, state);
+  return {
+    ...state,
+    statePath: persistedPath,
+    exists: true,
+    implodeClean: implodeWouldSucceed(context, slug, state.worktree),
+  };
 };
