@@ -36,7 +36,7 @@ The system SHALL expose a `variant_provision` MCP tool that runs the configured 
 - **THEN** the seed command executes with variant environment and the result includes command output
 
 #### Scenario: Provision with migration command
-- **WHEN** config has `variant.up = "bun run migrate"`
+- **WHEN** an instance has `up = "bun run migrate"`
 - **THEN** provision runs that command before the seed command
 
 ### Requirement: variant_up tool
