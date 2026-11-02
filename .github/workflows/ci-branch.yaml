@@ -39,9 +39,18 @@ jobs:
           path: out/*.vsix
           if-no-files-found: error
 
+  node-smoke:
+    name: Library and CLI under Node
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: task install:ci
+      - run: task test:node
+
   cli-prerelease:
     name: Pre-release CLI (macOS arm64)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2

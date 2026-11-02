@@ -71,7 +71,10 @@ describe("container engine and opening", () => {
 
 describe("variant storage", () => {
   it("resolves defaults for an empty section", () => {
-    expect(loaded("variant:\n  storage: {}\n").variant.storage).toEqual({ dir: ".storage", env: "STORAGE_ROOT" });
+    expect(loaded("variant:\n  storage: {}\n").variant.storage).toEqual({
+      dir: ".storage",
+      envVarName: "STORAGE_ROOT",
+    });
   });
 
   it("has no storage when absent", () => {
@@ -81,18 +84,22 @@ describe("variant storage", () => {
   it("rejects an absolute or escaping directory", () => {
     expect(variant({ storage: { dir: "../shared" } })).toBe(false);
     expect(variant({ storage: { dir: "/shared" } })).toBe(false);
-    expect(variant({ storage: { dir: "data", env: "APP_DATA" } })).toBe(true);
+    expect(variant({ storage: { dir: "data", envVarName: "APP_DATA" } })).toBe(true);
+  });
+
+  it("rejects the former env key", () => {
+    expect(variant({ storage: { env: "APP_DATA" } })).toBe(false);
   });
 });
 
 describe("provisioning steps", () => {
-  const step = { name: "migrations", run: "bun run migrate", dir: "server", show: "^Migration " };
+  const step = { name: "migrations", run: "bun run migrate", dir: "server", filterLinesRegex: "^Migration " };
 
   it("accepts steps and carries them unchanged", () => {
     expect(loaded("variant:\n  steps:\n    - name: migrations\n      run: bun run migrate\n").variant.steps).toEqual([
       { name: "migrations", run: "bun run migrate" },
     ]);
-    expect(variant({ steps: [{ ...step, env: { A: "b" }, unlessEnv: { SKIP: "true" } }] })).toBe(true);
+    expect(variant({ steps: [{ ...step, env: { A: "b" } }] })).toBe(true);
   });
 
   it("rejects duplicate names and names the duplicate", () => {
@@ -100,8 +107,30 @@ describe("provisioning steps", () => {
     expect(issues({ steps: [step, step] })).toContain("migrations");
   });
 
-  it("rejects an invalid show pattern, an escaping dir and unknown keys", () => {
-    expect(variant({ steps: [{ ...step, show: "(" }] })).toBe(false);
+  it("rejects names with other characters than letters, digits, - and _", () => {
+    expect(variant({ steps: [{ ...step, name: "db-seed_2" }] })).toBe(true);
+    expect(variant({ steps: [{ ...step, name: "run migrations" }] })).toBe(false);
+    expect(variant({ steps: [{ ...step, name: "a.b" }] })).toBe(false);
+  });
+
+  it("rejects names that share an environment segment and names both", () => {
+    const steps = [
+      { ...step, name: "db-seed" },
+      { ...step, name: "db_seed" },
+    ];
+
+    expect(variant({ steps })).toBe(false);
+    expect(issues({ steps })).toContain("db-seed");
+    expect(issues({ steps })).toContain("db_seed");
+  });
+
+  it("rejects the former show and unlessEnv keys", () => {
+    expect(variant({ steps: [{ name: "a", run: "b", show: "^x" }] })).toBe(false);
+    expect(variant({ steps: [{ name: "a", run: "b", unlessEnv: { SKIP: "true" } }] })).toBe(false);
+  });
+
+  it("rejects an invalid filterLinesRegex pattern, an escaping dir and unknown keys", () => {
+    expect(variant({ steps: [{ ...step, filterLinesRegex: "(" }] })).toBe(false);
     expect(variant({ steps: [{ ...step, dir: ".." }] })).toBe(false);
     expect(variant({ steps: [{ ...step, dir: "/abs" }] })).toBe(false);
     expect(variant({ steps: [{ ...step, other: 1 }] })).toBe(false);
@@ -131,8 +160,7 @@ describe("implode settings", () => {
   it("defaults to empty lists, a merge gate and 200 diff lines", () => {
     expect(loaded("db:\n  dialect: sqlite\n").variant.implode).toEqual({
       preRm: [],
-      restore: [],
-      untracked: [],
+      discard: [],
       requireMerged: true,
       maxDiffLines: 200,
     });
@@ -140,19 +168,28 @@ describe("implode settings", () => {
 
   it("carries configured lists", () => {
     const { implode } = loaded(
-      "variant:\n  implode:\n    preRm: [dist, node_modules]\n    restore: [bun.lock]\n    maxDiffLines: 10\n",
+      'variant:\n  implode:\n    preRm: [dist, "openspec/changes/{{slug}}/pr*-demo.webm"]\n    discard: [bun.lock]\n    maxDiffLines: 10\n',
     ).variant;
 
-    expect(implode.preRm).toEqual(["dist", "node_modules"]);
-    expect(implode.restore).toEqual(["bun.lock"]);
+    expect(implode.preRm).toEqual(["dist", "openspec/changes/{{slug}}/pr*-demo.webm"]);
+    expect(implode.discard).toEqual(["bun.lock"]);
     expect(implode.maxDiffLines).toBe(10);
   });
 
-  it("rejects names with a path separator or climbing out", () => {
-    expect(variant({ implode: { preRm: ["a/b"] } })).toBe(false);
+  it("rejects preRm patterns that are absolute or climb out, and discard names with a path separator", () => {
+    expect(variant({ implode: { preRm: ["a/b"] } })).toBe(true);
+    expect(variant({ implode: { preRm: ["../outside"] } })).toBe(false);
+    expect(variant({ implode: { preRm: ["a/../../b"] } })).toBe(false);
     expect(variant({ implode: { preRm: [".."] } })).toBe(false);
-    expect(variant({ implode: { restore: ["a/b"] } })).toBe(false);
+    expect(variant({ implode: { preRm: ["/tmp/x"] } })).toBe(false);
+    expect(variant({ implode: { discard: ["a/b"] } })).toBe(false);
+    expect(variant({ implode: { discard: [".."] } })).toBe(false);
     expect(variant({ implode: { maxDiffLines: -1 } })).toBe(false);
+  });
+
+  it("rejects the former untracked and restore keys", () => {
+    expect(variant({ implode: { untracked: ["x"] } })).toBe(false);
+    expect(variant({ implode: { restore: ["bun.lock"] } })).toBe(false);
   });
 });
 
@@ -202,9 +239,7 @@ describe("instance runtime options", () => {
   const instance = {
     kind: "nestjs",
     dir: "be",
-    env: { PORT: "{{port}}" },
-    envAlways: { PUBLIC_BASE_URL: "{{url}}" },
-    dotenvSource: "~/secrets/.env",
+    env: { sourceFile: ".env", overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } },
     install: "bun install --frozen-lockfile",
     ready: "/api/health/live",
   };
@@ -219,34 +254,46 @@ describe("instance runtime options", () => {
 });
 
 describe("instance container", () => {
-  const fe = { kind: "vite", dir: "fe", container: { build: "bunx vite build", static: "dist" } };
-  const be = { kind: "nestjs", dir: "be", container: { dockerfile: "be/Dockerfile", port: 3000 } };
+  const be = { kind: "nestjs", dir: "be", container: { dockerfile: "be/Dockerfile", internalPort: 3000 } };
+  const withContainer = (container: object) => ({ instances: { be: { ...be, container } } });
 
-  it("accepts a static site with a proxy to a container instance", () => {
-    const proxied = { ...fe, container: { ...fe.container, proxy: { path: "/api/", to: "be" } } };
-
-    expect(variant({ instances: { fe: proxied, be } })).toBe(true);
+  it("accepts a Dockerfile with and without an internal port", () => {
+    expect(variant(withContainer({ dockerfile: "fe/Dockerfile" }))).toBe(true);
+    expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: 3000 }))).toBe(true);
   });
 
-  it("requires image or dockerfile, and a port, without static", () => {
-    expect(variant({ instances: { be: { ...be, container: { image: "app:latest" } } } })).toBe(false);
-    expect(variant({ instances: { be: { ...be, container: { port: 3000 } } } })).toBe(false);
-    expect(variant({ instances: { be: { ...be, container: { image: "app:latest", port: 3000 } } } })).toBe(true);
+  it("carries the container unchanged", () => {
+    const { instances } = loaded(
+      "variant:\n  instances:\n    be:\n      kind: nestjs\n      dir: be\n      container:\n        dockerfile: be/Dockerfile\n",
+    ).variant;
+
+    expect(instances.be?.container).toEqual({ dockerfile: "be/Dockerfile" });
   });
 
-  it("rejects a proxy to an unknown instance or one without container.port, naming the target", () => {
-    const proxied = (to: string) => ({ ...fe, container: { ...fe.container, proxy: { path: "/api/", to } } });
-
-    expect(variant({ instances: { fe: proxied("nope"), be } })).toBe(false);
-    expect(issues({ instances: { fe: proxied("nope"), be } })).toContain("nope");
-    expect(variant({ instances: { fe: proxied("fe"), be } })).toBe(false);
+  it("requires a Dockerfile and a valid internal port", () => {
+    expect(variant(withContainer({ internalPort: 3000 }))).toBe(false);
+    expect(variant(withContainer({ image: "app:latest" }))).toBe(false);
+    expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: 0 }))).toBe(false);
+    expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: 1.5 }))).toBe(false);
   });
 
-  it("rejects a proxy path without slashes at both ends and unknown keys", () => {
-    const proxied = (path: string) => ({ ...fe, container: { ...fe.container, proxy: { path, to: "be" } } });
+  it("rejects the former image, build, static, port, proxy, volumes and env keys", () => {
+    const dockerfile = "be/Dockerfile";
 
-    expect(variant({ instances: { fe: proxied("api"), be } })).toBe(false);
-    expect(variant({ instances: { fe: proxied("/api"), be } })).toBe(false);
-    expect(variant({ instances: { be: { ...be, container: { ...be.container, other: 1 } } } })).toBe(false);
+    expect(variant(withContainer({ dockerfile, image: "app" }))).toBe(false);
+    expect(variant(withContainer({ dockerfile, build: "bunx vite build" }))).toBe(false);
+    expect(variant(withContainer({ dockerfile, static: "dist" }))).toBe(false);
+    expect(variant(withContainer({ dockerfile, port: 3000 }))).toBe(false);
+    expect(variant(withContainer({ dockerfile, proxy: { path: "/api/", to: "be" } }))).toBe(false);
+    expect(variant(withContainer({ dockerfile, volumes: ["a:b"] }))).toBe(false);
+    expect(variant(withContainer({ dockerfile, env: { A: "b" } }))).toBe(false);
+  });
+});
+
+describe("variant-wide commands", () => {
+  it("rejects variant.up and variant.watch and keeps variant.seed", () => {
+    expect(variant({ up: "bun run dev" })).toBe(false);
+    expect(variant({ watch: "bun run watch" })).toBe(false);
+    expect(variant({ seed: "bun run seed" })).toBe(true);
   });
 });

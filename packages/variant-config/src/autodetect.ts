@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { basename, dirname, join, parse as parsePath, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
-import { type DbConfig, type DbDialect, DEFAULT_OPEN_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
+import { type DbConfig, type DbDialect, DEFAULT_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
 
 const MISE_FILENAMES = ["mise.local.toml", "mise.toml"] as const;
 const ENV_KEYS = [
@@ -89,7 +89,11 @@ const gitCommonRoot = (startDir: string): string | undefined => {
   }
 };
 
-export const detectVariantRoot = (configDir: string): string => {
+/**
+ * The main tree the worktrees are made from: the directory of the real file behind a parent `AGENTS.md` symlink,
+ * else the git carrying directory, else `configDir`.
+ */
+export const detectVariantMain = (configDir: string): string => {
   const parentAgents = join(dirname(resolve(configDir)), "AGENTS.md");
   try {
     if (lstatSync(parentAgents).isSymbolicLink()) {
@@ -108,6 +112,45 @@ export const detectVariantRoot = (configDir: string): string => {
     return realpathSync(commonRoot);
   }
   return realpathSync(resolve(configDir));
+};
+
+const realpathOrResolve = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+};
+
+const isInside = (directory: string, path: string): boolean => {
+  const relation = relative(directory, path);
+  return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
+};
+
+/**
+ * The directory that holds the `<prefix><slug>` worktrees: the directory of a parent `AGENTS.md` symlink whose
+ * target lies in `main` (`<parent>/_v-foo`), else `main` itself (`./_v-foo`).
+ */
+export const detectVariantRoot = (configDir: string, main: string): string => {
+  const parentAgents = join(dirname(resolve(configDir)), "AGENTS.md");
+  try {
+    if (lstatSync(parentAgents).isSymbolicLink() && isInside(realpathOrResolve(main), realpathSync(parentAgents))) {
+      return realpathSync(dirname(parentAgents));
+    }
+  } catch {
+    // No usable symlink: the worktrees go into the main tree.
+  }
+  return main;
+};
+
+/** The first letter or digit of each word of `name`, lowercased. Words end at other characters and before a capital that follows a lowercase letter. */
+export const abbreviate = (name: string): string => {
+  const letters = name
+    .split(/[^A-Za-z0-9]+|(?<=[a-z])(?=[A-Z])/)
+    .filter((word) => word !== "")
+    .map((word) => word.charAt(0).toLowerCase())
+    .join("");
+  return letters === "" ? "app" : letters;
 };
 
 const readMiseEnvironment = (path: string): Environment => {
@@ -312,7 +355,7 @@ export const detectInstances = (configDir: string): Record<string, VariantInstan
       if (kind) {
         const dir = relative(configDir, child) || ".";
         const watch = detectWatch(kind, child);
-        found.push(kind === "vite" ? { kind, dir, open: DEFAULT_OPEN_URL, watch } : { kind, dir, watch });
+        found.push(kind === "vite" ? { kind, dir, url: DEFAULT_URL, watch } : { kind, dir, watch });
       }
       walk(child);
     }

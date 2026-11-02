@@ -1,6 +1,7 @@
 {
   "references": [
     { "path": "packages/variant-api" },
+    { "path": "packages/variant-cli" },
     { "path": "packages/variant-mcp" },
     { "path": "packages/variant-ipc" },
     { "path": "packages/chat-renamer-config" },

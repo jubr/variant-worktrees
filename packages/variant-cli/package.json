@@ -1,0 +1,46 @@
+{
+  "name": "variant-cli",
+  "version": "0.0.4",
+  "description": "The variant command: database variants for git worktrees",
+  "type": "module",
+  "bin": {
+    "variant": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:ui && bun run build:types && chmod +x dist/cli.js",
+    "build:js": "bun build ./src/cli.ts --outdir dist --target node --format esm --sourcemap=external --external cleye --external variant-api --external variant-config --external yaml",
+    "build:ui": "bun run scripts/build-ui.ts",
+    "build:types": "tsc --emitDeclarationOnly",
+    "prepublishOnly": "bun run build",
+    "test": "VARIANT_OPEN=0 bun test"
+  },
+  "homepage": "https://github.com/jubr/variant-worktrees",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jubr/variant-worktrees.git",
+    "directory": "packages/variant-cli"
+  },
+  "keywords": [
+    "variant",
+    "database",
+    "worktree",
+    "cli"
+  ],
+  "files": [
+    "dist"
+  ],
+  "author": "Zach Caceres (@zachcaceres)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "cleye": "^2.6.0",
+    "variant-api": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "variant-server": "workspace:*",
+    "variant-ui": "workspace:*"
+  }
+}

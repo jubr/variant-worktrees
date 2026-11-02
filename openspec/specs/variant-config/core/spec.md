@@ -85,52 +85,89 @@ The system SHALL use explicitly configured runtime instances when present and ot
 
 ### Requirement: Variant worktree root resolution
 
-The system SHALL resolve the base directory for `_v-<slug>` worktrees from explicit `variant.root` configuration or workspace and git metadata.
+The system SHALL resolve two directories for the `<prefix><slug>` worktrees (default prefix `_v-`): the main tree `variant.main`, the main git checkout the worktrees are made from, and the root `variant.root`, the directory that holds them. `variant.main` SHALL be the configured path, resolved relative to `variants.yaml`; else the directory of the real file that a parent `AGENTS.md` symlink targets; else the git common (carrying) directory containing the real `AGENTS.md`, or the git common root without one; else the directory of `variants.yaml`. `variant.root` SHALL be the configured path, resolved relative to `variants.yaml`; else the directory that holds a parent `AGENTS.md` symlink whose real target lies in the main tree (`<parent>/_v-foo`); else the main tree (`./_v-foo`). Both SHALL be carried, resolved, in the loaded configuration.
 
 #### Scenario: Explicit variant root
 - **WHEN** `variants.yaml` defines `variant.root`
 - **THEN** the configured path, resolved relative to `variants.yaml`, is used as the worktree base
 
+#### Scenario: Explicit variant main
+- **WHEN** `variants.yaml` defines `variant.main: ../app`
+- **THEN** the resolved `variant.main` is that path resolved relative to `variants.yaml`
+- **AND** an absent `variant.root` is then the main tree, unless a parent `AGENTS.md` symlink targets it
+
 #### Scenario: Parent AGENTS symlink
-- **WHEN** the parent directory of `variants.yaml` contains an `AGENTS.md` symlink targeting the main git directory
-- **THEN** the symlink target's directory is used as the worktree base
+- **WHEN** the parent directory `/work` of `variants.yaml` contains an `AGENTS.md` symlink targeting `/work/app/AGENTS.md`, and `variant.main` and `variant.root` are absent
+- **THEN** `variant.main` is `/work/app`, `variant.root` is `/work`, and the worktree of slug `foo` is `/work/_v-foo`
+
+#### Scenario: Symlink read from a linked worktree
+- **WHEN** `variants.yaml` is read from the linked worktree `/work/_v-bar` and `/work/AGENTS.md` is a symlink into the main tree `/work/app`
+- **THEN** `variant.main` is `/work/app` and `variant.root` is `/work`
 
 #### Scenario: Git carrying directory fallback
-- **WHEN** `variant.root` is absent and no parent `AGENTS.md` symlink exists
-- **THEN** the git common or carrying directory containing the real `AGENTS.md` is used as the worktree base
+- **WHEN** `variant.main` and `variant.root` are absent and no parent `AGENTS.md` symlink exists
+- **THEN** `variant.main` is the git common or carrying directory, and `variant.root` is the same directory, so the worktree of slug `foo` is `<main>/_v-foo`
 
-### Requirement: Instance open URL
+#### Scenario: Symlink into another tree
+- **WHEN** `variant.main` is `/work/app` and a parent `AGENTS.md` symlink targets a file outside `/work/app`
+- **THEN** the symlink is ignored and `variant.root` is `/work/app`
 
-The system SHALL accept an optional `open` string on any entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}` and `{{port}}`, for example `http://{{slug}}.vw.localhost:{{port}}`. `open` SHALL NOT be an empty string. A Vite instance found by autodetection SHALL carry the default template `http://{{slug}}.vw.localhost:{{port}}`; a detected NestJS instance and an explicit instance carry only what they set. The system SHALL offer a function that returns the template of an instance with both placeholders replaced, or nothing when the instance has no template. This change does not launch the URL.
+#### Scenario: Not a git checkout
+- **WHEN** `variants.yaml` is not in a git checkout and has no parent `AGENTS.md` symlink
+- **THEN** `variant.main` and `variant.root` are the directory of `variants.yaml`
+
+### Requirement: Instance URL
+
+The system SHALL accept an optional `url` string on any entry of `variant.instances`: a URL template that may contain the placeholders `{{slug}}`, `{{abbr}}` (the resolved `variant.abbr`) and `{{port}}`, for example `http://{{slug}}.{{abbr}}.localhost:{{port}}`. `url` SHALL NOT be an empty string. The key `open` on an instance SHALL fail validation. A Vite instance found by autodetection SHALL carry the default template `http://{{slug}}.{{abbr}}.localhost:{{port}}`; a detected NestJS instance and an explicit instance carry only what they set. The system SHALL offer a function that returns the template of an instance with all placeholders replaced, or nothing when the instance has no template. This change does not launch the URL.
 
 #### Scenario: Open template accepted
 
-- **WHEN** an instance of kind `vite` or `nestjs` sets `open: http://{{slug}}.vw.localhost:{{port}}`
+- **WHEN** an instance of kind `vite` or `nestjs` sets `url: http://{{slug}}.vw.localhost:{{port}}`
 - **THEN** loading succeeds and the resolved instance carries that exact string
 
 #### Scenario: Empty open template
 
-- **WHEN** an instance sets `open: ""`
+- **WHEN** an instance sets `url: ""`
+- **THEN** loading the configuration fails validation
+
+#### Scenario: Former key refused
+
+- **WHEN** an instance sets `open: http://{{slug}}.vw.localhost:{{port}}`
 - **THEN** loading the configuration fails validation
 
 #### Scenario: Autodetected Vite instance
 
 - **WHEN** `variant.instances` is absent and a searched subdirectory contains Vite configuration
-- **THEN** the detected instance carries the default `open` template, and a detected NestJS instance carries none
+- **THEN** the detected instance carries the default `url` template, and a detected NestJS instance carries none
 
 #### Scenario: Placeholders replaced
 
-- **WHEN** the URL of an instance with the default template is requested for slug `add-auth` and the instance's port is 62060
+- **WHEN** the URL of an instance with the default template is requested for slug `add-auth`, the abbreviation is `vw` and the instance's port is 62060
 - **THEN** the result is `http://add-auth.vw.localhost:62060`
 
-### Requirement: Instance dotenv
+#### Scenario: Abbreviation placeholder in an explicit template
 
-The system SHALL accept an optional `dotenv` string on any entry of `variant.instances`: the path of an environment file, relative to the instance's `dir`, that is copied for a variant and amended with that variant's values. The system SHALL offer a function that returns the amended text for an instance: the source file's lines with each given variable replaced in place and each missing one appended, other lines and comments kept, and values holding whitespace or `#` quoted. When the source file is missing, `<dotenv>.example` SHALL be the source; when that is missing too, the source SHALL count as empty. The function SHALL return nothing for an instance without `dotenv`. This change does not write the copy.
+- **WHEN** an instance sets `url: http://{{abbr}}-{{slug}}.localhost:{{port}}`, the abbreviation is `otc`, the slug is `demo` and the port is 62060
+- **THEN** the result is `http://otc-demo.localhost:62060`
+
+### Requirement: Instance env
+
+The system SHALL accept an optional `env` object on any entry of `variant.instances` with two optional settings: `sourceFile`, the path of an environment file relative to the instance's `dir` that is copied for a variant to `<worktree>/<dir>/<sourceFile>` and amended with that variant's values, and `overrides`, a map of templated values for the instance's commands and for that copy when it is created. A `sourceFile` that is absolute or climbs out of the instance directory SHALL fail validation. Unknown keys of `env`, a map of values directly under `env`, and the former instance keys `dotenv`, `dotenvSource` and `envAlways` SHALL fail validation. The system SHALL offer a function that returns the amended text for an instance: the source file's lines with each given variable replaced in place and each missing one appended, other lines and comments kept, and values holding whitespace or `#` quoted. When the source file is missing, `<sourceFile>.example` SHALL be the source; when that is missing too, the source SHALL count as empty. The function SHALL return nothing for an instance without `env.sourceFile`. This change does not write the copy.
 
 #### Scenario: Dotenv accepted
 
-- **WHEN** an instance sets `dotenv: .env`
-- **THEN** loading succeeds and the resolved instance carries it
+- **WHEN** an instance sets `env: { sourceFile: .env, overrides: { PORT: "{{port}}" } }`
+- **THEN** loading succeeds and the resolved instance carries both
+
+#### Scenario: Former keys refused
+
+- **WHEN** an instance sets `dotenv: .env`, `dotenvSource: ~/fe.env` or `envAlways: { A: b }`, or sets `env: { PORT: "{{port}}" }` without `sourceFile` and `overrides`
+- **THEN** loading the configuration fails validation
+
+#### Scenario: Source file outside the instance
+
+- **WHEN** an instance sets `env.sourceFile` to `../.env` or `/etc/app.env`
+- **THEN** loading the configuration fails validation
 
 #### Scenario: Existing variable replaced
 
@@ -149,12 +186,12 @@ The system SHALL accept an optional `dotenv` string on any entry of `variant.ins
 
 #### Scenario: No dotenv
 
-- **WHEN** the instance has no `dotenv`
+- **WHEN** the instance has no `env.sourceFile`
 - **THEN** nothing is returned
 
 ### Requirement: Local runtime state
 
-The system SHALL read ephemeral per-variant state from `variants.local.yaml` next to `variants.yaml`, in the variant's own worktree (`<prefix><slug>/variants.local.yaml`), and carry it as `runtime` in the resolved configuration. The file holds one optional `runtime` section with `slug`, `mode` (`up` or `watch`), `dir`, `db` and `instances`. `db` SHALL reuse the database settings schema, except that `port` MAY also be a string: digits, or a `{{NAME}}` template. `instances` SHALL be a record keyed by instance key (the key of the entry in `variant.instances`); each entry holds optional `port`, `pid` and `url`. Every `{{NAME}}` in a string SHALL be replaced by the environment variable `NAME` when the file is read; an unset variable leaves the template unchanged, and a `db.port` that is then not numeric SHALL be left out of the resolved state. Unknown keys SHALL fail validation. A missing file SHALL mean no runtime state. The system SHALL offer a function that writes the `runtime` section, validated, keeping any other top-level keys, and the repository SHALL git-ignore `variants.local.yaml`. A JSON schema file `variants.local.yaml.schema.json` and `variants.local.example.yaml` SHALL ship next to the main ones under the same rules.
+The system SHALL read ephemeral per-variant state from `variants.local.yaml` next to `variants.yaml`, in the variant's own worktree (`<prefix><slug>/variants.local.yaml`), and carry it as `runtime` in the resolved configuration. The file holds one optional `runtime` section with `slug`, `mode` (`up` or `watch`), `dir`, `log` (the path of the log file of a detached watch), `db` and `instances`. `db` SHALL reuse the database settings schema, except that `port` MAY also be a string: digits, or a `{{NAME}}` template. `instances` SHALL be a record keyed by instance key (the key of the entry in `variant.instances`); each entry holds optional `port`, `pid` and `url`. Every `{{NAME}}` in a string SHALL be replaced by the environment variable `NAME` when the file is read; an unset variable leaves the template unchanged, and a `db.port` that is then not numeric SHALL be left out of the resolved state. Unknown keys SHALL fail validation. A missing file SHALL mean no runtime state. The system SHALL offer a function that writes the `runtime` section, validated, keeping any other top-level keys, and the repository SHALL git-ignore `variants.local.yaml`. A JSON schema file `variants.local.yaml.schema.json` and `variants.local.example.yaml` SHALL ship next to the main ones under the same rules.
 
 #### Scenario: Runtime read
 
@@ -175,6 +212,11 @@ The system SHALL read ephemeral per-variant state from `variants.local.yaml` nex
 
 - **WHEN** `runtime.db` sets `schema: v_demo` and `dialect: postgres`
 - **THEN** they validate with the rules of `db`, and `runtime.db.port: -1` fails validation
+
+#### Scenario: Log path read
+
+- **WHEN** `variants.local.yaml` sets `runtime.log: /work/_v-demo/variants.watch.log`
+- **THEN** the resolved runtime state carries that `log`
 
 #### Scenario: No local file
 
@@ -265,12 +307,17 @@ The package SHALL ship `variants.example.yaml` (and `variants.local.example.yaml
 
 ### Requirement: Example project
 
-The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`open` on `fe`, `dotenv` on `be`) with a seed command and SQLite settings, and a `mise.toml` that declares the tools needed (`bun`) and names the `variant` CLI from `github:jubr/variant-worktrees`, either as an active tool or in a commented-out line, because inside this repository the CLI comes from the workspace. Its dev servers SHALL keep the console across rebuilds, so the output of several instances stays readable in one terminal: the Vite configuration sets `clearScreen: false`, the `be` watch command passes `--no-clear-screen` to `bun --watch`, and the `be` `tsconfig.json` sets `preserveWatchOutput`. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
+The repository SHALL ship a runnable example project in `example/`, outside the workspace packages: a Vite app `fe`, a NestJS app `be` that uses SQLite and ships `be/.env.example`, a seed script, a `variants.yaml` that lists both as instances (`url` on `fe`, `env.sourceFile` on `be`) with a seed command and SQLite settings, a `be/Dockerfile`, a multi-stage `fe/Dockerfile` that builds the app and serves it from `nginx:alpine` with `/api/` proxied to the `be` container, and a `mise.toml` that declares the tools needed (`bun`) and names the `variant` CLI from `github:jubr/variant-worktrees`, either as an active tool or in a commented-out line, because inside this repository the CLI comes from the workspace. Its dev servers SHALL keep the console across rebuilds, so the output of several instances stays readable in one terminal: the Vite configuration sets `clearScreen: false`, the `be` watch command passes `--no-clear-screen` to `bun --watch`, and the `be` `tsconfig.json` sets `preserveWatchOutput`. The test suites SHALL use this project as their fixture: the configuration of `variant-config` SHALL be loaded from it, its autodetected instances SHALL equal its explicit ones, and its seed script SHALL run against a variant database created by `variant-api`.
 
 #### Scenario: Example configuration loads
 
 - **WHEN** the configuration is loaded from `example/`
-- **THEN** it validates and lists instances `fe` (Vite, `open`) and `be` (NestJS, `dotenv`)
+- **THEN** it validates and lists instances `fe` (Vite, `url`) and `be` (NestJS, `env.sourceFile`)
+
+#### Scenario: Container files present
+
+- **WHEN** the configuration of `example/` is loaded
+- **THEN** every `container.dockerfile` of its instances names an existing file, and the `fe` Dockerfile has a `FROM nginx:alpine` stage
 
 #### Scenario: Autodetection agrees
 

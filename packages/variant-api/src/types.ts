@@ -1,4 +1,4 @@
-import type { ResolvedConfig } from "variant-config";
+import type { ResolvedConfig, ResolvedRuntime } from "variant-config";
 
 export interface VariantState {
   slug: string;
@@ -15,6 +15,22 @@ export interface InstanceFacts {
   pid?: number;
   url?: string;
   alive?: boolean;
+  /** How long the process of the recorded pid has been running; set only when it is alive. */
+  uptimeSeconds?: number;
+}
+
+/** The runtime state of a variant as `status` reports it: the `runtime` section of its `variants.local.yaml`. */
+export interface RuntimeStatus {
+  /** The `variants.local.yaml` it was read from. */
+  file: string;
+  slug?: string;
+  mode?: "up" | "watch";
+  dir?: string;
+  /** The log file of a detached watch. */
+  log?: string;
+  /** The database settings, with the password redacted. */
+  db?: ResolvedRuntime["db"];
+  instances?: Record<string, InstanceFacts>;
 }
 
 export interface VariantRecord extends VariantState {
@@ -24,6 +40,18 @@ export interface VariantRecord extends VariantState {
   /** The URL of the first instance that has one. */
   url?: string;
   instances?: Record<string, InstanceFacts>;
+  /** The longest time any live recorded process of the variant has been running. */
+  uptimeSeconds?: number;
+  /** The absolute path of the log file of its detached watch. */
+  log?: string;
+  /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
+  runtime?: RuntimeStatus;
+  /** Earlier birth time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  createdMs?: number;
+  /** Later modification time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  changedMs?: number;
+  /** Whether `implode` of this slug without `force` would succeed. Always false for `main`. */
+  implodeClean: boolean;
 }
 
 export interface VariantClientOptions {
@@ -32,6 +60,20 @@ export interface VariantClientOptions {
   cwd?: string;
   stateDir?: string;
   worktree?: boolean;
+  /** Timing of `subscribe`; the defaults are 200 ms and 5 s. */
+  subscription?: {
+    /** Changes that follow each other within this time produce one delivery. */
+    debounceMs?: number;
+    /** How often records are read although no file changed, to notice a process that ended. */
+    livenessIntervalMs?: number;
+  };
+}
+
+/** What a subscriber receives: the current records, and the reason the last read failed, when it did. */
+export interface VariantUpdate {
+  /** The records `list` returns; after a failed read, those of the last successful read. */
+  records: VariantRecord[];
+  error?: string;
 }
 
 /** How `down` talks to the person running it. */
@@ -131,18 +173,31 @@ export interface UpResult {
   output: string;
 }
 
+/** What `list` returns. */
+export interface ListOptions {
+  /** Give every record all the meta information `status` returns. */
+  verbose?: boolean;
+}
+
 export interface VariantClient {
   create(slug?: string): Promise<VariantRecord>;
   implode(slug?: string, options?: ImplodeOptions): Promise<ImplodeResult>;
   up(slug?: string, options?: UpOptions): Promise<UpResult>;
   watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
   down(slug?: string, options?: DownOptions): Promise<DownResult>;
-  list(): Promise<VariantRecord[]>;
+  /** One variant: its record with all runtime meta information. Fails when the slug is unknown. */
+  status(slug?: string): Promise<VariantRecord>;
+  list(options?: ListOptions): Promise<VariantRecord[]>;
   provision(
     slug?: string,
     options?: { verbose?: boolean; log?: (line: string) => void },
   ): Promise<{ slug: string; commands: string[]; output: string }>;
   config(): ResolvedConfig;
+  /**
+   * Delivers the records now and again whenever they change: a state file, a runtime file or a worktree changes, or a
+   * recorded process ends. `uptimeSeconds` alone is no change. Returns the function that ends the subscription.
+   */
+  subscribe(listener: (update: VariantUpdate) => void): () => void;
 }
 
 export interface DatabaseAdapter {

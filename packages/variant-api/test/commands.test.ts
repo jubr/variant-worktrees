@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { collectArgs } from "../src/cli-args.js";
 import { type CommandDefinition, commands } from "../src/commands.js";
 import type { VariantClient } from "../src/types.js";
 
@@ -32,6 +31,7 @@ describe("command registry", () => {
       "config",
       "create",
       "list",
+      "status",
       "provision",
       "up",
       "down",
@@ -63,6 +63,26 @@ describe("command registry", () => {
   it("gives watch a detach argument and implode a force argument", () => {
     expect(definition("watch").args).toContainEqual(expect.objectContaining({ name: "detach", type: "boolean" }));
     expect(definition("implode").args).toContainEqual(expect.objectContaining({ name: "force", type: "boolean" }));
+  });
+
+  it("routes list through the client with the verbose option", async () => {
+    const { client, calls } = recordingClient();
+
+    await definition("list").execute(client, {});
+    await definition("list").execute(client, { verbose: true });
+
+    expect(calls).toEqual([
+      ["list", {}],
+      ["list", { verbose: true }],
+    ]);
+  });
+
+  it("routes status through the client with the slug", async () => {
+    const { client, calls } = recordingClient();
+
+    await definition("status").execute(client, { slug: "demo" });
+
+    expect(calls).toEqual([["status", "demo"]]);
   });
 
   it("routes create through the client", async () => {
@@ -98,28 +118,10 @@ describe("command registry", () => {
   });
 
   it("is not wired to the editor socket in the CLI or the MCP server", () => {
-    const sources = ["src/cli.ts", "src/commands.ts", "src/index.ts", "../variant-mcp/src/mcp.ts"]
+    const sources = ["src/commands.ts", "src/index.ts", "../variant-cli/src/cli.ts", "../variant-mcp/src/mcp.ts"]
       .map((path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"))
       .join("\n");
 
     expect(sources).not.toContain("variant-ipc");
-  });
-});
-
-describe("command line arguments", () => {
-  it("passes --detach and --slug to watch", () => {
-    expect(collectArgs(definition("watch"), { slug: "demo", detach: true })).toEqual({ slug: "demo", detach: true });
-  });
-
-  it("takes the slug of implode from the positional argument", () => {
-    expect(collectArgs(definition("implode"), { force: true }, "demo")).toEqual({ slug: "demo", force: true });
-  });
-
-  it("passes --verbose to provision", () => {
-    expect(collectArgs(definition("provision"), { verbose: true })).toEqual({ verbose: true });
-  });
-
-  it("leaves out flags that were not given", () => {
-    expect(collectArgs(definition("watch"), { detach: undefined, slug: undefined })).toEqual({});
   });
 });

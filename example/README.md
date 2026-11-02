@@ -18,7 +18,7 @@ The example works in place: the commands, `seed` and the `dir` of every instance
 ```bash
 variant watch demo --detach   # fe and be as host processes (bun run dev, bun run start:dev)
 variant down demo             # stop them
-variant up demo               # fe and be as containers (needs docker or podman; be/Dockerfile)
+variant up demo               # fe and be as containers (needs docker or podman; be/Dockerfile, fe/Dockerfile)
 variant implode demo          # remove the variant, its database and its worktree
 ```
 
@@ -26,8 +26,12 @@ variant implode demo          # remove the variant, its database and its worktre
   `be`'s `start:dev`, `preserveWatchOutput` in `be/tsconfig.json`), so the output of both stays readable in one terminal.
 - `fe` proxies `/api` to `be` (`VARIANT_API_PORT`, default 3000) and listens on `PORT` (default 5173).
 - `be` reads `PORT` and `SQLITE_DATABASE` from its environment, falling back to `be/.env`; `be/.env.example`
-  is the template that `dotenv: .env` in `variants.yaml` copies for a variant.
-- `variants.yaml` also shows `storage`, a `steps` entry, `implode.preRm`, `ready`, `env` and `container`. `be` is
-  listed first because the nginx of the `fe` container resolves the `be` container by name when it starts.
+  is the template that `env.sourceFile: .env` in `variants.yaml` copies for a variant.
+- `variants.yaml` also shows `storage`, a `steps` entry, `implode.preRm` and `discard`, `ready`, `env` and `container`.
+- A container is just a `dockerfile` (and an `internalPort` when it is not 80). `fe/Dockerfile` builds the app, serves it
+  with `nginx:alpine` and proxies `/api/` to `v-be-<slug>:3000` through `fe/nginx.conf.template` (nginx renders `${VARIANT_SLUG}` at start).
+  `be` is listed first because that nginx resolves the `be` container by name when it starts.
+- A container receives only the `VARIANT_*` and database variables, not `env.overrides`. `watch` uses the seeded host
+  SQLite file; `up` runs `be` with a fresh database inside its image (`/data/variant.sqlite`).
 - A container engine in a VM (colima, podman machine) can only mount directories it shares, usually below `$HOME`.
-- `open` on `fe` is the URL of the app: `http://<slug>.vw.localhost:<port>`.
+- `url` on `fe` is the URL of the app: `http://<slug>.<abbr>.localhost:<port>` (`variant.abbr` is `vw` here).

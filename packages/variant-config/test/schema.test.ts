@@ -20,6 +20,65 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
+  it("rejects an instance with the reserved key variant-ui, naming it", () => {
+    const result = VariantsConfigSchema.safeParse({
+      variant: { instances: { "variant-ui": { kind: "vite", dir: "ui" } } },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (candidate) => candidate.path.join(".") === "variant.instances.variant-ui",
+      );
+      expect(issue?.message).toContain("variant-ui");
+      expect(issue?.message).toContain("reserved");
+    }
+  });
+
+  it.each([
+    "ui",
+    "UI",
+    "Ui",
+  ])("rejects an instance with the key %s, which shares VARIANT_UI_PORT with the server", (key) => {
+    const result = VariantsConfigSchema.safeParse({ variant: { instances: { [key]: { kind: "vite", dir: "ui" } } } });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === `variant.instances.${key}`);
+      expect(issue?.message).toContain(key);
+      expect(issue?.message).toContain("VARIANT_UI_PORT");
+    }
+  });
+
+  it("accepts instance keys that merely contain ui", () => {
+    const instance = { kind: "vite", dir: "ui" };
+
+    expect(
+      VariantsConfigSchema.safeParse({ variant: { instances: { ui2: instance, "my-ui": instance } } }).success,
+    ).toBe(true);
+  });
+
+  describe("variant.ui", () => {
+    it("accepts a port", () => {
+      const result = VariantsConfigSchema.safeParse({ variant: { ui: { port: 62100 } } });
+
+      expect(result.success && result.data.variant?.ui?.port).toBe(62100);
+    });
+
+    it("accepts the setting absent", () => {
+      expect(VariantsConfigSchema.safeParse({ variant: {} }).success).toBe(true);
+      expect(VariantsConfigSchema.safeParse({ variant: { ui: {} } }).success).toBe(true);
+    });
+
+    it.each([0, "abc", 1.5, -1])("rejects the port %p", (port) => {
+      expect(VariantsConfigSchema.safeParse({ variant: { ui: { port } } }).success).toBe(false);
+    });
+
+    it("rejects an unknown key", () => {
+      expect(VariantsConfigSchema.safeParse({ variant: { ui: { color: "red" } } }).success).toBe(false);
+    });
+  });
+
   it("accepts a custom prefix", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "_work-" } }).success).toBe(true);
   });
@@ -34,25 +93,48 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ seed: "bun run db:seed" }).success).toBe(false);
   });
 
-  it("accepts an open URL template on an instance and rejects an empty one", () => {
-    const instance = { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" };
+  it("accepts a url template on an instance and rejects an empty one and the former open key", () => {
+    const instance = { kind: "vite", dir: "app", url: "http://{{slug}}.vw.localhost:{{port}}" };
+    const parse = (value: object) => VariantsConfigSchema.safeParse({ variant: { instances: { app: value } } }).success;
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(true);
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: { ...instance, open: "" } } } }).success).toBe(
-      false,
-    );
+    expect(parse(instance)).toBe(true);
+    expect(parse({ ...instance, url: "" })).toBe(false);
+    expect(parse({ kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" })).toBe(false);
   });
 
-  it("accepts an open URL template and a dotenv file on a NestJS instance", () => {
-    const instance = { kind: "nestjs", dir: "server", open: "http://{{slug}}.vw.localhost:{{port}}", dotenv: ".env" };
+  it("accepts a url template and an env object on a NestJS instance", () => {
+    const instance = {
+      kind: "nestjs",
+      dir: "server",
+      url: "http://{{slug}}.vw.localhost:{{port}}",
+      env: { sourceFile: ".env", overrides: { PORT: "{{port}}" } },
+    };
 
     expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(true);
   });
 
-  it("rejects an empty dotenv path", () => {
-    const instance = { kind: "nestjs", dir: "server", dotenv: "" };
+  it("rejects an empty, absolute or escaping env source file", () => {
+    const parse = (sourceFile: string) =>
+      VariantsConfigSchema.safeParse({
+        variant: { instances: { app: { kind: "nestjs", dir: "server", env: { sourceFile } } } },
+      }).success;
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(false);
+    expect(parse("")).toBe(false);
+    expect(parse("../.env")).toBe(false);
+    expect(parse("/etc/app.env")).toBe(false);
+    expect(parse("config/.env")).toBe(true);
+  });
+
+  it("rejects the former dotenv, dotenvSource and envAlways keys and a bare env map", () => {
+    const parse = (extra: object) =>
+      VariantsConfigSchema.safeParse({ variant: { instances: { app: { kind: "nestjs", dir: "server", ...extra } } } })
+        .success;
+
+    expect(parse({ dotenv: ".env" })).toBe(false);
+    expect(parse({ dotenvSource: "~/app.env" })).toBe(false);
+    expect(parse({ envAlways: { A: "b" } })).toBe(false);
+    expect(parse({ env: { PORT: "{{port}}" } })).toBe(false);
+    expect(parse({ env: { overrides: {}, other: 1 } })).toBe(false);
   });
 
   it("accepts a chatRenamer section with every option", () => {

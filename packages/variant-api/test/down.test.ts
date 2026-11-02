@@ -3,7 +3,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { createClient } from "../src/index.js";
 import { isProcessAlive } from "../src/runtime-state.js";
 import { type EngineStub, installEngineStub } from "./support/engine-stub.js";
@@ -13,8 +13,8 @@ const CONFIG = [
   "  dialect: sqlite",
   "variant:",
   "  instances:",
-  "    fe: { kind: vite, dir: fe, container: { static: dist } }",
-  "    be: { kind: nestjs, dir: be, container: { image: app, port: 3000 } }",
+  "    fe: { kind: vite, dir: fe, container: { dockerfile: fe/Dockerfile } }",
+  "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",
   "",
 ].join("\n");
 
@@ -105,6 +105,18 @@ describe("down", () => {
       expect(existsSync(localFile)).toBe(false);
     }));
 
+  it("drops the recorded watch log from the runtime and keeps the file", () =>
+    withProject(async ({ directory, down, localFile }) => {
+      const log = join(directory, "variants.watch.log");
+      writeFileSync(log, "[fe] bun run dev\n");
+      writeFileSync(localFile, `runtime:\n  slug: demo\n  mode: watch\n  log: ${log}\n`);
+
+      await down();
+
+      expect(existsSync(localFile)).toBe(false);
+      expect(readFileSync(log, "utf8")).toBe("[fe] bun run dev\n");
+    }));
+
   it("ignores a stale pid and still clears the runtime", () =>
     withProject(async ({ down, localFile }) => {
       writeFileSync(localFile, "runtime:\n  slug: demo\n  instances:\n    fe: { pid: 2147483000 }\n");
@@ -127,21 +139,15 @@ describe("down", () => {
       expect(isProcessAlive(outsider.pid as number)).toBe(true);
     }));
 
-  it("removes containers, the network and generated nginx configuration through the engine", () =>
-    withProject(async ({ directory, engine, down }) => {
+  it("removes containers and the network through the engine", () =>
+    withProject(async ({ engine, down }) => {
       engine.seed({ containers: ["v-fe-demo", "v-be-demo", "v-fe-other"], networks: ["v-net-demo", "v-net-other"] });
-      const stateDir = join(directory, ".cache", "variants");
-      mkdirSync(stateDir, { recursive: true });
-      writeFileSync(join(stateDir, "demo.fe.nginx.conf"), "server {}\n");
-      writeFileSync(join(stateDir, "other.fe.nginx.conf"), "server {}\n");
 
       const result = await down();
 
       expect(engine.state()).toEqual({ containers: ["v-fe-other"], networks: ["v-net-other"] });
       expect(result.containers.sort()).toEqual(["v-be-demo", "v-fe-demo"]);
       expect(result.networks).toEqual(["v-net-demo"]);
-      expect(existsSync(join(stateDir, "demo.fe.nginx.conf"))).toBe(false);
-      expect(existsSync(join(stateDir, "other.fe.nginx.conf"))).toBe(true);
     }));
 
   it("clears only the runtime section and keeps data and state", () =>
@@ -168,6 +174,26 @@ describe("down", () => {
 
       expect(result.slug).toBe("main");
       expect(await untilDead(watcher.pid)).toBe(true);
+    }));
+
+  it("leaves the variant-ui server of main running and recorded", () =>
+    withProject(async ({ directory, down, localFile }) => {
+      const watcher = await startWatcher(join(directory, "fe"));
+      const server = await startWatcher(join(directory, "be"));
+      const ui = { port: 62100, pid: server.pid, url: "http://ui.vw.localhost:62100" };
+      writeFileSync(
+        localFile,
+        stringifyYaml({
+          runtime: { slug: "main", instances: { fe: { pid: watcher.pid }, "variant-ui": ui } },
+        }),
+      );
+
+      const result = await down("main");
+
+      expect(result.processes.map(({ key }) => key)).toEqual(["fe"]);
+      expect(await untilDead(watcher.pid)).toBe(true);
+      expect(isProcessAlive(server.pid)).toBe(true);
+      expect(parseYaml(readFileSync(localFile, "utf8"))).toEqual({ runtime: { instances: { "variant-ui": ui } } });
     }));
 
   it("succeeds and reports nothing stopped when nothing runs", () =>

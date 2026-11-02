@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig, openUrlFor, resolveInstancePort } from "../src/index.js";
+import { DEFAULT_URL, loadConfig, openUrlFor, resolveInstancePort } from "../src/index.js";
 import { pickFreePort } from "../src/ports.js";
 
 const PROJECT = [
@@ -12,7 +12,7 @@ const PROJECT = [
   "    fe:",
   "      kind: vite",
   "      dir: fe",
-  "      open: http://{{slug}}.vw.localhost:{{port}}",
+  "      url: http://{{slug}}.vw.localhost:{{port}}",
   "    be:",
   "      kind: nestjs",
   "      dir: be",
@@ -143,4 +143,33 @@ describe("openUrlFor", () => {
     withProject(undefined, async (_directory, load) => {
       expect(await openUrlFor(load(), "add-auth", "be")).toBeUndefined();
     }));
+});
+
+describe("openUrlFor with an abbreviation", () => {
+  const withAbbr = async (yaml: string, run: (config: ReturnType<typeof loadConfig>) => Promise<void>) => {
+    const directory = mkdtempSync(join("/tmp", "variant-open-"));
+    try {
+      writeFileSync(join(directory, "variants.yaml"), yaml);
+      writeFileSync(join(directory, "variants.local.yaml"), "runtime:\n  instances:\n    fe:\n      port: 62060\n");
+      await run(loadConfig({ cwd: directory, env: {} }));
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  };
+
+  it("renders the default Vite template with the project abbreviation", () =>
+    withAbbr(
+      `variant:\n  abbr: vw\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n      url: ${DEFAULT_URL}\n`,
+      async (config) => {
+        expect(await openUrlFor(config, "add-auth", "fe")).toBe("http://add-auth.vw.localhost:62060");
+      },
+    ));
+
+  it("renders {{abbr}} in an explicit template", () =>
+    withAbbr(
+      "variant:\n  abbr: otc\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n      url: http://{{abbr}}-{{slug}}.localhost:{{port}}\n",
+      async (config) => {
+        expect(await openUrlFor(config, "demo", "fe")).toBe("http://otc-demo.localhost:62060");
+      },
+    ));
 });

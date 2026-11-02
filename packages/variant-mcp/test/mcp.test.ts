@@ -69,6 +69,7 @@ describe("MCP server", () => {
         "variant_config",
         "variant_create",
         "variant_list",
+        "variant_status",
         "variant_provision",
         "variant_up",
         "variant_down",
@@ -209,8 +210,8 @@ describe("MCP runtime tools", () => {
           "    be:",
           "      kind: nestjs",
           "      dir: be",
-          "      open: http://{{slug}}.vw.localhost:{{port}}",
-          "      container: { image: app, port: 3000 }",
+          "      url: http://{{slug}}.vw.localhost:{{port}}",
+          "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           "",
         ].join("\n"),
       );
@@ -325,4 +326,69 @@ describe("MCP runtime tools", () => {
       rmSync(parent, { recursive: true, force: true });
     }
   });
+});
+
+describe("MCP status and verbose list", () => {
+  const withRuntime = async (run: (directory: string, configPath: string) => Promise<void>): Promise<void> => {
+    const directory = realpathSync(tempDirectory());
+    try {
+      mkdirSync(join(directory, "_v-demo"));
+      writeFileSync(
+        join(directory, "_v-demo", "variants.local.yaml"),
+        "runtime:\n  slug: demo\n  mode: watch\n  log: /work/_v-demo/variants.watch.log\n  db: { dialect: postgres, host: h, password: secret }\n  instances:\n    fe: { port: 62060, url: 'http://demo.vw.localhost:62060/' }\n",
+      );
+      await run(directory, configFile(directory));
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  };
+
+  it("variant_status returns the record of one variant with its runtime meta information, password redacted", () =>
+    withRuntime(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), call(2, "variant_status", { slug: "demo" })], configPath, {
+        cwd: directory,
+      });
+      const { isError, text } = answer(result, 2);
+      const status = JSON.parse(text);
+
+      expect(isError).not.toBe(true);
+      expect(status).toMatchObject({
+        slug: "demo",
+        mode: "watch",
+        url: "http://demo.vw.localhost:62060/",
+        log: "/work/_v-demo/variants.watch.log",
+        runtime: { file: join(directory, "_v-demo", "variants.local.yaml"), instances: { fe: { port: 62060 } } },
+      });
+      expect(status.runtime.db.password).toBe("***");
+      expect(text).not.toContain("secret");
+    }));
+
+  it("variant_status reports an unknown slug as an error that names it", () =>
+    withRuntime(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), call(2, "variant_status", { slug: "ghost" })], configPath, {
+        cwd: directory,
+      });
+
+      expect(answer(result, 2)).toEqual({ isError: true, text: "Unknown variant: ghost" });
+    }));
+
+  it("variant_list with verbose gives each item what variant_status gives", () =>
+    withRuntime(async (directory, configPath) => {
+      const result = await mcp(
+        [...initMessages(), call(2, "variant_list", { verbose: true }), call(3, "variant_status", { slug: "demo" })],
+        configPath,
+        { cwd: directory },
+      );
+
+      expect(JSON.parse(answer(result, 2).text)).toEqual([JSON.parse(answer(result, 3).text)]);
+    }));
+
+  it("variant_list without verbose leaves the runtime object out", () =>
+    withRuntime(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), call(2, "variant_list")], configPath, { cwd: directory });
+      const [item] = JSON.parse(answer(result, 2).text);
+
+      expect(item).toMatchObject({ slug: "demo", mode: "watch", log: "/work/_v-demo/variants.watch.log" });
+      expect(item.runtime).toBeUndefined();
+    }));
 });

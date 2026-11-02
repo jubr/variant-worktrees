@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { DEFAULT_PREFIX, detectVariantRoot } from "variant-config";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve } from "node:path";
+import { DEFAULT_PREFIX, detectVariantMain, detectVariantRoot } from "variant-config";
 import { DEFAULT_BRANCH_PREFIXES, gitRoot, sanitizeSlug, worktreeEntries } from "./slug.js";
 
 const runGit = (cwd: string, args: string[]): string =>
@@ -38,25 +38,72 @@ export const primaryWorktree = (cwd = process.cwd()): string => {
   return resolve(primary ?? gitRoot(cwd));
 };
 
+const realpathOrResolve = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+};
+
+const isInside = (directory: string, path: string): boolean => {
+  const relation = relative(directory, path);
+  return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
+};
+
+/** Whether a `.gitignore` line already ignores every `<prefix>*` directory: `_v-*`, `/_v-*`, each with an optional `/`. */
+const ignoresWorktrees = (content: string, prefix: string): boolean =>
+  content.split(/\r?\n/).some((line) => line.trim().replace(/^\//, "").replace(/\/$/, "") === `${prefix}*`);
+
+/**
+ * A worktree inside the main tree shows up as untracked: add `<prefix>*` to the `.gitignore` of the directory that
+ * holds it. Only an existing file is changed, and only when the entry is missing.
+ */
+const ignoreWorktrees = (root: string, prefix: string, main: string): void => {
+  const file = join(root, ".gitignore");
+  if (!existsSync(file) || !isInside(realpathOrResolve(main), realpathOrResolve(root))) {
+    return;
+  }
+  const content = readFileSync(file, "utf8");
+  if (!ignoresWorktrees(content, prefix)) {
+    appendFileSync(file, `${content === "" || content.endsWith("\n") ? "" : "\n"}${prefix}*\n`);
+  }
+};
+
+/** The directory to ask git in: the main tree when it is a repository, else the working directory. */
+const gitDirectory = (cwd: string, main?: string): string => {
+  if (main) {
+    try {
+      primaryWorktree(main);
+      return main;
+    } catch {
+      // not a repository: fall back to the working directory
+    }
+  }
+  return cwd;
+};
+
 export const ensureWorktree = (
   slug: string,
   cwd = process.cwd(),
   variantRoot?: string,
   prefix: string = DEFAULT_PREFIX,
   branches: BranchSettings = DEFAULT_BRANCH_SETTINGS,
+  main?: string,
 ): string => {
   const normalized = sanitizeSlug(slug, branches.branchPrefixes);
-  const primary = primaryWorktree(cwd);
+  const repository = gitDirectory(cwd, main);
+  const primary = primaryWorktree(repository);
   if (normalized === "main") {
     return primary;
   }
 
-  const existing = worktreeForBranch(normalized, cwd, branches.branchPrefixes);
+  const existing = worktreeForBranch(normalized, repository, branches.branchPrefixes);
   if (existing) {
     return resolve(existing);
   }
 
-  const root = resolve(variantRoot ?? detectVariantRoot(cwd));
+  const root = resolve(variantRoot ?? detectVariantRoot(repository, main ?? detectVariantMain(repository)));
   mkdirSync(root, { recursive: true });
   const destination = join(root, `${prefix}${normalized}`);
   if (existsSync(destination)) {
@@ -69,5 +116,6 @@ export const ensureWorktree = (
     ? ["worktree", "add", destination, branch]
     : ["worktree", "add", "-b", branch, destination, branches.baseBranch];
   runGit(primary, args);
+  ignoreWorktrees(root, prefix, main ?? primary);
   return resolve(destination);
 };

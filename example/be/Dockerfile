@@ -7,6 +7,9 @@ COPY fe/package.json fe/
 RUN bun install --frozen-lockfile --production
 COPY be/ be/
 WORKDIR /app/be
+# The container keeps its own database: variant up passes no host paths.
+RUN mkdir -p /data
 ENV PORT=3000
+ENV SQLITE_DATABASE=/data/variant.sqlite
 EXPOSE 3000
 CMD ["bun", "src/main.ts"]

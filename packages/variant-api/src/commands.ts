@@ -27,9 +27,10 @@ const slugArg: ArgDefinition = {
 
 const verboseArg: ArgDefinition = {
   name: "verbose",
-  description: "Print the full output of quiet provisioning steps",
+  description: "Print the full output of quiet provisioning steps; for list, all meta information of every variant",
   type: "boolean",
   required: false,
+  short: "v",
 };
 
 const slugString = (args: Record<string, unknown>): string | undefined => args.slug as string | undefined;
@@ -53,7 +54,13 @@ export const commands: CommandDefinition[] = [
     name: "list",
     description: "List known database variants",
     args: [verboseArg],
-    execute: (client) => client.list(),
+    execute: (client, args) => client.list(verbose(args)),
+  },
+  {
+    name: "status",
+    description: "Show everything known about one variant: its runtime state, uptime and watch log file",
+    args: [slugArg, verboseArg],
+    execute: (client, args) => client.status(slugString(args)),
   },
   {
     name: "provision",

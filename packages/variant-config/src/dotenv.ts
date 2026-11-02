@@ -34,18 +34,19 @@ export const amendDotenv = (source: string, entries: Readonly<Record<string, str
 };
 
 /**
- * The amended copy of an instance's dotenv file: `<configDir>/<dir>/<dotenv>` (else `<dotenv>.example`, else empty) with the
- * variant's values applied. Nothing when the instance has no `dotenv`. It does not write the copy.
+ * The amended copy of an instance's env file: `<configDir>/<dir>/<env.sourceFile>` (else `<sourceFile>.example`, else
+ * empty) with the variant's values applied. Nothing when the instance has no `env.sourceFile`. It does not write the copy.
  */
 export const dotenvFor = (
   config: ResolvedConfig,
   instance: VariantInstance,
   entries: Readonly<Record<string, string>>,
 ): string | undefined => {
-  if (instance.dotenv === undefined) {
+  const sourceFile = instance.env?.sourceFile;
+  if (sourceFile === undefined) {
     return undefined;
   }
-  const path = join(config.configDir, instance.dir, instance.dotenv);
+  const path = join(config.configDir, instance.dir, sourceFile);
   const source = [path, `${path}.example`].find((candidate) => existsSync(candidate));
   return amendDotenv(source ? readFileSync(source, "utf8") : "", entries);
 };

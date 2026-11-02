@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
@@ -61,6 +61,24 @@ describe("list with runtime facts", () => {
       });
     }));
 
+  it("does not take the url or uptime of main from the variant-ui server recorded in its runtime", () =>
+    withProject(async (_directory, put, list) => {
+      put(
+        "variants.local.yaml",
+        `runtime:\n  slug: main\n  instances:\n    variant-ui: { port: 62100, pid: ${process.pid}, url: 'http://ui.vw.localhost:62100' }\n`,
+      );
+
+      const main = (await list()).find((variant) => variant.slug === "main");
+
+      expect(main?.instances?.["variant-ui"]).toMatchObject({
+        port: 62100,
+        url: "http://ui.vw.localhost:62100",
+        alive: true,
+      });
+      expect(main?.url).toBeUndefined();
+      expect(main?.uptimeSeconds).toBeUndefined();
+    }));
+
   it("reports whether each recorded pid is alive", () =>
     withProject(async (_directory, put, list) => {
       put(
@@ -70,7 +88,7 @@ describe("list with runtime facts", () => {
 
       const record = (await list()).find((variant) => variant.slug === "demo");
 
-      expect(record?.instances?.fe).toEqual({ pid: process.pid, alive: true });
+      expect(record?.instances?.fe).toEqual({ pid: process.pid, alive: true, uptimeSeconds: expect.any(Number) });
       expect(record?.instances?.be?.alive).toBe(false);
     }));
 
@@ -113,5 +131,50 @@ describe("list with runtime facts", () => {
       put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
 
       expect((await list()).map((variant) => variant.slug)).toEqual(["demo"]);
+    }));
+
+  it("reports created as the earlier birth time and changed as the later modification time", () =>
+    withProject(async (directory, put, list) => {
+      const variantDir = join(directory, "_v-demo");
+      put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
+      const yaml = join(variantDir, "variants.local.yaml");
+      const later = statSync(variantDir).mtimeMs + 60_000;
+      utimesSync(yaml, later / 1000, later / 1000);
+      const dirStat = statSync(variantDir);
+      const fileStat = statSync(yaml);
+
+      const record = (await list()).find((variant) => variant.slug === "demo");
+
+      expect(record?.createdMs).toBe(Math.min(dirStat.birthtimeMs, fileStat.birthtimeMs));
+      expect(record?.changedMs).toBe(fileStat.mtimeMs);
+      expect(record?.changedMs).toBeGreaterThan(dirStat.mtimeMs);
+    }));
+
+  it("reports changed as the directory modification time when that is the later of the two", () =>
+    withProject(async (directory, put, list) => {
+      const variantDir = join(directory, "_v-demo");
+      put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
+      const later = statSync(join(variantDir, "variants.local.yaml")).mtimeMs + 60_000;
+      utimesSync(variantDir, later / 1000, later / 1000);
+
+      const record = (await list()).find((variant) => variant.slug === "demo");
+
+      expect(record?.changedMs).toBe(statSync(variantDir).mtimeMs);
+    }));
+
+  it("uses the directory alone when variants.local.yaml is absent", () =>
+    withProject(async (directory, put, list) => {
+      const variantDir = join(directory, "_v-solo");
+      mkdirSync(variantDir);
+      put(
+        ".cache/variants/solo.yaml",
+        `slug: solo\ntarget: ${join(directory, ".cache", "variants", "solo.db")}\ndialect: sqlite\nstatePath: ""\nworktree: ${variantDir}\ncreatedAt: now\n`,
+      );
+      const dirStat = statSync(variantDir);
+
+      const record = (await list()).find((variant) => variant.slug === "solo");
+
+      expect(record?.createdMs).toBe(dirStat.birthtimeMs);
+      expect(record?.changedMs).toBe(dirStat.mtimeMs);
     }));
 });

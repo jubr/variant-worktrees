@@ -15,6 +15,8 @@ import { primaryWorktree } from "./worktree.js";
 /** Everything the commands of one variant run need to know: where it lives and which ports its instances use. */
 export interface VariantRun {
   slug: string;
+  /** The project abbreviation, `variant.abbr`. */
+  abbr: string;
   /** The database target: the variant's schema or database file. */
   target: string;
   worktree: string;
@@ -91,6 +93,7 @@ export const prepareRun = async (
   const primary = primaryOf(context.cwd, worktree);
   const run: VariantRun = {
     slug,
+    abbr: config.variant.abbr,
     target,
     worktree,
     isPrimary: realpathOrSelf(worktree) === primary,
@@ -102,8 +105,8 @@ export const prepareRun = async (
     ...(storage ? { storage } : {}),
   };
   for (const [key, instance] of Object.entries(config.variant.instances)) {
-    if (instance.open !== undefined) {
-      run.urls[key] = renderTemplate(instance.open, templateContext(run, key));
+    if (instance.url !== undefined) {
+      run.urls[key] = renderTemplate(instance.url, templateContext(run, key));
     }
   }
   return run;
@@ -112,6 +115,7 @@ export const prepareRun = async (
 /** The template values of an instance (`key`), or of a step or variant-wide command (no `key`). */
 export const templateContext = (run: VariantRun, key?: string): TemplateContext => ({
   slug: run.slug,
+  abbr: run.abbr,
   schema: run.target,
   storage: run.storage ?? "",
   worktree: run.worktree,
@@ -184,7 +188,7 @@ export const variantVariables = (
     variables.SQLITE_DATABASE = run.target;
   }
   if (run.storage && config.variant.storage) {
-    variables[config.variant.storage.env] = run.storage;
+    variables[config.variant.storage.envVarName] = run.storage;
   }
   for (const key of Object.keys(config.variant.instances)) {
     const segment = envSegment(key);

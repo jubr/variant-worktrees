@@ -4072,22 +4072,150 @@
 // }
 // interface Thenable<T> extends PromiseLike<T> {}
 
+export interface Disposable {
+  dispose(): void;
+}
+
+/** The URI of a test: only what the extension reads of it. */
+export interface Uri {
+  scheme: string;
+  fsPath: string;
+  path: string;
+  toString(): string;
+}
+
+const makeUri = (scheme: string, path: string, text: string): Uri => ({ scheme, fsPath: path, path, toString: () => text });
+
+export const Uri = {
+  file: (path: string): Uri => makeUri("file", path, `file://${path}`),
+  parse: (text: string): Uri => {
+    const match = /^([a-z][a-z0-9+.-]*):(.*)$/i.exec(text);
+    return makeUri(match?.[1] ?? "file", match?.[2] ?? text, text);
+  },
+  joinPath: (base: Uri, ...segments: string[]): Uri => Uri.file([base.fsPath, ...segments].join("/")),
+};
+
+export class EventEmitter<T> {
+  private listeners = new Set<(value: T) => void>();
+  readonly event = (listener: (value: T) => void): Disposable => {
+    this.listeners.add(listener);
+    return { dispose: () => this.listeners.delete(listener) };
+  };
+  fire(value: T): void {
+    for (const listener of [...this.listeners]) {
+      listener(value);
+    }
+  }
+  dispose(): void {
+    this.listeners.clear();
+  }
+}
+
+export class ThemeIcon {
+  constructor(
+    readonly id: string,
+    readonly color?: unknown,
+  ) {}
+}
+
+export class MarkdownString {
+  constructor(public value = "") {}
+  appendMarkdown(text: string): this {
+    this.value += text;
+    return this;
+  }
+  appendText(text: string): this {
+    this.value += text;
+    return this;
+  }
+}
+
+export enum TreeItemCollapsibleState {
+  None = 0,
+  Collapsed = 1,
+  Expanded = 2,
+}
+
+export class TreeItem {
+  id?: string;
+  description?: string | boolean;
+  tooltip?: string | MarkdownString;
+  iconPath?: ThemeIcon | Uri;
+  contextValue?: string;
+  command?: { command: string; title: string; arguments?: unknown[] };
+  constructor(
+    public label: string,
+    public collapsibleState: TreeItemCollapsibleState = TreeItemCollapsibleState.None,
+  ) {}
+}
+
+export enum ConfigurationTarget {
+  Global = 1,
+  Workspace = 2,
+  WorkspaceFolder = 3,
+}
+
+export enum ProgressLocation {
+  SourceControl = 1,
+  Window = 10,
+  Notification = 15,
+}
+
+export enum ViewColumn {
+  Active = -1,
+  Beside = -2,
+  One = 1,
+  Two = 2,
+}
+
 /** Unset outside an editor host. A test sets `appName` to make the extension believe it runs in one. */
-export const env = { appName: undefined as string | undefined, uriScheme: "cursor" };
+export const env = {
+  appName: undefined as string | undefined,
+  uriScheme: "cursor",
+  clipboard: { writeText: async (_text: string): Promise<void> => {} },
+  openExternal: async (_target: Uri): Promise<boolean> => true,
+};
 
 export const commands = {
-  registerCommand: () => {},
+  registerCommand: (_id: string, _callback: (...args: any[]) => unknown): Disposable => ({ dispose: () => {} }),
   getCommands: async (_filterInternal?: boolean): Promise<string[]> => [],
   executeCommand: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
+export const configuration = {
+  get: (_key: string): unknown => undefined,
+  update: async (_key: string, _value: unknown, _target?: ConfigurationTarget): Promise<void> => {},
+};
+
+const configurationListeners = new Set<(event: { affectsConfiguration: (section: string) => boolean }) => void>();
+
 export const workspace: {
   workspaceFolders?: Array<{ uri: { fsPath: string } }>;
-  getConfiguration: (section: string) => { get: (key: string) => unknown };
-  onDidChangeConfiguration: (listener: unknown) => { dispose: () => void };
+  getConfiguration: (section: string) => typeof configuration;
+  onDidChangeConfiguration: (
+    listener: (event: { affectsConfiguration: (section: string) => boolean }) => void,
+  ) => { dispose: () => void };
+  openTextDocument: (target: Uri | string) => Promise<unknown>;
+  onDidChangeWorkspaceFolders: (listener: unknown) => { dispose: () => void };
+  /** Tells every configuration listener that `section` changed. Tests use this. */
+  fireConfiguration: (section: string) => void;
 } = {
-  getConfiguration: (_section: string) => ({ get: (_key: string): unknown => undefined }),
-  onDidChangeConfiguration: (_listener: unknown) => ({ dispose: () => {} }),
+  getConfiguration: (_section: string) => configuration,
+  onDidChangeConfiguration: (listener) => {
+    configurationListeners.add(listener);
+    return {
+      dispose: () => {
+        configurationListeners.delete(listener);
+      },
+    };
+  },
+  fireConfiguration: (section: string) => {
+    for (const listener of [...configurationListeners]) {
+      listener({ affectsConfiguration: (candidate) => candidate === section });
+    }
+  },
+  openTextDocument: async (_target: Uri | string): Promise<unknown> => ({}),
+  onDidChangeWorkspaceFolders: (_listener: unknown) => ({ dispose: () => {} }),
 };
 
 export const extensions = {
@@ -4095,11 +4223,63 @@ export const extensions = {
   all: [] as { id: string }[],
 };
 
+export interface WebviewPanelStub {
+  viewType: string;
+  title: string;
+  webview: {
+    html: string;
+    options: unknown;
+    cspSource: string;
+    asWebviewUri: (uri: Uri) => Uri;
+    postMessage: (message: unknown) => Promise<boolean>;
+    onDidReceiveMessage: (listener: (message: unknown) => unknown) => Disposable;
+  };
+  reveal: (column?: number) => void;
+  onDidDispose: (listener: () => void) => Disposable;
+  dispose: () => void;
+}
+
 export const window = {
   showInformationMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showWarningMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showErrorMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
+  showTextDocument: async (..._args: unknown[]): Promise<unknown> => undefined,
   registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
+  createTreeView: (_viewId: string, _options: unknown): Disposable & { message?: string } => ({ dispose: () => {} }),
+  createWebviewPanel: (
+    viewType: string,
+    title: string,
+    _column: unknown,
+    options: unknown,
+  ): WebviewPanelStub => {
+    const messageListeners = new Set<(message: unknown) => unknown>();
+    const disposeListeners = new Set<() => void>();
+    return {
+      viewType,
+      title,
+      webview: {
+        html: "",
+        options,
+        cspSource: "vscode-webview-resource:",
+        asWebviewUri: (uri: Uri) => uri,
+        postMessage: async (_message: unknown) => true,
+        onDidReceiveMessage: (listener) => {
+          messageListeners.add(listener);
+          return { dispose: () => messageListeners.delete(listener) };
+        },
+      },
+      reveal: () => {},
+      onDidDispose: (listener) => {
+        disposeListeners.add(listener);
+        return { dispose: () => disposeListeners.delete(listener) };
+      },
+      dispose: () => {
+        for (const listener of [...disposeListeners]) {
+          listener();
+        }
+      },
+    };
+  },
   createOutputChannel: (_name: string, _options?: { log: boolean }) => ({
     clear: () => {},
     appendLine: (_line: string) => {},

@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { detectConnection, detectInstances, detectVariantRoot } from "./autodetect.js";
+import { abbreviate, detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
 import { readRuntime } from "./local.js";
 import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
 import {
@@ -12,7 +12,7 @@ import {
   DEFAULT_PREFIX,
   DEFAULT_RESERVED_PORTS,
   DEFAULT_STORAGE_DIR,
-  DEFAULT_STORAGE_ENV,
+  DEFAULT_STORAGE_ENV_VAR,
   VariantsConfigSchema,
   variantsJsonSchema,
 } from "./schema.js";
@@ -64,9 +64,12 @@ const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): b
 
 const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
   const { storage, supervise, implode, ...variant } = config.variant ?? {};
+  const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
     ...variant,
-    root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir),
+    main,
+    root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
+    abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
     instances: resolveInstances(config, configDir),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
@@ -74,7 +77,12 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     open: resolveOpen(variant.open, env),
     reservedPorts: variant.reservedPorts ?? [...DEFAULT_RESERVED_PORTS],
     ...(storage
-      ? { storage: { dir: storage.dir ?? DEFAULT_STORAGE_DIR, env: storage.env ?? DEFAULT_STORAGE_ENV } }
+      ? {
+          storage: {
+            dir: storage.dir ?? DEFAULT_STORAGE_DIR,
+            envVarName: storage.envVarName ?? DEFAULT_STORAGE_ENV_VAR,
+          },
+        }
       : {}),
     supervise: {
       startDelaySeconds: supervise?.startDelaySeconds ?? 2,
@@ -83,8 +91,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     },
     implode: {
       preRm: implode?.preRm ?? [],
-      restore: implode?.restore ?? [],
-      untracked: implode?.untracked ?? [],
+      discard: implode?.discard ?? [],
       requireMerged: implode?.requireMerged ?? true,
       maxDiffLines: implode?.maxDiffLines ?? DEFAULT_MAX_DIFF_LINES,
     },
@@ -127,11 +134,8 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
   config.variants?.[slug]?.seed ?? config.variant.seed;
 
-export const runtimeCommandFor = (
-  config: ResolvedConfig,
-  kind: "up" | "watch",
-  instance?: VariantInstance,
-): string | undefined => instance?.[kind] ?? config.variant[kind];
+export const runtimeCommandFor = (kind: "up" | "watch", instance: VariantInstance): string | undefined =>
+  instance[kind];
 
 /**
  * Only the variant name prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
@@ -167,7 +171,14 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
 
 export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, null, 2);
 
-export { detectConnection, detectInstances, detectVariantRoot, findMiseFile } from "./autodetect.js";
+export {
+  abbreviate,
+  detectConnection,
+  detectInstances,
+  detectVariantMain,
+  detectVariantRoot,
+  findMiseFile,
+} from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
@@ -186,10 +197,12 @@ export type {
   VariantsLocal,
 } from "./schema.js";
 export {
-  DEFAULT_OPEN_URL,
   DEFAULT_PREFIX,
+  DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
+  UI_INSTANCE_KEY,
+  UI_PORT_ENV,
   VariantsConfigSchema,
   VariantsLocalSchema,
   variantsJsonSchema,

@@ -19,7 +19,7 @@ tasks:
       - task: bin:bun-shebang
 
   bin:bun-shebang:
-    desc: "Make node_modules/.bin/variant run under bun (no-op until variant-api is built)"
+    desc: "Make node_modules/.bin/variant run under bun (no-op until variant-cli is built)"
     cmds: ["scripts/bun-shebang.sh"]
 
   bootstrap:
@@ -65,7 +65,7 @@ tasks:
     cmds: ["actionlint"]
 
   build:
-    desc: "Build variant-config, variant-api, then variant-mcp"
+    desc: "Build every package: configs, libraries, variant-cli, variant-ui, then the extensions"
     run: once
     cmds:
       - bun run build
@@ -74,6 +74,14 @@ tasks:
   test:
     desc: "Run workspace bun:test suites"
     cmds: ["bun run test"]
+
+  test:node:
+    desc: "Run the library and CLI smoke tests that execute dist/ under Node (the mise-pinned node)"
+    cmds:
+      - task: build
+      - node --version
+      - bun run --filter variant-api test test/node-runtime.test.ts
+      - bun run --filter variant-cli test test/runtimes.test.ts
 
   package:vsix:
     desc: "Build, then package variant-worktrees and chat-renamer into out/*.vsix"

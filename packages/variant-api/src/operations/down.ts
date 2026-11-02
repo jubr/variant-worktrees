@@ -1,12 +1,5 @@
-import { existsSync, rmSync } from "node:fs";
-import {
-  containerName,
-  engineHas,
-  findContainerEngine,
-  networkName,
-  nginxConfigPath,
-  runEngine,
-} from "../containers.js";
+import { UI_INSTANCE_KEY } from "variant-config";
+import { containerName, engineHas, findContainerEngine, networkName, runEngine } from "../containers.js";
 import type { ProgressLog } from "../echo.js";
 import { locateWorktree } from "../locate.js";
 import { ownedByWorktree, stopProcessTree } from "../processes.js";
@@ -24,7 +17,8 @@ export const stopHostProcesses = async (
   const runtime = readVariantRuntime(context.config, worktree);
   const stopped: DownResult["processes"] = [];
   for (const [key, instance] of Object.entries(runtime?.instances ?? {})) {
-    if (instance.pid !== undefined && ownedByWorktree(instance.pid, worktree)) {
+    // The UI server is not part of main's own lifecycle; `variant ui --stop` ends it.
+    if (key !== UI_INSTANCE_KEY && instance.pid !== undefined && ownedByWorktree(instance.pid, worktree)) {
       await stopProcessTree(instance.pid);
       stopped.push({ key, pid: instance.pid });
     }
@@ -32,23 +26,17 @@ export const stopHostProcesses = async (
   return stopped;
 };
 
-/** Removes the containers, the network and the generated web server configuration of a variant. */
+/** Removes the containers and the network of a variant. */
 export const stopContainers = (
   context: OperationContext,
   slug: string,
   log: ProgressLog = logToStderr,
 ): Pick<DownResult, "containers" | "networks"> => {
-  const { config, stateDir } = context;
+  const { config } = context;
   const keys = Object.entries(config.variant.instances)
     .filter(([, instance]) => instance.container !== undefined)
     .map(([key]) => key);
   const result: Pick<DownResult, "containers" | "networks"> = { containers: [], networks: [] };
-  for (const key of keys) {
-    const conf = nginxConfigPath(stateDir, slug, key);
-    if (existsSync(conf)) {
-      rmSync(conf);
-    }
-  }
   const engine = keys.length > 0 ? findContainerEngine(config) : undefined;
   if (!engine) {
     return result;

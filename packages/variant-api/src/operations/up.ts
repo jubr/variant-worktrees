@@ -1,20 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { InstanceContainer, ResolvedConfig, Runtime } from "variant-config";
-import { renderTemplate } from "variant-config";
-import {
-  containerName,
-  engineHas,
-  networkName,
-  nginxConfigPath,
-  resolveContainerEngine,
-  runEngine,
-} from "../containers.js";
-import { echoCommand } from "../echo.js";
-import { hostOf, STATIC_ROOT, staticSiteConfig } from "../nginx.js";
-import { execute } from "../provisioning.js";
+import { containerName, engineHas, networkName, resolveContainerEngine, runEngine } from "../containers.js";
 import { announce, logToStderr } from "../ready.js";
-import { commandEnvironment, expandEnv, templateContext, type VariantRun, variantVariables } from "../run-context.js";
+import { type VariantRun, variantVariables } from "../run-context.js";
 import { writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
@@ -22,21 +10,20 @@ import type { InstanceReport, UpOptions, UpResult } from "../types.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 
-const STATIC_IMAGE = "nginx:alpine";
-const NGINX_CONF_TARGET = "/etc/nginx/conf.d/default.conf";
-
 /** The runtime state of a variant, with the process ids of the instances that run as host processes. */
 export const runtimeOf = (
   config: ResolvedConfig,
   run: VariantRun,
   mode: "up" | "watch",
   pids: Readonly<Record<string, number>> = {},
+  log?: string,
 ): Runtime => {
   const db = config.db;
   return {
     slug: run.slug,
     mode,
     dir: run.worktree,
+    ...(log ? { log } : {}),
     db: {
       ...(db.dialect ? { dialect: db.dialect } : {}),
       ...(db.dialect === "sqlite" ? { filename: run.target } : { schema: run.target }),
@@ -72,78 +59,32 @@ export const instanceReports = (
     ]),
   );
 
-/** The image a container instance runs and, for a `dockerfile`, the build that produces it. */
-const imageOf = (key: string, slug: string, container: InstanceContainer): { image: string; build: boolean } => {
-  if (container.dockerfile !== undefined) {
-    return { image: `${container.image ?? `v-${key}`}:v-${slug}`, build: true };
-  }
-  return { image: container.image ?? STATIC_IMAGE, build: false };
-};
+/** The image of a container instance: always built from its Dockerfile, tagged `v-<key>:v-<slug>`. */
+const imageOf = (key: string, slug: string): string => `v-${key}:v-${slug}`;
 
-/** The generated web server configuration of a static instance, written next to the state files. */
-const writeSiteConfig = (
-  context: OperationContext,
-  run: VariantRun,
-  key: string,
-  container: InstanceContainer,
-): string => {
-  const { config, stateDir } = context;
-  const target = container.proxy ? config.variant.instances[container.proxy.to]?.container : undefined;
-  const path = nginxConfigPath(stateDir, run.slug, key);
-  mkdirSync(stateDir, { recursive: true });
-  writeFileSync(
-    path,
-    staticSiteConfig({
-      host: hostOf(run.urls[key]),
-      ...(container.proxy && target?.port !== undefined
-        ? {
-            proxy: {
-              path: container.proxy.path,
-              upstream: `http://${containerName(container.proxy.to, run.slug)}:${target.port}`,
-            },
-          }
-        : {}),
-    }),
-  );
-  return path;
-};
-
-/** The arguments of `run` for one container instance. */
-const runArguments = (
-  context: OperationContext,
-  run: VariantRun,
-  key: string,
-  image: string,
-  siteConfig: string | undefined,
-): string[] => {
+/** The arguments of `run` for one container instance. Only the variant variables reach the container. */
+const runArguments = (context: OperationContext, run: VariantRun, key: string, image: string): string[] => {
   const { config } = context;
-  const instance = config.variant.instances[key];
-  const container = instance?.container as InstanceContainer;
-  const variables = variantVariables(config, run, "container");
-  const environment = { ...variables, ...expandEnv(instance?.env, run, key), ...expandEnv(container.env, run, key) };
+  const container = config.variant.instances[key]?.container as InstanceContainer;
+  const environment = variantVariables(config, run, "container");
   const args = ["run", "-d", "--name", containerName(key, run.slug), "--network", networkName(run.slug)];
-  args.push("-p", `0.0.0.0:${run.ports[key]}:${container.port ?? 80}`);
-  if (variables.POSTGRES_HOST === "host.docker.internal" || variables.MYSQL_HOST === "host.docker.internal") {
+  args.push("-p", `0.0.0.0:${run.ports[key]}:${container.internalPort ?? 80}`);
+  if (environment.POSTGRES_HOST === "host.docker.internal" || environment.MYSQL_HOST === "host.docker.internal") {
     args.push("--add-host", "host.docker.internal:host-gateway");
   }
+  // AIDEV-NOTE: a container sees no host path: SQLITE_DATABASE and the storage variable belong to host commands.
+  const hostOnly = new Set(["SQLITE_DATABASE", config.variant.storage?.envVarName]);
   for (const [name, value] of Object.entries(environment)) {
-    args.push("-e", `${name}=${value}`);
-  }
-  if (container.static !== undefined) {
-    args.push("-v", `${resolve(run.projectDir, instance?.dir ?? ".", container.static)}:${STATIC_ROOT}:ro`);
-    if (siteConfig) {
-      args.push("-v", `${siteConfig}:${NGINX_CONF_TARGET}:ro`);
+    if (!hostOnly.has(name)) {
+      args.push("-e", `${name}=${value}`);
     }
-  }
-  for (const volume of container.volumes ?? []) {
-    args.push("-v", renderTemplate(volume, templateContext(run, key)));
   }
   args.push(image);
   return args;
 };
 
 /**
- * Starts the containers of every instance that has a `container`, in the listed order: its build command, the image,
+ * Starts the containers of every instance that has a `container`, in the listed order: the image build,
  * the network, then the container itself (an earlier one of that name is replaced).
  */
 const startContainers = async (
@@ -151,11 +92,9 @@ const startContainers = async (
   run: VariantRun,
   engine: string,
   log: (line: string) => void,
-): Promise<{ started: UpResult["containers"]; output: string; commands: string[] }> => {
+): Promise<{ started: UpResult["containers"] }> => {
   const { config } = context;
   const started: UpResult["containers"] = [];
-  const commands: string[] = [];
-  let output = "";
   const network = networkName(run.slug);
   const delay = config.variant.supervise.startDelaySeconds * 1000;
 
@@ -167,25 +106,13 @@ const startContainers = async (
     if (started.length > 0 && delay > 0) {
       await sleep(delay);
     }
-    const directory = resolve(run.projectDir, instance.dir);
-    if (container.build) {
-      commands.push(container.build);
-      echoCommand(container.build, log);
-      const result = execute(container.build, directory, commandEnvironment(config, run, instance.env, key));
-      if (!result.ok) {
-        throw new Error(`Build of ${key} failed (${result.status}): ${container.build}\n${result.output}`);
-      }
-      output += result.output;
-    }
-    const { image, build } = imageOf(key, run.slug, container);
-    if (build) {
-      runEngine(
-        engine,
-        ["build", "-f", resolve(run.projectDir, container.dockerfile as string), "-t", image, run.projectDir],
-        undefined,
-        log,
-      );
-    }
+    const image = imageOf(key, run.slug);
+    runEngine(
+      engine,
+      ["build", "-f", resolve(run.projectDir, container.dockerfile), "-t", image, run.projectDir],
+      undefined,
+      log,
+    );
     if (!engineHas(engine, "network", network)) {
       runEngine(engine, ["network", "create", network], undefined, log);
     }
@@ -193,11 +120,10 @@ const startContainers = async (
     if (engineHas(engine, "container", name)) {
       runEngine(engine, ["rm", "-f", name], undefined, log);
     }
-    const siteConfig = container.static !== undefined ? writeSiteConfig(context, run, key, container) : undefined;
-    runEngine(engine, runArguments(context, run, key, image, siteConfig), undefined, log);
+    runEngine(engine, runArguments(context, run, key, image), undefined, log);
     started.push({ key, name, port: run.ports[key] as number });
   }
-  return { started, output, commands };
+  return { started };
 };
 
 /**
@@ -213,7 +139,7 @@ export const upVariant = async (
   const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
   const engine = resolveContainerEngine(config);
   const { run, provisioned } = await prepareVariant(context, slug, "up", options);
-  const { started, output, commands } = await startContainers(context, run, engine, options.log ?? logToStderr);
+  const { started } = await startContainers(context, run, engine, options.log ?? logToStderr);
   writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "up"));
   await announce(context, run, options);
   return {
@@ -224,7 +150,7 @@ export const upVariant = async (
     instances: instanceReports(run, {}, Object.fromEntries(started.map(({ key, name }) => [key, name]))),
     containers: started,
     urls: run.urls,
-    commands: [...provisioned.commands, ...commands],
-    output: `${provisioned.output}${output}`,
+    commands: provisioned.commands,
+    output: provisioned.output,
   };
 };

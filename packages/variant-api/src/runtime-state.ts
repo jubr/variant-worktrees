@@ -6,6 +6,7 @@ import {
   type ResolvedRuntime,
   type Runtime,
   readRuntime,
+  UI_INSTANCE_KEY,
   writeRuntime,
 } from "variant-config";
 import { gitRoot } from "./slug.js";
@@ -24,6 +25,10 @@ export const variantConfigDir = (config: ResolvedConfig, worktree: string): stri
   }
 };
 
+/** The log file of the detached watch of the variant in `worktree`, next to its `variants.local.yaml`. */
+export const watchLogPath = (config: ResolvedConfig, worktree: string): string =>
+  join(variantConfigDir(config, worktree), "variants.watch.log");
+
 /** The runtime state recorded in `worktree`, with `VARIANT_<KEY>_*` overrides applied to the configured instances. */
 export const readVariantRuntime = (
   config: ResolvedConfig,
@@ -32,11 +37,33 @@ export const readVariantRuntime = (
 ): ResolvedRuntime | undefined =>
   readRuntime(variantConfigDir(config, worktree), env, Object.keys(config.variant.instances));
 
-export const writeVariantRuntime = (config: ResolvedConfig, worktree: string, runtime: Runtime): void =>
-  writeRuntime(variantConfigDir(config, worktree), runtime);
+/**
+ * The `variant-ui` instance that the UI server recorded in the runtime state of `main`. `watch`, `up` and `down` rewrite
+ * the runtime as a whole, so they carry this one reserved entry over; only the server that wrote it removes it.
+ */
+const recordedUiInstance = (dir: string): NonNullable<Runtime["instances"]>[string] | undefined => {
+  try {
+    return readRuntime(dir, {})?.instances?.[UI_INSTANCE_KEY];
+  } catch {
+    return undefined;
+  }
+};
 
-export const clearVariantRuntime = (config: ResolvedConfig, worktree: string): void =>
-  clearRuntime(variantConfigDir(config, worktree));
+export const writeVariantRuntime = (config: ResolvedConfig, worktree: string, runtime: Runtime): void => {
+  const dir = variantConfigDir(config, worktree);
+  const ui = recordedUiInstance(dir);
+  writeRuntime(dir, ui ? { ...runtime, instances: { ...runtime.instances, [UI_INSTANCE_KEY]: ui } } : runtime);
+};
+
+export const clearVariantRuntime = (config: ResolvedConfig, worktree: string): void => {
+  const dir = variantConfigDir(config, worktree);
+  const ui = recordedUiInstance(dir);
+  if (ui) {
+    writeRuntime(dir, { instances: { [UI_INSTANCE_KEY]: ui } });
+  } else {
+    clearRuntime(dir);
+  }
+};
 
 /** Whether a process with this id exists. A process that may not be signalled still exists. */
 export const isProcessAlive = (pid: number): boolean => {

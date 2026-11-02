@@ -1,16 +1,19 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadConfig } from "variant-config";
+import { LOCAL_FILENAME, loadConfig } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
 import { createVariant } from "./operations/create.js";
 import { downVariant } from "./operations/down.js";
 import { implodeVariant } from "./operations/implode.js";
 import { listVariants } from "./operations/list.js";
 import { provisionVariant } from "./operations/provision.js";
+import { runtimeDirectories } from "./operations/records.js";
+import { statusVariant } from "./operations/status.js";
 import type { OperationContext } from "./operations/types.js";
 import { upVariant } from "./operations/up.js";
 import { watchVariant } from "./operations/watch.js";
 import { defaultStateDir, migrateJsonStates } from "./state.js";
+import { createStateSubscriptions, type WatchTarget } from "./subscribe.js";
 import type { VariantClient, VariantClientOptions } from "./types.js";
 
 export const createClient = (options: VariantClientOptions = {}): VariantClient => {
@@ -37,25 +40,56 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     }
   };
 
+  /** The directories that decide the records: the state files, the variant worktrees and the main checkout. */
+  const watchTargets = (): WatchTarget[] => {
+    const { root, prefix, directories } = runtimeDirectories(config);
+    return [
+      { path: stateDir },
+      { path: root, accept: (filename) => filename === null || filename.startsWith(prefix) },
+      ...directories.map((path) => ({
+        path,
+        accept: (filename: string | null) => filename === null || filename === LOCAL_FILENAME,
+      })),
+    ];
+  };
+  const subscriptions = createStateSubscriptions({
+    read: () => withAdapter((context) => listVariants(context)),
+    targets: watchTargets,
+    ...options.subscription,
+  });
+
   return {
     create: (slug) => withAdapter((context) => createVariant(context, slug)),
     up: (slug, options) => withAdapter((context) => upVariant(context, slug, options)),
     watch: (slug, options) => withAdapter((context) => watchVariant(context, slug, options)),
     down: (slug, options) => withAdapter((context) => downVariant(context, slug, options)),
     implode: (slug, options) => withAdapter((context) => implodeVariant(context, slug, options)),
-    list: () => withAdapter((context) => listVariants(context)),
+    list: (options) => withAdapter((context) => listVariants(context, options)),
+    status: (slug) => withAdapter((context) => statusVariant(context, slug)),
     provision: (slug, options) => withAdapter((context) => provisionVariant(context, slug, options)),
     config: () => config,
+    subscribe: subscriptions.subscribe,
   };
 };
 
 export { loadConfig } from "variant-config";
+export { listSlugs } from "./list-slugs.js";
+export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
   DatabaseAdapter,
+  DownResult,
+  ImplodeResult,
+  InstanceFacts,
+  InstanceReport,
+  ListOptions,
+  RuntimeStatus,
+  UpResult,
   VariantClient,
   VariantClientOptions,
   VariantRecord,
   VariantState,
+  VariantUpdate,
+  WatchResult,
 } from "./types.js";
 export { ensureWorktree, primaryWorktree } from "./worktree.js";

@@ -27,8 +27,8 @@ export const VariantEntrySchema = z.strictObject({
 });
 export type VariantEntry = z.infer<typeof VariantEntrySchema>;
 
-/** Template of the URL that opens a Vite instance. `{{slug}}` and `{{port}}` are placeholders. */
-export const DEFAULT_OPEN_URL = "http://{{slug}}.vw.localhost:{{port}}";
+/** Template of the URL of a Vite instance. `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
+export const DEFAULT_URL = "http://{{slug}}.{{abbr}}.localhost:{{port}}";
 
 /** A relative path that stays below its base directory: not absolute, never `..`. */
 const insideDirectory = (value: string): boolean => !isAbsolute(value) && !value.split(/[\\/]/).includes("..");
@@ -43,43 +43,40 @@ const plainName = z
 /** A map of environment variable names to templated values. */
 const envMapSchema = z.record(z.string().min(1), z.string());
 
+/** The environment of an instance: the file copied for a variant, and the values for commands and that copy. */
+export const InstanceEnvSchema = z.strictObject({
+  /** Environment file relative to the instance directory, copied for a variant to `<worktree>/<dir>/<sourceFile>`. */
+  sourceFile: relativeDirectory.optional(),
+  /** Templated values for the instance's commands and, when it is created, the copy of `sourceFile`. */
+  overrides: envMapSchema.optional(),
+});
+export type InstanceEnv = z.infer<typeof InstanceEnvSchema>;
+
 /** Key of an instance: starts with a letter, then letters, digits, `-` and `_`. */
 export const INSTANCE_KEY = /^[A-Za-z][A-Za-z0-9_-]*$/;
+
+/** Key of the instance that `variant ui` records for itself in the runtime state of `main`; no project may define it. */
+export const UI_INSTANCE_KEY = "variant-ui";
 
 /** The segment of environment variables derived from an instance key: `my-api` becomes `MY_API`. */
 export const envSegment = (key: string): string => key.toUpperCase().replace(/[^A-Z0-9]/g, "_");
 
-/** How an instance runs under `up`. */
-export const InstanceContainerSchema = z
-  .strictObject({
-    image: z.string().min(1).optional(),
-    /** Relative to the worktree, built with the worktree as context. */
-    dockerfile: z.string().min(1).optional(),
-    /** Shell command that runs in the instance directory before the container starts. */
-    build: z.string().min(1).optional(),
-    /** Directory, relative to the instance directory, whose files are served by nginx. */
-    static: z.string().min(1).optional(),
-    /** Port inside the container; 80 for a static site. */
-    port: PortSchema.optional(),
-    /** Forwards requests below `path` to the instance with the key `to`. */
-    proxy: z
-      .strictObject({
-        path: z.string().regex(/^\/(.*\/)?$/, "must start and end with /"),
-        to: z.string().min(1),
-      })
-      .optional(),
-    /** `host:container` mounts, templated. */
-    volumes: z.array(z.string().min(1)).optional(),
-    env: envMapSchema.optional(),
-  })
-  .superRefine((container, context) => {
-    if (container.static === undefined && container.image === undefined && container.dockerfile === undefined) {
-      context.addIssue({ code: "custom", message: "a container without static needs image or dockerfile" });
-    }
-    if (container.static === undefined && container.port === undefined) {
-      context.addIssue({ code: "custom", path: ["port"], message: "a container without static needs port" });
-    }
-  });
+/** The environment segment of the `variant.ui` settings: `VARIANT_UI_PORT` is `variant.ui.port`. No instance key may use it. */
+export const UI_ENV_SEGMENT = "UI";
+
+/** The environment override of `variant.ui.port`. */
+export const UI_PORT_ENV = `VARIANT_${UI_ENV_SEGMENT}_PORT`;
+
+/**
+ * How an instance runs under `up`. Everything else about the container (base image, build, files, web server) is the
+ * business of the Dockerfile.
+ */
+export const InstanceContainerSchema = z.strictObject({
+  /** Relative to the worktree, built with the worktree as context. */
+  dockerfile: z.string().min(1),
+  /** Port inside the container; 80 when absent. */
+  internalPort: PortSchema.optional(),
+});
 export type InstanceContainer = z.infer<typeof InstanceContainerSchema>;
 
 export const VariantInstanceSchema = z.strictObject({
@@ -87,16 +84,9 @@ export const VariantInstanceSchema = z.strictObject({
   dir: z.string().min(1),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
-  /** URL template to open the instance; `{{slug}}` and `{{port}}` are placeholders. */
-  open: z.string().min(1).optional(),
-  /** Environment file, relative to `dir`, that is copied for a variant and amended with that variant's values. */
-  dotenv: z.string().min(1).optional(),
-  /** Values for the instance's commands and its dotenv copy when the copy is created. Templated. */
-  env: envMapSchema.optional(),
-  /** Like `env`, and written into the dotenv copy again on every run. Templated. */
-  envAlways: envMapSchema.optional(),
-  /** Environment file that is copied instead of the primary worktree's. Absolute, or relative to the primary worktree. */
-  dotenvSource: z.string().min(1).optional(),
+  /** URL template of the instance; `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
+  url: z.string().min(1).optional(),
+  env: InstanceEnvSchema.optional(),
   /** Shell command that runs in `dir` when `dir` has no `node_modules`. */
   install: z.string().min(1).optional(),
   /** URL path that answers with a success status when the instance serves. */
@@ -119,16 +109,19 @@ const prefixSchema = z
 
 const seconds = z.number().int().nonnegative();
 
+/** A step name: letters, digits, `-` and `_`, so that `VARIANT_STEP_<NAME>` can skip the step. */
+const STEP_NAME = /^[A-Za-z0-9_-]+$/;
+/** A project abbreviation: lowercase letters and digits, optionally separated by single hyphens. */
+export const ABBR_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 export const VariantStepSchema = z.strictObject({
-  name: z.string().min(1),
+  name: z.string().regex(STEP_NAME, "must hold only letters, digits, - and _"),
   run: z.string().min(1),
   /** Relative to the worktree. */
   dir: relativeDirectory.optional(),
   env: envMapSchema.optional(),
-  /** The step is skipped when every named variable has the given value. */
-  unlessEnv: z.record(z.string().min(1), z.string()).optional(),
   /** Regular expression: only matching output lines are printed. */
-  show: z
+  filterLinesRegex: z
     .string()
     .min(1)
     .refine((value) => {
@@ -147,12 +140,13 @@ export const DEFAULT_BASE_BRANCH = "main";
 export const DEFAULT_BRANCH_PREFIXES: readonly string[] = ["feat/", "fix/"];
 export const DEFAULT_RESERVED_PORTS: readonly number[] = [3000, 4200, 5432];
 export const DEFAULT_STORAGE_DIR = ".storage";
-export const DEFAULT_STORAGE_ENV = "STORAGE_ROOT";
+export const DEFAULT_STORAGE_ENV_VAR = "STORAGE_ROOT";
 export const DEFAULT_MAX_DIFF_LINES = 200;
 
 export const VariantStorageSchema = z.strictObject({
   dir: relativeDirectory.optional(),
-  env: z.string().min(1).optional(),
+  /** Name of the variable that carries the absolute storage directory. */
+  envVarName: z.string().min(1).optional(),
 });
 
 export const VariantSuperviseSchema = z.strictObject({
@@ -162,20 +156,35 @@ export const VariantSuperviseSchema = z.strictObject({
   checkoutPollSeconds: seconds.optional(),
 });
 
+/** Settings of the `variant ui` server. The environment override of `variant.ui.<name>` is `VARIANT_UI_<NAME>`. */
+export const VariantUiSchema = z.strictObject({
+  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port that is not reserved. */
+  port: PortSchema.optional(),
+});
+
 export const VariantImplodeSchema = z.strictObject({
-  /** Directory names removed below each instance directory before the worktree is removed. */
-  preRm: z.array(plainName).optional(),
+  /**
+   * Glob patterns of paths removed before the report: matched from the project directory and from each instance
+   * directory; `{{slug}}` is replaced; tracked files stay.
+   */
+  preRm: z.array(relativeDirectory).optional(),
   /** Tracked files whose local modifications are discarded. */
-  restore: z.array(plainName).optional(),
-  /** Glob patterns of untracked files to delete; `{{slug}}` is replaced. */
-  untracked: z.array(z.string().min(1)).optional(),
+  discard: z.array(plainName).optional(),
   requireMerged: z.boolean().optional(),
   maxDiffLines: z.number().int().nonnegative().optional(),
 });
 
 export const VariantRuntimeSchema = z
   .strictObject({
+    /** The main git checkout the worktrees are made from; default: detected. */
+    main: z.string().min(1).optional(),
+    /** The directory that holds the worktrees; default: the directory of a parent `AGENTS.md` symlink, else `main`. */
     root: z.string().min(1).optional(),
+    /** Short project label for hostnames and `{{abbr}}` in `open` templates. Derived from the checkout name when absent. */
+    abbr: z
+      .string()
+      .regex(ABBR_PATTERN, "must be lowercase letters and digits, optionally separated by single -")
+      .optional(),
     prefix: prefixSchema.optional(),
     /** Branch that new variant branches start from, and that a variant is merged into before it is imploded. */
     baseBranch: z.string().min(1).optional(),
@@ -190,8 +199,7 @@ export const VariantRuntimeSchema = z
     steps: z.array(VariantStepSchema).optional(),
     supervise: VariantSuperviseSchema.optional(),
     implode: VariantImplodeSchema.optional(),
-    up: z.string().min(1).optional(),
-    watch: z.string().min(1).optional(),
+    ui: VariantUiSchema.optional(),
     /** Command that seeds a new variant database. A per-variant `seed` wins. */
     seed: z.string().min(1).optional(),
     /** Keyed by instance name; the key is the name in runtime state, templates and environment variables. */
@@ -204,6 +212,7 @@ export const VariantRuntimeSchema = z
   })
   .superRefine((variant, context) => {
     const names = new Set<string>();
+    const stepSegments = new Map<string, string>();
     for (const [index, step] of (variant.steps ?? []).entries()) {
       if (names.has(step.name)) {
         context.addIssue({
@@ -213,11 +222,35 @@ export const VariantRuntimeSchema = z
         });
       }
       names.add(step.name);
+      const segment = envSegment(step.name);
+      const other = stepSegments.get(segment);
+      if (other !== undefined && other !== step.name) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", index, "name"],
+          message: `steps ${other} and ${step.name} share the environment variable segment ${segment}`,
+        });
+      }
+      stepSegments.set(segment, step.name);
     }
     const instances = variant.instances ?? {};
+    if (UI_INSTANCE_KEY in instances) {
+      context.addIssue({
+        code: "custom",
+        path: ["instances", UI_INSTANCE_KEY],
+        message: `the instance key ${UI_INSTANCE_KEY} is reserved for the variant ui server`,
+      });
+    }
     const segments = new Map<string, string>();
     for (const key of Object.keys(instances)) {
       const segment = envSegment(key);
+      if (segment === UI_ENV_SEGMENT) {
+        context.addIssue({
+          code: "custom",
+          path: ["instances", key],
+          message: `the instance key ${key} is reserved: its port variable ${UI_PORT_ENV} belongs to the variant ui server`,
+        });
+      }
       const other = segments.get(segment);
       if (other !== undefined) {
         context.addIssue({
@@ -227,16 +260,6 @@ export const VariantRuntimeSchema = z
         });
       }
       segments.set(segment, key);
-    }
-    for (const [key, instance] of Object.entries(instances)) {
-      const target = instance.container?.proxy?.to;
-      if (target !== undefined && instances[target]?.container?.port === undefined) {
-        context.addIssue({
-          code: "custom",
-          path: ["instances", key, "container", "proxy", "to"],
-          message: `proxy target ${target} is not an instance with container.port`,
-        });
-      }
     }
   });
 export type VariantRuntime = z.infer<typeof VariantRuntimeSchema>;
@@ -279,6 +302,8 @@ export const RuntimeSchema = z.strictObject({
   slug: z.string().min(1).optional(),
   mode: z.enum(["up", "watch"]).optional(),
   dir: z.string().min(1).optional(),
+  /** The log file of a detached `watch`: the output of all its processes. */
+  log: z.string().min(1).optional(),
   db: RuntimeDbSchema.optional(),
   /** Keyed by the key of the entry in `variant.instances`. */
   instances: z.record(z.string().min(1), RuntimeInstanceSchema).optional(),
@@ -296,7 +321,9 @@ export type VariantsLocal = z.infer<typeof VariantsLocalSchema>;
 /** `variant` as resolved by `loadConfig`: defaults applied, instances always a record. */
 export type ResolvedVariant = Omit<
   VariantRuntime,
+  | "main"
   | "root"
+  | "abbr"
   | "prefix"
   | "instances"
   | "baseBranch"
@@ -307,19 +334,20 @@ export type ResolvedVariant = Omit<
   | "supervise"
   | "implode"
 > & {
+  main: string;
   root: string;
+  abbr: string;
   prefix: string;
   instances: Record<string, VariantInstance>;
   baseBranch: string;
   branchPrefixes: string[];
   open: boolean;
   reservedPorts: number[];
-  storage?: { dir: string; env: string };
+  storage?: { dir: string; envVarName: string };
   supervise: { startDelaySeconds: number; readyTimeoutSeconds: number; checkoutPollSeconds: number };
   implode: {
     preRm: string[];
-    restore: string[];
-    untracked: string[];
+    discard: string[];
     requireMerged: boolean;
     maxDiffLines: number;
   };
