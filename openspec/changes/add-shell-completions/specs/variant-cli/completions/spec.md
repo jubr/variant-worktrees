@@ -202,7 +202,7 @@ Subcommands that take no slug SHALL NOT be offered slug candidates. When the can
 
 ### Requirement: Slug listing
 
-`variant completions --list-slugs` SHALL print the slugs of existing variants to stdout, one per line, sorted and without duplicates, and SHALL print only valid slugs (lowercase letters and digits separated by single hyphens), and SHALL exit with code 0; `<shell>` SHALL NOT be required with it. A variant exists for this purpose when it has a saved variant state, or when a directory named with `variant.prefix` exists below `variant.root` (the slug is the name without the prefix). The listing SHALL NOT connect to a database and SHALL NOT create or modify any file or directory. When the configuration cannot be loaded, it SHALL print nothing and exit with code 0.
+`variant completions --list-slugs` SHALL print the slugs of existing variants to stdout, one per line, sorted and without duplicates, and SHALL print only valid slugs (lowercase letters and digits separated by single hyphens), and SHALL exit with code 0; `<shell>` SHALL NOT be required with it. A variant exists for this purpose when it has a saved variant state, or when a directory named with `variant.prefix` exists below `variant.root` (the slug is the name without the prefix). The listing SHALL NOT connect to a database and SHALL NOT create or modify any file or directory. Without a `variants.yaml` it SHALL use the autodetected settings, as `variant list` does. When the configuration is invalid, it SHALL print nothing and exit with code 0.
 
 #### Scenario: State and worktrees combined
 
@@ -235,7 +235,12 @@ Subcommands that take no slug SHALL NOT be offered slug candidates. When the can
 - **THEN** the state directory is still absent afterwards
 - **AND** no database connection is opened
 
-#### Scenario: Unloadable configuration
+#### Scenario: No configuration file
 
-- **WHEN** the configuration file is invalid or absent
+- **WHEN** no `variants.yaml` exists and a `_v-add-auth` directory exists in the autodetected root
+- **THEN** `add-auth` is printed and the exit code is 0
+
+#### Scenario: Invalid configuration
+
+- **WHEN** the configuration file is invalid
 - **THEN** stdout is empty, stderr is empty, and the exit code is 0

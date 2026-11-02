@@ -170,11 +170,22 @@ describe("variant completions --list-slugs", () => {
       expect(result).toEqual({ stdout: "", stderr: "", exitCode: 0 });
     }));
 
-  it("prints nothing, silently, outside a project", async () => {
+  it("lists from the autodetected settings when no variants.yaml exists", async () => {
     const directory = realpathSync(mkdtempSync(join(tmpdir(), "variant-slugs-bare-")));
     try {
       mkdirSync(join(directory, "_v-add-auth"));
 
+      const result = await runCli(["completions", "--list-slugs"], { cwd: directory, env: { VARIANT_CONFIG: "" } });
+
+      expect(result).toEqual({ stdout: "add-auth\n", stderr: "", exitCode: 0 });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("prints nothing, silently, outside a project without variants", async () => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "variant-slugs-empty-")));
+    try {
       const result = await runCli(["completions", "--list-slugs"], { cwd: directory, env: { VARIANT_CONFIG: "" } });
 
       expect(result).toEqual({ stdout: "", stderr: "", exitCode: 0 });
