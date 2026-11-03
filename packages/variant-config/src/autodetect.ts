@@ -311,19 +311,29 @@ const shouldSkip = (name: string): boolean =>
   name === "build" ||
   name.startsWith(".");
 
-/** A watch found by autodetection, which always knows its kind. */
-type DetectedWatch = VariantWatch & { kind: NonNullable<VariantWatch["kind"]> };
-
-/** The key of an autodetected watch: its directory's base name, or its kind for the configuration directory. */
-const watchKeyFor = (watch: DetectedWatch): string => {
-  const base = watch.dir === "." ? watch.kind : basename(watch.dir);
+/** The key of an autodetected watch: its directory's base name, or its kind (`app` without one) for the configuration directory. */
+const watchKeyFor = (watch: VariantWatch): string => {
+  const base = watch.dir === "." ? (watch.kind ?? "app") : basename(watch.dir);
   const plain = base.replace(/[^A-Za-z0-9_-]/g, "-");
-  return WATCH_KEY.test(plain) ? plain : `${watch.kind}-${plain}`;
+  return WATCH_KEY.test(plain) ? plain : `${watch.kind ?? "app"}-${plain}`;
 };
 
-/** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
-export const detectWatches = (configDir: string): Record<string, VariantWatch> => {
-  const found: DetectedWatch[] = [];
+/** The watches keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
+const keyWatches = (found: readonly VariantWatch[]): Record<string, VariantWatch> => {
+  const watches: Record<string, VariantWatch> = {};
+  for (const watch of [...found].sort((left, right) => left.dir.localeCompare(right.dir))) {
+    const base = watchKeyFor(watch);
+    let key = base;
+    for (let suffix = 2; key in watches; suffix += 1) {
+      key = `${base}-${suffix}`;
+    }
+    watches[key] = watch;
+  }
+  return watches;
+};
+
+/** Calls `visit` for every directory below `configDir` that autodetection looks at, depth first. */
+const walkDirectories = (configDir: string, visit: (directory: string) => void): void => {
   const visited = new Set<string>();
   const walk = (directory: string): void => {
     const resolved = resolve(directory);
@@ -337,12 +347,7 @@ export const detectWatches = (configDir: string): Record<string, VariantWatch> =
         continue;
       }
       const child = join(resolved, entry.name);
-      const kind = detectKind(child);
-      if (kind) {
-        const dir = relative(configDir, child) || ".";
-        const watch = detectWatch(kind, child);
-        found.push(kind === "vite" ? { kind, dir, url: DEFAULT_URL, watch } : { kind, dir, watch });
-      }
+      visit(child);
       walk(child);
     }
   };
@@ -350,16 +355,131 @@ export const detectWatches = (configDir: string): Record<string, VariantWatch> =
   if (existsSync(configDir) && statSync(configDir).isDirectory()) {
     walk(configDir);
   }
-  const watches: Record<string, VariantWatch> = {};
-  for (const watch of found.sort((left, right) => left.dir.localeCompare(right.dir))) {
-    const base = watchKeyFor(watch);
-    let key = base;
-    for (let suffix = 2; key in watches; suffix += 1) {
-      key = `${base}-${suffix}`;
+};
+
+const findKindedWatches = (configDir: string): VariantWatch[] => {
+  const found: VariantWatch[] = [];
+  walkDirectories(configDir, (child) => {
+    const kind = detectKind(child);
+    if (kind) {
+      const dir = relative(configDir, child) || ".";
+      const watch = detectWatch(kind, child);
+      found.push(kind === "vite" ? { kind, dir, url: DEFAULT_URL, watch } : { kind, dir, watch });
     }
-    watches[key] = watch;
+  });
+  return found;
+};
+
+/** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
+export const detectWatches = (configDir: string): Record<string, VariantWatch> =>
+  keyWatches(findKindedWatches(configDir));
+
+/** Whether `name` is `watch` or has `watch` as a segment split on `:`, `-`, `_` and `.`. */
+const isWatchScript = (name: string): boolean => name.split(/[:\-_.]/).includes("watch");
+
+const LOCKFILE_RUNNERS: ReadonlyArray<readonly [string[], string]> = [
+  [["bun.lock", "bun.lockb"], "bun"],
+  [["pnpm-lock.yaml"], "pnpm"],
+  [["yarn.lock"], "yarn"],
+];
+
+/** The package manager of the lockfile in `directory`, else in `configDir`, else `npm`. */
+const runnerFor = (directory: string, configDir: string): string => {
+  for (const place of [directory, configDir]) {
+    for (const [files, runner] of LOCKFILE_RUNNERS) {
+      if (files.some((file) => existsSync(join(place, file)))) {
+        return runner;
+      }
+    }
   }
-  return watches;
+  return "npm";
+};
+
+/**
+ * The directories at or below `configDir` that have a `package.json` with a watch-like script and are not a Vite or
+ * NestJS application, as watches without a `kind` that run the first such script through the package manager of the
+ * lockfile. Only `variant init` writes them: runtime autodetection does not use them.
+ */
+export const detectScriptWatches = (configDir: string): Record<string, VariantWatch> => {
+  const found: VariantWatch[] = [];
+  const consider = (directory: string): void => {
+    if (!existsSync(directory) || detectKind(directory)) {
+      return;
+    }
+    const script = Object.keys(packageScripts(directory)).find(isWatchScript);
+    if (script !== undefined) {
+      found.push({
+        dir: relative(configDir, directory) || ".",
+        watch: `${runnerFor(directory, configDir)} run ${script}`,
+      });
+    }
+  };
+  consider(configDir);
+  walkDirectories(configDir, consider);
+  return keyWatches(found);
+};
+
+/** The watches `variant init` writes: Vite, NestJS and script watches below `configDir`, keyed uniquely and ordered by directory. */
+export const detectWatchesForInit = (configDir: string): Record<string, VariantWatch> => {
+  const scripts: VariantWatch[] = Object.values(detectScriptWatches(configDir));
+  return keyWatches([...findKindedWatches(configDir), ...scripts]);
+};
+
+export type OnboardingApplication = "vite" | "nestjs" | "package-script-watch";
+
+export interface OnboardingDetection {
+  /** `postgres`, `mysql`, `mariadb` or `sqlite` when one was actually detected, never the SQLite fallback. */
+  database: string | undefined;
+  /** The distinct kinds of application found, in the order `vite`, `nestjs`, `package-script-watch`. */
+  applications: OnboardingApplication[];
+  /** `<database>+<application>+...` when both a database and an application were detected. */
+  label: string | undefined;
+  /** Why nothing was detected, when reading the environment failed. */
+  error?: unknown;
+}
+
+/** Whether the detected MySQL-dialect database is MariaDB: a `mariadb` URL, or only `MARIADB_` variables. */
+const isMariaDb = (detected: DetectedConnection): boolean => {
+  if (detected.config.url?.startsWith("mariadb")) {
+    return true;
+  }
+  const names = Object.values(detected.variables);
+  return names.some((name) => name.startsWith("MARIADB_")) && !names.some((name) => name.startsWith("MYSQL_"));
+};
+
+/**
+ * What the onboarding notification needs: the database and the application kinds of `configDir`. The environment is
+ * asked only when an application exists, and a failure of it counts as nothing detected (the error is returned).
+ */
+export const detectOnboarding = (
+  configDir: string,
+  environment: EnvironmentProvider = () => process.env,
+): OnboardingDetection => {
+  const kinds = new Set<OnboardingApplication>();
+  for (const watch of Object.values(detectWatches(configDir))) {
+    if (watch.kind) {
+      kinds.add(watch.kind);
+    }
+  }
+  if (Object.keys(detectScriptWatches(configDir)).length > 0) {
+    kinds.add("package-script-watch");
+  }
+  const applications = (["vite", "nestjs", "package-script-watch"] as const).filter((kind) => kinds.has(kind));
+  const nothing: OnboardingDetection = { database: undefined, applications: [], label: undefined };
+  if (applications.length === 0) {
+    return { ...nothing, applications };
+  }
+  let detected: DetectedConnection;
+  try {
+    detected = detectConnection(configDir, environment);
+  } catch (error) {
+    return { ...nothing, error };
+  }
+  if (detected.source === "default") {
+    return { database: undefined, applications, label: undefined };
+  }
+  const database = detected.config.dialect === "mysql" && isMariaDb(detected) ? "mariadb" : detected.config.dialect;
+  return { database, applications, label: [database, ...applications].join("+") };
 };
 
 export const inferConfigRoot = (path: string): string => parsePath(resolve(path)).dir;

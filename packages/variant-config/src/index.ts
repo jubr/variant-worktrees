@@ -274,10 +274,15 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 export {
   abbreviate,
   detectConnection,
+  detectOnboarding,
+  detectScriptWatches,
   detectVariantMain,
   detectVariantRoot,
   detectWatches,
+  detectWatchesForInit,
   type EnvironmentProvider,
+  type OnboardingApplication,
+  type OnboardingDetection,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export {
