@@ -46,4 +46,4 @@
 
 - [x] 6.1 Document `variant init` in the README CLI section, `docs/guide/core.md` and `docs/mcp.md`, `${...}` interpolation (replacing `{{...}}`, with the `$${` escape and the migration), lazy Mise environment, `resolveMiseBinary` and `variant.mise.binPath`, Trust on failures, and MariaDB in `docs/guide/configuration.md`, and every README, docs, `variants.example.yaml`, example-project and extension README snippet that shows `{{...}}`, the editor command and notification in the extension README and `docs/`, and add a `CHANGELOG.md` Unreleased entry; `scripts/docs-coverage.spec.ts` passes
 - [x] 6.2 Run `task lint`, `task test`, `task build`, `openspec validate --all --strict --no-interactive` and `task check:full`, and fix findings
-- [ ] 6.3 At sync-archive, replace `{{...}}` by `${...}` in the text of `openspec/specs/` and verify with `openspec validate --all --strict --no-interactive`
+- [x] 6.3 At sync-archive, replace `{{...}}` by `${...}` in the text of `openspec/specs/` and verify with `openspec validate --all --strict --no-interactive`

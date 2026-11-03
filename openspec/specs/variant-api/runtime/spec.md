@@ -61,7 +61,7 @@ The system SHALL start every watch that has a `container` as a container named `
 
 #### Scenario: Container environment
 
-- **WHEN** `be` sets `env: { overrides: { PORT: "{{port}}" } }` and `up` starts its container
+- **WHEN** `be` sets `env: { overrides: { PORT: "${port}" } }` and `up` starts its container
 - **THEN** the container receives `VARIANT_SLUG=demo` and `VARIANT_BE_PORT`, and no `PORT`
 
 #### Scenario: Host paths withheld
