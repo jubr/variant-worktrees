@@ -300,9 +300,6 @@
                 "additionalProperties": false
               }
             },
-            "required": [
-              "kind"
-            ],
             "additionalProperties": false
           }
         }

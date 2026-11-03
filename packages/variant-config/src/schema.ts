@@ -80,7 +80,8 @@ export const WatchContainerSchema = z.strictObject({
 export type WatchContainer = z.infer<typeof WatchContainerSchema>;
 
 export const VariantWatchSchema = z.strictObject({
-  kind: z.enum(["vite", "nestjs"]),
+  /** What the watch runs; only a label (autodetection sets it and names a root-level watch after it). */
+  kind: z.enum(["vite", "nestjs"]).optional(),
   /** Relative to the worktree; the key of the watch when absent. */
   dir: z.string().min(1).optional(),
   up: z.string().min(1).optional(),

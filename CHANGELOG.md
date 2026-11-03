@@ -20,7 +20,7 @@
   status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `{{key.port}}` and
   container names are unchanged. See the migration above.
 - **Breaking:** `variant.reservedPorts` is replaced by `variant.ports.range`; no port is reserved any more.
-- `dir` of a watch is optional and defaults to its key.
+- `kind` and `dir` of a watch are optional; `dir` defaults to the key of the watch.
 - The release changelog no longer keeps an empty `Unreleased` heading in the promoted section.
 - The GitHub Actions workflows use the Node 24 versions of their actions.
 

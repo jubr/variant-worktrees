@@ -107,7 +107,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 | Option | Meaning |
 | --- | --- |
-| `kind`, `dir` | `vite` or `nestjs`, and the directory below the worktree |
+| `kind`, `dir` | Both optional. `kind` is `vite` or `nestjs` (a label; autodetection sets it). `dir` is the directory below the worktree, the key of the watch when absent |
 | `up`, `watch` | `up` runs while provisioning; `watch` is the process `variant watch` supervises |
 | `url` | URL template of the watch |
 | `env` | `sourceFile`: an env file in `dir`, copied once for a variant (from the primary worktree's file, its `.example`, or `VARIANT_ENV_SOURCE`). `overrides`: templated values for the watch's commands, written into the copy when it is created together with the storage variable. An existing copy is left alone |

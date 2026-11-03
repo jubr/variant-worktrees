@@ -59,7 +59,7 @@ variant:
   seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
   watches: # keyed by watch name: runtime state, templates ({{be.port}}), containers and VARIANT_BE_PORT use the key
     fe:
-      kind: vite # nestjs
+      kind: vite # nestjs; optional, a label that autodetection sets
       dir: fe
       up: bun run dev
       watch: bun run build:watch
