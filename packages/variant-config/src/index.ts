@@ -208,7 +208,6 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const resolved = {
     ...config,
     variant,
-    environment,
     ...(runtime ? { runtime } : {}),
     configPath,
     configDir,
@@ -216,7 +215,9 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     migrations: [...read.migrations, ...migrations],
   };
   // The database and its source are read lazily: detecting them is what asks the environment provider.
+  // `environment` is a function and stays out of enumeration so a resolved configuration still prints and clones.
   Object.defineProperties(resolved, {
+    environment: { enumerable: false, configurable: true, value: environment },
     db: {
       enumerable: true,
       configurable: true,
