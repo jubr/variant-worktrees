@@ -18,6 +18,11 @@ const ENV_KEYS = [
   "MYSQL_PASSWORD",
   "MYSQL_DATABASE",
   "MYSQL_SCHEMA",
+  "MARIADB_HOST",
+  "MARIADB_PORT",
+  "MARIADB_USER",
+  "MARIADB_PASSWORD",
+  "MARIADB_DATABASE",
   "SQLITE_DATABASE",
   "SQLITE_PATH",
 ] as const;
@@ -128,7 +133,7 @@ const detectDialect = (values: Environment): DbDialect | undefined => {
   if (values.DATABASE_URL?.startsWith("postgres")) {
     return "postgres";
   }
-  if (values.DATABASE_URL?.startsWith("mysql")) {
+  if (values.DATABASE_URL?.startsWith("mysql") || values.DATABASE_URL?.startsWith("mariadb")) {
     return "mysql";
   }
   if (values.DATABASE_URL?.startsWith("sqlite")) {
@@ -137,7 +142,14 @@ const detectDialect = (values: Environment): DbDialect | undefined => {
   if (values.POSTGRES_HOST || values.POSTGRES_DB || values.POSTGRES_USER) {
     return "postgres";
   }
-  if (values.MYSQL_HOST || values.MYSQL_DATABASE || values.MYSQL_USER) {
+  if (
+    values.MYSQL_HOST ||
+    values.MYSQL_DATABASE ||
+    values.MYSQL_USER ||
+    values.MARIADB_HOST ||
+    values.MARIADB_DATABASE ||
+    values.MARIADB_USER
+  ) {
     return "mysql";
   }
   if (values.SQLITE_DATABASE || values.SQLITE_PATH) {
@@ -152,6 +164,8 @@ export type EnvironmentProvider = () => NodeJS.ProcessEnv;
 export interface DetectedConnection {
   config: DbConfig;
   source: "env" | "default";
+  /** The name of the environment variable that supplied each field of `config`. */
+  variables: Partial<Record<keyof DbConfig, string>>;
 }
 
 export const detectConnection = (
@@ -172,23 +186,36 @@ export const detectConnection = (
         filename: join(startDir, ".cache", "variants", "variants.db"),
       },
       source: "default",
+      variables: {},
     };
   }
 
+  const variables: DetectedConnection["variables"] = {};
+  /** The first of `names` that is set, recording which one supplied `field`. */
+  const take = (field: keyof DbConfig, ...names: (typeof ENV_KEYS)[number][]): string | undefined => {
+    for (const name of names) {
+      const value = values[name];
+      if (value !== undefined) {
+        variables[field] = name;
+        return value;
+      }
+    }
+    return undefined;
+  };
   const config: DbConfig = {
     dialect,
-    url: values.DATABASE_URL,
-    host: values.POSTGRES_HOST ?? values.MYSQL_HOST,
-    port: parsePort(values.POSTGRES_PORT ?? values.MYSQL_PORT),
-    user: values.POSTGRES_USER ?? values.MYSQL_USER,
-    password: values.POSTGRES_PASSWORD ?? values.MYSQL_PASSWORD,
-    database: values.POSTGRES_DB ?? values.MYSQL_DATABASE ?? values.SQLITE_DATABASE,
-    schema: values.POSTGRES_SCHEMA ?? values.MYSQL_SCHEMA,
-    filename: values.SQLITE_PATH,
-    ssl: parseBoolean(values.POSTGRES_SSL),
+    url: take("url", "DATABASE_URL"),
+    host: take("host", "POSTGRES_HOST", "MYSQL_HOST", "MARIADB_HOST"),
+    port: parsePort(take("port", "POSTGRES_PORT", "MYSQL_PORT", "MARIADB_PORT")),
+    user: take("user", "POSTGRES_USER", "MYSQL_USER", "MARIADB_USER"),
+    password: take("password", "POSTGRES_PASSWORD", "MYSQL_PASSWORD", "MARIADB_PASSWORD"),
+    database: take("database", "POSTGRES_DB", "MYSQL_DATABASE", "MARIADB_DATABASE", "SQLITE_DATABASE"),
+    schema: take("schema", "POSTGRES_SCHEMA", "MYSQL_SCHEMA"),
+    filename: take("filename", "SQLITE_PATH"),
+    ssl: parseBoolean(take("ssl", "POSTGRES_SSL")),
   };
 
-  return { config, source: "env" };
+  return { config, source: "env", variables };
 };
 
 const packageDeclares = (path: string, dependency: string): boolean => {
