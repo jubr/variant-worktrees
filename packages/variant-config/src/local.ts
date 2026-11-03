@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { findSchemaHeader, schemaHeaderFor } from "./header.js";
 import { migrateLegacy } from "./legacy.js";
 import {
   envSegment,
@@ -123,9 +124,11 @@ export const readRuntimeState = (
 /** Writes the `runtime` section of `<configDir>/variants.local.yaml`, validated, keeping the file's other top-level keys. */
 export const writeRuntime = (configDir: string, runtime: Runtime): void => {
   const path = join(configDir, LOCAL_FILENAME);
-  const existing: unknown = existsSync(path) ? parseYaml(readFileSync(path, "utf8")) : {};
+  const text = existsSync(path) ? readFileSync(path, "utf8") : "";
+  const existing: unknown = text === "" ? {} : parseYaml(text);
   const others = typeof existing === "object" && existing !== null ? existing : {};
-  writeFileSync(path, stringifyYaml({ ...others, runtime: RuntimeSchema.parse(runtime) }));
+  const header = findSchemaHeader(text) ?? schemaHeaderFor(LOCAL_FILENAME);
+  writeFileSync(path, `${header}\n\n${stringifyYaml({ ...others, runtime: RuntimeSchema.parse(runtime) })}`);
 };
 
 /** Removes the `runtime` section of `<configDir>/variants.local.yaml`, keeping other keys; a file left empty is removed. */
@@ -134,13 +137,15 @@ export const clearRuntime = (configDir: string): void => {
   if (!existsSync(path)) {
     return;
   }
-  const existing: unknown = parseYaml(readFileSync(path, "utf8"));
+  const text = readFileSync(path, "utf8");
+  const existing: unknown = parseYaml(text);
   const { runtime: _removed, ...others } =
     typeof existing === "object" && existing !== null ? (existing as Record<string, unknown>) : {};
   if (Object.keys(others).length === 0) {
     rmSync(path);
   } else {
-    writeFileSync(path, stringifyYaml(others));
+    const header = findSchemaHeader(text);
+    writeFileSync(path, `${header === undefined ? "" : `${header}\n\n`}${stringifyYaml(others)}`);
   }
 };
 

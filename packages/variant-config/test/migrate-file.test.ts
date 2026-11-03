@@ -2,12 +2,19 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { migrateFile } from "../src/index.js";
+import { isSchemaHeaderNotice, migrateFile, schemaHeaderFor } from "../src/index.js";
 
-const OLD = "variant:\n  instances:\n    fe:\n      kind: vite\n";
-const NEW = "variant:\n  watches:\n    fe:\n      kind: vite\n";
-const OLD_LOCAL = "runtime:\n  instances:\n    fe:\n      port: 62060\n";
-const NEW_LOCAL = "runtime:\n  watches:\n    fe:\n      port: 62060\n";
+// AIDEV-NOTE: the fixtures carry the schema header, so the tests of the renames see no header change; the last describe covers the header
+const HEADER = schemaHeaderFor("variants.yaml");
+const LOCAL_HEADER = schemaHeaderFor("variants.local.yaml");
+const BARE_OLD = "variant:\n  instances:\n    fe:\n      kind: vite\n";
+const BARE_NEW = "variant:\n  watches:\n    fe:\n      kind: vite\n";
+const BARE_OLD_LOCAL = "runtime:\n  instances:\n    fe:\n      port: 62060\n";
+const BARE_NEW_LOCAL = "runtime:\n  watches:\n    fe:\n      port: 62060\n";
+const OLD = `${HEADER}\n\n${BARE_OLD}`;
+const NEW = `${HEADER}\n\n${BARE_NEW}`;
+const OLD_LOCAL = `${LOCAL_HEADER}\n\n${BARE_OLD_LOCAL}`;
+const NEW_LOCAL = `${LOCAL_HEADER}\n\n${BARE_NEW_LOCAL}`;
 
 const directories: string[] = [];
 afterEach(() => {
@@ -200,5 +207,49 @@ describe("migrateFile", () => {
 
     expect(() => migrateFile(join(directory, "variants.yaml"), {})).not.toThrow();
     expect(() => migrateFile(join(directory, "variants.local.yaml"), {})).not.toThrow();
+  });
+});
+
+describe("migrateFile and the schema header", () => {
+  it("adds the header to a tracked clean variants.yaml that has none, with a notice of its own", () => {
+    const directory = repository({ "variants.yaml": "variant:\n  open: false\n" });
+
+    const result = migrateFile(join(directory, "variants.yaml"), {});
+
+    expect(result).toMatchObject({ status: "rewritten" });
+    expect(result?.notices.every(isSchemaHeaderNotice)).toBe(true);
+    expect(read(directory, "variants.yaml")).toBe(`${HEADER}\n\nvariant:\n  open: false\n`);
+  });
+
+  it("renames old names and adds the header in one rewrite", () => {
+    const directory = repository({ "variants.yaml": BARE_OLD });
+
+    const result = migrateFile(join(directory, "variants.yaml"), {});
+
+    expect(result?.notices).toHaveLength(2);
+    expect(read(directory, "variants.yaml")).toBe(`${HEADER}\n\n${BARE_NEW}`);
+  });
+
+  it("adds the local header to variants.local.yaml", () => {
+    const directory = repository({}, { "variants.local.yaml": BARE_NEW_LOCAL });
+
+    migrateFile(join(directory, "variants.local.yaml"), {});
+
+    expect(read(directory, "variants.local.yaml")).toBe(`${LOCAL_HEADER}\n\n${BARE_NEW_LOCAL}`);
+  });
+
+  it("does nothing for a file that has a schema line", () => {
+    const own = "# yaml-language-server: $schema=./mine.json\n\nvariant: {}\n";
+    const directory = repository({ "variants.yaml": own });
+
+    expect(migrateFile(join(directory, "variants.yaml"), {})).toBeUndefined();
+    expect(read(directory, "variants.yaml")).toBe(own);
+  });
+
+  it("skips under CI like any other migration", () => {
+    const directory = repository({ "variants.yaml": "variant: {}\n" });
+
+    expect(migrateFile(join(directory, "variants.yaml"), { CI: "true" })).toMatchObject({ status: "skipped" });
+    expect(read(directory, "variants.yaml")).toBe("variant: {}\n");
   });
 });

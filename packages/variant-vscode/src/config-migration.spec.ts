@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { schemaHeaderFor } from "variant-config";
 import * as vscode from "vscode";
 import { createConfigMigration } from "./config-migration.ts";
 import { fakeClient, record } from "./variants-test-support.ts";
@@ -11,8 +12,13 @@ const showWarningMessage = spyOn(vscode.window, "showWarningMessage");
 const showTextDocument = spyOn(vscode.window, "showTextDocument");
 const openTextDocument = spyOn(vscode.workspace, "openTextDocument");
 
-const OLD = "db:\n  dialect: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
-const NEW = "db:\n  dialect: sqlite\nvariant:\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const HEADER = schemaHeaderFor("variants.yaml");
+const LOCAL_HEADER = schemaHeaderFor("variants.local.yaml");
+// AIDEV-NOTE: the fixtures carry the schema header so the tests of the renames see no header change; the last describe covers it
+const BARE_OLD = "db:\n  dialect: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_NEW = "db:\n  dialect: sqlite\nvariant:\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const OLD = `${HEADER}\n\n${BARE_OLD}`;
+const NEW = `${HEADER}\n\n${BARE_NEW}`;
 // AIDEV-NOTE: an empty CI counts as unset; a CI runner sets CI=true, which turns the rewrite off
 const ENV = { CI: "" };
 
@@ -171,7 +177,7 @@ describe("configuration migration in the extension", () => {
   });
 
   it("shows one warning per file, for variants.yaml and variants.local.yaml", () => {
-    const { root } = project(OLD, { local: "runtime:\n  instances:\n    be: { port: 62060 }\n" });
+    const { root } = project(OLD, { local: `${LOCAL_HEADER}\n\nruntime:\n  instances:\n    be: { port: 62060 }\n` });
 
     createConfigMigration({ root, env: ENV }).run();
 
@@ -198,6 +204,37 @@ describe("configuration migration in the extension", () => {
     const { root } = project("variant: [\n");
 
     expect(() => createConfigMigration({ root, env: ENV }).run()).not.toThrow();
+  });
+});
+
+describe("the schema header in the extension", () => {
+  it("adds the header to a current file that has none and tells the user, with Undo", () => {
+    const { root, file } = project(BARE_NEW);
+
+    createConfigMigration({ root, env: ENV }).run();
+
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    const [message, ...actions] = showWarningMessage.mock.calls[0] as unknown as string[];
+    expect(message).toContain(file);
+    expect(message).toContain("schema header");
+    expect(actions).toEqual(["Open file", "Undo"]);
+  });
+
+  it("stays silent when the header cannot be added, because it is only cosmetic", () => {
+    const { root, file } = project(BARE_NEW);
+
+    createConfigMigration({ root, env: { CI: "true" } }).run();
+
+    expect(readFileSync(file, "utf8")).toBe(BARE_NEW);
+    expect(showWarningMessage).not.toHaveBeenCalled();
+  });
+
+  it("still tells the user when old names cannot be renamed", () => {
+    const { root } = project(BARE_OLD);
+
+    createConfigMigration({ root, env: { CI: "true" } }).run();
+
+    expect(showWarningMessage).toHaveBeenCalledTimes(1);
   });
 });
 

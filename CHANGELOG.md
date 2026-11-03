@@ -12,6 +12,9 @@
   `variant` CLI and the VS Code extension rewrite them in place when `variants.yaml` is tracked by git and clean, or
   untracked after saving the old text as `variants.yaml~` (and always `variants.local.yaml`); `VARIANT_MIGRATE=0` or a set `CI` turns the rewrite off. The library, the MCP server
   and `variant ui` never write.
+- `variants.yaml` and `variants.local.yaml` begin with a `yaml-language-server` schema header. A `variants.local.yaml` that
+  the tool writes starts with it, and the migration of the CLI and the VS Code extension adds it to a file that has no
+  schema line (a line you wrote is kept).
 - `task package:vsix:unpacked` works in the main checkout.
 
 ### Changed

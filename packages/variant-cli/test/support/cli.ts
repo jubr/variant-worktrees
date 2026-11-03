@@ -1,5 +1,6 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { findSchemaHeader, schemaHeaderFor } from "variant-config";
 
 export interface CliResult {
   stdout: string;
@@ -51,12 +52,13 @@ export const withVariants = async (
       mkdirSync(join(directory, path, ".."), { recursive: true });
       writeFileSync(join(directory, path), content);
     };
-    put("variants.yaml", yaml);
+    // AIDEV-NOTE: the schema header keeps the migration quiet, so tests that assert an empty stderr see only their own output
+    put("variants.yaml", findSchemaHeader(yaml) ? yaml : `${schemaHeaderFor("variants.yaml")}\n\n${yaml}`);
     put(".cache/variants/beta.db", "");
     put(".cache/variants/alpha.db", "");
     put(
       "_v-alpha/variants.local.yaml",
-      "runtime:\n  slug: alpha\n  mode: watch\n  watches:\n    fe: { port: 62060, url: 'http://alpha.vw.localhost:62060/' }\n",
+      `${schemaHeaderFor("variants.local.yaml")}\n\nruntime:\n  slug: alpha\n  mode: watch\n  watches:\n    fe: { port: 62060, url: 'http://alpha.vw.localhost:62060/' }\n`,
     );
     const extra = typeof files === "function" ? files(directory) : files;
     for (const [path, content] of Object.entries(extra)) {

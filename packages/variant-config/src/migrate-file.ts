@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { addSchemaHeader, schemaHeaderNotice } from "./header.js";
 import { migrateLegacy, migrateText } from "./legacy.js";
 import { LOCAL_FILENAME } from "./schema.js";
 
@@ -63,11 +64,16 @@ const optOut = (env: NodeJS.ProcessEnv): string | undefined => {
 export const migrateFile = (path: string, env: NodeJS.ProcessEnv = process.env): MigrationResult | undefined => {
   try {
     const text = readFileSync(path, "utf8");
-    const migrated = migrateText(text);
+    const renamed = migrateText(text);
+    const migrated = addSchemaHeader(renamed ?? text, basename(path)) ?? renamed;
     if (migrated === undefined) {
       return undefined;
     }
-    const notices = migrateLegacy(parseYaml(text), path).notices;
+    const header = schemaHeaderNotice(renamed ?? text, basename(path), path);
+    const notices = [
+      ...(renamed === undefined ? [] : migrateLegacy(parseYaml(text), path).notices),
+      ...(header ? [header] : []),
+    ];
     const isLocal = basename(path) === LOCAL_FILENAME;
     const obstacle = isLocal ? undefined : gitObstacle(path);
     const untracked = obstacle !== undefined && "untracked" in obstacle;
