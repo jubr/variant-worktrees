@@ -37,7 +37,40 @@ const slugString = (args: Record<string, unknown>): string | undefined => args.s
 const verbose = (args: Record<string, unknown>): { verbose?: boolean } =>
   args.verbose === undefined ? {} : { verbose: args.verbose === true };
 
+const stepArg = (name: string, description: string): ArgDefinition => ({
+  name,
+  description: `${description}; on unless turned off with --${name}=false`,
+  type: "boolean",
+  required: false,
+});
+
+const initSteps = ["file", "gitignore", "mise"] as const;
+
 export const commands: CommandDefinition[] = [
+  {
+    name: "init",
+    description: "Bootstrap the directory: variants.yaml from autodetection, the .gitignore line and the Mise entry",
+    args: [
+      { name: "prefix", description: "Worktree directory prefix, default _v-", type: "string", required: false },
+      stepArg("file", "Write variants.yaml"),
+      stepArg("gitignore", "Add the worktree pattern to .gitignore"),
+      stepArg("mise", "Add the variant CLI to the Mise configuration"),
+      {
+        name: "force",
+        description: "Replace the variants.yaml of this directory when it exists",
+        type: "boolean",
+        required: false,
+      },
+    ],
+    execute: (client, args) =>
+      client.init({
+        ...(args.prefix === undefined ? {} : { prefix: args.prefix as string }),
+        ...Object.fromEntries(
+          initSteps.filter((step) => args[step] !== undefined).map((step) => [step, args[step] === true]),
+        ),
+        ...(args.force === undefined ? {} : { force: args.force === true }),
+      }),
+  },
   {
     name: "config",
     description: "Print detected variant configuration",
