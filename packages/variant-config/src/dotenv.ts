@@ -4,6 +4,32 @@ import type { ResolvedConfig, VariantWatch } from "./schema.js";
 
 const ASSIGNMENT = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)=/;
 
+const DEFINITION = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/;
+
+/**
+ * The variables of dotenv text as `mise env --dotenv` prints it: `KEY=value` per line, values neither quoted nor
+ * escaped, a line that is no definition continues the value above it. Text before the first definition is ignored; a
+ * later definition of a name wins.
+ */
+export const parseDotenv = (text: string): Record<string, string> => {
+  const lines = text.replaceAll("\r\n", "\n").split("\n");
+  if (lines.at(-1) === "") {
+    lines.pop();
+  }
+  const values: Record<string, string> = {};
+  let current: string | undefined;
+  for (const line of lines) {
+    const match = DEFINITION.exec(line);
+    if (match?.[1] !== undefined) {
+      current = match[1];
+      values[current] = match[2] ?? "";
+    } else if (current !== undefined) {
+      values[current] = `${values[current]}\n${line}`;
+    }
+  }
+  return values;
+};
+
 const format = (value: string): string => (/[\s#]/.test(value) ? JSON.stringify(value) : value);
 
 /**

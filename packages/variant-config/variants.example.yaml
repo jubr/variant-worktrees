@@ -21,7 +21,7 @@ db:
 variant:
   main: . # the main checkout the worktrees are made from; default: detected (target of a parent AGENTS.md symlink, else the git checkout)
   root: .. # directory that holds the variant worktrees; default: the directory of a parent AGENTS.md symlink into main, else main
-  abbr: vw # short project label for hostnames and `{{abbr}}`; default: initials of the main checkout directory name, e.g. variant-worktrees is vw
+  abbr: vw # short project label for hostnames and `${abbr}`; default: initials of the main checkout directory name, e.g. variant-worktrees is vw
   prefix: _v- # starts every name derived from a slug, e.g. _v-add-auth; keep the connector. Alternate: _work-
   baseBranch: main # new variant branches start here, and a variant must be merged here before `implode`
   branchPrefixes: # the first prefixes a new branch; all of them are dropped from a branch name to get a slug
@@ -36,12 +36,14 @@ variant:
     envVarName: STORAGE_ROOT # variable amended for commands, set in watch .env
   ui: # the `variant ui` web server
     port: 62100 # VARIANT_UI_PORT wins. Absent: a free port of ports.range
+  mise: # Mise supplies the environment (`mise env`)
+    binPath: /opt/homebrew/bin/mise # when mise is not on PATH; the editor setting variant.mise.binPath wins
   steps: # run in order between the `up` commands and the seed command
     - name: migrations # unique, only [A-Za-z0-9_-]+, VARIANT_STEP_MIGRATIONS=no skips
       run: bun run migrate # shell commands
       dir: be # relative to the worktree; default: the worktree root
       env: # templated values; win over everything else the command sees
-        JWT_SECRET: '{{JWT_SECRET:-variant-local-{{slug}}}}' # {{NAME}} and {{NAME:-default}} read the environment
+        JWT_SECRET: '${JWT_SECRET:-variant-local-${slug}}' # ${NAME} and ${NAME:-default} read the environment
       filterLinesRegex: '^Migration ' # print only the output lines that match; --verbose and failures print everything
   supervise: # `up` and `watch` timing
     startDelaySeconds: 2 # wait between starting two watches
@@ -51,24 +53,24 @@ variant:
     preRm: # `rm -rf`` remove these before validate
       - dist
       - node_modules
-      - openspec/changes/{{slug}}/pr*-demo.webm
+      - openspec/changes/${slug}/pr*-demo.webm
     discard: # tracked files whose local changes are discarded
       - bun.lock
     requireMerged: true # false; refuse to implode a variant that is not merged into baseBranch
     maxDiffLines: 200 # the report holds the full diff up to this many lines
   seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
-  watches: # keyed by watch name: runtime state, templates ({{be.port}}), containers and VARIANT_BE_PORT use the key
+  watches: # keyed by watch name: runtime state, templates (${be.port}), containers and VARIANT_BE_PORT use the key
     fe:
       kind: vite # nestjs; optional, a label that autodetection sets
       dir: fe
       up: bun run dev
       watch: bun run build:watch
-      url: http://{{slug}}.vw.localhost:{{port}} # URL template, placeholders {{slug}} and {{port}}; autodetected vite watches get this default
+      url: http://${slug}.vw.localhost:${port} # URL template, placeholders ${slug} and ${port}; autodetected vite watches get this default
       env:
-        sourceFile: .env # relative to {{dir}}, copied to variant `{{worktree}}/{{dir}}/.env` and amended
+        sourceFile: .env # relative to ${dir}, copied to variant `${worktree}/${dir}/.env` and amended
         overrides: # templated values for the watch's commands and the variant .env when it is created
-          VITE_API_URL: http://{{slug}}.vw.localhost:{{be.port}}
-          PUBLIC_BASE_URL: '{{url}}'
+          VITE_API_URL: http://${slug}.vw.localhost:${be.port}
+          PUBLIC_BASE_URL: '${url}'
       install: bun install --frozen-lockfile # runs in dir when dir has no node_modules
       ready: /index.html # URL path that answers with a success status when the watch serves
       container: # how `up` runs the watch
@@ -79,11 +81,11 @@ variant:
       up: bun run start:docker
       watch: bun run build:watch
       env:
-        sourceFile: .env # relative to {{dir}}, copied to variant `{{worktree}}/{{dir}}/.env` and amended
+        sourceFile: .env # relative to ${dir}, copied to variant `${worktree}/${dir}/.env` and amended
         overrides: # templated values for the watch's commands and the env file copy when it is created
-          PORT: '{{be.port}}' # free one will be passed
+          PORT: '${be.port}' # free one will be passed
       container:
-        dockerfile: be/Dockerfile # `docker run --rm -it $(docker build -f {{dir}}/Dockerfile -q .)`
+        dockerfile: be/Dockerfile # `docker run --rm -it $(docker build -f ${dir}/Dockerfile -q .)`
         internalPort: 3000 # port inside the container; default 80
 
 # Per-variant overrides, keyed by slug.

@@ -39,39 +39,39 @@ The system SHALL accept an optional list `variant.steps`. Each step has a requir
 - **THEN** loading succeeds, neither key takes effect and one warning names each
 
 ### Requirement: Command templates
-The system SHALL expand templates in the string values of the `env` of every entry of `variant.steps` and the `env.overrides` of every entry of `variant.watches`. The variant placeholders SHALL be replaced first: `{{slug}}`, `{{schema}}` (the database target of the variant), `{{storage}}` (the absolute storage directory), `{{worktree}}` (the absolute worktree path), `{{url}}` (the rendered `url` of the watch, empty when it has none), `{{port}}` (the port of the watch the value belongs to; empty for a step) and `{{<key>.port}}` (the port of another watch, by its key). The former `{{port.<key>}}` SHALL fail with an error that names `{{<key>.port}}`. Then `{{NAME}}` SHALL be replaced by the process environment variable `NAME`, and `{{NAME:-default}}` by that variable or, when it is unset or empty, by `default`. A `{{NAME}}` whose variable is unset SHALL fail with an error that names the variable.
+The system SHALL expand templates in the string values of the `env` of every entry of `variant.steps` and the `env.overrides` of every entry of `variant.watches`. The variant placeholders SHALL be replaced first: `${slug}`, `${schema}` (the database target of the variant), `${storage}` (the absolute storage directory), `${worktree}` (the absolute worktree path), `${url}` (the rendered `url` of the watch, empty when it has none), `${port}` (the port of the watch the value belongs to; empty for a step) and `${<key>.port}` (the port of another watch, by its key). The former `${port.<key>}` SHALL fail with an error that names `${<key>.port}`. Then `${NAME}` SHALL be replaced by the process environment variable `NAME`, and `${NAME:-default}` by that variable or, when it is unset or empty, by `default`. A `${NAME}` whose variable is unset SHALL fail with an error that names the variable.
 
 #### Scenario: Variant placeholders
 
-- **WHEN** a watch `env.overrides` value is `{{slug}}-{{port}}` for slug `demo` and port 62060
+- **WHEN** a watch `env.overrides` value is `${slug}-${port}` for slug `demo` and port 62060
 - **THEN** the expanded value is `demo-62060`
 
 #### Scenario: Port of another watch
 
-- **WHEN** the watch `fe` has the value `{{be.port}}` and the watch `be` has port 62061
+- **WHEN** the watch `fe` has the value `${be.port}` and the watch `be` has port 62061
 - **THEN** the expanded value is `62061`
 
 #### Scenario: Port of an unknown watch
 
-- **WHEN** a value is `{{missing.port}}` and no watch has the key `missing`
+- **WHEN** a value is `${missing.port}` and no watch has the key `missing`
 - **THEN** expansion fails with an error that names `missing`
 
 #### Scenario: Former port placeholder
 
-- **WHEN** a value is `{{port.be}}`
-- **THEN** expansion fails with an error that names `{{be.port}}`
+- **WHEN** a value is `${port.be}`
+- **THEN** expansion fails with an error that names `${be.port}`
 
 #### Scenario: Environment default
 
-- **WHEN** a value is `{{JWT_SECRET:-local-{{slug}}}}`, the slug is `demo`, and `JWT_SECRET` is unset
+- **WHEN** a value is `${JWT_SECRET:-local-${slug}}`, the slug is `demo`, and `JWT_SECRET` is unset
 - **THEN** the expanded value is `local-demo`
 
 #### Scenario: Environment value wins over default
 
-- **WHEN** a value is `{{JWT_SECRET:-local}}` and `JWT_SECRET` is `s3cret`
+- **WHEN** a value is `${JWT_SECRET:-local}` and `JWT_SECRET` is `s3cret`
 - **THEN** the expanded value is `s3cret`
 
 #### Scenario: Unset variable without default
 
-- **WHEN** a value is `{{MISSING_VAR}}` and `MISSING_VAR` is unset
+- **WHEN** a value is `${MISSING_VAR}` and `MISSING_VAR` is unset
 - **THEN** expansion fails with an error that names `MISSING_VAR`

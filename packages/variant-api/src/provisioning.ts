@@ -11,7 +11,7 @@ import {
 } from "variant-config";
 import { echoCommand, type ProgressLog } from "./echo.js";
 import type { OperationContext } from "./operations/types.js";
-import { commandEnvironment, expandEnv, type VariantRun } from "./run-context.js";
+import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from "./run-context.js";
 
 export interface ProvisionOptions {
   /** Print the full output of steps that set `filterLinesRegex`. */
@@ -74,7 +74,7 @@ const prepareEnvFile = (config: ResolvedConfig, run: VariantRun, key: string, wa
   const source = envFileSources(run, watch, sourceFile).find((candidate) => existsSync(candidate));
   const entries = {
     ...(run.storage && config.variant.storage ? { [config.variant.storage.envVarName]: run.storage } : {}),
-    ...expandEnv(watch.env?.overrides, run, key),
+    ...expandEnv(config, watch.env?.overrides, run, key, `variant.watches.${key}.env.overrides`),
   };
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, amendDotenv(source ? readFileSync(source, "utf8") : "", entries));
@@ -115,7 +115,12 @@ export const runProvisioning = (
   for (const [key, watch] of watches) {
     const dir = resolve(run.projectDir, watch.dir);
     if (watch.install && !existsSync(join(dir, "node_modules"))) {
-      command(watch.install, dir, commandEnvironment(config, run, watch.env?.overrides, key), "Install");
+      command(
+        expandSetting(config, run, watch.install, `variant.watches.${key}.install`, key),
+        dir,
+        commandEnvironment(config, run, watch.env?.overrides, key),
+        "Install",
+      );
     }
   }
   for (const [key, watch] of watches) {
@@ -127,7 +132,7 @@ export const runProvisioning = (
     return text
       ? [
           {
-            text,
+            text: expandSetting(config, run, text, `variant.watches.${key}.up`, key),
             cwd: resolve(run.projectDir, watch.dir),
             env: commandEnvironment(config, run, watch.env?.overrides, key),
           },
@@ -145,15 +150,16 @@ export const runProvisioning = (
       output += `Skipping step ${step.name}: ${skipVariable}=no\n`;
       continue;
     }
-    commands.push(step.run);
-    echoCommand(step.run, options.log);
+    const stepCommand = expandSetting(config, run, step.run, `variant.steps.${step.name}.run`);
+    commands.push(stepCommand);
+    echoCommand(stepCommand, options.log);
     const result = execute(
-      step.run,
+      stepCommand,
       resolve(run.projectDir, step.dir ?? "."),
       commandEnvironment(config, run, step.env),
     );
     if (!result.ok) {
-      throw new Error(`Step ${step.name} failed (${result.status}): ${step.run}\n${result.output}`);
+      throw new Error(`Step ${step.name} failed (${result.status}): ${stepCommand}\n${result.output}`);
     }
     if (step.filterLinesRegex !== undefined && !options.verbose) {
       const pattern = new RegExp(step.filterLinesRegex);
@@ -170,7 +176,7 @@ export const runProvisioning = (
 
   const seed = seedCommandFor(config, run.slug);
   if (seed) {
-    command(seed, run.projectDir, plainEnv);
+    command(expandSetting(config, run, seed, "seed"), run.projectDir, plainEnv);
   }
   return { commands, output };
 };

@@ -28,6 +28,7 @@ const recordingClient = (): { client: VariantClient; calls: [string, ...unknown[
 describe("command registry", () => {
   it("contains the lifecycle, runtime and config commands and no destroy or switch", () => {
     expect(commands.map((command) => command.name)).toEqual([
+      "init",
       "config",
       "create",
       "list",
@@ -43,7 +44,9 @@ describe("command registry", () => {
   });
 
   it("declares an optional short slug flag for slug commands", () => {
-    for (const command of commands.filter((entry) => entry.name !== "config" && entry.name !== "list")) {
+    for (const command of commands.filter(
+      (entry) => entry.name !== "init" && entry.name !== "config" && entry.name !== "list",
+    )) {
       expect(command.args[0]).toMatchObject({
         name: "slug",
         required: false,
@@ -52,8 +55,8 @@ describe("command registry", () => {
     }
   });
 
-  it("gives every command an optional boolean verbose argument", () => {
-    for (const command of commands) {
+  it("gives every command but init an optional boolean verbose argument", () => {
+    for (const command of commands.filter((entry) => entry.name !== "init")) {
       expect(command.args).toContainEqual(
         expect.objectContaining({ name: "verbose", type: "boolean", required: false }),
       );

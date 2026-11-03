@@ -2,7 +2,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { abbreviate, detectConnection, detectVariantMain, detectVariantRoot, detectWatches } from "./autodetect.js";
+import {
+  abbreviate,
+  detectConnection,
+  detectVariantMain,
+  detectVariantRoot,
+  detectWatches,
+  type EnvironmentProvider,
+} from "./autodetect.js";
 import { migrateLegacy } from "./legacy.js";
 import { readRuntimeState } from "./local.js";
 import { type ParsedConfig, parseConfig } from "./parse.js";
@@ -19,6 +26,7 @@ import {
   VariantsConfigSchema,
   variantsJsonSchema,
 } from "./schema.js";
+import { renderTemplate } from "./template.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -59,18 +67,67 @@ const readConfigFile = (configPath: string): ReadConfig => {
   return { ...parseConfig(VariantsConfigSchema, data, configPath), migrations: notices };
 };
 
-const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbConfig => ({
-  ...detected,
-  ...explicit,
-});
+/** Explicit fields win. An explicit SQLite database takes nothing from detection, so the environment stays unread. */
+const mergeDbConfig = (detected: Partial<DbConfig>, explicit: DbConfig | undefined): DbConfig =>
+  ({
+    ...detected,
+    ...explicit,
+  }) as DbConfig;
+
+const memoize = <Value>(compute: () => Value): (() => Value) => {
+  let cached: { value: Value } | undefined;
+  return () => {
+    cached ??= { value: compute() };
+    return cached.value;
+  };
+};
+
+/** A watch with `dir` set; a `dir` that references the environment is expanded when first read. */
+const withDir = (
+  watch: Omit<VariantWatch, "dir">,
+  key: string,
+  dir: string,
+  environment: EnvironmentProvider,
+): VariantWatch => {
+  if (!dir.includes("${")) {
+    return { ...watch, dir };
+  }
+  const copy = { ...watch, dir } as VariantWatch;
+  Object.defineProperty(copy, "dir", {
+    enumerable: true,
+    configurable: true,
+    get: memoize(() =>
+      renderTemplate(dir, { env: environment, variant: false, setting: `variant.watches.${key}.dir` }),
+    ),
+  });
+  return copy;
+};
 
 /** The configured watches with `dir` defaulted to the key, else the autodetected ones (which carry their `dir`). */
-const resolveWatches = (config: VariantsConfig, configDir: string): Record<string, VariantWatch> =>
+const resolveWatches = (
+  config: VariantsConfig,
+  configDir: string,
+  environment: EnvironmentProvider,
+): Record<string, VariantWatch> =>
   config.variant?.watches
     ? Object.fromEntries(
-        Object.entries(config.variant.watches).map(([key, watch]) => [key, { ...watch, dir: watch.dir ?? key }]),
+        Object.entries(config.variant.watches).map(([key, watch]) => [
+          key,
+          withDir(watch, key, watch.dir ?? key, environment),
+        ]),
       )
     : detectWatches(configDir);
+
+/** `db` with the environment references of its text settings expanded; `db` belongs to no variant. */
+const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig =>
+  Object.fromEntries(
+    Object.entries(db).map(([name, value]) => [
+      name,
+      typeof value === "string"
+        ? renderTemplate(value, { env: environment, variant: false, setting: `db.${name}` })
+        : value,
+    ]),
+  ) as DbConfig;
 
 /** `variant.open`, unless `VARIANT_OPEN=0` turns opening off. */
 const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
@@ -82,7 +139,12 @@ const resolvePorts = (configured: string | undefined): ResolvedVariant["ports"] 
   return { range, low, high };
 };
 
-const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
+const resolveVariant = (
+  config: VariantsConfig,
+  configDir: string,
+  env: NodeJS.ProcessEnv,
+  environment: EnvironmentProvider,
+): ResolvedVariant => {
   const { storage, supervise, implode, ports, ...variant } = config.variant ?? {};
   const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
@@ -91,7 +153,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
     abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
-    watches: resolveWatches(config, configDir),
+    watches: resolveWatches(config, configDir, environment),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
     branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
     open: resolveOpen(variant.open, env),
@@ -121,8 +183,13 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
 export interface LoadConfigOptions {
   cwd?: string;
   configPath?: string;
-  /** Environment for `VARIANT_*` overrides and `{{NAME}}` templates; the process environment by default. */
+  /** Environment for `VARIANT_*` overrides and `${NAME}` templates; the process environment by default. */
   env?: NodeJS.ProcessEnv;
+  /**
+   * Supplies the environment that database autodetection reads. It is called lazily, at most once per loaded
+   * configuration, and not at all when nothing reads `db`. The process environment by default.
+   */
+  environment?: EnvironmentProvider;
 }
 
 export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
@@ -134,24 +201,39 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const read: ReadConfig = configExists ? readConfigFile(configPath) : { data: {}, warnings: [], migrations: [] };
   const config = read.data;
   const configDir = dirname(configPath);
-  const detected = detectConnection(configDir);
-  const db = mergeDbConfig(detected.config, config.db);
-  const source = config.db ? "config" : detected.source;
+  const environment = memoize(options.environment ?? (() => process.env));
+  const detected = memoize(() => detectConnection(configDir, environment));
   const env = options.env ?? process.env;
-  const variant = resolveVariant(config, configDir, env);
+  const variant = resolveVariant(config, configDir, env, environment);
   const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
 
-  return {
+  const resolved = {
     ...config,
-    db,
     variant,
     ...(runtime ? { runtime } : {}),
     configPath,
     configDir,
-    source,
     warnings: read.warnings,
     migrations: [...read.migrations, ...migrations],
   };
+  // The database and its source are read lazily: detecting them is what asks the environment provider.
+  // `environment` is a function and stays out of enumeration so a resolved configuration still prints and clones.
+  Object.defineProperties(resolved, {
+    environment: { enumerable: false, configurable: true, value: environment },
+    db: {
+      enumerable: true,
+      configurable: true,
+      get: memoize(() =>
+        expandDb(mergeDbConfig(config.db?.dialect === "sqlite" ? {} : detected().config, config.db), environment),
+      ),
+    },
+    source: {
+      enumerable: true,
+      configurable: true,
+      get: () => (config.db ? "config" : detected().source),
+    },
+  });
+  return resolved as ResolvedConfig;
 };
 
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
@@ -196,12 +278,17 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 export {
   abbreviate,
   detectConnection,
+  detectOnboarding,
+  detectScriptWatches,
   detectVariantMain,
   detectVariantRoot,
   detectWatches,
-  findMiseFile,
+  detectWatchesForInit,
+  type EnvironmentProvider,
+  type OnboardingApplication,
+  type OnboardingDetection,
 } from "./autodetect.js";
-export { amendDotenv, dotenvFor } from "./dotenv.js";
+export { amendDotenv, dotenvFor, parseDotenv } from "./dotenv.js";
 export {
   addSchemaHeader,
   findSchemaHeader,
@@ -210,10 +297,12 @@ export {
   schemaHeaderFor,
   schemaHeaderNotice,
 } from "./header.js";
+export { type RenderedInitConfig, type RenderInitConfigOptions, renderInitConfig } from "./init-config.js";
 export { type Migrated, migrateLegacy, migrateText } from "./legacy.js";
 export type { DiscoveredRuntime, LocalState, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimeState, readRuntimes, writeRuntime } from "./local.js";
 export { type MigrationResult, migrateFile } from "./migrate-file.js";
+export { miseSearchPlaces, type ResolveMiseOptions, resolveMiseBinary } from "./mise-binary.js";
 export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {

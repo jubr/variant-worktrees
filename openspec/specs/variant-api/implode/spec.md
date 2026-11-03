@@ -61,7 +61,7 @@ The system SHALL, after the merge gate passes, perform the teardown that the cor
 
 ### Requirement: Implode cleanup
 
-The system SHALL, before the worktree report is taken and the worktree is removed, delete every path that matches a pattern of `variant.implode.preRm`, with `{{slug}}` replaced. A pattern SHALL be matched relative to the project directory and relative to each watch directory, so `dist` removes `fe/dist` and `be/dist` of watches in `fe` and `be`, and a dotfile or a directory such as `node_modules` is matched like any other name. A match that is, or contains, a file tracked by git SHALL be left in place. The system SHALL discard local modifications of tracked files whose base name is in `variant.implode.discard`, leaving other modified files as they are.
+The system SHALL, before the worktree report is taken and the worktree is removed, delete every path that matches a pattern of `variant.implode.preRm`, with `${slug}` replaced. A pattern SHALL be matched relative to the project directory and relative to each watch directory, so `dist` removes `fe/dist` and `be/dist` of watches in `fe` and `be`, and a dotfile or a directory such as `node_modules` is matched like any other name. A match that is, or contains, a file tracked by git SHALL be left in place. The system SHALL discard local modifications of tracked files whose base name is in `variant.implode.discard`, leaving other modified files as they are.
 
 #### Scenario: Pre-removal directories
 
@@ -75,7 +75,7 @@ The system SHALL, before the worktree report is taken and the worktree is remove
 
 #### Scenario: Untracked recording removed
 
-- **WHEN** `preRm` is `["openspec/changes/{{slug}}/pr*-demo.webm"]` and an untracked `openspec/changes/demo/pr7-demo.webm` exists
+- **WHEN** `preRm` is `["openspec/changes/${slug}/pr*-demo.webm"]` and an untracked `openspec/changes/demo/pr7-demo.webm` exists
 - **THEN** the file is deleted
 
 #### Scenario: Tracked file with matching name kept

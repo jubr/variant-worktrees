@@ -53,7 +53,7 @@ The system SHALL accept on any entry of `variant.watches` these optional setting
 
 #### Scenario: Options accepted
 
-- **WHEN** a watch sets `env: { overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } }`, `install: bun install --frozen-lockfile` and `ready: /api/health/live`
+- **WHEN** a watch sets `env: { overrides: { PORT: "${port}", PUBLIC_BASE_URL: "${url}" } }`, `install: bun install --frozen-lockfile` and `ready: /api/health/live`
 - **THEN** loading succeeds and the resolved watch carries them
 
 #### Scenario: Ready path without slash

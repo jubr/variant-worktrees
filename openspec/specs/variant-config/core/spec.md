@@ -130,11 +130,11 @@ The system SHALL resolve two directories for the `<prefix><slug>` worktrees (def
 
 ### Requirement: Watch URL
 
-The system SHALL accept an optional `url` string on any entry of `variant.watches`: a URL template that may contain the placeholders `{{slug}}`, `{{abbr}}` (the resolved `variant.abbr`) and `{{port}}`, for example `http://{{slug}}.{{abbr}}.localhost:{{port}}`. `url` SHALL NOT be an empty string. The key `open` on a watch SHALL fail validation. A Vite watch found by autodetection SHALL carry the default template `http://{{slug}}.{{abbr}}.localhost:{{port}}`; a detected NestJS watch and an explicit watch carry only what they set. The system SHALL offer a function that returns the template of a watch with all placeholders replaced, or nothing when the watch has no template. This change does not launch the URL.
+The system SHALL accept an optional `url` string on any entry of `variant.watches`: a URL template that may contain the placeholders `${slug}`, `${abbr}` (the resolved `variant.abbr`) and `${port}`, for example `http://${slug}.${abbr}.localhost:${port}`. `url` SHALL NOT be an empty string. The key `open` on a watch SHALL fail validation. A Vite watch found by autodetection SHALL carry the default template `http://${slug}.${abbr}.localhost:${port}`; a detected NestJS watch and an explicit watch carry only what they set. The system SHALL offer a function that returns the template of a watch with all placeholders replaced, or nothing when the watch has no template. This change does not launch the URL.
 
 #### Scenario: Open template accepted
 
-- **WHEN** a watch of kind `vite` or `nestjs` sets `url: http://{{slug}}.vw.localhost:{{port}}`
+- **WHEN** a watch of kind `vite` or `nestjs` sets `url: http://${slug}.vw.localhost:${port}`
 - **THEN** loading succeeds and the resolved watch carries that exact string
 
 #### Scenario: Empty open template
@@ -144,7 +144,7 @@ The system SHALL accept an optional `url` string on any entry of `variant.watche
 
 #### Scenario: Former key refused
 
-- **WHEN** a watch sets `open: http://{{slug}}.vw.localhost:{{port}}`
+- **WHEN** a watch sets `open: http://${slug}.vw.localhost:${port}`
 - **THEN** loading succeeds, the key is ignored and one warning names it
 
 #### Scenario: Autodetected Vite watch
@@ -159,7 +159,7 @@ The system SHALL accept an optional `url` string on any entry of `variant.watche
 
 #### Scenario: Abbreviation placeholder in an explicit template
 
-- **WHEN** a watch sets `url: http://{{abbr}}-{{slug}}.localhost:{{port}}`, the abbreviation is `otc`, the slug is `demo` and the port is 62060
+- **WHEN** a watch sets `url: http://${abbr}-${slug}.localhost:${port}`, the abbreviation is `otc`, the slug is `demo` and the port is 62060
 - **THEN** the result is `http://otc-demo.localhost:62060`
 
 ### Requirement: Watch env
@@ -168,12 +168,12 @@ The system SHALL accept an optional `env` object on any entry of `variant.watche
 
 #### Scenario: Dotenv accepted
 
-- **WHEN** a watch sets `env: { sourceFile: .env, overrides: { PORT: "{{port}}" } }`
+- **WHEN** a watch sets `env: { sourceFile: .env, overrides: { PORT: "${port}" } }`
 - **THEN** loading succeeds and the resolved watch carries both
 
 #### Scenario: Former keys refused
 
-- **WHEN** a watch sets `dotenv: .env`, `dotenvSource: ~/fe.env` or `envAlways: { A: b }`, or sets `env: { PORT: "{{port}}" }` without `sourceFile` and `overrides`
+- **WHEN** a watch sets `dotenv: .env`, `dotenvSource: ~/fe.env` or `envAlways: { A: b }`, or sets `env: { PORT: "${port}" }` without `sourceFile` and `overrides`
 - **THEN** loading succeeds, none of those keys takes effect and one warning names each
 
 #### Scenario: Source file outside the watch
@@ -203,7 +203,7 @@ The system SHALL accept an optional `env` object on any entry of `variant.watche
 
 ### Requirement: Local runtime state
 
-The system SHALL read ephemeral per-variant state from `variants.local.yaml` next to `variants.yaml`, in the variant's own worktree (`<prefix><slug>/variants.local.yaml`), and carry it as `runtime` in the resolved configuration. The file holds one optional `runtime` section with `slug`, `mode` (`up` or `watch`), `dir`, `log` (the path of the log file of a detached watch), `db` and `watches`. `db` SHALL reuse the database settings schema, except that `port` MAY also be a string: digits, or a `{{NAME}}` template. `watches` SHALL be a record keyed by watch key (the key of the entry in `variant.watches`); each entry holds optional `port`, `pid` and `url`. Every `{{NAME}}` in a string SHALL be replaced by the environment variable `NAME` when the file is read; an unset variable leaves the template unchanged, and a `db.port` that is then not numeric SHALL be left out of the resolved state. Unknown keys SHALL fail validation: the file is written by the system, so an unknown key means a version mismatch rather than a typo. A `runtime.instances` record written by an earlier version SHALL be read as `watches`. A missing file SHALL mean no runtime state. The system SHALL offer a function that writes the `runtime` section, validated, keeping any other top-level keys, and the repository SHALL git-ignore `variants.local.yaml`. A JSON schema file `variants.local.yaml.schema.json` and `variants.local.example.yaml` SHALL ship next to the main ones under the same rules.
+The system SHALL read ephemeral per-variant state from `variants.local.yaml` next to `variants.yaml`, in the variant's own worktree (`<prefix><slug>/variants.local.yaml`), and carry it as `runtime` in the resolved configuration. The file holds one optional `runtime` section with `slug`, `mode` (`up` or `watch`), `dir`, `log` (the path of the log file of a detached watch), `db` and `watches`. `db` SHALL reuse the database settings schema, except that `port` MAY also be a string: digits, or a `${NAME}` template. `watches` SHALL be a record keyed by watch key (the key of the entry in `variant.watches`); each entry holds optional `port`, `pid` and `url`. Every `${NAME}` in a string SHALL be replaced by the environment variable `NAME` when the file is read; an unset variable leaves the template unchanged, and a `db.port` that is then not numeric SHALL be left out of the resolved state. Unknown keys SHALL fail validation: the file is written by the system, so an unknown key means a version mismatch rather than a typo. A `runtime.instances` record written by an earlier version SHALL be read as `watches`. A missing file SHALL mean no runtime state. The system SHALL offer a function that writes the `runtime` section, validated, keeping any other top-level keys, and the repository SHALL git-ignore `variants.local.yaml`. A JSON schema file `variants.local.yaml.schema.json` and `variants.local.example.yaml` SHALL ship next to the main ones under the same rules.
 
 #### Scenario: Runtime read
 
@@ -212,12 +212,12 @@ The system SHALL read ephemeral per-variant state from `variants.local.yaml` nex
 
 #### Scenario: Database port from the environment
 
-- **WHEN** `runtime.db.port` is `'{{POSTGRES_PORT}}'` and `POSTGRES_PORT` is `5433`
+- **WHEN** `runtime.db.port` is `'${POSTGRES_PORT}'` and `POSTGRES_PORT` is `5433`
 - **THEN** the resolved `runtime.db.port` is 5433
 
 #### Scenario: Unset environment variable
 
-- **WHEN** `runtime.db.port` is `'{{POSTGRES_PORT}}'` and `POSTGRES_PORT` is unset
+- **WHEN** `runtime.db.port` is `'${POSTGRES_PORT}'` and `POSTGRES_PORT` is unset
 - **THEN** the resolved runtime state has no `db.port`
 
 #### Scenario: Reused database schema
@@ -477,3 +477,112 @@ A `variants.yaml` and a `variants.local.yaml` SHALL begin with a `yaml-language-
 
 - **WHEN** the file is empty, holds only comments or is invalid YAML
 - **THEN** no header is added
+
+### Requirement: Interpolation in every setting
+
+The system SHALL accept `${NAME}` and `${NAME:-default}` (the environment) and, in settings that belong to a variant,
+the placeholders `${slug}`, `${abbr}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}` and
+`${<key>.port}` in every string value of `variants.yaml`, except values that are regular expressions
+(`variant.steps[].filterLinesRegex` and `chatRenamer.activationPatterns`). The values SHALL be expanded where they are
+used, including `db` (environment references only), commands (`watch`, `up`, `install`, `seed`, steps), `env`, `url`,
+`dir` and `preRm`. `NAME` SHALL be read as specified in [specs/tools/mise](../../tools/mise/spec.md) (Environment read through Mise). Placeholder names win over environment
+names of the same spelling. A default MAY hold a placeholder: `${SECRET:-local-${slug}}`. A reference to a variable that
+is set nowhere and has no default SHALL fail with an error that names the setting and the variable; so SHALL a variant
+placeholder in a setting that has no variant (such as `db`). `$${` SHALL stand for a literal `${`, for text that a
+shell must see. The syntax `{{...}}` is the former one (see the legacy requirement below).
+
+#### Scenario: Password from mise
+
+- **WHEN** `variants.yaml` has `db.password: ${POSTGRES_PASSWORD}` and mise defines `POSTGRES_PASSWORD = "s3"`
+- **THEN** the resolved `db.password` is `s3`
+
+#### Scenario: Process environment
+
+- **WHEN** Mise does not define `DATABASE_URL` and the process environment does
+- **THEN** `db.url: ${DATABASE_URL}` resolves to that value
+
+#### Scenario: Default
+
+- **WHEN** `db.host` is `${DB_HOST:-127.0.0.1}` and `DB_HOST` is set nowhere
+- **THEN** the resolved host is `127.0.0.1`
+
+#### Scenario: Unset variable
+
+- **WHEN** `db.password` is `${MISSING}` and `MISSING` is set nowhere
+- **THEN** using the database fails naming `db.password` and `MISSING`
+
+#### Scenario: Placeholder in a command
+
+- **WHEN** a watch sets `watch: bun run dev --port ${port}` with port 62061
+- **THEN** the command that runs is `bun run dev --port 62061`
+
+#### Scenario: Default with a placeholder
+
+- **WHEN** a step env value is `${JWT_SECRET:-local-${slug}}` for `demo` and `JWT_SECRET` is unset
+- **THEN** the value is `local-demo`
+
+#### Scenario: Placeholder without a variant
+
+- **WHEN** `db.schema` is `${slug}`
+- **THEN** using the database fails naming `db.schema` and `slug`
+
+#### Scenario: Literal for the shell
+
+- **WHEN** a command is `echo $${HOME}`
+- **THEN** the command that runs is `echo ${HOME}`
+
+#### Scenario: Regular expressions untouched
+
+- **WHEN** `filterLinesRegex` is `^price: ${PRICE}$` and `PRICE` is set nowhere
+- **THEN** the regular expression is used as written and no error occurs
+
+### Requirement: Legacy template syntax
+
+The system SHALL read `{{...}}` placeholders and environment templates of `variants.yaml` and `variants.local.yaml` as
+their `${...}` forms (`{{slug}}` as `${slug}`, `{{NAME:-x}}` as `${NAME:-x}`, a nested `{{A:-{{slug}}}}` as
+`${A:-${slug}}`) and SHALL treat each file that contains them as migrated: it produces a migration notice, and the
+function that returns the migrated text of a file, with its comments and layout kept, SHALL also rewrite them. This is
+the mechanism of "Legacy configuration is read under the current names"; the file is written only by the callers
+named there. Text of a value that does not have a placeholder shape SHALL stay as it is.
+
+#### Scenario: Former placeholder
+
+- **WHEN** a watch sets `url: http://{{slug}}.{{abbr}}.localhost:{{port}}`
+- **THEN** loading succeeds, the URL renders as with `${slug}`, `${abbr}` and `${port}`, and one migration notice names the file
+
+#### Scenario: Former nested default
+
+- **WHEN** a value is `{{SECRET:-local-{{slug}}}}`
+- **THEN** the migrated text is `${SECRET:-local-${slug}}`
+
+#### Scenario: Rewrite
+
+- **WHEN** the migrated text of a file with `PORT: '{{port}}'` is requested
+- **THEN** it holds `PORT: '${port}'` and every other character is unchanged
+
+#### Scenario: Local runtime state
+
+- **WHEN** `variants.local.yaml` has `runtime.db.port: '{{POSTGRES_PORT}}'`
+- **THEN** it resolves as `${POSTGRES_PORT}` and the file is a migration candidate
+
+### Requirement: MariaDB detection
+
+The system SHALL autodetect MariaDB as the `mysql` dialect: a `DATABASE_URL` that starts with `mariadb`, and the
+variables `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, `MARIADB_PASSWORD` and `MARIADB_DATABASE`, read like their
+`MYSQL_` counterparts. When both a `MYSQL_` and a `MARIADB_` variable of one setting exist, the `MYSQL_` one SHALL win.
+Postgres still SHALL be detected before MySQL and MariaDB, and those before SQLite.
+
+#### Scenario: MariaDB URL
+
+- **WHEN** `DATABASE_URL` is `mariadb://app@localhost/app`
+- **THEN** the detected dialect is `mysql` and the URL is kept
+
+#### Scenario: MariaDB variables
+
+- **WHEN** mise defines `MARIADB_HOST`, `MARIADB_USER` and `MARIADB_DATABASE`
+- **THEN** the detected `db` is `mysql` with that host, user and database
+
+#### Scenario: MySQL wins
+
+- **WHEN** `MYSQL_HOST=a` and `MARIADB_HOST=b` are both set
+- **THEN** the detected host is `a`

@@ -32,6 +32,8 @@ export interface ViewDeps {
   /** Receives one entry per action and the lines the action reports. Absent in tests that do not read it. */
   log?: ActivityLog;
   loadClient?: LoadClient;
+  /** The editor setting `variant.mise.binPath`, read at every load so that a change applies without a reload. */
+  miseBinPath?: () => string | undefined;
   hasConfig?: () => boolean;
   kill?: (pid: number, signal: NodeJS.Signals) => void;
   /** The token of the running UI server; read from its file by default. */
@@ -60,7 +62,7 @@ const slugOf = (node: VariantNode | undefined): string | undefined =>
  * Specification: openspec/changes/vscode-view/specs/variant-vscode/variants-tree/spec.md
  */
 export const registerVariantsView = (context: vscode.ExtensionContext, deps: ViewDeps): VariantsView => {
-  const loadClient = deps.loadClient ?? loadVariantClient(deps.root);
+  const loadClient = deps.loadClient ?? loadVariantClient(deps.root, deps.miseBinPath);
   const store = createVariantsStore({
     loadClient,
     hasConfig: deps.hasConfig ?? (() => findConfigFile(deps.root) !== undefined && existsSync(deps.root)),

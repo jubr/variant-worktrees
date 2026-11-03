@@ -52,12 +52,12 @@ describe("the example project", () => {
     expect(variant.implode).toMatchObject({ preRm: ["dist", "node_modules", ".cache", "out"], discard: ["bun.lock"] });
     expect(variant.watches.be).toMatchObject({
       ready: "/api",
-      env: { sourceFile: ".env", overrides: { PORT: "{{port}}", SQLITE_DATABASE: "{{schema}}" } },
+      env: { sourceFile: ".env", overrides: { PORT: "${port}", SQLITE_DATABASE: "${schema}" } },
       container: { dockerfile: "be/Dockerfile", internalPort: 3000 },
     });
     expect(variant.watches.fe).toMatchObject({
       ready: "/",
-      env: { overrides: { PORT: "{{port}}", VARIANT_API_PORT: "{{be.port}}" } },
+      env: { overrides: { PORT: "${port}", VARIANT_API_PORT: "${be.port}" } },
       container: { dockerfile: "fe/Dockerfile" },
     });
   });

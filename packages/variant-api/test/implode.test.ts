@@ -289,7 +289,7 @@ describe("implode cleanup", () => {
       const report = messages.join("\n");
       expect(report).not.toContain("pr7-demo.webm");
       expect(report).toContain("modified:   rec/demo/pr2-demo.webm");
-    }, `${CONFIG}  implode: { preRm: ['rec/{{slug}}/pr*-demo.webm'] }\n`));
+    }, `${CONFIG}  implode: { preRm: ['rec/\${slug}/pr*-demo.webm'] }\n`));
 
   it("discards modified lockfiles after the report and leaves other modified files", () =>
     withProject(async ({ implode, worktree, messages }) => {

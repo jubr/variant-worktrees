@@ -184,10 +184,10 @@ describe("implode settings", () => {
 
   it("carries configured lists", () => {
     const { implode } = loaded(
-      'variant:\n  implode:\n    preRm: [dist, "openspec/changes/{{slug}}/pr*-demo.webm"]\n    discard: [bun.lock]\n    maxDiffLines: 10\n',
+      'variant:\n  implode:\n    preRm: [dist, "openspec/changes/${slug}/pr*-demo.webm"]\n    discard: [bun.lock]\n    maxDiffLines: 10\n',
     ).variant;
 
-    expect(implode.preRm).toEqual(["dist", "openspec/changes/{{slug}}/pr*-demo.webm"]);
+    expect(implode.preRm).toEqual(["dist", "openspec/changes/${slug}/pr*-demo.webm"]);
     expect(implode.discard).toEqual(["bun.lock"]);
     expect(implode.maxDiffLines).toBe(10);
   });
@@ -311,7 +311,7 @@ describe("watch runtime options", () => {
   const watch = {
     kind: "nestjs",
     dir: "be",
-    env: { sourceFile: ".env", overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } },
+    env: { sourceFile: ".env", overrides: { PORT: "${port}", PUBLIC_BASE_URL: "${url}" } },
     install: "bun install --frozen-lockfile",
     ready: "/api/health/live",
   };

@@ -1,10 +1,12 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { LOCAL_FILENAME, loadConfig } from "variant-config";
+import { LOCAL_FILENAME } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
+import { loadVariantConfig } from "./mise.js";
 import { createVariant } from "./operations/create.js";
 import { downVariant } from "./operations/down.js";
 import { implodeVariant } from "./operations/implode.js";
+import { initProject } from "./operations/init.js";
 import { listVariants } from "./operations/list.js";
 import { provisionVariant } from "./operations/provision.js";
 import { runtimeDirectories } from "./operations/records.js";
@@ -18,13 +20,27 @@ import type { VariantClient, VariantClientOptions } from "./types.js";
 
 export const createClient = (options: VariantClientOptions = {}): VariantClient => {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const config = options.config ?? loadConfig({ cwd, configPath: options.configPath ?? process.env.VARIANT_CONFIG });
+  const config =
+    options.config ??
+    loadVariantConfig({
+      cwd,
+      configPath: options.configPath ?? process.env.VARIANT_CONFIG,
+      miseBinPath: options.miseBinPath,
+    });
   const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));
-  mkdirSync(stateDir, { recursive: true });
-  migrateJsonStates(stateDir);
+  /** The state directory is made when a command needs it, so `init` leaves nothing behind. */
+  let stateReady = false;
+  const ensureState = (): void => {
+    if (!stateReady) {
+      mkdirSync(stateDir, { recursive: true });
+      migrateJsonStates(stateDir);
+      stateReady = true;
+    }
+  };
 
   const withAdapter = async <T>(operation: (context: OperationContext) => Promise<T>): Promise<T> => {
+    ensureState();
     const adapter = createDatabaseAdapter(config.db, stateDir);
     try {
       return await operation({
@@ -68,19 +84,36 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     status: (slug) => withAdapter((context) => statusVariant(context, slug)),
     provision: (slug, options) => withAdapter((context) => provisionVariant(context, slug, options)),
     config: () => config,
-    subscribe: subscriptions.subscribe,
+    init: async (initOptions) => initProject({ cwd, miseBinPath: options.miseBinPath }, initOptions),
+    subscribe: (listener) => {
+      ensureState();
+      return subscriptions.subscribe(listener);
+    },
   };
 };
 
 export { loadConfig } from "variant-config";
 export { listSlugs } from "./list-slugs.js";
+export {
+  type LoadVariantConfigOptions,
+  loadVariantConfig,
+  MiseError,
+  miseBinaryFor,
+  miseEnvironment,
+  readVariableSources,
+  runMiseTrust,
+} from "./mise.js";
+export { type AugmentMiseOptions, type AugmentMiseResult, augmentMiseConfig, MISE_TOOL } from "./mise-augment.js";
 export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
   DatabaseAdapter,
   DownResult,
   ImplodeResult,
+  InitOptions,
+  InitResult,
   ListOptions,
+  MiseFailure,
   RuntimeStatus,
   UpResult,
   VariantClient,

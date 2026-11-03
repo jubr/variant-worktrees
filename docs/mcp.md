@@ -25,6 +25,7 @@ MCP client configuration:
 
 ## Available tools
 
+- `variant_init({ prefix, file, gitignore, mise, force })` — bootstrap the working directory of the server: write `variants.yaml` from autodetection, add `<prefix>*` to `.gitignore` and the CLI to the Mise configuration; each of `file`, `gitignore` and `mise` is on unless `false`. It returns what each step did and acts in-process, not through the editor.
 - `variant_config` — print resolved configuration.
 - `variant_list({ verbose })` — list state and database variants with their mode, uptime and watch log file; with `verbose` every item carries all meta information, the same as `variant_status`.
 - `variant_status({ slug })` — everything known about one variant: the facts of `variant_list` plus a `runtime`

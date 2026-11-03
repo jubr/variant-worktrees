@@ -41,6 +41,7 @@ describe("embedded chat renamer manifest", () => {
       "variant.autoExpand",
       "variant.enable",
       "variant.hookScope",
+      "variant.mise.binPath",
       "variant.renameExistingDays",
       "variant.sort",
       "variant.titleEventPromptLines",
