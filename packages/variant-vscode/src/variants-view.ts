@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { findConfigFile } from "variant-config";
 import { type VariantSort, variantSort } from "variant-ui/state";
 import * as vscode from "vscode";
+import { createConfigMigration } from "./config-migration.ts";
 import { type ActivityLog, createActions, type VariantActions } from "./variants-actions.ts";
 import { openInBrowser, readServerToken } from "./variants-browser.ts";
 import { type LoadClient, loadVariantClient, messageOf } from "./variants-client.ts";
@@ -36,6 +37,8 @@ export interface ViewDeps {
   /** The token of the running UI server; read from its file by default. */
   readToken?: () => string | undefined;
   readIndex?: (directory: string) => string;
+  /** Rewrites a configuration that uses names of an earlier version and tells the user; see `createConfigMigration`. */
+  migrate?: () => void;
 }
 
 export interface VariantsView {
@@ -183,6 +186,11 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     autoExpandEnabled(vscode.workspace.getConfiguration("variant").get("autoExpand")),
     (command) => Promise.resolve(vscode.commands.executeCommand(command)),
   );
+  try {
+    (deps.migrate ?? createConfigMigration({ root: deps.root }).run)();
+  } catch (error) {
+    log?.error("configuration migration failed", error);
+  }
   syncContexts();
   void store.start();
   return { store, actions, loadClient };
