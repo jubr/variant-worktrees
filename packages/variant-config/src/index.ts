@@ -4,6 +4,7 @@ import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import { abbreviate, detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
 import { readRuntime } from "./local.js";
+import { type ParsedConfig, parseConfig } from "./parse.js";
 import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
 import {
   DEFAULT_BASE_BRANCH,
@@ -45,9 +46,9 @@ export const findConfigFile = (startDir = process.cwd()): string | undefined => 
   return undefined;
 };
 
-const readConfigFile = (configPath: string): VariantsConfig => {
+const readConfigFile = (configPath: string): ParsedConfig<VariantsConfig> => {
   const parsed: unknown = parseYaml(readFileSync(configPath, "utf8"));
-  return VariantsConfigSchema.parse(parsed ?? {});
+  return parseConfig(VariantsConfigSchema, parsed ?? {}, configPath);
 };
 
 const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbConfig => ({
@@ -111,7 +112,9 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     ? resolve(cwd, options.configPath)
     : (findConfigFile(cwd) ?? join(cwd, "variants.yaml"));
   const configExists = existsSync(configPath);
-  const config = configExists ? readConfigFile(configPath) : {};
+  const { data: config, warnings } = configExists
+    ? readConfigFile(configPath)
+    : { data: {} as VariantsConfig, warnings: [] };
   const configDir = dirname(configPath);
   const detected = detectConnection(configDir);
   const db = mergeDbConfig(detected.config, config.db);
@@ -128,6 +131,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     configPath,
     configDir,
     source,
+    warnings,
   };
 };
 
@@ -147,7 +151,7 @@ export const readPrefix = (startDir = process.cwd()): string => {
     return DEFAULT_PREFIX;
   }
   try {
-    return readConfigFile(configPath).variant?.prefix ?? DEFAULT_PREFIX;
+    return readConfigFile(configPath).data.variant?.prefix ?? DEFAULT_PREFIX;
   } catch {
     return DEFAULT_PREFIX;
   }
@@ -163,7 +167,7 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
     return {};
   }
   try {
-    return readConfigFile(configPath).chatRenamer ?? {};
+    return readConfigFile(configPath).data.chatRenamer ?? {};
   } catch {
     return {};
   }
@@ -182,6 +186,7 @@ export {
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
+export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, pickFreePort, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,

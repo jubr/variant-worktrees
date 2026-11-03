@@ -363,6 +363,21 @@ describe("MCP status and verbose list", () => {
       expect(text).not.toContain("secret");
     }));
 
+  it("variant_config carries the warning of an extra property", async () => {
+    const directory = tempDirectory();
+    try {
+      const configPath = join(directory, "variants.yaml");
+      writeFileSync(configPath, "db:\n  dialect: sqlite\n  colour: red\n");
+      const result = await mcp([...initMessages(), call(2, "variant_config")], configPath, { cwd: directory });
+      const config = JSON.parse(answer(result, 2).text);
+
+      expect(config.warnings).toEqual([`${configPath}: unknown key db.colour`]);
+      expect(config.db).not.toHaveProperty("colour");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("variant_status reports an unknown slug as an error that names it", () =>
     withRuntime(async (directory, configPath) => {
       const result = await mcp([...initMessages(), call(2, "variant_status", { slug: "ghost" })], configPath, {

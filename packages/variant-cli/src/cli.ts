@@ -9,6 +9,7 @@ import { completionsCommand, generateCompletions, isShell, SHELLS } from "./comp
 import { renderHelp } from "./help.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
+import { printWarnings } from "./warnings.js";
 
 const { version } = pkg;
 
@@ -39,6 +40,7 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
       const positional = (argv._ as unknown as { slug?: string }).slug;
       const args = collectArgs(definition, flags, positional);
       const client = createClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
+      printWarnings(client.config().warnings);
       const result = await definition.execute(client, args);
       console.log(
         renderOutput(String(definition.name), result, {

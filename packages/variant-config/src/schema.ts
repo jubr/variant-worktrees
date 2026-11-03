@@ -360,6 +360,8 @@ export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {
   configDir: string;
   runtime?: ResolvedRuntime;
   source: "mise" | "env" | "config" | "default";
+  /** One line per key of `variants.yaml` that the schema does not define; such keys are ignored. */
+  warnings: string[];
 };
 
 export const variantsJsonSchema = z.toJSONSchema(VariantsConfigSchema);

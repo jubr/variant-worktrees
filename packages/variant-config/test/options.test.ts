@@ -2,9 +2,25 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../src/index.js";
+import { parseConfig } from "../src/parse.js";
 import { VariantsConfigSchema } from "../src/schema.js";
 
-const variant = (value: unknown): boolean => VariantsConfigSchema.safeParse({ variant: value }).success;
+const FILE = "variants.yaml";
+
+/** Whether `variant` loads: an extra key only warns, every other violation fails. */
+const variant = (value: unknown): boolean => {
+  try {
+    parseConfig(VariantsConfigSchema, { variant: value }, FILE);
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** The warnings `variant` loads with, as key paths below `variant`. */
+const warned = (value: unknown): string[] =>
+  parseConfig(VariantsConfigSchema, { variant: value }, FILE).warnings.map((warning) =>
+    warning.replace(`${FILE}: unknown key variant.`, ""),
+  );
 const issues = (value: unknown): string =>
   JSON.stringify(VariantsConfigSchema.safeParse({ variant: value }).error?.issues ?? []);
 
@@ -87,8 +103,8 @@ describe("variant storage", () => {
     expect(variant({ storage: { dir: "data", envVarName: "APP_DATA" } })).toBe(true);
   });
 
-  it("rejects the former env key", () => {
-    expect(variant({ storage: { env: "APP_DATA" } })).toBe(false);
+  it("ignores the former env key with a warning", () => {
+    expect(warned({ storage: { env: "APP_DATA" } })).toEqual(["storage.env"]);
   });
 });
 
@@ -124,16 +140,16 @@ describe("provisioning steps", () => {
     expect(issues({ steps })).toContain("db_seed");
   });
 
-  it("rejects the former show and unlessEnv keys", () => {
-    expect(variant({ steps: [{ name: "a", run: "b", show: "^x" }] })).toBe(false);
-    expect(variant({ steps: [{ name: "a", run: "b", unlessEnv: { SKIP: "true" } }] })).toBe(false);
+  it("ignores the former show and unlessEnv keys with a warning each", () => {
+    expect(warned({ steps: [{ name: "a", run: "b", show: "^x" }] })).toEqual(["steps.0.show"]);
+    expect(warned({ steps: [{ name: "a", run: "b", unlessEnv: { SKIP: "true" } }] })).toEqual(["steps.0.unlessEnv"]);
   });
 
-  it("rejects an invalid filterLinesRegex pattern, an escaping dir and unknown keys", () => {
+  it("rejects an invalid filterLinesRegex pattern and an escaping dir, and warns for an unknown key", () => {
     expect(variant({ steps: [{ ...step, filterLinesRegex: "(" }] })).toBe(false);
     expect(variant({ steps: [{ ...step, dir: ".." }] })).toBe(false);
     expect(variant({ steps: [{ ...step, dir: "/abs" }] })).toBe(false);
-    expect(variant({ steps: [{ ...step, other: 1 }] })).toBe(false);
+    expect(warned({ steps: [{ ...step, other: 1 }] })).toEqual(["steps.0.other"]);
   });
 });
 
@@ -187,9 +203,11 @@ describe("implode settings", () => {
     expect(variant({ implode: { maxDiffLines: -1 } })).toBe(false);
   });
 
-  it("rejects the former untracked and restore keys", () => {
-    expect(variant({ implode: { untracked: ["x"] } })).toBe(false);
-    expect(variant({ implode: { restore: ["bun.lock"] } })).toBe(false);
+  it("ignores the former untracked and restore keys with a warning each", () => {
+    expect(warned({ implode: { untracked: ["x"], restore: ["bun.lock"] } }).sort()).toEqual([
+      "implode.restore",
+      "implode.untracked",
+    ]);
   });
 });
 
@@ -209,9 +227,9 @@ describe("instances as a keyed record", () => {
     expect(Object.keys(instances)).toEqual(["fe", "be"]);
   });
 
-  it("rejects a list, a name setting and bad keys", () => {
+  it("rejects a list and bad keys, and ignores a name setting with a warning", () => {
     expect(variant({ instances: [{ kind: "vite", dir: "fe" }] })).toBe(false);
-    expect(variant({ instances: { api: { kind: "nestjs", dir: "be", name: "api" } } })).toBe(false);
+    expect(warned({ instances: { api: { kind: "nestjs", dir: "be", name: "api" } } })).toEqual(["instances.api.name"]);
     expect(variant({ instances: { "1st": { kind: "vite", dir: "fe" } } })).toBe(false);
     expect(variant({ instances: { "a b": { kind: "vite", dir: "fe" } } })).toBe(false);
   });
@@ -277,23 +295,28 @@ describe("instance container", () => {
     expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: 1.5 }))).toBe(false);
   });
 
-  it("rejects the former image, build, static, port, proxy, volumes and env keys", () => {
-    const dockerfile = "be/Dockerfile";
+  it.each([
+    ["image", "app"],
+    ["build", "bunx vite build"],
+    ["static", "dist"],
+    ["port", 3000],
+    ["proxy", { path: "/api/", to: "be" }],
+    ["volumes", ["a:b"]],
+    ["env", { A: "b" }],
+  ])("ignores the former container key %s with a warning", (key, value) => {
+    expect(warned(withContainer({ dockerfile: "be/Dockerfile", [key]: value }))).toEqual([
+      `instances.be.container.${key}`,
+    ]);
+  });
 
-    expect(variant(withContainer({ dockerfile, image: "app" }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, build: "bunx vite build" }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, static: "dist" }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, port: 3000 }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, proxy: { path: "/api/", to: "be" } }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, volumes: ["a:b"] }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, env: { A: "b" } }))).toBe(false);
+  it("keeps a wrong type as an error", () => {
+    expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: "3000" }))).toBe(false);
   });
 });
 
 describe("variant-wide commands", () => {
-  it("rejects variant.up and variant.watch and keeps variant.seed", () => {
-    expect(variant({ up: "bun run dev" })).toBe(false);
-    expect(variant({ watch: "bun run watch" })).toBe(false);
-    expect(variant({ seed: "bun run seed" })).toBe(true);
+  it("ignores variant.up and variant.watch with a warning and keeps variant.seed", () => {
+    expect(warned({ up: "bun run dev", watch: "bun run watch" }).sort()).toEqual(["up", "watch"]);
+    expect(warned({ seed: "bun run seed" })).toEqual([]);
   });
 });
