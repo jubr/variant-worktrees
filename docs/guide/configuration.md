@@ -101,9 +101,9 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 | `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each watch directory; `{{slug}}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
 | `discard` | Base names of tracked files whose local changes are discarded, after the report |
 | `requireMerged` | `false` skips the merge gate (default `true`) |
-| `maxDiffLines` | The report holds the full `git diff` up to this many lines (default 200) |
+| `maxDiffLines` | How many kept lines of the filtered `git diff -U1` patches the report includes (default 200). The porcelain status, the stat and the trace lines are not counted. Over the limit every per-file patch is omitted |
 
-`implode` refuses `main`. Unless `force` is given it refuses work that is not an ancestor of `origin/<baseBranch>` (or `<baseBranch>` without a remote branch) and changes nothing. After the gate it stops the runtime, drops the database target, deletes the storage, clears the state, removes the `preRm` matches, prints `git status` and `git diff`, discards the changes of the `discard` files and removes the worktree. The branch stays.
+`implode` refuses `main`. Unless `force` is given it refuses work that is not an ancestor of `origin/<baseBranch>` (or `<baseBranch>` without a remote branch) and changes nothing. After the gate it stops the runtime, drops the database target, deletes the storage, clears the state, removes the `preRm` matches, prints a report of what the worktree still holds, discards the changes of the `discard` files and removes the worktree. The branch stays. The report is a dark-yellow `+ <command>` trace around plain `git status --porcelain`, `git diff --stat`, and one `git diff -U1 <path>` per changed file (the patch starts at the `+++` line). Git's own color is off.
 
 ### Watches
 
