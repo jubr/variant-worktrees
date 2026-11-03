@@ -59,6 +59,10 @@
         "title": "Variant: Rename active chat"
       },
       {
+        "command": "variant.onboardingInit",
+        "title": "Variant: Initialize in this Repo"
+      },
+      {
         "command": "variant.play",
         "title": "variant watch",
         "icon": "$(play)"
@@ -219,6 +223,11 @@
             "Write `~/.cursor/hooks.json`."
           ],
           "markdownDescription": "Which hooks.json receives the hook when `#variant.trigger#` is `hook`."
+        },
+        "variant.mise.binPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path of the [Mise](https://mise.jdx.dev) executable that Variant Worktrees runs to read the environment of a project, list its configuration files and trust them. Empty: the `variant.mise.binPath` key of `variants.yaml`, then `mise` on `PATH`, then the usual install locations. Changing it applies to the next call without a reload."
         }
       }
     },
@@ -227,7 +236,14 @@
         {
           "id": "variant.variants",
           "name": "Variant Worktrees",
-          "when": "workspaceFolderCount > 0",
+          "when": "workspaceFolderCount > 0 && !variant.onboardingOpen",
+          "visibility": "visible"
+        },
+        {
+          "id": "variant.onboarding",
+          "name": "Variant Worktrees",
+          "type": "webview",
+          "when": "workspaceFolderCount > 0 && variant.onboardingOpen",
           "visibility": "visible"
         }
       ]
@@ -280,6 +296,10 @@
         },
         {
           "command": "variant.openInBrowser",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "variant.onboardingInit",
           "when": "workspaceFolderCount > 0"
         }
       ],
@@ -353,12 +373,30 @@
         }
       ],
       "variant.sort": [
-        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
-        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
-        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
-        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
-        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
-        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+        {
+          "command": "variant.sort.nameAsc",
+          "group": "1_sort@1"
+        },
+        {
+          "command": "variant.sort.nameDesc",
+          "group": "1_sort@2"
+        },
+        {
+          "command": "variant.sort.createdAsc",
+          "group": "1_sort@3"
+        },
+        {
+          "command": "variant.sort.createdDesc",
+          "group": "1_sort@4"
+        },
+        {
+          "command": "variant.sort.changedAsc",
+          "group": "1_sort@5"
+        },
+        {
+          "command": "variant.sort.changedDesc",
+          "group": "1_sort@6"
+        }
       ]
     }
   }

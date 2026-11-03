@@ -37,7 +37,7 @@ const memento = (store = new Map<string, unknown>()): Memento & { store: Map<str
 });
 
 const setup = (
-  environment: NodeJS.ProcessEnv | (() => never),
+  environment: NodeJS.ProcessEnv | (() => NodeJS.ProcessEnv),
   options: { state?: Memento & { store: Map<string, unknown> }; pressed?: string; hasConfig?: boolean } = {},
 ) => {
   const state = options.state ?? memento();
