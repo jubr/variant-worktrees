@@ -7,8 +7,8 @@ import {
   type ResolvedConfig,
   readRuntime,
   resolveMainVscodeDir,
-  UI_INSTANCE_KEY,
   UI_PORT_ENV,
+  UI_WATCH_KEY,
   writeRuntime,
 } from "variant-config";
 
@@ -59,7 +59,7 @@ const isAlive = (pid: number): boolean => {
 /** The recorded entry of the UI server of the project. */
 export const readEntry = (cwd: string): UiEntry | undefined => {
   try {
-    return readRuntime(mainDirectory(cwd), {})?.instances?.[UI_INSTANCE_KEY];
+    return readRuntime(mainDirectory(cwd), {})?.watches?.[UI_WATCH_KEY];
   } catch {
     return undefined;
   }
@@ -74,20 +74,20 @@ export const runningEntry = (cwd: string): UiEntry | undefined => {
 export const writeEntry = (cwd: string, entry: UiEntry): void => {
   const dir = mainDirectory(cwd);
   const existing = readRuntime(dir, {}) ?? {};
-  writeRuntime(dir, { ...existing, instances: { ...existing.instances, [UI_INSTANCE_KEY]: entry } });
+  writeRuntime(dir, { ...existing, watches: { ...existing.watches, [UI_WATCH_KEY]: entry } });
 };
 
 /** Removes the entry, when it is the one of `pid` (or of any server, without `pid`); other runtime entries stay. */
 export const removeEntry = (cwd: string, pid?: number): void => {
   const dir = mainDirectory(cwd);
   const existing = readRuntime(dir, {});
-  const entry = existing?.instances?.[UI_INSTANCE_KEY];
+  const entry = existing?.watches?.[UI_WATCH_KEY];
   if (!existing || !entry || (pid !== undefined && entry.pid !== pid)) {
     return;
   }
-  const { [UI_INSTANCE_KEY]: _removed, ...others } = existing.instances ?? {};
-  const { instances: _instances, ...rest } = existing;
-  const next = Object.keys(others).length > 0 ? { ...rest, instances: others } : rest;
+  const { [UI_WATCH_KEY]: _removed, ...others } = existing.watches ?? {};
+  const { watches: _watches, ...rest } = existing;
+  const next = Object.keys(others).length > 0 ? { ...rest, watches: others } : rest;
   if (Object.keys(next).length === 0) {
     clearRuntime(dir);
   } else {

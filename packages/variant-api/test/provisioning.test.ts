@@ -84,7 +84,7 @@ describe("provisioning order", () => {
           "  dialect: sqlite",
           "variant:",
           `  seed: echo seed >> ${d}/order.log`,
-          "  instances:",
+          "  watches:",
           `    fe: { kind: vite, dir: fe, up: "echo up >> ${d}/order.log" }`,
           "  steps:",
           `    - { name: one, run: "echo one >> ${d}/order.log" }`,
@@ -215,13 +215,13 @@ describe("skippable and quiet steps", () => {
     ));
 });
 
-describe("instance install", () => {
+describe("watch install", () => {
   const yaml = (d: string) =>
     lines(
       "db:",
       "  dialect: sqlite",
       "variant:",
-      "  instances:",
+      "  watches:",
       `    fe: { kind: vite, dir: fe, install: "echo installed >> ${d}/install.log" }`,
     );
 
@@ -259,7 +259,7 @@ describe("command environment", () => {
       "  password: secret",
       "  database: appdb",
       "variant:",
-      "  instances:",
+      "  watches:",
       "    fe: { kind: vite, dir: fe, url: 'http://{{slug}}.vw.localhost:{{port}}' }",
       "    be: { kind: nestjs, dir: be }",
       "  steps:",
@@ -310,7 +310,7 @@ describe("command environment", () => {
       },
     ));
 
-  it("exposes the port and URL of every instance", () =>
+  it("exposes the port and URL of every watch", () =>
     withProject(
       () => dump(),
       async (directory, provision) => {
@@ -322,10 +322,10 @@ describe("command environment", () => {
         expect(env.VARIANT_FE_URL).toBe("http://demo.vw.localhost:62060");
         expect(env.VARIANT_BE_URL).toBeUndefined();
       },
-      { "variants.local.yaml": "runtime:\n  instances:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
     ));
 
-  it("lets the expanded instance overrides win for the instance's up command", () =>
+  it("lets the expanded watch overrides win for the watch's up command", () =>
     withProject(
       () =>
         dump().replace(
@@ -341,7 +341,7 @@ describe("command environment", () => {
       },
       {
         "be/.keep": "",
-        "variants.local.yaml": "runtime:\n  instances:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n",
+        "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n",
       },
     ));
 
@@ -355,7 +355,7 @@ describe("command environment", () => {
         expect(env.POSTGRES_SCHEMA).toBe("custom");
         expect(env.PEER).toBe("62061");
       },
-      { "variants.local.yaml": "runtime:\n  instances:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
     ));
 });
 
@@ -445,7 +445,7 @@ const DOTENV_YAML = (extra: string[] = []) =>
     "db:",
     "  dialect: sqlite",
     "variant:",
-    "  instances:",
+    "  watches:",
     "    be:",
     "      kind: nestjs",
     "      dir: be",

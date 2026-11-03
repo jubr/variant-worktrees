@@ -39,21 +39,21 @@ export const pickFreePort = async (range: PortRange, options: PickFreePortOption
 };
 
 /**
- * The port of the instance with the given key: `VARIANT_<KEY>_PORT` or `runtime.instances.<key>.port` of the local
+ * The port of the watch with the given key: `VARIANT_<KEY>_PORT` or `runtime.watches.<key>.port` of the local
  * runtime state (`loadConfig` has merged the two), otherwise a free port of `variant.ports.range`. Nothing is written,
  * so a picked port is not stable between calls; `writeRuntime` records one. A port that is assigned explicitly is
  * kept wherever it lies: the range limits only picked ports.
  */
-export const resolveInstancePort = async (config: ResolvedConfig, key: string): Promise<number> =>
-  config.runtime?.instances?.[key]?.port ?? (await pickFreePort(config.variant.ports));
+export const resolveWatchPort = async (config: ResolvedConfig, key: string): Promise<number> =>
+  config.runtime?.watches?.[key]?.port ?? (await pickFreePort(config.variant.ports));
 
-/** The `url` template of the instance with the given key, `{{slug}}`, `{{abbr}}` and `{{port}}` replaced, or nothing without one. */
+/** The `url` template of the watch with the given key, `{{slug}}`, `{{abbr}}` and `{{port}}` replaced, or nothing without one. */
 export const openUrlFor = async (config: ResolvedConfig, slug: string, key: string): Promise<string | undefined> => {
-  const template = config.variant.instances[key]?.url;
+  const template = config.variant.watches[key]?.url;
   if (template === undefined) {
     return undefined;
   }
-  const port = await resolveInstancePort(config, key);
+  const port = await resolveWatchPort(config, key);
   return template
     .replaceAll("{{slug}}", slug)
     .replaceAll("{{abbr}}", config.variant.abbr)

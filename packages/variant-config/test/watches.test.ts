@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { detectInstances } from "../src/autodetect.js";
+import { detectWatches } from "../src/autodetect.js";
 import { loadConfig } from "../src/index.js";
 import { DEFAULT_URL } from "../src/schema.js";
 
-const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-instances-"));
+const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-watches-"));
 
-describe("runtime instance discovery", () => {
-  it("gives a detected Vite instance the default template with the abbreviation placeholder", () => {
+describe("runtime watch discovery", () => {
+  it("gives a detected Vite watch the default template with the abbreviation placeholder", () => {
     expect(DEFAULT_URL).toBe("http://{{slug}}.{{abbr}}.localhost:{{port}}");
   });
 
@@ -20,29 +20,29 @@ describe("runtime instance discovery", () => {
       writeFileSync(join(directory, "app", "vite.config.ts"), "export default {};\n");
       writeFileSync(join(directory, "server", "nest-cli.json"), "{}\n");
 
-      const instances = detectInstances(directory);
+      const watches = detectWatches(directory);
 
-      expect(instances).toEqual({
+      expect(watches).toEqual({
         app: { kind: "vite", dir: "app", url: DEFAULT_URL, watch: "bunx --bun vite --clearScreen false" },
         server: { kind: "nestjs", dir: "server", watch: "bunx nest start --watch --preserveWatchOutput" },
       });
-      expect(Object.keys(instances)).toEqual(["app", "server"]);
+      expect(Object.keys(watches)).toEqual(["app", "server"]);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
 
-  it("uses explicit instances instead of filesystem autodetection", () => {
+  it("uses explicit watches instead of filesystem autodetection", () => {
     const directory = tempDirectory();
     try {
       mkdirSync(join(directory, "autodetected"), { recursive: true });
       writeFileSync(join(directory, "autodetected", "vite.config.ts"), "export default {};\n");
       writeFileSync(
         join(directory, "variants.yaml"),
-        "variant:\n  instances:\n    app:\n      kind: vite\n      dir: configured-app\n",
+        "variant:\n  watches:\n    app:\n      kind: vite\n      dir: configured-app\n",
       );
 
-      expect(loadConfig({ cwd: directory }).variant?.instances).toEqual({
+      expect(loadConfig({ cwd: directory }).variant?.watches).toEqual({
         app: { kind: "vite", dir: "configured-app" },
       });
     } finally {
@@ -60,7 +60,7 @@ describe("autodetected watch commands keep the console", () => {
       for (const [name, content] of Object.entries(files)) {
         writeFileSync(join(directory, "app", name), content);
       }
-      return Object.values(detectInstances(directory))[0]?.watch;
+      return Object.values(detectWatches(directory))[0]?.watch;
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

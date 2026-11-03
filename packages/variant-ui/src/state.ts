@@ -5,16 +5,14 @@ export { sortVariants, type VariantSort, variantSort } from "./sort.js";
 export type VariantState = "watching" | "up" | "down";
 
 /** The key under which the UI server records itself in the runtime state of `main`; it is not part of main's own run. */
-export const UI_INSTANCE_KEY = "variant-ui";
+export const UI_WATCH_KEY = "variant-ui";
 
 /**
- * `watching` or `up` when the record's mode has a live instance, otherwise `down`. A recorded mode whose processes are
+ * `watching` or `up` when the record's mode has a live watch, otherwise `down`. A recorded mode whose processes are
  * all gone is `down` and `stale`.
  */
 export const stateOf = (variant: Variant): { state: VariantState; stale: boolean } => {
-  const alive = Object.entries(variant.instances ?? {}).some(
-    ([key, instance]) => key !== UI_INSTANCE_KEY && instance.alive,
-  );
+  const alive = Object.entries(variant.watches ?? {}).some(([key, watch]) => key !== UI_WATCH_KEY && watch.alive);
   if (variant.mode === undefined) {
     return { state: "down", stale: false };
   }

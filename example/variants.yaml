@@ -17,7 +17,7 @@ variant:
     preRm: [dist, node_modules, .cache, out] # removed below the project and fe/ and be/ before the worktree goes
     discard: [bun.lock] # a lockfile touched by `bun install` does not block the removal
   # be comes first: the nginx of fe resolves the be container by name when it starts.
-  instances:
+  watches:
     be:
       kind: nestjs
       dir: be

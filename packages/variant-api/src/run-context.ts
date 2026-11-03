@@ -6,13 +6,13 @@ import {
   type ResolvedConfig,
   renderTemplate,
   type TemplateContext,
-  type VariantInstance,
+  type VariantWatch,
 } from "variant-config";
 import type { OperationContext } from "./operations/types.js";
 import { readVariantRuntime, variantConfigDir } from "./runtime-state.js";
 import { primaryWorktree } from "./worktree.js";
 
-/** Everything the commands of one variant run need to know: where it lives and which ports its instances use. */
+/** Everything the commands of one variant run need to know: where it lives and which ports its watches use. */
 export interface VariantRun {
   slug: string;
   /** The project abbreviation, `variant.abbr`. */
@@ -30,9 +30,9 @@ export interface VariantRun {
   projectDir: string;
   /** The project directory of the primary checkout. */
   primaryProjectDir: string;
-  /** The assigned port of every instance, by key. */
+  /** The assigned port of every watch, by key. */
   ports: Record<string, number>;
-  /** The rendered `open` URL of every instance that has a template, by key. */
+  /** The rendered `open` URL of every watch that has a template, by key. */
   urls: Record<string, string>;
   /** The absolute storage directory, when `variant.storage` is configured. */
   storage?: string;
@@ -54,7 +54,7 @@ const primaryOf = (cwd: string, worktree: string): string => {
   }
 };
 
-/** Fails when two instances are given the same port through `VARIANT_<KEY>_PORT`, naming both variables. */
+/** Fails when two watches are given the same port through `VARIANT_<KEY>_PORT`, naming both variables. */
 const assertDistinctOverrides = (keys: string[], env: NodeJS.ProcessEnv = process.env): void => {
   const seen = new Map<string, string>();
   for (const key of keys) {
@@ -65,13 +65,13 @@ const assertDistinctOverrides = (keys: string[], env: NodeJS.ProcessEnv = proces
     }
     const other = seen.get(value);
     if (other) {
-      throw new Error(`${other} and ${name} are both ${value}: every instance needs its own port`);
+      throw new Error(`${other} and ${name} are both ${value}: every watch needs its own port`);
     }
     seen.set(value, name);
   }
 };
 
-/** Assigns a port to every instance that has none in `ports` and renders the instance URLs. */
+/** Assigns a port to every watch that has none in `ports` and renders the watch URLs. */
 export const prepareRun = async (
   context: OperationContext,
   slug: string,
@@ -81,12 +81,12 @@ export const prepareRun = async (
   const { config } = context;
   const target = slug === "main" ? (config.db.schema ?? "public") : context.adapter.target(slug);
   const recorded = readVariantRuntime(config, worktree);
-  assertDistinctOverrides(Object.keys(config.variant.instances));
+  assertDistinctOverrides(Object.keys(config.variant.watches));
   const ports: Record<string, number> = {};
-  for (const key of Object.keys(config.variant.instances)) {
+  for (const key of Object.keys(config.variant.watches)) {
     ports[key] =
       assigned[key] ??
-      recorded?.instances?.[key]?.port ??
+      recorded?.watches?.[key]?.port ??
       (await pickFreePort(config.variant.ports, { exclude: Object.values(ports) }));
   }
   const storage = config.variant.storage ? join(worktree, config.variant.storage.dir) : undefined;
@@ -104,15 +104,15 @@ export const prepareRun = async (
     urls: {},
     ...(storage ? { storage } : {}),
   };
-  for (const [key, instance] of Object.entries(config.variant.instances)) {
-    if (instance.url !== undefined) {
-      run.urls[key] = renderTemplate(instance.url, templateContext(run, key));
+  for (const [key, watch] of Object.entries(config.variant.watches)) {
+    if (watch.url !== undefined) {
+      run.urls[key] = renderTemplate(watch.url, templateContext(run, key));
     }
   }
   return run;
 };
 
-/** The template values of an instance (`key`), or of a step or variant-wide command (no `key`). */
+/** The template values of a watch (`key`), or of a step or variant-wide command (no `key`). */
 export const templateContext = (run: VariantRun, key?: string): TemplateContext => ({
   slug: run.slug,
   abbr: run.abbr,
@@ -124,7 +124,7 @@ export const templateContext = (run: VariantRun, key?: string): TemplateContext 
   ports: run.ports,
 });
 
-/** `env` of a step or instance with its templates expanded. */
+/** `env` of a step or watch with its templates expanded. */
 export const expandEnv = (
   values: Readonly<Record<string, string>> | undefined,
   run: VariantRun,
@@ -161,7 +161,7 @@ const defined = (entries: Record<string, string | undefined>): Record<string, st
 
 /**
  * The variables of a variant that every command sees on top of the process environment: the variant, its database
- * target and connection settings, the storage directory and the port and URL of every instance. A container reaches the
+ * target and connection settings, the storage directory and the port and URL of every watch. A container reaches the
  * host database under its own name, so it keeps `host.docker.internal`; commands on the host get `127.0.0.1`.
  */
 export const variantVariables = (
@@ -190,7 +190,7 @@ export const variantVariables = (
   if (run.storage && config.variant.storage) {
     variables[config.variant.storage.envVarName] = run.storage;
   }
-  for (const key of Object.keys(config.variant.instances)) {
+  for (const key of Object.keys(config.variant.watches)) {
     const segment = envSegment(key);
     variables[`VARIANT_${segment}_PORT`] = String(run.ports[key]);
     variables[`VARIANT_${segment}_URL`] = run.urls[key];
@@ -198,16 +198,16 @@ export const variantVariables = (
   return defined(variables);
 };
 
-/** The environment of a host command: the process, the variant, then the expanded `env` of the step or instance. */
+/** The environment of a host command: the process, the variant, then the expanded `env` of the step or watch. */
 export const commandEnvironment = (
   config: ResolvedConfig,
   run: VariantRun,
   env: Readonly<Record<string, string>> | undefined,
-  instanceKey?: string,
+  watchKey?: string,
 ): NodeJS.ProcessEnv => ({
   ...process.env,
   ...variantVariables(config, run),
-  ...expandEnv(env, run, instanceKey),
+  ...expandEnv(env, run, watchKey),
 });
 
-export type { VariantInstance };
+export type { VariantWatch };

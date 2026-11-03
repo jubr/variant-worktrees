@@ -4,13 +4,13 @@ import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
 
-const withProject = async (instance: string, run: (log: string[], watch: () => Promise<unknown>) => Promise<void>) => {
+const withProject = async (watch: string, run: (log: string[], watch: () => Promise<unknown>) => Promise<void>) => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-watch-warning-")));
   try {
     mkdirSync(join(directory, "be"));
     writeFileSync(
       join(directory, "variants.yaml"),
-      `db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: be${instance} }\n`,
+      `db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be${watch} }\n`,
     );
     const client = createClient({
       config: loadConfig({ cwd: directory, env: {} }),
@@ -36,7 +36,7 @@ describe("watch without commands", () => {
       expect(warning).not.toContain("variant.watch");
     }));
 
-  it("does not warn when an instance has a watch command", () =>
+  it("does not warn when a watch has a watch command", () =>
     withProject(", watch: sleep 0", async (log, watch) => {
       await watch();
 

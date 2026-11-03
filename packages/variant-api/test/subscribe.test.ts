@@ -155,7 +155,7 @@ describe("client.subscribe", () => {
       }
     }));
 
-  it("marks an instance dead within the liveness interval after its process ends without down", () =>
+  it("marks a watch dead within the liveness interval after its process ends without down", () =>
     withProject(
       async ({ client, put }) => {
         const child = spawn("sleep", ["30"], { stdio: "ignore" });
@@ -165,14 +165,14 @@ describe("client.subscribe", () => {
         try {
           put(
             "_v-demo/variants.local.yaml",
-            `runtime:\n  slug: demo\n  mode: watch\n  instances:\n    fe: { pid: ${child.pid} }\n`,
+            `runtime:\n  slug: demo\n  mode: watch\n  watches:\n    fe: { pid: ${child.pid} }\n`,
           );
-          await received.until((update) => update.records.some((variant) => variant.instances?.fe?.alive === true));
+          await received.until((update) => update.records.some((variant) => variant.watches?.fe?.alive === true));
 
           child.kill("SIGKILL");
           await exited;
 
-          await received.until((update) => update.records.some((variant) => variant.instances?.fe?.alive === false));
+          await received.until((update) => update.records.some((variant) => variant.watches?.fe?.alive === false));
         } finally {
           unsubscribe();
           child.kill("SIGKILL");
@@ -226,7 +226,7 @@ describe("state subscriptions", () => {
         record("demo", {
           mode: "watch",
           uptimeSeconds: uptime,
-          instances: { fe: { alive: true, uptimeSeconds: uptime } },
+          watches: { fe: { alive: true, uptimeSeconds: uptime } },
         }),
       ],
       targets: () => [],

@@ -1,4 +1,4 @@
-import { UI_INSTANCE_KEY } from "variant-config";
+import { UI_WATCH_KEY } from "variant-config";
 import { containerName, engineHas, findContainerEngine, networkName, runEngine } from "../containers.js";
 import type { ProgressLog } from "../echo.js";
 import { locateWorktree } from "../locate.js";
@@ -16,11 +16,11 @@ export const stopHostProcesses = async (
 ): Promise<DownResult["processes"]> => {
   const runtime = readVariantRuntime(context.config, worktree);
   const stopped: DownResult["processes"] = [];
-  for (const [key, instance] of Object.entries(runtime?.instances ?? {})) {
+  for (const [key, watch] of Object.entries(runtime?.watches ?? {})) {
     // The UI server is not part of main's own lifecycle; `variant ui --stop` ends it.
-    if (key !== UI_INSTANCE_KEY && instance.pid !== undefined && ownedByWorktree(instance.pid, worktree)) {
-      await stopProcessTree(instance.pid);
-      stopped.push({ key, pid: instance.pid });
+    if (key !== UI_WATCH_KEY && watch.pid !== undefined && ownedByWorktree(watch.pid, worktree)) {
+      await stopProcessTree(watch.pid);
+      stopped.push({ key, pid: watch.pid });
     }
   }
   return stopped;
@@ -33,8 +33,8 @@ export const stopContainers = (
   log: ProgressLog = logToStderr,
 ): Pick<DownResult, "containers" | "networks"> => {
   const { config } = context;
-  const keys = Object.entries(config.variant.instances)
-    .filter(([, instance]) => instance.container !== undefined)
+  const keys = Object.entries(config.variant.watches)
+    .filter(([, watch]) => watch.container !== undefined)
     .map(([key]) => key);
   const result: Pick<DownResult, "containers" | "networks"> = { containers: [], networks: [] };
   const engine = keys.length > 0 ? findContainerEngine(config) : undefined;

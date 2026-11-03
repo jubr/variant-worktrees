@@ -46,7 +46,7 @@ mise use github:jubr/variant-worktrees
 
 `variant` is then available in that project. A checkout of this repository builds the CLI instead: see [Building](/development/building).
 
-What `watch` runs, which ports it picks, and which database it uses live in `variants.yaml`. Instances, templates, and every option are in [Configuration](./configuration). Database settings load from `mise.local.toml`, then environment variables.
+What `watch` runs, which ports it picks, and which database it uses live in `variants.yaml`. Watches, templates, and every option are in [Configuration](./configuration). Database settings load from `mise.local.toml`, then environment variables.
 
 ## Requirements
 

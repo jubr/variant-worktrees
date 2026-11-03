@@ -2,10 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { abbreviate, detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
+import { abbreviate, detectConnection, detectVariantMain, detectVariantRoot, detectWatches } from "./autodetect.js";
 import { readRuntime } from "./local.js";
 import { type ParsedConfig, parseConfig } from "./parse.js";
-import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
+import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantsConfig, VariantWatch } from "./schema.js";
 import {
   DEFAULT_BASE_BRANCH,
   DEFAULT_BRANCH_PREFIXES,
@@ -57,8 +57,13 @@ const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbCo
   ...explicit,
 });
 
-const resolveInstances = (config: VariantsConfig, configDir: string): Record<string, VariantInstance> =>
-  config.variant?.instances ?? detectInstances(configDir);
+/** The configured watches with `dir` defaulted to the key, else the autodetected ones (which carry their `dir`). */
+const resolveWatches = (config: VariantsConfig, configDir: string): Record<string, VariantWatch> =>
+  config.variant?.watches
+    ? Object.fromEntries(
+        Object.entries(config.variant.watches).map(([key, watch]) => [key, { ...watch, dir: watch.dir ?? key }]),
+      )
+    : detectWatches(configDir);
 
 /** `variant.open`, unless `VARIANT_OPEN=0` turns opening off. */
 const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
@@ -79,7 +84,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
     abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
-    instances: resolveInstances(config, configDir),
+    watches: resolveWatches(config, configDir),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
     branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
     open: resolveOpen(variant.open, env),
@@ -128,7 +133,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const source = config.db ? "config" : detected.source;
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env);
-  const runtime = readRuntime(configDir, env, Object.keys(variant.instances));
+  const runtime = readRuntime(configDir, env, Object.keys(variant.watches));
 
   return {
     ...config,
@@ -145,8 +150,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
   config.variants?.[slug]?.seed ?? config.variant.seed;
 
-export const runtimeCommandFor = (kind: "up" | "watch", instance: VariantInstance): string | undefined =>
-  instance[kind];
+export const runtimeCommandFor = (kind: "up" | "watch", watch: VariantWatch): string | undefined => watch[kind];
 
 /**
  * Only the variant name prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
@@ -185,29 +189,29 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 export {
   abbreviate,
   detectConnection,
-  detectInstances,
   detectVariantMain,
   detectVariantRoot,
+  detectWatches,
   findMiseFile,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
 export { type ParsedConfig, parseConfig } from "./parse.js";
-export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveInstancePort } from "./ports.js";
+export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
-  InstanceContainer,
   PortRange,
   ResolvedConfig,
   ResolvedRuntime,
   Runtime,
   VariantEntry,
-  VariantInstance,
   VariantRuntime,
   VariantsConfig,
   VariantsLocal,
+  VariantWatch,
+  WatchContainer,
 } from "./schema.js";
 export {
   DEFAULT_PORT_RANGE,
@@ -215,8 +219,8 @@ export {
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
-  UI_INSTANCE_KEY,
   UI_PORT_ENV,
+  UI_WATCH_KEY,
   VariantsConfigSchema,
   VariantsLocalSchema,
   variantsJsonSchema,

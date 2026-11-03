@@ -8,9 +8,9 @@ export interface TemplateContext {
   storage?: string;
   worktree?: string;
   url?: string;
-  /** The port of the instance the value belongs to. */
+  /** The port of the watch the value belongs to. */
   port?: number | string;
-  /** The ports of all instances, by key, for `{{<key>.port}}`. */
+  /** The ports of all watches, by key, for `{{<key>.port}}`. */
   ports?: Readonly<Record<string, number | string>>;
   /** The environment for `{{NAME}}`; the process environment by default. */
   env?: NodeJS.ProcessEnv;
@@ -33,7 +33,7 @@ export const renderTemplate = (value: string, context: TemplateContext = {}): st
       const key = name.slice(0, -".port".length);
       const port = context.ports?.[key];
       if (port === undefined) {
-        throw new Error(`Template {{${name}}} names instance ${key}, which has no port`);
+        throw new Error(`Template {{${name}}} names watch ${key}, which has no port`);
       }
       return String(port);
     }

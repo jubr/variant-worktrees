@@ -220,7 +220,7 @@
           "type": "string",
           "minLength": 1
         },
-        "instances": {
+        "watches": {
           "type": "object",
           "propertyNames": {
             "type": "string",
@@ -301,8 +301,7 @@
               }
             },
             "required": [
-              "kind",
-              "dir"
+              "kind"
             ],
             "additionalProperties": false
           }

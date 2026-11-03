@@ -117,7 +117,7 @@ describe("variant CLI", () => {
     const configPath = join(directory, "variants.yaml");
     writeFileSync(
       configPath,
-      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
     );
     try {
       const result = await runCli(["watch", "-s", "demo", "--json"], { VARIANT_CONFIG: configPath });

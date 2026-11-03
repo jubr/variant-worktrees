@@ -7,7 +7,7 @@ import {
   type ResolvedConfig,
   runtimeCommandFor,
   seedCommandFor,
-  type VariantInstance,
+  type VariantWatch,
 } from "variant-config";
 import { echoCommand, type ProgressLog } from "./echo.js";
 import type { OperationContext } from "./operations/types.js";
@@ -51,40 +51,40 @@ export const execute = (command: string, cwd: string, env: NodeJS.ProcessEnv): E
 
 const lineEnd = (text: string): string => (text === "" || text.endsWith("\n") ? text : `${text}\n`);
 
-/** The source of an instance's env file copy: `VARIANT_ENV_SOURCE`, the primary worktree's file, then its `.example`. */
-const envFileSources = (run: VariantRun, instance: VariantInstance, sourceFile: string): string[] => {
+/** The source of a watch's env file copy: `VARIANT_ENV_SOURCE`, the primary worktree's file, then its `.example`. */
+const envFileSources = (run: VariantRun, watch: VariantWatch, sourceFile: string): string[] => {
   const override = process.env.VARIANT_ENV_SOURCE;
-  const inPrimary = join(run.primaryProjectDir, instance.dir, sourceFile);
+  const inPrimary = join(run.primaryProjectDir, watch.dir, sourceFile);
   return [...(override ? [resolve(run.primaryProjectDir, override)] : []), inPrimary, `${inPrimary}.example`];
 };
 
 /**
- * Writes the env file of one instance, once: its `overrides` and the storage variable are applied when the copy is
+ * Writes the env file of one watch, once: its `overrides` and the storage variable are applied when the copy is
  * created. An existing file and the primary worktree stay as they are. Returns what to print.
  */
-const prepareEnvFile = (config: ResolvedConfig, run: VariantRun, key: string, instance: VariantInstance): string => {
-  const sourceFile = instance.env?.sourceFile;
+const prepareEnvFile = (config: ResolvedConfig, run: VariantRun, key: string, watch: VariantWatch): string => {
+  const sourceFile = watch.env?.sourceFile;
   if (sourceFile === undefined || run.isPrimary) {
     return "";
   }
-  const path = join(run.projectDir, instance.dir, sourceFile);
+  const path = join(run.projectDir, watch.dir, sourceFile);
   if (existsSync(path)) {
-    return `Skipped copy of ${instance.dir}/${sourceFile}: it already exists\n`;
+    return `Skipped copy of ${watch.dir}/${sourceFile}: it already exists\n`;
   }
-  const source = envFileSources(run, instance, sourceFile).find((candidate) => existsSync(candidate));
+  const source = envFileSources(run, watch, sourceFile).find((candidate) => existsSync(candidate));
   const entries = {
     ...(run.storage && config.variant.storage ? { [config.variant.storage.envVarName]: run.storage } : {}),
-    ...expandEnv(instance.env?.overrides, run, key),
+    ...expandEnv(watch.env?.overrides, run, key),
   };
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, amendDotenv(source ? readFileSync(source, "utf8") : "", entries));
   return source
-    ? `Copied ${instance.dir}/${sourceFile} from ${source}\n`
-    : `Warning: no source for ${instance.dir}/${sourceFile}; wrote only the configured values\n`;
+    ? `Copied ${watch.dir}/${sourceFile} from ${source}\n`
+    : `Warning: no source for ${watch.dir}/${sourceFile}; wrote only the configured values\n`;
 };
 
 /**
- * Prepares a variant for its instances, one pipeline for `provision`, `up` and `watch`: storage directory, instance
+ * Prepares a variant for its watches, one pipeline for `provision`, `up` and `watch`: storage directory, watch
  * dependency installs, env file copies, the `up` commands, the steps of `variant.steps` and the seed command. The first
  * failure stops the pipeline and names the command.
  */
@@ -110,26 +110,26 @@ export const runProvisioning = (
   if (run.storage) {
     mkdirSync(run.storage, { recursive: true });
   }
-  const instances = Object.entries(config.variant.instances);
+  const watches = Object.entries(config.variant.watches);
 
-  for (const [key, instance] of instances) {
-    const dir = resolve(run.projectDir, instance.dir);
-    if (instance.install && !existsSync(join(dir, "node_modules"))) {
-      command(instance.install, dir, commandEnvironment(config, run, instance.env?.overrides, key), "Install");
+  for (const [key, watch] of watches) {
+    const dir = resolve(run.projectDir, watch.dir);
+    if (watch.install && !existsSync(join(dir, "node_modules"))) {
+      command(watch.install, dir, commandEnvironment(config, run, watch.env?.overrides, key), "Install");
     }
   }
-  for (const [key, instance] of instances) {
-    output += prepareEnvFile(config, run, key, instance);
+  for (const [key, watch] of watches) {
+    output += prepareEnvFile(config, run, key, watch);
   }
 
-  const upCommands = instances.flatMap(([key, instance]) => {
-    const text = runtimeCommandFor("up", instance);
+  const upCommands = watches.flatMap(([key, watch]) => {
+    const text = runtimeCommandFor("up", watch);
     return text
       ? [
           {
             text,
-            cwd: resolve(run.projectDir, instance.dir),
-            env: commandEnvironment(config, run, instance.env?.overrides, key),
+            cwd: resolve(run.projectDir, watch.dir),
+            env: commandEnvironment(config, run, watch.env?.overrides, key),
           },
         ]
       : [];

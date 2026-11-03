@@ -30,7 +30,7 @@ describe("variant rows", () => {
         mode: "watch",
         url: "http://demo.vw.localhost:62060",
         uptimeSeconds: 125,
-        instances: { fe: { alive: true, url: "http://demo.vw.localhost:62060" } },
+        watches: { fe: { alive: true, url: "http://demo.vw.localhost:62060" } },
       },
     ]);
 
@@ -44,7 +44,7 @@ describe("variant rows", () => {
   });
 
   it("shows an up row", () => {
-    renderList([{ slug: "demo", mode: "up", instances: { fe: { alive: true } } }]);
+    renderList([{ slug: "demo", mode: "up", watches: { fe: { alive: true } } }]);
 
     expect(within(row("demo")).getByText("up")).toBeTruthy();
     expect(iconOf(row("demo"))).toContain("codicon-play-circle");
@@ -59,7 +59,7 @@ describe("variant rows", () => {
   });
 
   it("shows a record whose processes are all dead as down and stale", () => {
-    renderList([{ slug: "demo", mode: "watch", instances: { fe: { alive: false } } }]);
+    renderList([{ slug: "demo", mode: "watch", watches: { fe: { alive: false } } }]);
 
     expect(within(row("demo")).getByText("down")).toBeTruthy();
     expect(within(row("demo")).getByText(/stale/)).toBeTruthy();
@@ -67,8 +67,8 @@ describe("variant rows", () => {
 
   it("tells the three states apart by icon and label, not by colour alone", () => {
     renderList([
-      { slug: "a", mode: "watch", instances: { fe: { alive: true } } },
-      { slug: "b", mode: "up", instances: { fe: { alive: true } } },
+      { slug: "a", mode: "watch", watches: { fe: { alive: true } } },
+      { slug: "b", mode: "up", watches: { fe: { alive: true } } },
       { slug: "c" },
     ]);
 
@@ -97,7 +97,7 @@ describe("variant rows", () => {
       {
         slug: "main",
         changedMs: 3,
-        instances: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
+        watches: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
       },
       { slug: "new", changedMs: 5 },
     ]);

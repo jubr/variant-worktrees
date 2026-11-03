@@ -65,7 +65,7 @@ const BASE = lines(
   "  dialect: sqlite",
   "variant:",
   "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 3, checkoutPollSeconds: 0 }",
-  "  instances:",
+  "  watches:",
   `    be: ${watcher("be")}`,
   `    fe: ${watcher("fe", ", url: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
 );
@@ -80,11 +80,11 @@ interface Project {
   /** An attached watch that ends when `stop()` is called. */
   attach: (options?: WatchOptions) => { done: Promise<WatchResult>; stop: () => void };
   localFile: string;
-  runtime: () => { instances: Record<string, { port?: number; pid?: number; url?: string }>; log?: string } & Record<
+  runtime: () => { watches: Record<string, { port?: number; pid?: number; url?: string }>; log?: string } & Record<
     string,
     unknown
   >;
-  /** The pid of a started instance, once it has written its marker. */
+  /** The pid of a started watch, once it has written its marker. */
   started: (who: string) => Promise<number>;
 }
 
@@ -196,7 +196,7 @@ const orderLog = (directory: string): { who: string; at: number }[] =>
     .map((line) => ({ who: line.split(" ")[0] as string, at: Number(line.split(" ")[1]) }));
 
 describe("watch starts host processes", () => {
-  it("starts every instance with a watch command in order, waits between them and records the pids", () =>
+  it("starts every watch with a watch command in order, waits between them and records the pids", () =>
     withProject(
       async ({ watch, directory, runtime, started, messages }) => {
         const result = await watch({ detach: true });
@@ -206,8 +206,8 @@ describe("watch starts host processes", () => {
         expect(result.exitCode).toBe(0);
         expect(result.processes.map(({ key }) => key)).toEqual(["be", "fe"]);
         expect(runtime().mode).toBe("watch");
-        expect(runtime().instances.be?.pid).toBe(result.processes[0]?.pid);
-        expect(runtime().instances.fe?.pid).toBe(result.processes[1]?.pid);
+        expect(runtime().watches.be?.pid).toBe(result.processes[0]?.pid);
+        expect(runtime().watches.fe?.pid).toBe(result.processes[1]?.pid);
         expect(isProcessAlive(be) && isProcessAlive(fe)).toBe(true);
         const [first, second] = orderLog(directory);
         expect([first?.who, second?.who]).toEqual(["be", "fe"]);
@@ -217,7 +217,7 @@ describe("watch starts host processes", () => {
       BASE.replace("startDelaySeconds: 0", "startDelaySeconds: 1"),
     ));
 
-  it("does not start an instance without a watch command", () =>
+  it("does not start a watch without a watch command", () =>
     withProject(
       async ({ watch, started, directory }) => {
         const result = await watch({ detach: true });
@@ -275,12 +275,12 @@ describe("watch starts host processes", () => {
   it("keeps the variant-ui entry that the server recorded in the runtime state of main", () =>
     withProject(async ({ watch, localFile, runtime }) => {
       const ui = { port: 62100, pid: process.pid, url: "http://ui.vw.localhost:62100" };
-      writeFileSync(localFile, stringifyYaml({ runtime: { instances: { "variant-ui": ui } } }));
+      writeFileSync(localFile, stringifyYaml({ runtime: { watches: { "variant-ui": ui } } }));
 
       await watch({ detach: true }, "main");
 
-      expect(runtime().instances["variant-ui"]).toEqual(ui);
-      expect(Object.keys(runtime().instances).sort()).toEqual(["be", "fe", "variant-ui"]);
+      expect(runtime().watches["variant-ui"]).toEqual(ui);
+      expect(Object.keys(runtime().watches).sort()).toEqual(["be", "fe", "variant-ui"]);
     }));
 
   it("never touches the database target of main", () =>
@@ -297,7 +297,7 @@ describe("watch supervision", () => {
       const { done, stop } = attach();
       const be = await started("be");
       const fe = await started("fe");
-      await until(() => runtime().instances.fe?.pid !== undefined);
+      await until(() => runtime().watches.fe?.pid !== undefined);
 
       stop();
       const result = await done;
@@ -305,8 +305,8 @@ describe("watch supervision", () => {
       expect(result.exitCode).toBe(130);
       await untilDead(be);
       await untilDead(fe);
-      expect(runtime().instances.be?.pid).toBeUndefined();
-      expect(runtime().instances.fe?.pid).toBeUndefined();
+      expect(runtime().watches.be?.pid).toBeUndefined();
+      expect(runtime().watches.fe?.pid).toBeUndefined();
     }));
 
   it("ends with 130 on SIGINT", () =>
@@ -322,7 +322,7 @@ describe("watch supervision", () => {
       await untilDead(be);
     }));
 
-  it("ends the other instances with 1 when one dies", () =>
+  it("ends the other watches with 1 when one dies", () =>
     withProject(
       async ({ attach, started }) => {
         const { done } = attach();
@@ -395,13 +395,13 @@ describe("watch readiness and opening", () => {
         (project) => run(project, health),
         yaml.replace("kind: nestjs, dir: be,", "kind: nestjs, dir: be, ready: /health,"),
         {
-          "variants.local.yaml": `runtime:\n  instances:\n    be: { port: ${health.port} }\n    fe: { port: 62060 }\n`,
+          "variants.local.yaml": `runtime:\n  watches:\n    be: { port: ${health.port} }\n    fe: { port: 62060 }\n`,
         },
         env,
       ),
     );
 
-  it("opens the URLs after the instance with ready answers", () =>
+  it("opens the URLs after the watch with ready answers", () =>
     withHealth(1500, async ({ attach, opened, messages }, health) => {
       const { done, stop } = attach();
 
@@ -416,7 +416,7 @@ describe("watch readiness and opening", () => {
       await done;
     }));
 
-  it("opens right away when no instance sets ready", () =>
+  it("opens right away when no watch sets ready", () =>
     withProject(async ({ attach, opened }) => {
       const { done, stop } = attach();
 
@@ -427,7 +427,7 @@ describe("watch readiness and opening", () => {
       await done;
     }));
 
-  it("warns after readyTimeoutSeconds, opens nothing and keeps the instances running", () =>
+  it("warns after readyTimeoutSeconds, opens nothing and keeps the watches running", () =>
     withHealth(
       60_000,
       async ({ attach, opened, messages, started }) => {

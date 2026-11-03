@@ -12,7 +12,7 @@ const URL_LINE = /^http:\/\/ui\.[a-z0-9-]+\.localhost:\d+\/\?token=[A-Za-z0-9_-]
 
 interface Listed {
   slug: string;
-  instances?: Record<string, { port?: number; pid?: number; url?: string; alive?: boolean }>;
+  watches?: Record<string, { port?: number; pid?: number; url?: string; alive?: boolean }>;
 }
 
 const listed = async (environment: Record<string, string>, directory: string): Promise<Listed[]> =>
@@ -30,7 +30,7 @@ describe("variant ui", () => {
   });
 
   it(
-    "starts in the background, prints its URL with the token, and is recorded as the variant-ui instance of main",
+    "starts in the background, prints its URL with the token, and is recorded as the variant-ui watch of main",
     () =>
       withVariants(async (environment, directory) => {
         try {
@@ -39,9 +39,9 @@ describe("variant ui", () => {
           expect(started.exitCode).toBe(0);
           expect(started.stdout.trim()).toMatch(URL_LINE);
           const main = (await listed(environment, directory)).find((record) => record.slug === "main");
-          const instance = main?.instances?.["variant-ui"];
-          expect(instance?.alive).toBe(true);
-          expect(started.stdout).toContain(instance?.url as string);
+          const watch = main?.watches?.["variant-ui"];
+          expect(watch?.alive).toBe(true);
+          expect(started.stdout).toContain(watch?.url as string);
         } finally {
           await runCommand(cli, ["ui", "--stop"], environment, directory);
         }
@@ -78,7 +78,7 @@ describe("variant ui", () => {
         expect(stopped.exitCode).toBe(0);
         expect(again.exitCode).toBe(0);
         const main = (await listed(environment, directory)).find((record) => record.slug === "main");
-        expect(main?.instances?.["variant-ui"]).toBeUndefined();
+        expect(main?.watches?.["variant-ui"]).toBeUndefined();
       }),
     60_000,
   );

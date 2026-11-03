@@ -24,7 +24,7 @@ variant create -s feature-forty-two
 
 ## list
 
-List the known database variants as a table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first instance that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of the log file of its detached watch, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
+List the known database variants as a table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of the log file of its detached watch, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
 
 ```bash
 variant list
@@ -40,7 +40,7 @@ variant list -v --json
 
 ## status
 
-Show everything known about one variant: the facts `list` shows plus the `runtime` section of its `variants.local.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every instance its port, pid, URL, whether the process is `alive`, and its uptime. It also shows the path of the runtime file and the log file of a detached watch. `VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
+Show everything known about one variant: the facts `list` shows plus the `runtime` section of its `variants.local.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime. It also shows the path of the runtime file and the log file of a detached watch. `VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
 
 ```bash
 variant status feature-forty-two
@@ -57,7 +57,7 @@ variant provision -s feature-forty-two
 
 ## up
 
-Recreate the database and run the instances as containers. One runtime exists per slug, so this stops recorded `watch` processes for that variant first.
+Recreate the database and run the watches as containers. One runtime exists per slug, so this stops recorded `watch` processes for that variant first.
 
 ```bash
 variant up -s feature-forty-two
@@ -73,14 +73,14 @@ variant down -s feature-forty-two
 
 ## watch
 
-Run the instances as supervised host processes. This removes the variant's containers first, so `up` and `watch` do not both run.
+Run the watches as supervised host processes. This removes the variant's containers first, so `up` and `watch` do not both run.
 
 ```bash
 variant watch -s feature-forty-two
 variant watch -s feature-forty-two --detach
 ```
 
-Without `--detach`, the command stays attached. It exits 130 on interrupt, 1 when an instance ends or the worktree disappears, and 0 only when detached. `--detach` starts the processes in the background and returns. Detached, the output of all its processes goes to one log file, `variants.watch.log` in the worktree next to `variants.local.yaml`: the file is emptied when the watch starts, each process gets a `[key] command` line, and the output arrives while the processes run, so `tail -f` follows it in real time. `list` and `status` show its path; `down` keeps the file. An attached watch writes no log file, its output stays on the console.
+Without `--detach`, the command stays attached. It exits 130 on interrupt, 1 when a watch ends or the worktree disappears, and 0 only when detached. `--detach` starts the processes in the background and returns. Detached, the output of all its processes goes to one log file, `variants.watch.log` in the worktree next to `variants.local.yaml`: the file is emptied when the watch starts, each process gets a `[key] command` line, and the output arrives while the processes run, so `tail -f` follows it in real time. `list` and `status` show its path; `down` keeps the file. An attached watch writes no log file, its output stays on the console.
 
 ## implode
 
@@ -101,9 +101,9 @@ variant ui --detach
 variant ui --stop
 ```
 
-The port is `VARIANT_UI_PORT`, else `variant.ui.port` from `variants.yaml`, else a free port picked the way an instance's is (reserved ports are never picked), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
+The port is `VARIANT_UI_PORT`, else `variant.ui.port` from `variants.yaml`, else a free port picked the way a watch's is (reserved ports are never picked), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
 
-There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the instance `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): `variant.instances` must not define either.
+There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): `variant.watches` must not define either.
 
 The server is part of `variant`, not a program of its own: the npm package and every compiled executable carry it together with the app, so `variant ui` works from the `variant` you run, with nothing installed next to it.
 

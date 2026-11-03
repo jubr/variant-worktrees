@@ -26,16 +26,14 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
-  it("rejects an instance with the reserved key variant-ui, naming it", () => {
+  it("rejects a watch with the reserved key variant-ui, naming it", () => {
     const result = VariantsConfigSchema.safeParse({
-      variant: { instances: { "variant-ui": { kind: "vite", dir: "ui" } } },
+      variant: { watches: { "variant-ui": { kind: "vite", dir: "ui" } } },
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      const issue = result.error.issues.find(
-        (candidate) => candidate.path.join(".") === "variant.instances.variant-ui",
-      );
+      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === "variant.watches.variant-ui");
       expect(issue?.message).toContain("variant-ui");
       expect(issue?.message).toContain("reserved");
     }
@@ -45,23 +43,21 @@ describe("VariantsConfigSchema", () => {
     "ui",
     "UI",
     "Ui",
-  ])("rejects an instance with the key %s, which shares VARIANT_UI_PORT with the server", (key) => {
-    const result = VariantsConfigSchema.safeParse({ variant: { instances: { [key]: { kind: "vite", dir: "ui" } } } });
+  ])("rejects a watch with the key %s, which shares VARIANT_UI_PORT with the server", (key) => {
+    const result = VariantsConfigSchema.safeParse({ variant: { watches: { [key]: { kind: "vite", dir: "ui" } } } });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === `variant.instances.${key}`);
+      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === `variant.watches.${key}`);
       expect(issue?.message).toContain(key);
       expect(issue?.message).toContain("VARIANT_UI_PORT");
     }
   });
 
-  it("accepts instance keys that merely contain ui", () => {
-    const instance = { kind: "vite", dir: "ui" };
+  it("accepts watch keys that merely contain ui", () => {
+    const watch = { kind: "vite", dir: "ui" };
 
-    expect(
-      VariantsConfigSchema.safeParse({ variant: { instances: { ui2: instance, "my-ui": instance } } }).success,
-    ).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { watches: { ui2: watch, "my-ui": watch } } }).success).toBe(true);
   });
 
   describe("variant.ui", () => {
@@ -99,36 +95,36 @@ describe("VariantsConfigSchema", () => {
     expect(warnings({ seed: "bun run db:seed" })).toEqual(["seed"]);
   });
 
-  it("accepts a url template on an instance, rejects an empty one and ignores the former open key with a warning", () => {
-    const instance = { kind: "vite", dir: "app", url: "http://{{slug}}.vw.localhost:{{port}}" };
-    const parse = (value: object) => VariantsConfigSchema.safeParse({ variant: { instances: { app: value } } }).success;
+  it("accepts a url template on a watch, rejects an empty one and ignores the former open key with a warning", () => {
+    const watch = { kind: "vite", dir: "app", url: "http://{{slug}}.vw.localhost:{{port}}" };
+    const parse = (value: object) => VariantsConfigSchema.safeParse({ variant: { watches: { app: value } } }).success;
 
-    expect(parse(instance)).toBe(true);
-    expect(parse({ ...instance, url: "" })).toBe(false);
+    expect(parse(watch)).toBe(true);
+    expect(parse({ ...watch, url: "" })).toBe(false);
     expect(
       warnings({
         variant: {
-          instances: { app: { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" } },
+          watches: { app: { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" } },
         },
       }),
-    ).toEqual(["variant.instances.app.open"]);
+    ).toEqual(["variant.watches.app.open"]);
   });
 
-  it("accepts a url template and an env object on a NestJS instance", () => {
-    const instance = {
+  it("accepts a url template and an env object on a NestJS watch", () => {
+    const watch = {
       kind: "nestjs",
       dir: "server",
       url: "http://{{slug}}.vw.localhost:{{port}}",
       env: { sourceFile: ".env", overrides: { PORT: "{{port}}" } },
     };
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { watches: { app: watch } } }).success).toBe(true);
   });
 
   it("rejects an empty, absolute or escaping env source file", () => {
     const parse = (sourceFile: string) =>
       VariantsConfigSchema.safeParse({
-        variant: { instances: { app: { kind: "nestjs", dir: "server", env: { sourceFile } } } },
+        variant: { watches: { app: { kind: "nestjs", dir: "server", env: { sourceFile } } } },
       }).success;
 
     expect(parse("")).toBe(false);
@@ -139,13 +135,13 @@ describe("VariantsConfigSchema", () => {
 
   it("ignores the former dotenv, dotenvSource and envAlways keys and a bare env map with a warning each", () => {
     const warned = (extra: object) =>
-      warnings({ variant: { instances: { app: { kind: "nestjs", dir: "server", ...extra } } } });
+      warnings({ variant: { watches: { app: { kind: "nestjs", dir: "server", ...extra } } } });
 
-    expect(warned({ dotenv: ".env" })).toEqual(["variant.instances.app.dotenv"]);
-    expect(warned({ dotenvSource: "~/app.env" })).toEqual(["variant.instances.app.dotenvSource"]);
-    expect(warned({ envAlways: { A: "b" } })).toEqual(["variant.instances.app.envAlways"]);
-    expect(warned({ env: { PORT: "{{port}}" } })).toEqual(["variant.instances.app.env.PORT"]);
-    expect(warned({ env: { overrides: {}, other: 1 } })).toEqual(["variant.instances.app.env.other"]);
+    expect(warned({ dotenv: ".env" })).toEqual(["variant.watches.app.dotenv"]);
+    expect(warned({ dotenvSource: "~/app.env" })).toEqual(["variant.watches.app.dotenvSource"]);
+    expect(warned({ envAlways: { A: "b" } })).toEqual(["variant.watches.app.envAlways"]);
+    expect(warned({ env: { PORT: "{{port}}" } })).toEqual(["variant.watches.app.env.PORT"]);
+    expect(warned({ env: { overrides: {}, other: 1 } })).toEqual(["variant.watches.app.env.other"]);
   });
 
   it("accepts a chatRenamer section with every option", () => {

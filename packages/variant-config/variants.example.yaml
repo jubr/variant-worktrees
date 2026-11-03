@@ -30,10 +30,10 @@ variant:
   containerEngine: docker # podman; CONTAINER_ENGINE wins. Absent: docker if installed, else podman
   open: true # false; open URLs in the browser after `up` and `watch`. VARIANT_OPEN=0 turns it off
   ports:
-    range: 42000-42999 # free ports of instances and of `variant ui` are picked from here (1024 to 65535); an explicit VARIANT_<KEY>_PORT may lie anywhere
+    range: 42000-42999 # free ports of watches and of `variant ui` are picked from here (1024 to 65535); an explicit VARIANT_<KEY>_PORT may lie anywhere
   storage: # per-variant data directory; absent: none
     dir: .storage # relative to the worktree
-    envVarName: STORAGE_ROOT # variable amended for commands, set in instance .env
+    envVarName: STORAGE_ROOT # variable amended for commands, set in watch .env
   ui: # the `variant ui` web server
     port: 62100 # VARIANT_UI_PORT wins. Absent: a free port of ports.range
   steps: # run in order between the `up` commands and the seed command
@@ -44,8 +44,8 @@ variant:
         JWT_SECRET: '{{JWT_SECRET:-variant-local-{{slug}}}}' # {{NAME}} and {{NAME:-default}} read the environment
       filterLinesRegex: '^Migration ' # print only the output lines that match; --verbose and failures print everything
   supervise: # `up` and `watch` timing
-    startDelaySeconds: 2 # wait between starting two instances
-    readyTimeoutSeconds: 180 # wait for the instances that set `ready`
+    startDelaySeconds: 2 # wait between starting two watches
+    readyTimeoutSeconds: 180 # wait for the watches that set `ready`
     checkoutPollSeconds: 5 # how often an attached watch checks that the worktree still exists; 0 turns it off
   implode: # `variant implode` removes the variant and its worktree
     preRm: # `rm -rf`` remove these before validate
@@ -57,21 +57,21 @@ variant:
     requireMerged: true # false; refuse to implode a variant that is not merged into baseBranch
     maxDiffLines: 200 # the report holds the full diff up to this many lines
   seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
-  instances: # keyed by instance name: runtime state, templates ({{be.port}}), containers and VARIANT_BE_PORT use the key
+  watches: # keyed by watch name: runtime state, templates ({{be.port}}), containers and VARIANT_BE_PORT use the key
     fe:
       kind: vite # nestjs
       dir: fe
       up: bun run dev
       watch: bun run build:watch
-      url: http://{{slug}}.vw.localhost:{{port}} # URL template, placeholders {{slug}} and {{port}}; autodetected vite instances get this default
+      url: http://{{slug}}.vw.localhost:{{port}} # URL template, placeholders {{slug}} and {{port}}; autodetected vite watches get this default
       env:
         sourceFile: .env # relative to {{dir}}, copied to variant `{{worktree}}/{{dir}}/.env` and amended
-        overrides: # templated values for the instance's commands and the variant .env when it is created
+        overrides: # templated values for the watch's commands and the variant .env when it is created
           VITE_API_URL: http://{{slug}}.vw.localhost:{{be.port}}
           PUBLIC_BASE_URL: '{{url}}'
       install: bun install --frozen-lockfile # runs in dir when dir has no node_modules
-      ready: /index.html # URL path that answers with a success status when the instance serves
-      container: # how `up` runs the instance
+      ready: /index.html # URL path that answers with a success status when the watch serves
+      container: # how `up` runs the watch
         dockerfile: fe/Dockerfile # relative to the worktree, built with the worktree as context; FROM nginx:alpine, builds, serves and proxies
     be:
       kind: nestjs
@@ -80,7 +80,7 @@ variant:
       watch: bun run build:watch
       env:
         sourceFile: .env # relative to {{dir}}, copied to variant `{{worktree}}/{{dir}}/.env` and amended
-        overrides: # templated values for the instance's commands and the env file copy when it is created
+        overrides: # templated values for the watch's commands and the env file copy when it is created
           PORT: '{{be.port}}' # free one will be passed
       container:
         dockerfile: be/Dockerfile # `docker run --rm -it $(docker build -f {{dir}}/Dockerfile -q .)`

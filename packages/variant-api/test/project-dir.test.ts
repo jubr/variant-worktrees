@@ -17,7 +17,7 @@ const CONFIG = lines(
   "  open: false",
   "  seed: pwd > seed.cwd",
   "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 1 }",
-  "  instances:",
+  "  watches:",
   "    be:",
   "      kind: nestjs",
   "      dir: be",
@@ -126,7 +126,7 @@ describe("project directory", () => {
       expect(existsSync(join(project, "seed.cwd"))).toBe(false);
     }));
 
-  it("starts watch commands in the instance directory below the project directory", () =>
+  it("starts watch commands in the watch directory below the project directory", () =>
     withRepository("app", async ({ project }) => {
       await clientFor(project, project, false).watch("demo", { detach: true, log: () => {} });
 

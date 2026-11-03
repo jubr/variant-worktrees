@@ -1,16 +1,16 @@
 import { resolve } from "node:path";
-import type { InstanceContainer, ResolvedConfig, Runtime } from "variant-config";
+import type { ResolvedConfig, Runtime, WatchContainer } from "variant-config";
 import { containerName, engineHas, networkName, resolveContainerEngine, runEngine } from "../containers.js";
 import { announce, logToStderr } from "../ready.js";
 import { type VariantRun, variantVariables } from "../run-context.js";
 import { writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
-import type { InstanceReport, UpOptions, UpResult } from "../types.js";
+import type { UpOptions, UpResult, WatchReport } from "../types.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 
-/** The runtime state of a variant, with the process ids of the instances that run as host processes. */
+/** The runtime state of a variant, with the process ids of the watches that run as host processes. */
 export const runtimeOf = (
   config: ResolvedConfig,
   run: VariantRun,
@@ -28,8 +28,8 @@ export const runtimeOf = (
       ...(db.dialect ? { dialect: db.dialect } : {}),
       ...(db.dialect === "sqlite" ? { filename: run.target } : { schema: run.target }),
     },
-    instances: Object.fromEntries(
-      [...new Set([...Object.keys(config.variant.instances), ...Object.keys(pids)])].map((key) => [
+    watches: Object.fromEntries(
+      [...new Set([...Object.keys(config.variant.watches), ...Object.keys(pids)])].map((key) => [
         key,
         {
           ...(run.ports[key] !== undefined ? { port: run.ports[key] } : {}),
@@ -41,12 +41,12 @@ export const runtimeOf = (
   };
 };
 
-/** The port, URL, process id and container of every instance, for results. */
-export const instanceReports = (
+/** The port, URL, process id and container of every watch, for results. */
+export const watchReports = (
   run: VariantRun,
   pids: Readonly<Record<string, number>> = {},
   containers: Readonly<Record<string, string>> = {},
-): Record<string, InstanceReport> =>
+): Record<string, WatchReport> =>
   Object.fromEntries(
     [...new Set([...Object.keys(run.ports), ...Object.keys(pids)])].map((key) => [
       key,
@@ -59,13 +59,13 @@ export const instanceReports = (
     ]),
   );
 
-/** The image of a container instance: always built from its Dockerfile, tagged `v-<key>:v-<slug>`. */
+/** The image of a container watch: always built from its Dockerfile, tagged `v-<key>:v-<slug>`. */
 const imageOf = (key: string, slug: string): string => `v-${key}:v-${slug}`;
 
-/** The arguments of `run` for one container instance. Only the variant variables reach the container. */
+/** The arguments of `run` for one container watch. Only the variant variables reach the container. */
 const runArguments = (context: OperationContext, run: VariantRun, key: string, image: string): string[] => {
   const { config } = context;
-  const container = config.variant.instances[key]?.container as InstanceContainer;
+  const container = config.variant.watches[key]?.container as WatchContainer;
   const environment = variantVariables(config, run, "container");
   const args = ["run", "-d", "--name", containerName(key, run.slug), "--network", networkName(run.slug)];
   args.push("-p", `0.0.0.0:${run.ports[key]}:${container.internalPort ?? 80}`);
@@ -84,7 +84,7 @@ const runArguments = (context: OperationContext, run: VariantRun, key: string, i
 };
 
 /**
- * Starts the containers of every instance that has a `container`, in the listed order: the image build,
+ * Starts the containers of every watch that has a `container`, in the listed order: the image build,
  * the network, then the container itself (an earlier one of that name is replaced).
  */
 const startContainers = async (
@@ -98,8 +98,8 @@ const startContainers = async (
   const network = networkName(run.slug);
   const delay = config.variant.supervise.startDelaySeconds * 1000;
 
-  for (const [key, instance] of Object.entries(config.variant.instances)) {
-    const container = instance.container;
+  for (const [key, watch] of Object.entries(config.variant.watches)) {
+    const container = watch.container;
     if (!container) {
       continue;
     }
@@ -127,7 +127,7 @@ const startContainers = async (
 };
 
 /**
- * Brings a variant up as containers: prepares it (clean database target, provisioning), builds and starts every instance
+ * Brings a variant up as containers: prepares it (clean database target, provisioning), builds and starts every watch
  * that has a `container` and records the runtime state. Fails before anything happens when no container engine exists.
  */
 export const upVariant = async (
@@ -147,7 +147,7 @@ export const upVariant = async (
     mode: "up",
     worktree: run.worktree,
     target: run.target,
-    instances: instanceReports(run, {}, Object.fromEntries(started.map(({ key, name }) => [key, name]))),
+    watches: watchReports(run, {}, Object.fromEntries(started.map(({ key, name }) => [key, name]))),
     containers: started,
     urls: run.urls,
     commands: provisioned.commands,

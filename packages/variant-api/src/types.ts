@@ -9,8 +9,8 @@ export interface VariantState {
   createdAt: string;
 }
 
-/** What is known about one instance of a running variant. `alive` is set when a pid is recorded. */
-export interface InstanceFacts {
+/** What is known about one watch of a running variant. `alive` is set when a pid is recorded. */
+export interface WatchFacts {
   port?: number;
   pid?: number;
   url?: string;
@@ -30,16 +30,16 @@ export interface RuntimeStatus {
   log?: string;
   /** The database settings, with the password redacted. */
   db?: ResolvedRuntime["db"];
-  instances?: Record<string, InstanceFacts>;
+  watches?: Record<string, WatchFacts>;
 }
 
 export interface VariantRecord extends VariantState {
   exists: boolean;
   /** `up` or `watch`, from the runtime state of the variant. */
   mode?: "up" | "watch";
-  /** The URL of the first instance that has one. */
+  /** The URL of the first watch that has one. */
   url?: string;
-  instances?: Record<string, InstanceFacts>;
+  watches?: Record<string, WatchFacts>;
   /** The longest time any live recorded process of the variant has been running. */
   uptimeSeconds?: number;
   /** The absolute path of the log file of its detached watch. */
@@ -85,7 +85,7 @@ export interface DownOptions {
 /** What `down` stopped. */
 export interface DownResult {
   slug: string;
-  /** Host processes that were terminated, with the instance key they belong to. */
+  /** Host processes that were terminated, with the watch key they belong to. */
   processes: { key: string; pid: number }[];
   containers: string[];
   networks: string[];
@@ -108,15 +108,15 @@ export interface WatchOptions extends UpOptions {
   signal?: AbortSignal;
 }
 
-/** What is known about one instance of a started variant. */
-export interface InstanceReport {
+/** What is known about one watch of a started variant. */
+export interface WatchReport {
   /** The assigned port; the variant-wide process has none. */
   port?: number;
-  /** The rendered `open` URL, when the instance has a template. */
+  /** The rendered `open` URL, when the watch has a template. */
   url?: string;
-  /** The process id of an instance that runs as a host process. */
+  /** The process id of a watch that runs as a host process. */
   pid?: number;
-  /** The name of the container of an instance that runs as one. */
+  /** The name of the container of a watch that runs as one. */
   container?: string;
 }
 
@@ -127,11 +127,11 @@ export interface WatchResult {
   worktree: string;
   /** The database target of the variant. */
   target: string;
-  instances: Record<string, InstanceReport>;
+  watches: Record<string, WatchReport>;
   /** The host processes that were started, in start order, with the command that runs. */
   processes: { key: string; pid: number; command: string }[];
   urls: Record<string, string>;
-  /** 0 for a detached watch, 130 when interrupted, 1 when an instance ended or the worktree disappeared. */
+  /** 0 for a detached watch, 130 when interrupted, 1 when a watch ended or the worktree disappeared. */
   exitCode: 0 | 1 | 130;
   commands: string[];
   output: string;
@@ -164,10 +164,10 @@ export interface UpResult {
   worktree: string;
   /** The database target of the variant. */
   target: string;
-  instances: Record<string, InstanceReport>;
+  watches: Record<string, WatchReport>;
   /** The containers that were started, in start order. */
   containers: { key: string; name: string; port: number }[];
-  /** The rendered `open` URL of every instance that has one. */
+  /** The rendered `open` URL of every watch that has one. */
   urls: Record<string, string>;
   commands: string[];
   output: string;

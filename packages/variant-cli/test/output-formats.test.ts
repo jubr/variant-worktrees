@@ -74,7 +74,7 @@ describe("output formats", () => {
         expect(result.exitCode).toBe(1);
       },
       {},
-      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
     ));
 
   it("redacts the password in text, JSON and YAML", () =>
@@ -181,7 +181,7 @@ describe("output formats", () => {
           expect(row[4]).toBe(`${directory}/_v-alpha/variants.watch.log`);
         },
         (directory) => ({
-          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  log: ${directory}/_v-alpha/variants.watch.log\n  instances:\n    fe: { port: 62060, pid: ${sleeper.pid}, url: 'http://alpha.vw.localhost:62060/' }\n`,
+          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  log: ${directory}/_v-alpha/variants.watch.log\n  watches:\n    fe: { port: 62060, pid: ${sleeper.pid}, url: 'http://alpha.vw.localhost:62060/' }\n`,
         }),
       );
     });
@@ -195,7 +195,7 @@ describe("output formats", () => {
           expect(rows[1]?.[3]).toBe(url);
         },
         {
-          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  instances:\n    fe: { port: 62060, url: '${url}' }\n`,
+          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  watches:\n    fe: { port: 62060, url: '${url}' }\n`,
         },
       );
     });

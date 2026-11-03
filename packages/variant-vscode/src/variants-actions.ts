@@ -1,5 +1,5 @@
 import type { VariantRecord } from "variant-api";
-import { UI_INSTANCE_KEY } from "variant-ui/state";
+import { UI_WATCH_KEY } from "variant-ui/state";
 import * as vscode from "vscode";
 import type { LoadClient } from "./variants-client.ts";
 
@@ -42,7 +42,7 @@ export const createActions = (deps: ActionDeps): VariantActions => {
   const report = { log: (line: string) => deps.log?.info(line) };
   const find = (slug: string): VariantRecord | undefined => deps.records().find((entry) => entry.slug === slug);
   const stopUiServer = async (): Promise<void> => {
-    const pid = find("main")?.instances?.[UI_INSTANCE_KEY]?.pid;
+    const pid = find("main")?.watches?.[UI_WATCH_KEY]?.pid;
     if (pid === undefined) {
       throw new Error("No UI server is running");
     }
@@ -53,7 +53,7 @@ export const createActions = (deps: ActionDeps): VariantActions => {
       await (await deps.loadClient()).watch(slug, { ...report, detach: true });
     },
     down: async (slug) => {
-      if (slug === UI_INSTANCE_KEY) {
+      if (slug === UI_WATCH_KEY) {
         return stopUiServer();
       }
       await (await deps.loadClient()).down(slug, report);

@@ -93,7 +93,7 @@ describe("parseConfig", () => {
   });
 
   it("throws for a cross-field rule that only shows once the extra key is dropped", () => {
-    const reserved = { variant: { instances: { "variant-ui": { kind: "vite", dir: "ui", colour: "red" } } } };
+    const reserved = { variant: { watches: { "variant-ui": { kind: "vite", dir: "ui", colour: "red" } } } };
 
     expect(() => parseConfig(VariantsConfigSchema, reserved, FILE)).toThrow(/reserved/);
   });

@@ -1,10 +1,10 @@
 import type {
   DownResult,
   ImplodeResult,
-  InstanceFacts,
-  InstanceReport,
   UpResult,
   VariantRecord,
+  WatchFacts,
+  WatchReport,
   WatchResult,
 } from "variant-api";
 import { formatDuration } from "./duration.js";
@@ -76,28 +76,26 @@ const count = (n: number, singular: string, plural = `${singular}s`): string => 
 const section = (title: string, lines: readonly string[]): string[] =>
   lines.length > 0 ? [`${title}:`, ...indented(lines)] : [];
 
-const pidCell = (instance: InstanceReport | InstanceFacts): string => {
-  if (instance.pid === undefined) {
+const pidCell = (watch: WatchReport | WatchFacts): string => {
+  if (watch.pid === undefined) {
     return "";
   }
-  const alive = "alive" in instance && instance.alive !== undefined ? ` ${instance.alive ? "alive" : "dead"}` : "";
-  return `pid ${instance.pid}${alive}`;
+  const alive = "alive" in watch && watch.alive !== undefined ? ` ${watch.alive ? "alive" : "dead"}` : "";
+  return `pid ${watch.pid}${alive}`;
 };
 
-const instanceRow = (key: string, instance: InstanceReport | InstanceFacts): string[] =>
+const watchRow = (key: string, watch: WatchReport | WatchFacts): string[] =>
   [
     key,
-    instance.port === undefined ? "" : `port ${instance.port}`,
-    pidCell(instance),
-    "uptimeSeconds" in instance && instance.uptimeSeconds !== undefined
-      ? `up ${formatDuration(instance.uptimeSeconds)}`
-      : "",
-    instance.url ?? "",
-    "container" in instance && instance.container ? instance.container : "",
+    watch.port === undefined ? "" : `port ${watch.port}`,
+    pidCell(watch),
+    "uptimeSeconds" in watch && watch.uptimeSeconds !== undefined ? `up ${formatDuration(watch.uptimeSeconds)}` : "",
+    watch.url ?? "",
+    "container" in watch && watch.container ? watch.container : "",
   ].filter((cell, index, row) => index === 0 || cell !== "" || row.slice(index).some((rest) => rest !== ""));
 
-const instances = (all: Readonly<Record<string, InstanceReport | InstanceFacts>>): string[] =>
-  section("instances", pad(Object.entries(all).map(([key, instance]) => instanceRow(key, instance))));
+const watches = (all: Readonly<Record<string, WatchReport | WatchFacts>>): string[] =>
+  section("watches", pad(Object.entries(all).map(([key, watch]) => watchRow(key, watch))));
 
 const outputOf = (output: string): string[] => (output.trim() === "" ? [] : ["", ...output.trimEnd().split("\n")]);
 
@@ -112,7 +110,7 @@ const recordPairs = (record: VariantRecord): string[] => [
     ["url", record.url],
     ["log", record.log],
   ]),
-  ...instances(record.instances ?? {}),
+  ...watches(record.watches ?? {}),
 ];
 
 /** A variant as `status` shows it: its slug, its facts and, when it has a runtime state, all of that state. */
@@ -133,7 +131,7 @@ const started = (result: UpResult | WatchResult): string[] => [
     ["worktree", result.worktree],
     ["target", result.target],
   ]),
-  ...instances(result.instances),
+  ...watches(result.watches),
 ];
 
 const layouts: Record<string, (result: never, options: TextOptions) => string[] | string> = {

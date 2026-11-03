@@ -36,7 +36,7 @@ const withProject = async (
   try {
     put(
       "variants.yaml",
-      "db:\n  dialect: sqlite\nvariant:\n  instances:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n",
+      "db:\n  dialect: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n",
     );
     const client = (cwd = directory): Client =>
       createClient({
@@ -61,7 +61,7 @@ describe("client.status", () => {
         runtimeFile(
           "slug: demo",
           "mode: watch",
-          "instances:",
+          "watches:",
           "  fe: { port: 62060, url: 'http://demo.vw.localhost:62060/' }",
         ),
       );
@@ -73,7 +73,7 @@ describe("client.status", () => {
         worktree: join(directory, "_v-demo"),
         mode: "watch",
         url: "http://demo.vw.localhost:62060/",
-        instances: { fe: { port: 62060 } },
+        watches: { fe: { port: 62060 } },
       });
     }));
 
@@ -133,7 +133,7 @@ describe("status runtime meta information", () => {
           "mode: up",
           `dir: ${join(directory, "_v-demo")}`,
           "db: { dialect: postgres, host: db.example, schema: v_demo }",
-          "instances:",
+          "watches:",
           "  be: { port: 62061 }",
         ),
       );
@@ -146,7 +146,7 @@ describe("status runtime meta information", () => {
         mode: "up",
         dir: join(directory, "_v-demo"),
         db: { dialect: "postgres", host: "db.example", schema: "v_demo" },
-        instances: { be: { port: 62061 } },
+        watches: { be: { port: 62061 } },
       });
     }));
 
@@ -179,9 +179,9 @@ describe("status runtime meta information", () => {
   it("does not apply VARIANT_<KEY>_* overrides, which describe only the variant being run", () =>
     withProject(
       async ({ put, client }) => {
-        put("_v-demo/variants.local.yaml", runtimeFile("slug: demo", "instances:", "  fe: { port: 62060 }"));
+        put("_v-demo/variants.local.yaml", runtimeFile("slug: demo", "watches:", "  fe: { port: 62060 }"));
 
-        expect((await client().status("demo")).runtime?.instances?.fe?.port).toBe(62060);
+        expect((await client().status("demo")).runtime?.watches?.fe?.port).toBe(62060);
       },
       { VARIANT_FE_PORT: "62070" },
     ));
@@ -198,19 +198,19 @@ describe("status runtime meta information", () => {
 });
 
 describe("uptime of a variant", () => {
-  it("is the uptime of the live recorded process, per instance and for the variant", () =>
+  it("is the uptime of the live recorded process, per watch and for the variant", () =>
     withProject(async ({ put, client }) => {
       put(
         "_v-demo/variants.local.yaml",
-        runtimeFile("slug: demo", "mode: watch", "instances:", `  fe: { pid: ${sleeper()} }`),
+        runtimeFile("slug: demo", "mode: watch", "watches:", `  fe: { pid: ${sleeper()} }`),
       );
 
       const status = await client().status("demo");
 
-      expect(status.instances?.fe?.alive).toBe(true);
-      expect(status.instances?.fe?.uptimeSeconds).toBeLessThan(10);
-      expect(status.uptimeSeconds).toBe(status.instances?.fe?.uptimeSeconds);
-      expect(status.runtime?.instances?.fe?.uptimeSeconds).toBe(status.uptimeSeconds);
+      expect(status.watches?.fe?.alive).toBe(true);
+      expect(status.watches?.fe?.uptimeSeconds).toBeLessThan(10);
+      expect(status.uptimeSeconds).toBe(status.watches?.fe?.uptimeSeconds);
+      expect(status.runtime?.watches?.fe?.uptimeSeconds).toBe(status.uptimeSeconds);
     }));
 
   it("is the uptime of the process that has run longest", () =>
@@ -220,33 +220,33 @@ describe("uptime of a variant", () => {
       const fe = sleeper();
       put(
         "_v-demo/variants.local.yaml",
-        runtimeFile("slug: demo", "instances:", `  be: { pid: ${be} }`, `  fe: { pid: ${fe} }`),
+        runtimeFile("slug: demo", "watches:", `  be: { pid: ${be} }`, `  fe: { pid: ${fe} }`),
       );
 
       const status = await client().status("demo");
 
-      expect(status.instances?.be?.uptimeSeconds).toBeGreaterThanOrEqual(2);
-      expect(status.instances?.fe?.uptimeSeconds).toBeLessThan(status.instances?.be?.uptimeSeconds as number);
-      expect(status.uptimeSeconds).toBe(status.instances?.be?.uptimeSeconds);
+      expect(status.watches?.be?.uptimeSeconds).toBeGreaterThanOrEqual(2);
+      expect(status.watches?.fe?.uptimeSeconds).toBeLessThan(status.watches?.be?.uptimeSeconds as number);
+      expect(status.uptimeSeconds).toBe(status.watches?.be?.uptimeSeconds);
     }));
 
   it("is missing for a recorded pid that belongs to no process", () =>
     withProject(async ({ put, client }) => {
       put(
         "_v-demo/variants.local.yaml",
-        runtimeFile("slug: demo", "instances:", `  fe: { pid: ${spawnSync("true").pid} }`),
+        runtimeFile("slug: demo", "watches:", `  fe: { pid: ${spawnSync("true").pid} }`),
       );
 
       const status = await client().status("demo");
 
-      expect(status.instances?.fe?.alive).toBe(false);
-      expect(status.instances?.fe?.uptimeSeconds).toBeUndefined();
+      expect(status.watches?.fe?.alive).toBe(false);
+      expect(status.watches?.fe?.uptimeSeconds).toBeUndefined();
       expect(status.uptimeSeconds).toBeUndefined();
     }));
 
   it("is missing for a variant started with up, which records no pids and no log", () =>
     withProject(async ({ put, client }) => {
-      put("_v-demo/variants.local.yaml", runtimeFile("slug: demo", "mode: up", "instances:", "  fe: { port: 62060 }"));
+      put("_v-demo/variants.local.yaml", runtimeFile("slug: demo", "mode: up", "watches:", "  fe: { port: 62060 }"));
 
       const status = await client().status("demo");
 
@@ -263,7 +263,7 @@ describe("client.list with verbose", () => {
         "slug: alpha",
         "mode: watch",
         "db: { dialect: postgres, host: h, password: secret }",
-        "instances:",
+        "watches:",
         "  fe: { port: 62060 }",
       ),
     );

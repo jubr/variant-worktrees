@@ -247,43 +247,65 @@ describe("port range", () => {
   });
 });
 
-describe("instances as a keyed record", () => {
+describe("watches as a keyed record", () => {
   it("accepts a record and keeps the key order", () => {
-    const { instances } = loaded(
-      "variant:\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n    be:\n      kind: nestjs\n      dir: be\n",
+    const { watches } = loaded(
+      "variant:\n  watches:\n    fe:\n      kind: vite\n      dir: fe\n    be:\n      kind: nestjs\n      dir: be\n",
     ).variant;
 
-    expect(Object.keys(instances)).toEqual(["fe", "be"]);
+    expect(Object.keys(watches)).toEqual(["fe", "be"]);
+  });
+
+  it("resolves the directory of a watch without dir to its key and keeps a given dir", () => {
+    const { watches } = loaded(
+      "variant:\n  watches:\n    fe:\n      kind: vite\n    be:\n      kind: nestjs\n      dir: server\n    my-api:\n      kind: nestjs\n",
+    ).variant;
+
+    expect(watches.fe?.dir).toBe("fe");
+    expect(watches.be?.dir).toBe("server");
+    expect(watches["my-api"]?.dir).toBe("my-api");
+  });
+
+  it("keeps the explicit dir of an autodetected watch", () => {
+    withProject(
+      "db:\n  dialect: sqlite\n",
+      (directory) => {
+        const { watches } = loadConfig({ cwd: directory }).variant;
+
+        expect(Object.entries(watches).map(([key, watch]) => [key, watch.dir])).toEqual([["web", "a/web"]]);
+      },
+      ["a/web"],
+    );
   });
 
   it("rejects a list and bad keys, and ignores a name setting with a warning", () => {
-    expect(variant({ instances: [{ kind: "vite", dir: "fe" }] })).toBe(false);
-    expect(warned({ instances: { api: { kind: "nestjs", dir: "be", name: "api" } } })).toEqual(["instances.api.name"]);
-    expect(variant({ instances: { "1st": { kind: "vite", dir: "fe" } } })).toBe(false);
-    expect(variant({ instances: { "a b": { kind: "vite", dir: "fe" } } })).toBe(false);
+    expect(variant({ watches: [{ kind: "vite", dir: "fe" }] })).toBe(false);
+    expect(warned({ watches: { api: { kind: "nestjs", dir: "be", name: "api" } } })).toEqual(["watches.api.name"]);
+    expect(variant({ watches: { "1st": { kind: "vite", dir: "fe" } } })).toBe(false);
+    expect(variant({ watches: { "a b": { kind: "vite", dir: "fe" } } })).toBe(false);
   });
 
   it("rejects keys that share an environment segment and names both", () => {
-    const instances = { "my-api": { kind: "nestjs", dir: "a" }, my_api: { kind: "nestjs", dir: "b" } };
+    const watches = { "my-api": { kind: "nestjs", dir: "a" }, my_api: { kind: "nestjs", dir: "b" } };
 
-    expect(variant({ instances })).toBe(false);
-    expect(issues({ instances })).toContain("my-api");
-    expect(issues({ instances })).toContain("my_api");
+    expect(variant({ watches })).toBe(false);
+    expect(issues({ watches })).toContain("my-api");
+    expect(issues({ watches })).toContain("my_api");
   });
 
   it("autodetects keys from directory names, with numeric suffixes for repeats", () => {
     withProject(
       "db:\n  dialect: sqlite\n",
       (directory) => {
-        expect(Object.keys(loadConfig({ cwd: directory }).variant.instances)).toEqual(["web", "web-2"]);
+        expect(Object.keys(loadConfig({ cwd: directory }).variant.watches)).toEqual(["web", "web-2"]);
       },
       ["a/web", "b/web"],
     );
   });
 });
 
-describe("instance runtime options", () => {
-  const instance = {
+describe("watch runtime options", () => {
+  const watch = {
     kind: "nestjs",
     dir: "be",
     env: { sourceFile: ".env", overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } },
@@ -292,17 +314,17 @@ describe("instance runtime options", () => {
   };
 
   it("accepts the options", () => {
-    expect(variant({ instances: { be: instance } })).toBe(true);
+    expect(variant({ watches: { be: watch } })).toBe(true);
   });
 
   it("rejects a ready path without a leading slash", () => {
-    expect(variant({ instances: { be: { ...instance, ready: "api/health" } } })).toBe(false);
+    expect(variant({ watches: { be: { ...watch, ready: "api/health" } } })).toBe(false);
   });
 });
 
-describe("instance container", () => {
+describe("watch container", () => {
   const be = { kind: "nestjs", dir: "be", container: { dockerfile: "be/Dockerfile", internalPort: 3000 } };
-  const withContainer = (container: object) => ({ instances: { be: { ...be, container } } });
+  const withContainer = (container: object) => ({ watches: { be: { ...be, container } } });
 
   it("accepts a Dockerfile with and without an internal port", () => {
     expect(variant(withContainer({ dockerfile: "fe/Dockerfile" }))).toBe(true);
@@ -310,11 +332,11 @@ describe("instance container", () => {
   });
 
   it("carries the container unchanged", () => {
-    const { instances } = loaded(
-      "variant:\n  instances:\n    be:\n      kind: nestjs\n      dir: be\n      container:\n        dockerfile: be/Dockerfile\n",
+    const { watches } = loaded(
+      "variant:\n  watches:\n    be:\n      kind: nestjs\n      dir: be\n      container:\n        dockerfile: be/Dockerfile\n",
     ).variant;
 
-    expect(instances.be?.container).toEqual({ dockerfile: "be/Dockerfile" });
+    expect(watches.be?.container).toEqual({ dockerfile: "be/Dockerfile" });
   });
 
   it("requires a Dockerfile and a valid internal port", () => {
@@ -334,7 +356,7 @@ describe("instance container", () => {
     ["env", { A: "b" }],
   ])("ignores the former container key %s with a warning", (key, value) => {
     expect(warned(withContainer({ dockerfile: "be/Dockerfile", [key]: value }))).toEqual([
-      `instances.be.container.${key}`,
+      `watches.be.container.${key}`,
     ]);
   });
 

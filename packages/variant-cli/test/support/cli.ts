@@ -56,7 +56,7 @@ export const withVariants = async (
     put(".cache/variants/alpha.db", "");
     put(
       "_v-alpha/variants.local.yaml",
-      "runtime:\n  slug: alpha\n  mode: watch\n  instances:\n    fe: { port: 62060, url: 'http://alpha.vw.localhost:62060/' }\n",
+      "runtime:\n  slug: alpha\n  mode: watch\n  watches:\n    fe: { port: 62060, url: 'http://alpha.vw.localhost:62060/' }\n",
     );
     const extra = typeof files === "function" ? files(directory) : files;
     for (const [path, content] of Object.entries(extra)) {

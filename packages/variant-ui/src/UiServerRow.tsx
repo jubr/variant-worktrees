@@ -1,10 +1,10 @@
 import { Busy, IconButton, RowError } from "./Controls.js";
-import type { InstanceFacts } from "./model.js";
+import type { WatchFacts } from "./model.js";
 import { useConnectionState, useTransport } from "./transport-context.js";
 import { useAction } from "./use-action.js";
 
-/** The row of the UI server, which records itself as the `variant-ui` instance of `main`. */
-export const UiServerRow = ({ instance }: { instance: InstanceFacts }) => {
+/** The row of the UI server, which records itself as the `variant-ui` watch of `main`. */
+export const UiServerRow = ({ watch }: { watch: WatchFacts }) => {
   const transport = useTransport();
   const connected = useConnectionState() !== "disconnected";
   const { pending, error, run } = useAction();
@@ -13,9 +13,9 @@ export const UiServerRow = ({ instance }: { instance: InstanceFacts }) => {
       <span className="slug" id="ui-server-label">
         UI server
       </span>
-      {instance.url ? (
-        <a className="url" href={instance.url} target="_blank" rel="noreferrer">
-          {instance.url}
+      {watch.url ? (
+        <a className="url" href={watch.url} target="_blank" rel="noreferrer">
+          {watch.url}
         </a>
       ) : null}
       {transport.origin === "editor" ? (

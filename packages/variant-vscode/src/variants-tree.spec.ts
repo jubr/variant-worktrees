@@ -18,8 +18,8 @@ const items = (provider: VariantsTreeProvider): Array<{ node: VariantNode; item:
     item: provider.getTreeItem(node) as vscode.TreeItem,
   }));
 
-const watching = { mode: "watch" as const, instances: { fe: { alive: true } } };
-const up = { mode: "up" as const, instances: { fe: { alive: true } } };
+const watching = { mode: "watch" as const, watches: { fe: { alive: true } } };
+const up = { mode: "up" as const, watches: { fe: { alive: true } } };
 
 describe("variants tree", () => {
   it("lists variants by slug ascending by default, with the slug as label", async () => {
@@ -34,7 +34,7 @@ describe("variants tree", () => {
       record("new", { changedMs: 5 }),
       record("main", {
         changedMs: 3,
-        instances: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
+        watches: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
       }),
     ]);
     const store = createVariantsStore({ loadClient: async () => fake.client, hasConfig: () => true });
@@ -73,7 +73,7 @@ describe("variants tree", () => {
   });
 
   it("notes a stale record in the tooltip of a down variant", async () => {
-    const { provider } = await started([record("demo", { mode: "watch", instances: { fe: { alive: false } } })]);
+    const { provider } = await started([record("demo", { mode: "watch", watches: { fe: { alive: false } } })]);
 
     expect(String(items(provider)[0]?.item.tooltip)).toContain("stale");
   });
@@ -87,9 +87,9 @@ describe("variants tree", () => {
     expect(idle?.item.description).toBeUndefined();
   });
 
-  it("shows a UI server item above the variants when main records a live variant-ui instance", async () => {
+  it("shows a UI server item above the variants when main records a live variant-ui watch", async () => {
     const { provider } = await started([
-      record("main", { instances: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100", pid: 42 } } }),
+      record("main", { watches: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100", pid: 42 } } }),
       record("demo"),
     ]);
 
@@ -102,9 +102,9 @@ describe("variants tree", () => {
     expect(main?.item.label).toBe("main");
   });
 
-  it("shows no UI server item without a live instance", async () => {
+  it("shows no UI server item without a live watch", async () => {
     const { provider } = await started([
-      record("main", { instances: { "variant-ui": { alive: false, url: "http://ui.vw.localhost:62100" } } }),
+      record("main", { watches: { "variant-ui": { alive: false, url: "http://ui.vw.localhost:62100" } } }),
     ]);
 
     expect(items(provider).map(({ item }) => item.label)).toEqual(["main"]);
@@ -112,7 +112,7 @@ describe("variants tree", () => {
 
   it("does not count the UI server as a run of main", async () => {
     const { provider } = await started([
-      record("main", { mode: "watch", instances: { "variant-ui": { alive: true, url: "http://ui" } } }),
+      record("main", { mode: "watch", watches: { "variant-ui": { alive: true, url: "http://ui" } } }),
     ]);
 
     const main = items(provider).find(({ item }) => item.label === "main");

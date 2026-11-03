@@ -37,7 +37,7 @@ const PROJECT = (range?: string): string =>
     "  dialect: sqlite",
     "variant:",
     ...(range ? ["  ports:", `    range: "${range}"`] : []),
-    "  instances:",
+    "  watches:",
     "    fe: { kind: vite, dir: fe }",
     "    be: { kind: nestjs, dir: be }",
     "    api: { kind: nestjs, dir: api }",
@@ -45,7 +45,7 @@ const PROJECT = (range?: string): string =>
   ].join("\n");
 
 describe("prepareRun ports", () => {
-  it("assigns every instance its own free port of the default range", () =>
+  it("assigns every watch its own free port of the default range", () =>
     withContext(PROJECT(), async (context, directory) => {
       const run = await prepareRun(context, "demo", directory);
       const ports = Object.values(run.ports);
@@ -58,14 +58,14 @@ describe("prepareRun ports", () => {
       }
     }));
 
-  it("picks from the configured range, even when it holds exactly as many ports as instances", () =>
+  it("picks from the configured range, even when it holds exactly as many ports as watches", () =>
     withContext(PROJECT("50000-50002"), async (context, directory) => {
       const run = await prepareRun(context, "demo", directory);
 
       expect(Object.values(run.ports).sort()).toEqual([50000, 50001, 50002]);
     }));
 
-  it("fails naming the range when it is smaller than the number of instances", () =>
+  it("fails naming the range when it is smaller than the number of watches", () =>
     withContext(PROJECT("50000-50001"), async (context, directory) => {
       await expect(prepareRun(context, "demo", directory)).rejects.toThrow("50000-50001");
     }));

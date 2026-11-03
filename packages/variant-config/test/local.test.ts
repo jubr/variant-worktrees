@@ -27,7 +27,7 @@ describe("VariantsLocalSchema", () => {
       mode: "watch",
       dir: "/work/_v-demo",
       db: { dialect: "postgres", schema: "v_demo", port: "{{POSTGRES_PORT}}" },
-      instances: { fe: { port: 62060, pid: 123, url: "http://demo.vw.localhost:62060/" }, be: { port: 62061 } },
+      watches: { fe: { port: 62060, pid: 123, url: "http://demo.vw.localhost:62060/" }, be: { port: 62061 } },
     });
 
     expect(result.success).toBe(true);
@@ -50,7 +50,7 @@ describe("VariantsLocalSchema", () => {
 
   it("rejects a non-numeric port string, a zero pid, an unknown mode and an unknown key", () => {
     expect(parse({ db: { port: "soon" } }).success).toBe(false);
-    expect(parse({ instances: { fe: { pid: 0 } } }).success).toBe(false);
+    expect(parse({ watches: { fe: { pid: 0 } } }).success).toBe(false);
     expect(parse({ mode: "dev" }).success).toBe(false);
     expect(parse({ unknown: true }).success).toBe(false);
   });
@@ -58,8 +58,8 @@ describe("VariantsLocalSchema", () => {
 
 describe("readRuntime and loadConfig", () => {
   it("carries the runtime section in the resolved configuration", () =>
-    withProject("runtime:\n  slug: demo\n  instances:\n    fe:\n      port: 62060\n", (directory) => {
-      expect(loadConfig({ cwd: directory }).runtime).toEqual({ slug: "demo", instances: { fe: { port: 62060 } } });
+    withProject("runtime:\n  slug: demo\n  watches:\n    fe:\n      port: 62060\n", (directory) => {
+      expect(loadConfig({ cwd: directory }).runtime).toEqual({ slug: "demo", watches: { fe: { port: 62060 } } });
     }));
 
   it("has no runtime state without a local file", () =>
@@ -80,7 +80,7 @@ describe("readRuntime and loadConfig", () => {
     }));
 
   it("fails validation on an invalid local file", () =>
-    withProject("runtime:\n  instances:\n    fe:\n      pid: 0\n", (directory) => {
+    withProject("runtime:\n  watches:\n    fe:\n      pid: 0\n", (directory) => {
       expect(() => loadConfig({ cwd: directory })).toThrow();
     }));
 });
@@ -88,12 +88,12 @@ describe("readRuntime and loadConfig", () => {
 describe("writeRuntime", () => {
   it("writes the runtime section and keeps other top-level keys", () =>
     withProject("other: kept\nruntime:\n  slug: old\n", (directory) => {
-      writeRuntime(directory, { slug: "demo", instances: { fe: { port: 62060, pid: 123 } } });
+      writeRuntime(directory, { slug: "demo", watches: { fe: { port: 62060, pid: 123 } } });
 
       const written = parseYaml(readFileSync(join(directory, "variants.local.yaml"), "utf8"));
       expect(written).toEqual({
         other: "kept",
-        runtime: { slug: "demo", instances: { fe: { port: 62060, pid: 123 } } },
+        runtime: { slug: "demo", watches: { fe: { port: 62060, pid: 123 } } },
       });
     }));
 
@@ -106,7 +106,7 @@ describe("writeRuntime", () => {
 
   it("refuses an invalid runtime section", () =>
     withProject(undefined, (directory) => {
-      expect(() => writeRuntime(directory, { instances: { fe: { pid: 0 } } })).toThrow();
+      expect(() => writeRuntime(directory, { watches: { fe: { pid: 0 } } })).toThrow();
     }));
 });
 

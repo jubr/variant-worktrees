@@ -74,13 +74,13 @@ describe("runtime state of a variant", () => {
       writeVariantRuntime(config, worktree, {
         slug: "demo",
         mode: "watch",
-        instances: { fe: { port: 62060, pid: 7 } },
+        watches: { fe: { port: 62060, pid: 7 } },
       });
 
       expect(parseYaml(readFileSync(file, "utf8"))).toEqual({
-        runtime: { slug: "demo", mode: "watch", instances: { fe: { port: 62060, pid: 7 } } },
+        runtime: { slug: "demo", mode: "watch", watches: { fe: { port: 62060, pid: 7 } } },
       });
-      expect(readVariantRuntime(config, worktree)?.instances?.fe).toEqual({ port: 62060, pid: 7 });
+      expect(readVariantRuntime(config, worktree)?.watches?.fe).toEqual({ port: 62060, pid: 7 });
 
       clearVariantRuntime(config, worktree);
 
@@ -92,17 +92,17 @@ describe("runtime state of a variant", () => {
       const config = loadConfig({ cwd: repo });
       const file = join(repo, "variants.local.yaml");
       const ui = { port: 62100, pid: 4242, url: "http://ui.vw.localhost:62100" };
-      writeFileSync(file, stringifyYaml({ runtime: { instances: { "variant-ui": ui } } }));
+      writeFileSync(file, stringifyYaml({ runtime: { watches: { "variant-ui": ui } } }));
 
-      writeVariantRuntime(config, repo, { slug: "main", mode: "watch", instances: { fe: { port: 62060, pid: 7 } } });
+      writeVariantRuntime(config, repo, { slug: "main", mode: "watch", watches: { fe: { port: 62060, pid: 7 } } });
 
       expect(parseYaml(readFileSync(file, "utf8"))).toEqual({
-        runtime: { slug: "main", mode: "watch", instances: { fe: { port: 62060, pid: 7 }, "variant-ui": ui } },
+        runtime: { slug: "main", mode: "watch", watches: { fe: { port: 62060, pid: 7 }, "variant-ui": ui } },
       });
 
       clearVariantRuntime(config, repo);
 
-      expect(parseYaml(readFileSync(file, "utf8"))).toEqual({ runtime: { instances: { "variant-ui": ui } } });
+      expect(parseYaml(readFileSync(file, "utf8"))).toEqual({ runtime: { watches: { "variant-ui": ui } } });
     }));
 
   it("reads nothing for a worktree without a file", () =>
@@ -112,10 +112,10 @@ describe("runtime state of a variant", () => {
 
   it("applies VARIANT_<KEY>_PORT overrides to the run's own state", () =>
     withRepo("", (repo, worktree) => {
-      writeFileSync(join(repo, "variants.yaml"), "variant:\n  instances:\n    fe: { kind: vite, dir: fe }\n");
+      writeFileSync(join(repo, "variants.yaml"), "variant:\n  watches:\n    fe: { kind: vite, dir: fe }\n");
       const config = loadConfig({ cwd: repo });
 
-      expect(readVariantRuntime(config, worktree, { VARIANT_FE_PORT: "62099" })?.instances?.fe?.port).toBe(62099);
+      expect(readVariantRuntime(config, worktree, { VARIANT_FE_PORT: "62099" })?.watches?.fe?.port).toBe(62099);
     }));
 
   it("clearing without a file is a no-op", () =>

@@ -15,15 +15,15 @@ describe("formatUptime", () => {
 });
 
 describe("stateOf", () => {
-  it("is watching for mode watch with a live instance", () => {
-    expect(stateOf({ slug: "a", mode: "watch", instances: { fe: { alive: true } } })).toEqual({
+  it("is watching for mode watch with a live watch", () => {
+    expect(stateOf({ slug: "a", mode: "watch", watches: { fe: { alive: true } } })).toEqual({
       state: "watching",
       stale: false,
     });
   });
 
-  it("is up for mode up with a live instance", () => {
-    expect(stateOf({ slug: "a", mode: "up", instances: { fe: { alive: true }, be: { alive: false } } })).toEqual({
+  it("is up for mode up with a live watch", () => {
+    expect(stateOf({ slug: "a", mode: "up", watches: { fe: { alive: true }, be: { alive: false } } })).toEqual({
       state: "up",
       stale: false,
     });
@@ -33,16 +33,16 @@ describe("stateOf", () => {
     expect(stateOf({ slug: "a" })).toEqual({ state: "down", stale: false });
   });
 
-  it("is down and stale when the recorded mode has no live instance", () => {
-    expect(stateOf({ slug: "a", mode: "watch", instances: { fe: { alive: false } } })).toEqual({
+  it("is down and stale when the recorded mode has no live watch", () => {
+    expect(stateOf({ slug: "a", mode: "watch", watches: { fe: { alive: false } } })).toEqual({
       state: "down",
       stale: true,
     });
     expect(stateOf({ slug: "a", mode: "up" })).toEqual({ state: "down", stale: true });
   });
 
-  it("does not count the UI server of main as a live instance", () => {
-    expect(stateOf({ slug: "main", instances: { "variant-ui": { alive: true } } })).toEqual({
+  it("does not count the UI server of main as a live watch", () => {
+    expect(stateOf({ slug: "main", watches: { "variant-ui": { alive: true } } })).toEqual({
       state: "down",
       stale: false,
     });

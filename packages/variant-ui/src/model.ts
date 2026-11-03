@@ -1,5 +1,5 @@
-/** What the app knows about the instance of a running variant; a subset of the records `variant list` returns. */
-export interface InstanceFacts {
+/** What the app knows about the watch of a running variant; a subset of the records `variant list` returns. */
+export interface WatchFacts {
   port?: number;
   pid?: number;
   url?: string;
@@ -12,7 +12,7 @@ export interface Variant {
   slug: string;
   mode?: "up" | "watch";
   url?: string;
-  instances?: Record<string, InstanceFacts>;
+  watches?: Record<string, WatchFacts>;
   uptimeSeconds?: number;
   log?: string;
   /** Earlier birth time of the variant directory and its `variants.local.yaml`. */

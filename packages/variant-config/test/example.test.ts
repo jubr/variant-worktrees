@@ -19,7 +19,7 @@ const example: unknown = parseYaml(exampleText);
 
 /**
  * Paths of schema options the example does not set. An array is checked through its first entry; an option of a record
- * entry (an instance) counts as set when any entry of the record sets it.
+ * entry (a watch) counts as set when any entry of the record sets it.
  */
 const missingOptions = (schema: JsonSchema, value: unknown, path: string): string[] => {
   const missing: string[] = [];

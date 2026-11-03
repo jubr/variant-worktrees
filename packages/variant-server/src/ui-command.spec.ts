@@ -43,7 +43,7 @@ interface Project {
   run: (options?: Partial<UiCommandOptions>) => Promise<number>;
   options: () => UiCommandOptions;
   put: (path: string, content: string) => void;
-  runtime: () => { instances?: Record<string, unknown> } & Record<string, unknown>;
+  runtime: () => { watches?: Record<string, unknown> } & Record<string, unknown>;
 }
 
 const withProject = async (
@@ -256,7 +256,7 @@ describe("variant ui", () => {
     }));
 });
 
-describe("variant ui as an instance of main", () => {
+describe("variant ui as a watch of main", () => {
   it("records its port, pid and URL without the token, which variant list shows", () =>
     withProject(async (project) => {
       const server = await attached(project);
@@ -271,7 +271,7 @@ describe("variant ui as an instance of main", () => {
         const main = (await createClient({ cwd: project.directory, worktree: false }).list()).find(
           (variant) => variant.slug === "main",
         );
-        expect(main?.instances?.["variant-ui"]).toMatchObject({ pid: process.pid, alive: true, url: entry?.url });
+        expect(main?.watches?.["variant-ui"]).toMatchObject({ pid: process.pid, alive: true, url: entry?.url });
       } finally {
         await server.stop();
       }
@@ -281,15 +281,15 @@ describe("variant ui as an instance of main", () => {
     withProject(async (project) => {
       project.put(
         "variants.local.yaml",
-        "runtime:\n  slug: main\n  mode: watch\n  instances:\n    fe: { port: 62060, pid: 4242 }\n",
+        "runtime:\n  slug: main\n  mode: watch\n  watches:\n    fe: { port: 62060, pid: 4242 }\n",
       );
       const server = await attached(project);
-      expect(project.runtime().instances).toMatchObject({ fe: { port: 62060 }, "variant-ui": { pid: process.pid } });
+      expect(project.runtime().watches).toMatchObject({ fe: { port: 62060 }, "variant-ui": { pid: process.pid } });
       expect(existsSync(tokenPath(project.directory))).toBe(true);
 
       await server.stop();
 
-      expect(project.runtime()).toEqual({ slug: "main", mode: "watch", instances: { fe: { port: 62060, pid: 4242 } } });
+      expect(project.runtime()).toEqual({ slug: "main", mode: "watch", watches: { fe: { port: 62060, pid: 4242 } } });
       expect(existsSync(tokenPath(project.directory))).toBe(false);
     }));
 
@@ -338,7 +338,7 @@ describe("one server per project", () => {
       const dead = spawnSync("true").pid;
       project.put(
         "variants.local.yaml",
-        `runtime:\n  instances:\n    variant-ui: { port: 62100, pid: ${dead}, url: 'http://ui.vw.localhost:62100' }\n`,
+        `runtime:\n  watches:\n    variant-ui: { port: 62100, pid: ${dead}, url: 'http://ui.vw.localhost:62100' }\n`,
       );
       const server = await attached(project);
       try {

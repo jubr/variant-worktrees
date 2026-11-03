@@ -6,8 +6,8 @@ import {
   LOCAL_FILENAME,
   type ResolvedRuntime,
   type Runtime,
-  type RuntimeInstance,
   RuntimeSchema,
+  type RuntimeWatch,
   VariantsLocalSchema,
 } from "./schema.js";
 
@@ -62,8 +62,8 @@ const absoluteUrl = (name: string, value: string): string => {
   return value;
 };
 
-/** The `VARIANT_<KEY>_PORT`, `_URL` and `_PID` variables of one instance. An empty variable counts as unset. */
-const instanceOverrides = (key: string, env: NodeJS.ProcessEnv): RuntimeInstance => {
+/** The `VARIANT_<KEY>_PORT`, `_URL` and `_PID` variables of one watch. An empty variable counts as unset. */
+const watchOverrides = (key: string, env: NodeJS.ProcessEnv): RuntimeWatch => {
   const segment = envSegment(key);
   const read = (suffix: "PORT" | "URL" | "PID"): [string, string] | undefined => {
     const name = `VARIANT_${segment}_${suffix}`;
@@ -81,29 +81,29 @@ const instanceOverrides = (key: string, env: NodeJS.ProcessEnv): RuntimeInstance
 };
 
 /**
- * The `runtime` section of `<configDir>/variants.local.yaml`, with environment templates replaced. For each instance key
- * in `instanceKeys` the variables `VARIANT_<KEY>_PORT`, `_URL` and `_PID` win over the file, which makes a runtime state
+ * The `runtime` section of `<configDir>/variants.local.yaml`, with environment templates replaced. For each watch key
+ * in `watchKeys` the variables `VARIANT_<KEY>_PORT`, `_URL` and `_PID` win over the file, which makes a runtime state
  * even when there is no file. Nothing when there is neither; throws when the file or an override is invalid.
  */
 export const readRuntime = (
   configDir: string,
   env: NodeJS.ProcessEnv = process.env,
-  instanceKeys: readonly string[] = [],
+  watchKeys: readonly string[] = [],
 ): ResolvedRuntime | undefined => {
   const runtime = readLocal(configDir, env);
   const overrides = Object.fromEntries(
-    instanceKeys
-      .map((key) => [key, instanceOverrides(key, env)] as const)
+    watchKeys
+      .map((key) => [key, watchOverrides(key, env)] as const)
       .filter(([, override]) => Object.keys(override).length > 0),
   );
   if (Object.keys(overrides).length === 0) {
     return runtime;
   }
-  const instances = { ...runtime?.instances };
+  const watches = { ...runtime?.watches };
   for (const [key, override] of Object.entries(overrides)) {
-    instances[key] = { ...instances[key], ...override };
+    watches[key] = { ...watches[key], ...override };
   }
-  return { ...runtime, instances };
+  return { ...runtime, watches };
 };
 
 /** Writes the `runtime` section of `<configDir>/variants.local.yaml`, validated, keeping the file's other top-level keys. */

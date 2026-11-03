@@ -8,7 +8,7 @@ const showInformationMessage = spyOn(vscode.window, "showInformationMessage");
 const writeText = spyOn(vscode.env.clipboard, "writeText");
 
 const running = record("main", {
-  instances: { "variant-ui": { alive: true, pid: 1, url: "http://ui.vw.localhost:62100" } },
+  watches: { "variant-ui": { alive: true, pid: 1, url: "http://ui.vw.localhost:62100" } },
 });
 
 beforeEach(() => {
@@ -46,7 +46,7 @@ describe("open the web page", () => {
 
   it("treats a recorded server whose process is gone as no server", async () => {
     const stale = record("main", {
-      instances: { "variant-ui": { alive: false, url: "http://ui.vw.localhost:62100" } },
+      watches: { "variant-ui": { alive: false, url: "http://ui.vw.localhost:62100" } },
     });
 
     await openInBrowser({ records: () => [stale], readToken: () => "t0ken" });

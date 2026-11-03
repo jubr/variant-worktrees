@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
-import { type DbConfig, type DbDialect, DEFAULT_URL, INSTANCE_KEY, type VariantInstance } from "./schema.js";
+import { type DbConfig, type DbDialect, DEFAULT_URL, type VariantWatch, WATCH_KEY } from "./schema.js";
 
 const MISE_FILENAMES = ["mise.local.toml", "mise.toml"] as const;
 const ENV_KEYS = [
@@ -254,7 +254,7 @@ const packageDeclares = (path: string, dependency: string): boolean => {
   return false;
 };
 
-const detectKind = (path: string): VariantInstance["kind"] | undefined => {
+const detectKind = (path: string): VariantWatch["kind"] | undefined => {
   const filenames = new Set(readdirSync(path, { withFileTypes: true }).map((entry) => entry.name));
   if (
     [...filenames].some((filename) => /^vite\.config\.(js|mjs|ts|mts|cjs|cts)$/.test(filename)) ||
@@ -299,12 +299,12 @@ const tsconfigPreservesWatchOutput = (path: string): boolean => {
 };
 
 /**
- * The command that watches an application without clearing the console, so the output of several instances stays
+ * The command that watches an application without clearing the console, so the output of several watches stays
  * readable in one terminal. A project's own setting (`clearScreen` in the Vite config, `preserveWatchOutput` in
  * `tsconfig.json`) is left to the project; otherwise the flag is added to the command line. A `bun --watch` or
  * `--hot` script gets `--no-clear-screen` inside its own command, because flags after the file would reach the app.
  */
-const detectWatch = (kind: NonNullable<VariantInstance["kind"]>, path: string): string => {
+const detectWatch = (kind: NonNullable<VariantWatch["kind"]>, path: string): string => {
   const scripts = packageScripts(path);
   if (kind === "vite") {
     const base = scripts.dev ? "bun run dev" : "bunx --bun vite";
@@ -328,16 +328,16 @@ const shouldSkip = (name: string): boolean =>
   name === "build" ||
   name.startsWith(".");
 
-/** The key of an autodetected instance: its directory's base name, or its kind for the configuration directory. */
-const instanceKeyFor = (instance: VariantInstance): string => {
-  const base = instance.dir === "." ? instance.kind : basename(instance.dir);
+/** The key of an autodetected watch: its directory's base name, or its kind for the configuration directory. */
+const watchKeyFor = (watch: VariantWatch): string => {
+  const base = watch.dir === "." ? watch.kind : basename(watch.dir);
   const plain = base.replace(/[^A-Za-z0-9_-]/g, "-");
-  return INSTANCE_KEY.test(plain) ? plain : `${instance.kind}-${plain}`;
+  return WATCH_KEY.test(plain) ? plain : `${watch.kind}-${plain}`;
 };
 
 /** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
-export const detectInstances = (configDir: string): Record<string, VariantInstance> => {
-  const found: VariantInstance[] = [];
+export const detectWatches = (configDir: string): Record<string, VariantWatch> => {
+  const found: VariantWatch[] = [];
   const visited = new Set<string>();
   const walk = (directory: string): void => {
     const resolved = resolve(directory);
@@ -364,16 +364,16 @@ export const detectInstances = (configDir: string): Record<string, VariantInstan
   if (existsSync(configDir) && statSync(configDir).isDirectory()) {
     walk(configDir);
   }
-  const instances: Record<string, VariantInstance> = {};
-  for (const instance of found.sort((left, right) => left.dir.localeCompare(right.dir))) {
-    const base = instanceKeyFor(instance);
+  const watches: Record<string, VariantWatch> = {};
+  for (const watch of found.sort((left, right) => left.dir.localeCompare(right.dir))) {
+    const base = watchKeyFor(watch);
     let key = base;
-    for (let suffix = 2; key in instances; suffix += 1) {
+    for (let suffix = 2; key in watches; suffix += 1) {
       key = `${base}-${suffix}`;
     }
-    instances[key] = instance;
+    watches[key] = watch;
   }
-  return instances;
+  return watches;
 };
 
 export const inferConfigRoot = (path: string): string => parsePath(resolve(path)).dir;

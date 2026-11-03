@@ -7,7 +7,7 @@ import { createClient } from "../src/index.js";
 const tempDirectory = (): string => realpathSync(mkdtempSync(join("/tmp", "variant-provision-")));
 
 describe("provision", () => {
-  it("runs each instance's up command in its dir and the seed in the worktree root", async () => {
+  it("runs each watch's up command in its dir and the seed in the worktree root", async () => {
     const directory = tempDirectory();
     try {
       mkdirSync(join(directory, "be"));
@@ -19,7 +19,7 @@ describe("provision", () => {
           "  dialect: sqlite",
           "variant:",
           "  seed: pwd > seed.out",
-          "  instances:",
+          "  watches:",
           "    fe: { kind: vite, dir: fe, up: pwd > ../fe.out }",
           "    be: { kind: nestjs, dir: be, up: pwd > ../be.out }",
           "",

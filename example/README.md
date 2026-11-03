@@ -12,7 +12,7 @@ variant create demo   # a SQLite database for the variant `demo`
 SQLITE_DATABASE=./be/example.sqlite bun scripts/seed.mjs
 ```
 
-The example works in place: the commands, `seed` and the `dir` of every instance start in the directory of
+The example works in place: the commands, `seed` and the `dir` of every watch start in the directory of
 `variants.yaml` (`example/`), also when it is a subdirectory of a larger git checkout, and also in a worktree of a variant.
 
 ```bash
