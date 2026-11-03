@@ -194,6 +194,12 @@ export const VariantSuperviseSchema = z.strictObject({
 });
 
 /** Settings of the `variant ui` server. The environment override of `variant.ui.<name>` is `VARIANT_UI_<NAME>`. */
+/** Settings of Mise, which supplies the environment and is augmented by `variant init`. */
+export const VariantMiseSchema = z.strictObject({
+  /** The Mise executable, when it is not on `PATH`; the editor setting `variant.mise.binPath` wins. */
+  binPath: z.string().min(1).optional(),
+});
+
 export const VariantUiSchema = z.strictObject({
   /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port of `variant.ports.range`. */
   port: PortSchema.optional(),
@@ -237,6 +243,7 @@ export const VariantRuntimeSchema = z
     supervise: VariantSuperviseSchema.optional(),
     implode: VariantImplodeSchema.optional(),
     ui: VariantUiSchema.optional(),
+    mise: VariantMiseSchema.optional(),
     /** Command that seeds a new variant database. A per-variant `seed` wins. */
     seed: z.string().min(1).optional(),
     /** Keyed by watch name; the key is the name in runtime state, templates and environment variables. */

@@ -216,6 +216,16 @@
           },
           "additionalProperties": false
         },
+        "mise": {
+          "type": "object",
+          "properties": {
+            "binPath": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
         "seed": {
           "type": "string",
           "minLength": 1
