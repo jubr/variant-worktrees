@@ -171,7 +171,7 @@ The system SHALL accept an optional `variant.abbr`, a string of lowercase letter
 
 ### Requirement: UI server settings
 
-The system SHALL accept an optional `variant.ui` object that holds the settings of the `variant ui` server, with the optional `port`, a TCP port the server listens on. The environment variable `VARIANT_UI_PORT` is the override of `variant.ui.port` (see `variant-server/ui-instance`). Unknown keys below `variant.ui` SHALL be ignored with a warning, and a port that is not a positive integer SHALL fail validation.
+The system SHALL accept an optional `variant.ui` object that holds the settings of the `variant ui` server, with the optional `port`, a TCP port the server listens on. The environment variable `VARIANT_UI_PORT` is the override of `variant.ui.port` (see `variant-server/ui-watch`). Unknown keys below `variant.ui` SHALL be ignored with a warning, and a port that is not a positive integer SHALL fail validation.
 
 #### Scenario: Port set
 

@@ -220,7 +220,7 @@ The system SHALL name worktree directories `<prefix><slug>` using the resolved `
 
 The system SHALL run the `up` command of an entry of `variant.watches` during provisioning with the watch's `dir`, resolved against the variant's worktree, as its working directory. The variant-wide `up` command used when no watches exist, and the seed command, SHALL run in the worktree root.
 
-#### Scenario: Instance command runs in its directory
+#### Scenario: Watch command runs in its directory
 
 - **WHEN** a watch with `dir: be` and `up: pwd` is provisioned in a worktree `/w`
 - **THEN** the command runs in `/w/be`

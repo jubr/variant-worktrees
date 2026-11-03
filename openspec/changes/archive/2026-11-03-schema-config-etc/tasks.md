@@ -57,9 +57,10 @@
 
 - [x] 8.1 `openspec validate --all --strict --no-interactive` and `openspec doctor --json` succeed
 - [x] 8.2 `task check:full` succeeds locally
-- [ ] 8.3 When syncing the specs, update the Purpose of `variant-config/cfg-runtime` (it still names reserved ports)
+- [x] 8.3 When syncing the specs, update the Purpose of `variant-config/cfg-runtime` (it still names reserved ports)
 
 ## 9. Rename the `cfg-instances` capability
 
-- [ ] 9.1 `git mv` `openspec/specs/variant-config/cfg-instances` and `openspec/changes/schema-config-etc/specs/variant-config/cfg-instances` to `cfg-watches`, and update the title of the main spec (`# variant-config/cfg-watches Specification`) and every reference outside `openspec/changes/archive/` (`proposal.md`, `design.md`, `tasks.md`, `Specification:` comments in code and tests, docs); grep for `cfg-instances` leaves only the archive. `openspec validate --strict` may fail until the sync of `vw-spec-wrapup` has run (accepted: this is a refactoring)
-- [ ] 9.2 Commit the rename (repository files separately from the OpenSpec artifacts)
+- [x] 9.1 `git mv` `openspec/specs/variant-config/cfg-instances` and `openspec/changes/schema-config-etc/specs/variant-config/cfg-instances` to `cfg-watches`, and update the title of the main spec (`# variant-config/cfg-watches Specification`) and every reference outside `openspec/changes/archive/` (`proposal.md`, `design.md`, `tasks.md`, `Specification:` comments in code and tests, docs); grep for `cfg-instances` leaves only the archive. `openspec validate --strict` may fail until the sync of `vw-spec-wrapup` has run (accepted: this is a refactoring)
+- [x] 9.2 Commit the rename (repository files separately from the OpenSpec artifacts)
+- Done together with it: `variant-server/ui-instance` is now `ui-watch` (spec directory, `ui-instance.ts` and its imports), the leftover "instance" words in the scenario titles and Purposes of the main specs, the `example/` package descriptions and the `AIDEV-NOTE`s of `example/fe/vite.config.ts` (changed on request).

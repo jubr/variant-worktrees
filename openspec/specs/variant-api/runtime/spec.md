@@ -1,7 +1,7 @@
 # variant-api/runtime Specification
 
 ## Purpose
-The runtime commands start and stop the instances of a variant, either as containers or as supervised host processes,
+The runtime commands start and stop the watches of a variant, either as containers or as supervised host processes,
 and record what runs in the variant's own `variants.local.yaml`, so a variant is usable in a browser with one command.
 
 ## Requirements
@@ -93,7 +93,7 @@ The system SHALL start the `watch` command of every watch as a process in the wa
 - **WHEN** watches `be` and `fe` both have a `watch` command
 - **THEN** both processes run in their directories, `be` starts first, and their pids are recorded
 
-#### Scenario: Instance without watch command
+#### Scenario: Watch without watch command
 
 - **WHEN** watch `be` has no `watch` command and `fe` has one
 - **THEN** only `fe` is started
@@ -112,7 +112,7 @@ The system SHALL keep an attached `watch` running until it is interrupted, a wat
 - **WHEN** an attached watch is interrupted with SIGINT
 - **THEN** both watch processes and their children are terminated, no pid remains in the runtime state, and the exit status is 130
 
-#### Scenario: One instance dies
+#### Scenario: One watch dies
 
 - **WHEN** one of two watched processes exits on its own
 - **THEN** the other is terminated and the exit status is 1

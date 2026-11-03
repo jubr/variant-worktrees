@@ -1,7 +1,7 @@
 # variant-api/provisioning Specification
 
 ## Purpose
-Provisioning prepares a variant before its instances start: dependencies, per-variant environment files and storage,
+Provisioning prepares a variant before its watches start: dependencies, per-variant environment files and storage,
 and the ordered commands that build its database, so one configuration drives every project's setup.
 
 ## Requirements
@@ -39,7 +39,7 @@ The system SHALL run every provisioning, step, seed and watch command with the p
 - **WHEN** `db.host` is `host.docker.internal` and a host command runs
 - **THEN** the command sees `POSTGRES_HOST=127.0.0.1`
 
-#### Scenario: Ports of all instances visible
+#### Scenario: Ports of all watches visible
 
 - **WHEN** watches `fe` (port 62060) and `be` (port 62061) exist and a step runs
 - **THEN** the step sees `VARIANT_FE_PORT=62060` and `VARIANT_BE_PORT=62061`
@@ -49,7 +49,7 @@ The system SHALL run every provisioning, step, seed and watch command with the p
 - **WHEN** a step sets `env: { POSTGRES_SCHEMA: custom }`
 - **THEN** the step sees `POSTGRES_SCHEMA=custom`
 
-#### Scenario: Instance overrides win
+#### Scenario: Watch overrides win
 
 - **WHEN** a watch sets `env: { overrides: { PORT: "{{port}}" } }` with port 62061 and its `watch` command runs
 - **THEN** the command sees `PORT=62061`

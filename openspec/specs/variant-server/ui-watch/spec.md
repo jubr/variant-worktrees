@@ -1,8 +1,8 @@
-# variant-server/ui-instance Specification
+# variant-server/ui-watch Specification
 
 ## Purpose
 
-How the web server starts, ends and records itself as the `variant-ui` instance of the `main` variant, so it is visible and controllable like every other running part of a project.
+How the web server starts, ends and records itself as the `variant-ui` watch of the `main` variant, so it is visible and controllable like every other running part of a project.
 
 ## Requirements
 
@@ -45,7 +45,7 @@ How the web server starts, ends and records itself as the `variant-ui` instance 
 - **WHEN** `variants.yaml` defines `variant.watches.variant-ui`
 - **THEN** loading the configuration fails validation naming the reserved key
 
-#### Scenario: Instance key that would share the server's variable
+#### Scenario: Watch key that would share the server's variable
 
 - **WHEN** `variants.yaml` defines `variant.watches.ui`
 - **THEN** loading the configuration fails validation naming the key and `VARIANT_UI_PORT`

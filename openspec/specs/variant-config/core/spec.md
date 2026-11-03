@@ -83,15 +83,15 @@ The system SHALL allow `variants.yaml` to define a seed command per variant (`va
 
 The system SHALL use explicitly configured runtime watches when present and otherwise discover Vite or NestJS watches by searching subdirectories from the directory containing `variants.yaml`.
 
-#### Scenario: Explicit instances take precedence
+#### Scenario: Explicit watches take precedence
 - **WHEN** `variants.yaml` defines `variant.watches`
 - **THEN** runtime commands use those watches without filesystem autodetection
 
-#### Scenario: Vite instance autodetected
+#### Scenario: Vite watch autodetected
 - **WHEN** `variant.watches` is absent and a searched subdirectory contains Vite configuration
 - **THEN** the config includes that subdirectory as a Vite watch
 
-#### Scenario: NestJS instance autodetected
+#### Scenario: NestJS watch autodetected
 - **WHEN** `variant.watches` is absent and a searched subdirectory contains NestJS configuration
 - **THEN** the config includes that subdirectory as a NestJS watch
 
@@ -147,7 +147,7 @@ The system SHALL accept an optional `url` string on any entry of `variant.watche
 - **WHEN** a watch sets `open: http://{{slug}}.vw.localhost:{{port}}`
 - **THEN** loading succeeds, the key is ignored and one warning names it
 
-#### Scenario: Autodetected Vite instance
+#### Scenario: Autodetected Vite watch
 
 - **WHEN** `variant.watches` is absent and a searched subdirectory contains Vite configuration
 - **THEN** the detected watch carries the default `url` template, and a detected NestJS watch carries none
@@ -176,7 +176,7 @@ The system SHALL accept an optional `env` object on any entry of `variant.watche
 - **WHEN** a watch sets `dotenv: .env`, `dotenvSource: ~/fe.env` or `envAlways: { A: b }`, or sets `env: { PORT: "{{port}}" }` without `sourceFile` and `overrides`
 - **THEN** loading succeeds, none of those keys takes effect and one warning names each
 
-#### Scenario: Source file outside the instance
+#### Scenario: Source file outside the watch
 
 - **WHEN** a watch sets `env.sourceFile` to `../.env` or `/etc/app.env`
 - **THEN** loading the configuration fails validation

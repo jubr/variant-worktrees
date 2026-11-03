@@ -46,12 +46,12 @@ The system SHALL expand templates in the string values of the `env` of every ent
 - **WHEN** a watch `env.overrides` value is `{{slug}}-{{port}}` for slug `demo` and port 62060
 - **THEN** the expanded value is `demo-62060`
 
-#### Scenario: Port of another instance
+#### Scenario: Port of another watch
 
 - **WHEN** the watch `fe` has the value `{{be.port}}` and the watch `be` has port 62061
 - **THEN** the expanded value is `62061`
 
-#### Scenario: Port of an unknown instance
+#### Scenario: Port of an unknown watch
 
 - **WHEN** a value is `{{missing.port}}` and no watch has the key `missing`
 - **THEN** expansion fails with an error that names `missing`

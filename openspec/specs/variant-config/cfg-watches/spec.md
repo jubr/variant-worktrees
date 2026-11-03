@@ -1,7 +1,7 @@
-# variant-config/cfg-instances Specification
+# variant-config/cfg-watches Specification
 
 ## Purpose
-Instances in `variants.yaml` are a record keyed by name. This capability defines the key rules, the per-instance runtime options and container description, and the watch commands autodetection derives, so one record drives `up` and `watch`.
+Watches in `variants.yaml` are a record keyed by name. This capability defines the key rules, the per-watch runtime options and container description, and the watch commands autodetection derives, so one record drives `up` and `watch`.
 
 ## Requirements
 
@@ -79,7 +79,7 @@ The system SHALL accept an optional `container` on any entry of `variant.watches
 - **WHEN** a watch sets `container: { internalPort: 3000 }` or `container: { image: app:latest }`, which has no `dockerfile`
 - **THEN** loading the configuration fails validation
 
-#### Scenario: Proxy to unknown instance
+#### Scenario: Proxy to unknown watch
 
 - **WHEN** a container sets `dockerfile` and `proxy: { path: /api/, to: be }`, whether or not `be` exists
 - **THEN** loading succeeds, `proxy` takes no effect and one warning names it
