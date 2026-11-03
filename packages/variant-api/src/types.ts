@@ -181,7 +181,51 @@ export interface ListOptions {
   verbose?: boolean;
 }
 
+/** What `init` does; every step is on unless turned off. */
+export interface InitOptions {
+  /** The worktree directory prefix; `_v-` by default. */
+  prefix?: string;
+  /** Write `variants.yaml`; default true. */
+  file?: boolean;
+  /** Add `<prefix>*` to `.gitignore`; default true. */
+  gitignore?: boolean;
+  /** Add the CLI to the Mise configuration; default true. */
+  mise?: boolean;
+  /** Replace the `variants.yaml` of the directory when one exists. */
+  force?: boolean;
+}
+
+/** What `init` did, step by step. */
+export interface InitResult {
+  directory: string;
+  prefix: string;
+  /** The written `variants.yaml`, or null when the step was off. */
+  file: string | null;
+  gitignore: {
+    status: "created" | "appended" | "unchanged" | "skipped";
+    changed: boolean;
+    file: string | null;
+    message: string;
+  };
+  mise: {
+    status: "created" | "added" | "unchanged" | "failed" | "skipped";
+    changed: boolean;
+    file: string | null;
+    message: string;
+  };
+  /** What autodetection found and the file holds, without any secret; null when the file step was off. */
+  detected: {
+    dialect: "postgres" | "mysql" | "sqlite";
+    databaseSource: "env" | "default";
+    abbr: string;
+    prefix: string;
+    watches: string[];
+  } | null;
+}
+
 export interface VariantClient {
+  /** Bootstraps the directory: `variants.yaml` from autodetection, the `.gitignore` line and the Mise entry. */
+  init(options?: InitOptions): Promise<InitResult>;
   create(slug?: string): Promise<VariantRecord>;
   implode(slug?: string, options?: ImplodeOptions): Promise<ImplodeResult>;
   up(slug?: string, options?: UpOptions): Promise<UpResult>;
