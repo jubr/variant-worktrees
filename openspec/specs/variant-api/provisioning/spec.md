@@ -8,11 +8,11 @@ and the ordered commands that build its database, so one configuration drives ev
 
 ### Requirement: Provisioning order
 
-The system SHALL provision a variant in this order, stopping at the first failure: instance dependency installs, instance env file copies, the `up` commands of the instances, the entries of `variant.steps` in listed order, and the seed command. Every command SHALL run in its configured directory with the command environment. A failure SHALL report the step `name` (or the command) that failed, its exit status and its output, and SHALL NOT run later commands.
+The system SHALL provision a variant in this order, stopping at the first failure: watch dependency installs, watch env file copies, the `up` commands of the watches, the entries of `variant.steps` in listed order, and the seed command. Every command SHALL run in its configured directory with the command environment. A failure SHALL report the step `name` (or the command) that failed, its exit status and its output, and SHALL NOT run later commands.
 
 #### Scenario: Steps between up and seed
 
-- **WHEN** an instance has `up`, two steps are configured and a seed command exists
+- **WHEN** a watch has `up`, two steps are configured and a seed command exists
 - **THEN** the commands run as `up`, step one, step two, seed
 
 #### Scenario: Step failure stops provisioning
@@ -27,7 +27,7 @@ The system SHALL provision a variant in this order, stopping at the first failur
 
 ### Requirement: Command environment
 
-The system SHALL run every provisioning, step, seed and instance command with the process environment plus `VARIANT_SLUG`, `VARIANT_TARGET` (the database target), `VARIANT_CONFIG` (the configuration path), the connection settings of the database (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` for PostgreSQL; the `MYSQL_` equivalents for MySQL), `POSTGRES_SCHEMA` or `MYSQL_SCHEMA` set to the variant's target, `SQLITE_DATABASE` for SQLite, the storage variable when storage is configured, and for every instance `VARIANT_<K>_PORT` and, when it has a `url` template, `VARIANT_<K>_URL` (where `<K>` is as in the runtime environment overrides). For commands that run on the host, a database host of `host.docker.internal` SHALL be replaced by `127.0.0.1`. The expanded `env` of a step or the expanded `env.overrides` of an instance SHALL be added last and win over the rest.
+The system SHALL run every provisioning, step, seed and watch command with the process environment plus `VARIANT_SLUG`, `VARIANT_TARGET` (the database target), `VARIANT_CONFIG` (the configuration path), the connection settings of the database (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` for PostgreSQL; the `MYSQL_` equivalents for MySQL), `POSTGRES_SCHEMA` or `MYSQL_SCHEMA` set to the variant's target, `SQLITE_DATABASE` for SQLite, the storage variable when storage is configured, and for every watch `VARIANT_<K>_PORT` and, when it has a `url` template, `VARIANT_<K>_URL` (where `<K>` is as in the runtime environment overrides). For commands that run on the host, a database host of `host.docker.internal` SHALL be replaced by `127.0.0.1`. The expanded `env` of a step or the expanded `env.overrides` of a watch SHALL be added last and win over the rest.
 
 #### Scenario: Database settings reach the command
 
@@ -41,7 +41,7 @@ The system SHALL run every provisioning, step, seed and instance command with th
 
 #### Scenario: Ports of all instances visible
 
-- **WHEN** instances `fe` (port 62060) and `be` (port 62061) exist and a step runs
+- **WHEN** watches `fe` (port 62060) and `be` (port 62061) exist and a step runs
 - **THEN** the step sees `VARIANT_FE_PORT=62060` and `VARIANT_BE_PORT=62061`
 
 #### Scenario: Step env wins
@@ -51,7 +51,7 @@ The system SHALL run every provisioning, step, seed and instance command with th
 
 #### Scenario: Instance overrides win
 
-- **WHEN** an instance sets `env: { overrides: { PORT: "{{port}}" } }` with port 62061 and its `watch` command runs
+- **WHEN** a watch sets `env: { overrides: { PORT: "{{port}}" } }` with port 62061 and its `watch` command runs
 - **THEN** the command sees `PORT=62061`
 
 ### Requirement: Skippable and quiet steps
@@ -88,23 +88,23 @@ The system SHALL skip a step when the process environment variable `VARIANT_STEP
 - **WHEN** the same step exits non-zero
 - **THEN** the full output is part of the error
 
-### Requirement: Instance dependency install
+### Requirement: Watch dependency install
 
-The system SHALL run an instance's `install` command in the instance directory before any other provisioning command when that directory has no `node_modules`, and SHALL skip it otherwise.
+The system SHALL run a watch's `install` command in the watch directory before any other provisioning command when that directory has no `node_modules`, and SHALL skip it otherwise.
 
 #### Scenario: Missing node_modules
 
-- **WHEN** an instance with `install: touch installed` has no `node_modules` directory
-- **THEN** the command runs in the instance directory
+- **WHEN** a watch with `install: touch installed` has no `node_modules` directory
+- **THEN** the command runs in the watch directory
 
 #### Scenario: Present node_modules
 
-- **WHEN** the instance directory already has `node_modules`
+- **WHEN** the watch directory already has `node_modules`
 - **THEN** the install command does not run
 
 ### Requirement: Env file copy
 
-The system SHALL write the env file of an instance that sets `env.sourceFile` for a variant worktree other than the primary one. When `<dir>/<sourceFile>` does not exist in the worktree, the system SHALL write it from the source file, with the expanded `env.overrides` and, when storage is configured, the storage variable applied, and SHALL print a line that names the source. The source SHALL be, in order, the file named by the environment variable `VARIANT_ENV_SOURCE`, the same path in the primary worktree, then its `.example` file, then an empty file; a missing source SHALL print a warning and continue. When the file already exists, the system SHALL keep it unchanged and print that the copy was skipped. Values that hold whitespace or `#` SHALL be quoted. For the primary worktree nothing SHALL be copied or written.
+The system SHALL write the env file of a watch that sets `env.sourceFile` for a variant worktree other than the primary one. When `<dir>/<sourceFile>` does not exist in the worktree, the system SHALL write it from the source file, with the expanded `env.overrides` and, when storage is configured, the storage variable applied, and SHALL print a line that names the source. The source SHALL be, in order, the file named by the environment variable `VARIANT_ENV_SOURCE`, the same path in the primary worktree, then its `.example` file, then an empty file; a missing source SHALL print a warning and continue. When the file already exists, the system SHALL keep it unchanged and print that the copy was skipped. Values that hold whitespace or `#` SHALL be quoted. For the primary worktree nothing SHALL be copied or written.
 
 #### Scenario: Copy from the primary worktree
 
@@ -123,7 +123,7 @@ The system SHALL write the env file of an instance that sets `env.sourceFile` fo
 
 #### Scenario: Storage variable written
 
-- **WHEN** `variant.storage` is `{}` and an instance with `env.sourceFile: .env` gets its copy created in worktree `/w`
+- **WHEN** `variant.storage` is `{}` and a watch with `env.sourceFile: .env` gets its copy created in worktree `/w`
 - **THEN** the copy holds `STORAGE_ROOT=/w/.storage`
 
 #### Scenario: Explicit source
@@ -143,7 +143,7 @@ The system SHALL write the env file of an instance that sets `env.sourceFile` fo
 
 ### Requirement: Variant storage directory
 
-The system SHALL create the variant's storage directory (`variant.storage.dir` below the worktree) before the first provisioning command when storage is configured, and SHALL pass its absolute path in the variable named by `variant.storage.envVarName` to every provisioning, step, seed and instance command. The path SHALL NOT be below the state directory.
+The system SHALL create the variant's storage directory (`variant.storage.dir` below the worktree) before the first provisioning command when storage is configured, and SHALL pass its absolute path in the variable named by `variant.storage.envVarName` to every provisioning, step, seed and watch command. The path SHALL NOT be below the state directory.
 
 #### Scenario: Directory created
 
@@ -162,11 +162,11 @@ The system SHALL create the variant's storage directory (`variant.storage.dir` b
 
 ### Requirement: Command echo
 
-The system SHALL print the line `+ <command>` to the progress log before it runs each provisioning command: an instance `install`, an instance `up` command, a step and the seed command. The line SHALL hold the command text as it runs and SHALL be printed whether or not verbose output is requested. A step skipped through `VARIANT_STEP_<S>=no` SHALL print no command line. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error, so results on standard output are unchanged.
+The system SHALL print the line `+ <command>` to the progress log before it runs each provisioning command: a watch `install`, a watch `up` command, a step and the seed command. The line SHALL hold the command text as it runs and SHALL be printed whether or not verbose output is requested. A step skipped through `VARIANT_STEP_<S>=no` SHALL print no command line. The progress log SHALL be the `log` callback of the caller and SHALL default to standard error, so results on standard output are unchanged.
 
 #### Scenario: Commands are printed before they run
 
-- **WHEN** an instance has `up`, one step is configured and a seed command exists and the variant is provisioned
+- **WHEN** a watch has `up`, one step is configured and a seed command exists and the variant is provisioned
 - **THEN** the progress log receives `+ <up command>`, `+ <step command>` and `+ <seed command>` in that order, each before that command runs
 
 #### Scenario: Skipped step prints no command
@@ -181,12 +181,12 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 
 ### Requirement: Project directory
 
-The system SHALL resolve every relative path of the configuration against the project directory: the directory of `variants.yaml` re-based onto the worktree of the variant. This covers instance `dir`, step `dir`, `env.sourceFile`, the `container.dockerfile`, the image build context, `preRm` patterns, and the working directory of the seed command and of the steps that have no `dir`. When `variants.yaml` is in the root of the checkout, the project directory SHALL be the worktree itself. When it is in a subdirectory, the project directory SHALL be the same subdirectory of the worktree. A variant for `main` or without a worktree SHALL use the root of the git checkout that holds the current directory as its worktree, or the current directory outside a git repository, so running from any directory of the project gives the same result. The `{{worktree}}` placeholder and the storage directory SHALL stay relative to the worktree.
+The system SHALL resolve every relative path of the configuration against the project directory: the directory of `variants.yaml` re-based onto the worktree of the variant. This covers watch `dir`, step `dir`, `env.sourceFile`, the `container.dockerfile`, the image build context, `preRm` patterns, and the working directory of the seed command and of the steps that have no `dir`. When `variants.yaml` is in the root of the checkout, the project directory SHALL be the worktree itself. When it is in a subdirectory, the project directory SHALL be the same subdirectory of the worktree. A variant for `main` or without a worktree SHALL use the root of the git checkout that holds the current directory as its worktree, or the current directory outside a git repository, so running from any directory of the project gives the same result. The `{{worktree}}` placeholder and the storage directory SHALL stay relative to the worktree.
 
 #### Scenario: Configuration in a subdirectory
 
-- **WHEN** `app/variants.yaml` sets `seed: bun scripts/seed.mjs`, an instance `be` has `dir: be`, and the variant is provisioned from `app`
-- **THEN** the seed command runs in `<checkout>/app` and the instance commands run in `<checkout>/app/be`
+- **WHEN** `app/variants.yaml` sets `seed: bun scripts/seed.mjs`, a watch `be` has `dir: be`, and the variant is provisioned from `app`
+- **THEN** the seed command runs in `<checkout>/app` and the watch commands run in `<checkout>/app/be`
 
 #### Scenario: Configuration in a subdirectory of a variant worktree
 

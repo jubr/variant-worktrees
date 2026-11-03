@@ -61,11 +61,11 @@ The system SHALL, after the merge gate passes, perform the teardown that the cor
 
 ### Requirement: Implode cleanup
 
-The system SHALL, before the worktree report is taken and the worktree is removed, delete every path that matches a pattern of `variant.implode.preRm`, with `{{slug}}` replaced. A pattern SHALL be matched relative to the project directory and relative to each instance directory, so `dist` removes `fe/dist` and `be/dist` of instances in `fe` and `be`, and a dotfile or a directory such as `node_modules` is matched like any other name. A match that is, or contains, a file tracked by git SHALL be left in place. The system SHALL discard local modifications of tracked files whose base name is in `variant.implode.discard`, leaving other modified files as they are.
+The system SHALL, before the worktree report is taken and the worktree is removed, delete every path that matches a pattern of `variant.implode.preRm`, with `{{slug}}` replaced. A pattern SHALL be matched relative to the project directory and relative to each watch directory, so `dist` removes `fe/dist` and `be/dist` of watches in `fe` and `be`, and a dotfile or a directory such as `node_modules` is matched like any other name. A match that is, or contains, a file tracked by git SHALL be left in place. The system SHALL discard local modifications of tracked files whose base name is in `variant.implode.discard`, leaving other modified files as they are.
 
 #### Scenario: Pre-removal directories
 
-- **WHEN** `preRm` is `[dist, node_modules]`, an instance `fe` has `fe/dist` and `fe/node_modules`, and `implode` runs
+- **WHEN** `preRm` is `[dist, node_modules]`, a watch `fe` has `fe/dist` and `fe/node_modules`, and `implode` runs
 - **THEN** both directories are gone before the worktree is removed
 
 #### Scenario: Root directories

@@ -5,77 +5,97 @@ Instances in `variants.yaml` are a record keyed by name. This capability defines
 
 ## Requirements
 
-### Requirement: Instances keyed by name
-The system SHALL accept `variant.instances` as a record whose keys are the instance keys and whose values are the instance settings (`kind`, `dir`, and the other instance options). A key SHALL start with a letter and hold only letters, digits, `-` and `_`. Instances SHALL NOT have a `name` setting; the key is the name. A list in place of the record SHALL fail validation, and so SHALL two keys that map to the same environment variable segment (letters uppercased, every other character replaced by `_`). The instances found by autodetection SHALL be keyed by the base name of their directory, or by their kind when the directory is the configuration directory, with `-2`, `-3`, and so on appended to a repeated key. Order of instances SHALL be the order of the keys in the file; autodetected instances SHALL be ordered by directory.
+### Requirement: Watches keyed by name
+The system SHALL accept `variant.watches` as a record whose keys are the watch keys and whose values are the watch settings (an optional `kind` of `vite` or `nestjs`, an optional `dir`, and the other watch options). A key SHALL start with a letter and hold only letters, digits, `-` and `_`. The `dir` of a watch (relative to the worktree) SHALL default to its key. Watches have no `name` setting; the key is the name, and a `name` key SHALL be ignored with a warning. A list in place of the record SHALL fail validation, and so SHALL two keys that map to the same environment variable segment (letters uppercased, every other character replaced by `_`). The watches found by autodetection SHALL be keyed by the base name of their directory, or by their kind when the directory is the configuration directory, with `-2`, `-3`, and so on appended to a repeated key. Order of watches SHALL be the order of the keys in the file; autodetected watches SHALL be ordered by directory.
 
 #### Scenario: Record accepted
 
-- **WHEN** `variant.instances` is `{ fe: { kind: vite, dir: fe }, be: { kind: nestjs, dir: be } }`
-- **THEN** loading succeeds and the instances are `fe` then `be`
+- **WHEN** `variant.watches` is `{ fe: { kind: vite, dir: fe }, be: { kind: nestjs, dir: be } }`
+- **THEN** loading succeeds and the watches are `fe` then `be`
+
+#### Scenario: Kind is optional
+
+- **WHEN** `variant.watches` is `{ be: { watch: bun run start:dev } }`
+- **THEN** loading succeeds without a warning and the watch has no `kind`
+
+#### Scenario: Default directory
+
+- **WHEN** `variant.watches` is `{ fe: { kind: vite }, be: { kind: nestjs, dir: server } }`
+- **THEN** loading succeeds, the directory of `fe` is `fe` and the directory of `be` is `server`
 
 #### Scenario: List or name setting refused
 
-- **WHEN** `variant.instances` is a list of instance settings, or an instance sets `name: api`
+- **WHEN** `variant.watches` is a list of watch settings
 - **THEN** loading the configuration fails validation
+
+#### Scenario: Name setting ignored
+
+- **WHEN** a watch sets `name: api`
+- **THEN** loading succeeds, the setting is ignored and one warning names `name`
 
 #### Scenario: Colliding environment segments
 
-- **WHEN** `variant.instances` has the keys `my-api` and `my_api`
+- **WHEN** `variant.watches` has the keys `my-api` and `my_api`
 - **THEN** loading the configuration fails validation naming both keys
 
 #### Scenario: Autodetected keys
 
 - **WHEN** autodetection finds a Vite app in `fe` and a NestJS app in `be`
-- **THEN** the instances are keyed `be` and `fe`, in directory order
+- **THEN** the watches are keyed `be` and `fe`, in directory order
 
 #### Scenario: Repeated directory name
 
 - **WHEN** autodetection finds apps in `a/web` and `b/web`
 - **THEN** the keys are `web` and `web-2`
 
-### Requirement: Instance runtime options
-The system SHALL accept on any entry of `variant.instances` these optional settings: `env` (an object with `sourceFile` and `overrides`, see the instance env requirement of `variant-config/core`), `install` (a shell command) and `ready` (a URL path starting with `/`). The templated `env.overrides` SHALL be passed to the commands of that instance in `up` and `watch` and written into its env file copy when the copy is created. `install` SHALL run in the instance directory when that directory has no `node_modules`. `ready` SHALL be a path that answers an HTTP request with a success status when the instance serves.
+### Requirement: Watch runtime options
+The system SHALL accept on any entry of `variant.watches` these optional settings: `env` (an object with `sourceFile` and `overrides`, see the watch env requirement of `variant-config/core`), `install` (a shell command) and `ready` (a URL path starting with `/`). The templated `env.overrides` SHALL be passed to the commands of that watch in `up` and `watch` and written into its env file copy when the copy is created. `install` SHALL run in the watch directory when that directory has no `node_modules`. `ready` SHALL be a path that answers an HTTP request with a success status when the watch serves.
 
 #### Scenario: Options accepted
 
-- **WHEN** an instance sets `env: { overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } }`, `install: bun install --frozen-lockfile` and `ready: /api/health/live`
-- **THEN** loading succeeds and the resolved instance carries them
+- **WHEN** a watch sets `env: { overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } }`, `install: bun install --frozen-lockfile` and `ready: /api/health/live`
+- **THEN** loading succeeds and the resolved watch carries them
 
 #### Scenario: Ready path without slash
 
-- **WHEN** an instance sets `ready: api/health`
+- **WHEN** a watch sets `ready: api/health`
 - **THEN** loading the configuration fails validation
 
-### Requirement: Instance container
-The system SHALL accept an optional `container` on any entry of `variant.instances` that describes how the instance runs under `up`. It has a required `dockerfile` (relative to the worktree, built with the worktree as context) and an optional `internalPort` (the port inside the container, defaulting to 80). The Dockerfile owns everything else about the container: its base image, its build, the files it serves and its web server configuration. A `container` without `dockerfile`, with an `internalPort` that is not a positive integer, or with any other key (including the former `image`, `build`, `static`, `port`, `proxy`, `volumes` and `env`) SHALL fail validation.
+### Requirement: Watch container
+The system SHALL accept an optional `container` on any entry of `variant.watches` that describes how the watch runs under `up`. It has a required `dockerfile` (relative to the worktree, built with the worktree as context) and an optional `internalPort` (the port inside the container, defaulting to 80). The Dockerfile owns everything else about the container: its base image, its build, the files it serves and its web server configuration. A `container` without `dockerfile`, with an `internalPort` that is not a positive integer, SHALL fail validation. Any other key (including the former `image`, `build`, `static`, `port`, `proxy`, `volumes` and `env`) SHALL be ignored with a warning.
 
 #### Scenario: Static site with proxy
 
-- **WHEN** an instance `fe` sets `container: { dockerfile: fe/Dockerfile }` and `be` sets `container: { dockerfile: be/Dockerfile, internalPort: 3000 }`
+- **WHEN** a watch `fe` sets `container: { dockerfile: fe/Dockerfile }` and `be` sets `container: { dockerfile: be/Dockerfile, internalPort: 3000 }`
 - **THEN** loading succeeds; the Dockerfile of `fe` builds, serves and proxies
 
 #### Scenario: Application container without port
 
-- **WHEN** an instance sets `container: { dockerfile: be/Dockerfile }` without `internalPort`
-- **THEN** loading succeeds and `up` publishes the instance to container port 80
+- **WHEN** a watch sets `container: { dockerfile: be/Dockerfile }` without `internalPort`
+- **THEN** loading succeeds and `up` publishes the watch to container port 80
 
 #### Scenario: Container without Dockerfile
 
-- **WHEN** an instance sets `container: { internalPort: 3000 }` or `container: { image: app:latest }`
+- **WHEN** a watch sets `container: { internalPort: 3000 }` or `container: { image: app:latest }`, which has no `dockerfile`
 - **THEN** loading the configuration fails validation
 
 #### Scenario: Proxy to unknown instance
 
-- **WHEN** a container sets `proxy: { path: /api/, to: be }`, whether or not `be` exists
-- **THEN** loading the configuration fails validation naming `proxy`
+- **WHEN** a container sets `dockerfile` and `proxy: { path: /api/, to: be }`, whether or not `be` exists
+- **THEN** loading succeeds, `proxy` takes no effect and one warning names it
 
 #### Scenario: Other former container keys refused
 
-- **WHEN** a container sets `static: dist`, `build: "bunx vite build"`, `volumes: [...]`, `env: {...}` or `port: 3000`
+- **WHEN** a container sets `dockerfile` and also `static: dist`, `build: "bunx vite build"`, `volumes: [...]`, `env: {...}` or `port: 3000`
+- **THEN** loading succeeds, none of those keys takes effect and one warning names each
+
+#### Scenario: Wrong type stays an error
+
+- **WHEN** a container sets `internalPort: "3000"`
 - **THEN** loading the configuration fails validation
 
 ### Requirement: Autodetected watch commands
-The system SHALL give every autodetected instance a `watch` command that keeps the console across rebuilds, so the output of several instances stays readable in one terminal. For a Vite instance the command SHALL be `bun run dev` when its `package.json` has a `dev` script, otherwise `bunx --bun vite`, followed by `--clearScreen false` unless a Vite configuration file of the instance sets `clearScreen`. For a NestJS instance the command SHALL be `bun run start:dev` when its `package.json` has a `start:dev` script, otherwise `bunx nest start --watch`, followed by `--preserveWatchOutput` unless the `tsconfig.json` of the instance sets `preserveWatchOutput` to `true`. When the `start:dev` script of a NestJS instance starts with `bun --watch` or `bun --hot`, the command SHALL be that script with `--no-clear-screen` inserted after the watch flag and nothing appended, unless the script already has it. Explicit instances SHALL keep exactly the `watch` they configure.
+The system SHALL give every autodetected watch a `watch` command that keeps the console across rebuilds, so the output of several watches stays readable in one terminal. For a Vite watch the command SHALL be `bun run dev` when its `package.json` has a `dev` script, otherwise `bunx --bun vite`, followed by `--clearScreen false` unless a Vite configuration file of the watch sets `clearScreen`. For a NestJS watch the command SHALL be `bun run start:dev` when its `package.json` has a `start:dev` script, otherwise `bunx nest start --watch`, followed by `--preserveWatchOutput` unless the `tsconfig.json` of the watch sets `preserveWatchOutput` to `true`. When the `start:dev` script of a NestJS watch starts with `bun --watch` or `bun --hot`, the command SHALL be that script with `--no-clear-screen` inserted after the watch flag and nothing appended, unless the script already has it. Explicit watches SHALL keep exactly the `watch` they configure.
 
 #### Scenario: Vite flag added
 
