@@ -56,7 +56,7 @@ For a SQLite configuration the library SHALL create the database file of a varia
 
 ### Requirement: Implode cleanup patterns on both runtimes
 
-The patterns of `variant.implode.preRm` SHALL match the same paths under Node and Bun: `*`, `**`, `?`, character classes and `{a,b}` alternatives, dotfiles included, files and directories alike, relative to the project directory and to each instance directory. A match outside the worktree SHALL be ignored, symbolic links SHALL NOT be followed, and a match that is or contains a tracked file SHALL never be deleted.
+The patterns of `variant.implode.preRm` SHALL match the same paths under Node and Bun: `*`, `**`, `?`, character classes and `{a,b}` alternatives, dotfiles included, files and directories alike, relative to the project directory and to each watch directory. A match outside the worktree SHALL be ignored, symbolic links SHALL NOT be followed, and a match that is or contains a tracked file SHALL never be deleted.
 
 #### Scenario: Wildcard match
 
@@ -70,7 +70,7 @@ The patterns of `variant.implode.preRm` SHALL match the same paths under Node an
 
 #### Scenario: Directory name
 
-- **WHEN** `preRm` is `[node_modules]` and an untracked `fe/node_modules` exists next to an instance `fe`
+- **WHEN** `preRm` is `[node_modules]` and an untracked `fe/node_modules` exists next to a watch `fe`
 - **THEN** the directory is removed under either runtime
 
 #### Scenario: Tracked file kept

@@ -8,7 +8,7 @@ A subscription that tells callers the current set of variants and every change t
 
 ### Requirement: Variant snapshot subscription
 
-The library SHALL offer a subscription to the variant records of the project. A subscriber SHALL receive the current records right after subscribing and a new set whenever a record is added, removed or differs in `mode`, `url`, `log`, the instance facts (`port`, `pid`, `url`, `alive`) or any other field except `uptimeSeconds`. A set that equals the previous one, ignoring `uptimeSeconds`, SHALL NOT be delivered. Changes that follow each other within 200 milliseconds SHALL produce one delivery. The records SHALL be those `list` returns.
+The library SHALL offer a subscription to the variant records of the project. A subscriber SHALL receive the current records right after subscribing and a new set whenever a record is added, removed or differs in `mode`, `url`, `log`, the watch facts (`port`, `pid`, `url`, `alive`) or any other field except `uptimeSeconds`. A set that equals the previous one, ignoring `uptimeSeconds`, SHALL NOT be delivered. Changes that follow each other within 200 milliseconds SHALL produce one delivery. The records SHALL be those `list` returns.
 
 #### Scenario: Initial delivery
 
@@ -28,7 +28,7 @@ The library SHALL offer a subscription to the variant records of the project. A 
 #### Scenario: Process dies
 
 - **WHEN** a recorded watch process of `demo` ends without `down` and five seconds pass
-- **THEN** the subscriber receives a set in which that instance has `alive: false`
+- **THEN** the subscriber receives a set in which that watch has `alive: false`
 
 #### Scenario: Uptime alone is not a change
 

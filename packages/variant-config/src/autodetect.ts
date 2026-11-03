@@ -328,8 +328,11 @@ const shouldSkip = (name: string): boolean =>
   name === "build" ||
   name.startsWith(".");
 
+/** A watch found by autodetection, which always knows its kind. */
+type DetectedWatch = VariantWatch & { kind: NonNullable<VariantWatch["kind"]> };
+
 /** The key of an autodetected watch: its directory's base name, or its kind for the configuration directory. */
-const watchKeyFor = (watch: VariantWatch): string => {
+const watchKeyFor = (watch: DetectedWatch): string => {
   const base = watch.dir === "." ? watch.kind : basename(watch.dir);
   const plain = base.replace(/[^A-Za-z0-9_-]/g, "-");
   return WATCH_KEY.test(plain) ? plain : `${watch.kind}-${plain}`;
@@ -337,7 +340,7 @@ const watchKeyFor = (watch: VariantWatch): string => {
 
 /** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
 export const detectWatches = (configDir: string): Record<string, VariantWatch> => {
-  const found: VariantWatch[] = [];
+  const found: DetectedWatch[] = [];
   const visited = new Set<string>();
   const walk = (directory: string): void => {
     const resolved = resolve(directory);

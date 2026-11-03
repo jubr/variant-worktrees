@@ -1,21 +1,22 @@
-## RENAMED Requirements
+# variant-config/cfg-watches Specification
 
-- FROM: `### Requirement: Instances keyed by name`
-- TO: `### Requirement: Watches keyed by name`
-- FROM: `### Requirement: Instance runtime options`
-- TO: `### Requirement: Watch runtime options`
-- FROM: `### Requirement: Instance container`
-- TO: `### Requirement: Watch container`
+## Purpose
+Watches in `variants.yaml` are a record keyed by name. This capability defines the key rules, the per-watch runtime options and container description, and the watch commands autodetection derives, so one record drives `up` and `watch`.
 
-## MODIFIED Requirements
+## Requirements
 
 ### Requirement: Watches keyed by name
-The system SHALL accept `variant.watches` as a record whose keys are the watch keys and whose values are the watch settings (`kind`, an optional `dir`, and the other watch options). A key SHALL start with a letter and hold only letters, digits, `-` and `_`. The `dir` of a watch (relative to the worktree) SHALL default to its key. Watches have no `name` setting; the key is the name, and a `name` key SHALL be ignored with a warning. A list in place of the record SHALL fail validation, and so SHALL two keys that map to the same environment variable segment (letters uppercased, every other character replaced by `_`). The watches found by autodetection SHALL be keyed by the base name of their directory, or by their kind when the directory is the configuration directory, with `-2`, `-3`, and so on appended to a repeated key. Order of watches SHALL be the order of the keys in the file; autodetected watches SHALL be ordered by directory.
+The system SHALL accept `variant.watches` as a record whose keys are the watch keys and whose values are the watch settings (an optional `kind` of `vite` or `nestjs`, an optional `dir`, and the other watch options). A key SHALL start with a letter and hold only letters, digits, `-` and `_`. The `dir` of a watch (relative to the worktree) SHALL default to its key. Watches have no `name` setting; the key is the name, and a `name` key SHALL be ignored with a warning. A list in place of the record SHALL fail validation, and so SHALL two keys that map to the same environment variable segment (letters uppercased, every other character replaced by `_`). The watches found by autodetection SHALL be keyed by the base name of their directory, or by their kind when the directory is the configuration directory, with `-2`, `-3`, and so on appended to a repeated key. Order of watches SHALL be the order of the keys in the file; autodetected watches SHALL be ordered by directory.
 
 #### Scenario: Record accepted
 
 - **WHEN** `variant.watches` is `{ fe: { kind: vite, dir: fe }, be: { kind: nestjs, dir: be } }`
 - **THEN** loading succeeds and the watches are `fe` then `be`
+
+#### Scenario: Kind is optional
+
+- **WHEN** `variant.watches` is `{ be: { watch: bun run start:dev } }`
+- **THEN** loading succeeds without a warning and the watch has no `kind`
 
 #### Scenario: Default directory
 
@@ -78,7 +79,7 @@ The system SHALL accept an optional `container` on any entry of `variant.watches
 - **WHEN** a watch sets `container: { internalPort: 3000 }` or `container: { image: app:latest }`, which has no `dockerfile`
 - **THEN** loading the configuration fails validation
 
-#### Scenario: Proxy to unknown instance
+#### Scenario: Proxy to unknown watch
 
 - **WHEN** a container sets `dockerfile` and `proxy: { path: /api/, to: be }`, whether or not `be` exists
 - **THEN** loading succeeds, `proxy` takes no effect and one warning names it

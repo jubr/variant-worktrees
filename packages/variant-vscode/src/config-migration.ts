@@ -1,6 +1,13 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findConfigFile, LOCAL_FILENAME, loadConfig, type MigrationResult, migrateFile } from "variant-config";
+import {
+  findConfigFile,
+  isSchemaHeaderNotice,
+  LOCAL_FILENAME,
+  loadConfig,
+  type MigrationResult,
+  migrateFile,
+} from "variant-config";
 import * as vscode from "vscode";
 
 /**
@@ -20,12 +27,14 @@ const UNDO = "Undo";
 const messageFor = (result: MigrationResult): string => {
   const names = result.notices.join("; ");
   if (result.status === "skipped") {
-    return `${result.file} uses names of an earlier version and was not rewritten: ${result.reason}. Rename them by hand (${names}).`;
+    return `${result.file} is not in the current format and was not rewritten: ${result.reason}. Update it by hand (${names}).`;
   }
   const how = result.file.endsWith(LOCAL_FILENAME)
     ? "It is git-ignored and written by Variant Worktrees."
-    : "Review the change with git diff and revert it with git checkout.";
-  return `${result.file} used names of an earlier version and was rewritten. ${how} (${names})`;
+    : result.backup !== undefined
+      ? `It is not tracked by git, so the old text is saved as ${result.backup}.`
+      : "Review the change with git diff and revert it with git checkout.";
+  return `${result.file} was updated to the current names and format. ${how} (${names})`;
 };
 
 const readText = (file: string): string | undefined => {
@@ -45,7 +54,7 @@ const openFile = async (file: string): Promise<void> => {
  * Puts the text from before the rewrite back, unless the file changed since: then the user's edits win and git is the
  * way to revert. The extension rewrites the file again on its next load unless `VARIANT_MIGRATE=0`.
  */
-const undo = (file: string, before: string, after: string): void => {
+const undo = (file: string, before: string, after: string, backup: string | undefined): void => {
   try {
     if (readFileSync(file, "utf8") !== after) {
       void vscode.window.showErrorMessage(
@@ -54,6 +63,10 @@ const undo = (file: string, before: string, after: string): void => {
       return;
     }
     writeFileSync(file, before);
+    // the backup this rewrite saved is now redundant, and would keep the next rewrite from saving its own
+    if (backup !== undefined && readText(backup) === before) {
+      rmSync(backup, { force: true });
+    }
     void vscode.window.showInformationMessage(
       `${file} is back to its old names. It is rewritten again when the extension next loads it; set VARIANT_MIGRATE=0 to stop that.`,
     );
@@ -80,9 +93,6 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
         }
         const env = deps.env ?? process.env;
         const config = loadConfig({ cwd: deps.root, configPath, env });
-        if (config.migrations.length === 0) {
-          return;
-        }
         for (const file of [config.configPath, join(config.configDir, LOCAL_FILENAME)]) {
           if (announced.has(file)) {
             continue;
@@ -90,7 +100,9 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
           announced.add(file);
           const before = readText(file);
           const result = migrateFile(file, env);
-          if (result) {
+          // a missing schema header is cosmetic: when it cannot be added, there is nothing to tell
+          const cosmetic = result?.status === "skipped" && result.notices.every(isSchemaHeaderNotice);
+          if (result && !cosmetic) {
             const after = result.status === "rewritten" ? readText(file) : undefined;
             const canUndo = before !== undefined && after !== undefined;
             const actions = canUndo ? [OPEN_FILE, UNDO] : [OPEN_FILE];
@@ -100,7 +112,7 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
                   return openFile(file);
                 }
                 if (choice === UNDO && canUndo) {
-                  undo(file, before, after);
+                  undo(file, before, after, result.status === "rewritten" ? result.backup : undefined);
                 }
                 return undefined;
               })

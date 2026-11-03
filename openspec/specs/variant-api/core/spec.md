@@ -25,7 +25,7 @@ The system SHALL create an isolated database schema or database file for a slug.
 
 ### Requirement: List variants
 
-The system SHALL return an inventory of known variants from state files, the database, and the `runtime` sections of the `variants.local.yaml` files of the main checkout and of every `<prefix>*` worktree below the variant root, merged by slug. Each record SHALL carry, when known, the worktree directory, the runtime `mode`, the URL of the first instance that has one, the database target, and for every instance its `port`, `pid`, `url` and whether the pid is alive. A value from several sources SHALL be taken from state first, then runtime, then the database. A runtime file that cannot be read SHALL NOT fail the call.
+The system SHALL return an inventory of known variants from state files, the database, and the `runtime` sections of the `variants.local.yaml` files of the main checkout and of every `<prefix>*` worktree below the variant root, merged by slug. Each record SHALL carry, when known, the worktree directory, the runtime `mode`, the URL of the first watch that has one, the database target, and for every watch its `port`, `pid`, `url` and whether the pid is alive. A value from several sources SHALL be taken from state first, then runtime, then the database. A runtime file that cannot be read SHALL NOT fail the call.
 
 Each record that has a directory SHALL carry `createdMs` and `changedMs`, epoch milliseconds. `createdMs` SHALL be the earlier birth time of that directory and of its `variants.local.yaml`, skipping a path that does not exist. `changedMs` SHALL be the later modification time of those same paths. A record with no directory SHALL omit both.
 
@@ -43,13 +43,13 @@ Each record SHALL carry `implodeClean`. It SHALL be false for `main`. For every 
 
 #### Scenario: Runtime facts merged
 
-- **WHEN** worktree `_v-demo` has a `variants.local.yaml` with `runtime.slug: demo`, `mode: watch` and `instances.fe.url`
+- **WHEN** worktree `_v-demo` has a `variants.local.yaml` with `runtime.slug: demo`, `mode: watch` and `watches.fe.url`
 - **THEN** the record for `demo` carries that mode, URL and its directory
 
 #### Scenario: Live process
 
 - **WHEN** a runtime file records a pid that is running and another that is not
-- **THEN** the first instance is reported alive and the second not alive
+- **THEN** the first watch is reported alive and the second not alive
 
 #### Scenario: Database-only variant
 
@@ -216,18 +216,18 @@ The system SHALL name worktree directories `<prefix><slug>` using the resolved `
 - **WHEN** `variant.prefix` is `_work-` and `create("add-auth")` requires a worktree
 - **THEN** the worktree directory is named `_work-add-auth`
 
-### Requirement: Instance commands run in the instance directory
+### Requirement: Watch commands run in the watch directory
 
-The system SHALL run the `up` command of an entry of `variant.instances` during provisioning with the instance's `dir`, resolved against the variant's worktree, as its working directory. The variant-wide `up` command used when no instances exist, and the seed command, SHALL run in the worktree root.
+The system SHALL run the `up` command of an entry of `variant.watches` during provisioning with the watch's `dir`, resolved against the variant's worktree, as its working directory. The variant-wide `up` command used when no watches exist, and the seed command, SHALL run in the worktree root.
 
-#### Scenario: Instance command runs in its directory
+#### Scenario: Watch command runs in its directory
 
-- **WHEN** an instance with `dir: be` and `up: pwd` is provisioned in a worktree `/w`
+- **WHEN** a watch with `dir: be` and `up: pwd` is provisioned in a worktree `/w`
 - **THEN** the command runs in `/w/be`
 
 #### Scenario: Seed runs in the worktree root
 
-- **WHEN** a variant with instances and a seed command is provisioned
+- **WHEN** a variant with watches and a seed command is provisioned
 - **THEN** the seed command runs in the worktree root
 
 ### Requirement: Implode variant

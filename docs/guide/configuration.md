@@ -8,7 +8,9 @@
 
 A key `variants.yaml` or `variants.local.yaml` does not know is a warning, not an error: the command prints `<file>: unknown key <path>` on standard error, one line per key, and runs without it. A value of the wrong type or a missing required value is still an error.
 
-`variant.instances`, `runtime.instances` and `variant.reservedPorts` of earlier versions still load, with a notice on standard error (`variant.instances` is now `variant.watches`; `variant.reservedPorts` was dropped, free ports come from `variant.ports.range`). The new name wins when both exist. The `variant` CLI and the VS Code extension rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (`variants.local.yaml`, which is git-ignored, always); review the change with `git diff` and revert it with `git checkout -- <file>`. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`; the notice then names the reason. The library, the MCP server and `variant ui` read the old names but never write.
+`variant.instances`, `runtime.instances` and `variant.reservedPorts` of earlier versions still load, with a notice on standard error (`variant.instances` is now `variant.watches`; `variant.reservedPorts` was dropped, free ports come from `variant.ports.range`). The new name wins when both exist. The `variant` CLI and the VS Code extension rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (`variants.local.yaml`, which is git-ignored, always); review the change with `git diff` and revert it with `git checkout -- <file>`. A `variants.yaml` that git does not track is rewritten too, after its old text is saved as `variants.yaml~` (nothing happens when that file exists); a tracked file with uncommitted changes is left alone. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`; the notice then names the reason. The library, the MCP server and `variant ui` read the old names but never write.
+
+The same migration puts the schema header on top of a `variants.yaml` or `variants.local.yaml` that has none: `# yaml-language-server: $schema=https://github.com/jubr/variant-worktrees/raw/refs/heads/main/packages/variant-config/variants.yaml.schema.json` (`variants.local.yaml.schema.json` for the local file), so editors offer completion and validation. A `variants.local.yaml` that the tool writes starts with it, and a schema line you wrote yourself stays. When the header cannot be added (a tracked file with uncommitted changes, `CI`, `VARIANT_MIGRATE=0`) nothing is printed, because it is cosmetic.
 
 ## Watches are a record
 
@@ -107,7 +109,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 | Option | Meaning |
 | --- | --- |
-| `kind`, `dir` | `vite` or `nestjs`, and the directory below the worktree |
+| `kind`, `dir` | Both optional. `kind` is `vite` or `nestjs` (a label; autodetection sets it). `dir` is the directory below the worktree, the key of the watch when absent |
 | `up`, `watch` | `up` runs while provisioning; `watch` is the process `variant watch` supervises |
 | `url` | URL template of the watch |
 | `env` | `sourceFile`: an env file in `dir`, copied once for a variant (from the primary worktree's file, its `.example`, or `VARIANT_ENV_SOURCE`). `overrides`: templated values for the watch's commands, written into the copy when it is created together with the storage variable. An existing copy is left alone |

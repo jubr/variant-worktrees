@@ -11,7 +11,7 @@ import {
   runningEntry,
   writeEntry,
   writeToken,
-} from "./ui-instance.js";
+} from "./ui-watch.js";
 
 export interface UiCommandOptions {
   /** Any directory of the project. */

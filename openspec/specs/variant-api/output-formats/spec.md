@@ -16,7 +16,7 @@ The `variant` CLI SHALL print a human-readable text summary of a command result 
 
 #### Scenario: Status text
 
-- **WHEN** a user runs `variant status demo` for a variant with mode `watch` and instance `fe` on port 62060
+- **WHEN** a user runs `variant status demo` for a variant with mode `watch` and watch `fe` on port 62060
 - **THEN** stdout names `demo`, the mode `watch`, and the port 62060 of `fe`
 
 #### Scenario: Status text shows uptime and log

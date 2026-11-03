@@ -1,5 +1,5 @@
 /**
- * Specification: openspec/specs/variant-server/ui-instance/spec.md
+ * Specification: openspec/specs/variant-server/ui-watch/spec.md
  *
  * `variant ui` from source in a child process, in a SQLite project in a temporary directory.
  */

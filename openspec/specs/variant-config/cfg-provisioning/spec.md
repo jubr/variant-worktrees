@@ -6,7 +6,7 @@ Provisioning configuration in `variants.yaml` holds the ordered steps that run b
 ## Requirements
 
 ### Requirement: Provisioning steps
-The system SHALL accept an optional list `variant.steps`. Each step has a required `name` and `run` (shell commands), and optional `dir` (a path relative to the worktree, default the worktree root, never absolute or climbing out of it), `env` (a map of templated values) and `filterLinesRegex` (a regular expression). A step name SHALL hold only letters, digits, `-` and `_`. Step names SHALL be unique within the list, and two names that map to the same environment variable segment (letters uppercased, every other character replaced by `_`) SHALL fail validation. Unknown keys, including the former `show` and `unlessEnv`, SHALL fail validation.
+The system SHALL accept an optional list `variant.steps`. Each step has a required `name` and `run` (shell commands), and optional `dir` (a path relative to the worktree, default the worktree root, never absolute or climbing out of it), `env` (a map of templated values) and `filterLinesRegex` (a regular expression). A step name SHALL hold only letters, digits, `-` and `_`. Step names SHALL be unique within the list, and two names that map to the same environment variable segment (letters uppercased, every other character replaced by `_`) SHALL fail validation. Unknown keys, including the former `show` and `unlessEnv`, SHALL be ignored with a warning.
 
 #### Scenario: Valid steps
 
@@ -36,24 +36,24 @@ The system SHALL accept an optional list `variant.steps`. Each step has a requir
 #### Scenario: Former keys refused
 
 - **WHEN** a step sets `show` or `unlessEnv`
-- **THEN** loading the configuration fails validation
+- **THEN** loading succeeds, neither key takes effect and one warning names each
 
 ### Requirement: Command templates
-The system SHALL expand templates in the string values of the `env` of every entry of `variant.steps` and the `env.overrides` of every entry of `variant.instances`. The variant placeholders SHALL be replaced first: `{{slug}}`, `{{schema}}` (the database target of the variant), `{{storage}}` (the absolute storage directory), `{{worktree}}` (the absolute worktree path), `{{url}}` (the rendered `url` of the instance, empty when it has none), `{{port}}` (the port of the instance the value belongs to; empty for a step) and `{{<key>.port}}` (the port of another instance, by its key). The former `{{port.<key>}}` SHALL fail with an error that names `{{<key>.port}}`. Then `{{NAME}}` SHALL be replaced by the process environment variable `NAME`, and `{{NAME:-default}}` by that variable or, when it is unset or empty, by `default`. A `{{NAME}}` whose variable is unset SHALL fail with an error that names the variable.
+The system SHALL expand templates in the string values of the `env` of every entry of `variant.steps` and the `env.overrides` of every entry of `variant.watches`. The variant placeholders SHALL be replaced first: `{{slug}}`, `{{schema}}` (the database target of the variant), `{{storage}}` (the absolute storage directory), `{{worktree}}` (the absolute worktree path), `{{url}}` (the rendered `url` of the watch, empty when it has none), `{{port}}` (the port of the watch the value belongs to; empty for a step) and `{{<key>.port}}` (the port of another watch, by its key). The former `{{port.<key>}}` SHALL fail with an error that names `{{<key>.port}}`. Then `{{NAME}}` SHALL be replaced by the process environment variable `NAME`, and `{{NAME:-default}}` by that variable or, when it is unset or empty, by `default`. A `{{NAME}}` whose variable is unset SHALL fail with an error that names the variable.
 
 #### Scenario: Variant placeholders
 
-- **WHEN** an instance `env.overrides` value is `{{slug}}-{{port}}` for slug `demo` and port 62060
+- **WHEN** a watch `env.overrides` value is `{{slug}}-{{port}}` for slug `demo` and port 62060
 - **THEN** the expanded value is `demo-62060`
 
-#### Scenario: Port of another instance
+#### Scenario: Port of another watch
 
-- **WHEN** the instance `fe` has the value `{{be.port}}` and the instance `be` has port 62061
+- **WHEN** the watch `fe` has the value `{{be.port}}` and the watch `be` has port 62061
 - **THEN** the expanded value is `62061`
 
-#### Scenario: Port of an unknown instance
+#### Scenario: Port of an unknown watch
 
-- **WHEN** a value is `{{missing.port}}` and no instance has the key `missing`
+- **WHEN** a value is `{{missing.port}}` and no watch has the key `missing`
 - **THEN** expansion fails with an error that names `missing`
 
 #### Scenario: Former port placeholder

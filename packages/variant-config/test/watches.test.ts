@@ -51,6 +51,28 @@ describe("runtime watch discovery", () => {
   });
 });
 
+describe("a watch without kind", () => {
+  it("loads with its commands and its key as directory", () => {
+    const directory = tempDirectory();
+    try {
+      writeFileSync(
+        join(directory, "variants.yaml"),
+        "variant:\n  watches:\n    be:\n      watch: bun run start:dev\n    fe:\n      dir: web\n",
+      );
+
+      const config = loadConfig({ cwd: directory, env: {} });
+
+      expect(config.warnings).toEqual([]);
+      expect(config.variant.watches).toEqual({
+        be: { dir: "be", watch: "bun run start:dev" },
+        fe: { dir: "web" },
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("autodetected watch commands keep the console", () => {
   /** Detects the single application in `app/`, created from `files`, and returns its `watch` command. */
   const watchOf = (files: Record<string, string>): string | undefined => {

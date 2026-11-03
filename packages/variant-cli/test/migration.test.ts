@@ -2,12 +2,17 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "variant-config";
+import { loadConfig, schemaHeaderFor } from "variant-config";
 import { migrateConfigFiles } from "../src/migration.js";
 import { runCli } from "./support/cli.js";
 
-const OLD = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: . }\n";
-const NEW = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const HEADER = schemaHeaderFor("variants.yaml");
+const LOCAL_HEADER = schemaHeaderFor("variants.local.yaml");
+// AIDEV-NOTE: the fixtures carry the schema header so the tests of the renames see no header change; the last describe covers it
+const BARE_OLD = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_NEW = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const OLD = `${HEADER}\n\n${BARE_OLD}`;
+const NEW = `${HEADER}\n\n${BARE_NEW}`;
 // AIDEV-NOTE: CI="" because a CI runner sets CI=true, which turns the rewrite off; an empty value counts as unset
 const ENV = { CI: "", VARIANT_MIGRATE: "" };
 
@@ -62,15 +67,32 @@ describe("configuration migration in the CLI", () => {
     expect(second.stderr).not.toContain("variant.instances");
   });
 
-  it("names the reason when it does not rewrite, and the command still runs", async () => {
+  it("rewrites an untracked file after saving a backup, and says where the old text is", async () => {
     const { file } = project(OLD, false);
 
     const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
 
     expect(result.exitCode).toBe(0);
-    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readFileSync(`${file}~`, "utf8")).toBe(OLD);
     expect(result.stderr).toContain(file);
     expect(result.stderr).toContain("not tracked");
+    expect(result.stderr).toContain(`${file}~`);
+    expect(result.stderr).toContain("variant.watches");
+    expect(result.stderr).not.toContain("git checkout");
+    expect(JSON.parse(result.stdout)).toBeArray();
+  });
+
+  it("names the reason when it does not rewrite, and the command still runs", async () => {
+    const { file } = project(OLD, true);
+    writeFileSync(file, `${OLD}# my edit\n`);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(`${OLD}# my edit\n`);
+    expect(result.stderr).toContain(file);
+    expect(result.stderr).toContain("uncommitted");
     expect(result.stderr).toContain("variant.watches");
     expect(JSON.parse(result.stdout)).toBeArray();
   });
@@ -97,11 +119,13 @@ describe("configuration migration in the CLI", () => {
   it("rewrites the git-ignored variants.local.yaml next to it", async () => {
     const { directory, file } = project(NEW, true);
     const local = join(directory, "variants.local.yaml");
-    writeFileSync(local, "runtime:\n  slug: main\n  instances:\n    be: { port: 62060 }\n");
+    writeFileSync(local, `${LOCAL_HEADER}\n\nruntime:\n  slug: main\n  instances:\n    be: { port: 62060 }\n`);
 
     const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
 
-    expect(readFileSync(local, "utf8")).toBe("runtime:\n  slug: main\n  watches:\n    be: { port: 62060 }\n");
+    expect(readFileSync(local, "utf8")).toBe(
+      `${LOCAL_HEADER}\n\nruntime:\n  slug: main\n  watches:\n    be: { port: 62060 }\n`,
+    );
     expect(result.stderr).toContain(local);
     expect(result.stderr).not.toContain(`git checkout -- ${local}`);
   });
@@ -123,5 +147,47 @@ describe("configuration migration in the CLI", () => {
     migrateConfigFiles(config, { CI: "true" }, (line) => lines.push(line));
 
     expect(lines.filter((line) => line.startsWith("warning:"))).toHaveLength(1);
+  });
+});
+
+describe("the schema header in the CLI", () => {
+  it("adds the header to a current file that has none, and says so", async () => {
+    const { file } = project(BARE_NEW, true);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(result.stderr).toContain(file);
+    expect(result.stderr).toContain("schema header");
+    expect(result.stderr).toContain(`git checkout -- ${file}`);
+  });
+
+  it("saves a backup when it adds the header to an untracked file", async () => {
+    const { file } = project(BARE_NEW, false);
+
+    await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readFileSync(`${file}~`, "utf8")).toBe(BARE_NEW);
+  });
+
+  it("stays silent when the header cannot be added, because it is only cosmetic", async () => {
+    const { file } = project(BARE_NEW, true);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV, CI: "true" });
+
+    expect(readFileSync(file, "utf8")).toBe(BARE_NEW);
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("still reports a skipped rename of old names, header or not", async () => {
+    const { file } = project(BARE_OLD, true);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV, CI: "true" });
+
+    expect(result.stderr).toContain("variant.watches");
+    expect(result.stderr).toContain("CI");
   });
 });
