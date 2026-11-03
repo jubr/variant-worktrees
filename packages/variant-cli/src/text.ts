@@ -1,6 +1,7 @@
 import type {
   DownResult,
   ImplodeResult,
+  InitResult,
   UpResult,
   VariantRecord,
   WatchFacts,
@@ -135,6 +136,26 @@ const started = (result: UpResult | WatchResult): string[] => [
 ];
 
 const layouts: Record<string, (result: never, options: TextOptions) => string[] | string> = {
+  init: (result: InitResult) => [
+    `Initialized ${result.directory}`,
+    ...pairs([
+      ["variants.yaml", result.file === null ? "skipped" : `written to ${result.file}`],
+      [".gitignore", result.gitignore.message],
+      ["mise", result.mise.message],
+      ...(result.detected
+        ? ([
+            [
+              "detected",
+              [
+                `database ${result.detected.dialect}${result.detected.databaseSource === "default" ? " (default)" : ""}`,
+                `abbr ${result.detected.abbr}`,
+                `watches ${result.detected.watches.length === 0 ? "none" : result.detected.watches.join(", ")}`,
+              ].join("; "),
+            ],
+          ] as [string, string][])
+        : []),
+    ]),
+  ],
   list: (records: VariantRecord[], { variantRoot, verbose }) =>
     verbose ? records.map((record) => statusBlock(record).join("\n")).join("\n\n") : formatTable(records, variantRoot),
   status: (record: VariantRecord) => statusBlock(record),

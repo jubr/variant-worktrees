@@ -3,7 +3,7 @@ import { appendFileSync, closeSync, existsSync, openSync, rmSync, writeFileSync 
 import { resolve } from "node:path";
 import { stopProcessTree } from "../processes.js";
 import { announce, logToStderr } from "../ready.js";
-import { commandEnvironment, type VariantRun } from "../run-context.js";
+import { commandEnvironment, expandSetting, type VariantRun } from "../run-context.js";
 import { clearVariantRuntime, watchLogPath, writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
@@ -33,7 +33,7 @@ const launches = (context: OperationContext, run: VariantRun): Launch[] => {
       ? [
           {
             key,
-            command: watch.watch,
+            command: expandSetting(config, run, watch.watch, `variant.watches.${key}.watch`, key),
             cwd: resolve(run.projectDir, watch.dir),
             env: commandEnvironment(config, run, watch.env?.overrides, key),
           },

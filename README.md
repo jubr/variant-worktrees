@@ -83,7 +83,7 @@ variant:
       kind: vite
       dir: fe
       watch: bun run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://${slug}.vw.localhost:${port}
     be:
       kind: nestjs
       dir: be
@@ -91,17 +91,30 @@ variant:
       watch: bun run start:dev
       env:
         sourceFile: .env # copied for a variant
-        overrides: { PORT: '{{port}}' }
+        overrides: { PORT: '${port}' }
 ```
 
 The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite). The
 [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration) lists every runtime option.
 
-Database settings load from `mise.local.toml` first, then environment
-variables. Explicit `db` values in `variants.yaml` override autodetected
-values.
+Database settings are autodetected from the environment (Postgres, MySQL, MariaDB as dialect `mysql`, SQLite). The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over the process environment, read once and only when a value is first needed (`variant list` of a configuration without references starts no process). Explicit `db` values in `variants.yaml` override autodetected values, and an explicit `db.dialect: sqlite` reads no environment at all. Mise is found by the `variant.mise.binPath` setting of the editor, the `variant.mise.binPath` key, `PATH`, then the usual install locations.
 
-Watches take an optional `url` template (`{{slug}}`, `{{abbr}}`, `{{port}}`; autodetected Vite watches get `http://{{slug}}.{{abbr}}.localhost:{{port}}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `watches.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.watches.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
+Every string setting, `db` included, takes `${NAME}` (an environment variable, an error when unset), `${NAME:-default}` and the variant placeholders `${slug}`, `${abbr}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<key>.port}`. Write `$${` for a literal `${` that a shell must see.
+
+### Bootstrap with `variant init`
+
+`variant init` writes a `variants.yaml` that holds every value autodetection finds (the database, `variant.abbr`, `variant.prefix` and one watch per Vite or NestJS app, plus a watch for a package with a `watch` script), adds `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration. The other accepted values of a setting follow `#` on the same line. A password or a connection URL with credentials is never written: it becomes a reference such as `password: ${POSTGRES_PASSWORD} # from ../mise.local.toml`.
+
+```bash
+variant init                        # all three steps, prefix _v-
+variant init --prefix wt-           # worktrees are wt-<slug>
+variant init --gitignore=false --mise=false
+variant init --force                # replace the variants.yaml of this directory
+```
+
+It refuses to run when a `variants.yaml` exists (unless `--file=false` or `--force`) and changes nothing then. The Mise step picks the closest Mise file inside the git checkout, skipping `*.local.*` files, and creates `mise.toml` when there is none. The VS Code extension offers the same in a dialog (**Variant: Initialize in this Repo**), and the MCP tool is `variant_init`.
+
+Watches take an optional `url` template (`${slug}`, `${abbr}`, `${port}`; autodetected Vite watches get `http://${slug}.${abbr}.localhost:${port}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'${POSTGRES_PORT}'` from the environment) and `watches.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `${port}` is `runtime.watches.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
 
 `variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. A free port of a watch or of the UI server comes from `variant.ports.range` (default `42000-42999`; an explicit `VARIANT_<KEY>_PORT` may lie anywhere). The watch key `variant-ui` is reserved for the UI server, and so is `ui`: `VARIANT_UI_PORT` (or `variant.ui.port`) sets the server's port.
 
@@ -115,7 +128,7 @@ A key `variants.yaml` or `variants.local.yaml` does not know is a warning, not a
 
 ### Migrating from earlier names
 
-`variant.instances` and `runtime.instances` are now `variant.watches` and `runtime.watches`, and `variant.reservedPorts` is gone (see `variant.ports.range`). The old names still load, with a notice on standard error. The `variant` CLI and the VS Code extension then rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (and always for the git-ignored `variants.local.yaml`), so `git diff` shows the change and `git checkout -- variants.yaml` reverts it. An untracked `variants.yaml` is rewritten after its old text is saved as `variants.yaml~`. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`. The library, the MCP server and `variant ui` never write the files. The same rewrite adds the `yaml-language-server` schema header to a file that has none, so editors validate it; see the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
+`variant.instances` and `runtime.instances` are now `variant.watches` and `runtime.watches`, `variant.reservedPorts` is gone (see `variant.ports.range`), and the templates `{{...}}` are now `${...}`. The old names still load, with a notice on standard error. The `variant` CLI and the VS Code extension then rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (and always for the git-ignored `variants.local.yaml`), so `git diff` shows the change and `git checkout -- variants.yaml` reverts it. An untracked `variants.yaml` is rewritten after its old text is saved as `variants.yaml~`. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`. The library, the MCP server and `variant ui` never write the files. The same rewrite adds the `yaml-language-server` schema header to a file that has none, so editors validate it; see the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
 
 ### Environment variables
 
@@ -123,10 +136,10 @@ The `VARIANT_*` variables map to `variants.yaml` settings and template placehold
 
 | Variable | Direction | Setting or placeholder |
 | --- | --- | --- |
-| `VARIANT_SLUG` | set for commands | `{{slug}}` |
-| `VARIANT_TARGET` | set for commands | `{{schema}}`: the database schema, or the SQLite file |
+| `VARIANT_SLUG` | set for commands | `${slug}` |
+| `VARIANT_TARGET` | set for commands | `${schema}`: the database schema, or the SQLite file |
 | `VARIANT_CONFIG` | set for commands | the path of the loaded `variants.yaml` |
-| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.watches.<key>.port` |
+| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `${<key>.port}` and `runtime.watches.<key>.port` |
 | `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.watches.<key>.url` |
 | `VARIANT_<KEY>_PID` | read as an override | `runtime.watches.<key>.pid` |
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
@@ -140,6 +153,7 @@ The `VARIANT_*` variables map to `variants.yaml` settings and template placehold
 ## CLI
 
 ```bash
+variant init                           # write variants.yaml, .gitignore and the mise entry from autodetection
 variant config
 variant create -s preview-one
 variant list                           # slug, mode, uptime, full url, watch log file, dir
@@ -204,6 +218,8 @@ The extension adds a **Variant Worktrees** section to the Explorer. Each variant
 
 `variant ui` serves the same app as a web page. It listens on loopback only, prints `http://ui.<abbr>.localhost:<port>/?token=<token>`, rejects requests without the token or with a foreign `Host`, accepts POSTs as `application/json` only, and implodes only after an explicit confirmation (never `main`). It records itself as the reserved `variant-ui` watch of `main`, so `variant list` shows it, and keeps its token in an owner-only file next to the editor socket. **Variant: Open Variants in Browser** opens a running server; without one it names `variant ui --detach`. The extension needs VS Code 1.101 or a host with Node.js 22.13 or newer.
 
+**Variant: Initialize in this Repo** shows a dialog in the same section (prefix, three checkboxes, `Cancel` and `Init`) that runs `variant init`. After a local commit in a workspace without `variants.yaml`, a notification such as `Detected postgres+vite, want to bootstrap Variant in this repo?` offers it once. When Mise fails (for example `mise.toml` is not trusted) a notification names the directory and offers **Trust**, which runs `mise trust --all` and repeats the action. The setting `variant.mise.binPath` points the extension at a Mise that is not on its `PATH`.
+
 ## MCP
 
 Configure an MCP client to run:
@@ -219,7 +235,7 @@ Configure an MCP client to run:
 }
 ```
 
-Tools: `variant_config`, `variant_create`, `variant_list`, `variant_status`,
+Tools: `variant_init`, `variant_config`, `variant_create`, `variant_list`, `variant_status`,
 `variant_provision`, `variant_up`, `variant_down`, `variant_watch` (always
 detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
 

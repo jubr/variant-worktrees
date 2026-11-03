@@ -1,4 +1,4 @@
-import type { VariantRecord } from "variant-api";
+import type { MiseFailure, VariantRecord } from "variant-api";
 import { type LoadClient, messageOf } from "./variants-client.ts";
 
 export type StoreStatus = "loading" | "no-config" | "error" | "empty" | "ready";
@@ -18,10 +18,14 @@ export interface VariantsStore {
   status(): StoreStatus;
   /** The reason the library failed to load, or the last read failed. */
   error(): string | undefined;
+  /** Set with `error` when the last read failed because of Mise. */
+  mise(): MiseFailure | undefined;
   pending(): ReadonlySet<string>;
   onDidChange(listener: () => void): () => void;
   /** Subscribes to the library when it is not yet; does nothing while subscribed. Safe to call again. */
   start(): Promise<void>;
+  /** Reads again from the start, for after the cause of a failure was removed. */
+  restart(): Promise<void>;
   /** Marks `slug` as busy while `task` runs. */
   run<T>(slug: string, task: () => Promise<T>): Promise<T>;
   dispose(): void;
@@ -31,6 +35,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
   let records: readonly VariantRecord[] = [];
   let status: StoreStatus = "loading";
   let error: string | undefined;
+  let mise: MiseFailure | undefined;
   let stop: (() => void) | undefined;
   let starting: Promise<void> | undefined;
   let pending: ReadonlySet<string> = new Set();
@@ -53,6 +58,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
       stop = client.subscribe((update) => {
         records = update.records;
         error = update.error;
+        mise = update.mise;
         status = records.length === 0 ? "empty" : "ready";
         notify();
       });
@@ -67,6 +73,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
     records: () => records,
     status: () => status,
     error: () => error,
+    mise: () => mise,
     pending: () => pending,
     onDidChange: (listener) => {
       listeners.add(listener);
@@ -79,6 +86,12 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
         });
       }
       return starting ?? Promise.resolve();
+    },
+    restart: () => {
+      stop?.();
+      stop = undefined;
+      starting = undefined;
+      return begin();
     },
     run: async (slug, task) => {
       pending = new Set(pending).add(slug);

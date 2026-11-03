@@ -16,6 +16,15 @@
   the tool writes starts with it, and the migration of the CLI and the VS Code extension adds it to a file that has no
   schema line (a line you wrote is kept).
 - `task package:vsix:unpacked` works in the main checkout.
+- `variant init` (and the MCP tool `variant_init`, and `client.init`) writes a `variants.yaml` from autodetection, adds
+  `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration; each step can be turned
+  off and `--force` replaces an existing file. Secrets are written as `${NAME}` references with a comment naming their
+  source. A package with a `watch` script becomes a watch without `kind`.
+- VS Code: the command **Variant: Initialize in this Repo** shows an initialization dialog in the Variant Worktrees section, and a
+  notification offers it once after a local commit when a database and an application are detected.
+- MariaDB (`MARIADB_*`, `mariadb://`) is detected as the `mysql` dialect.
+- `variant.mise.binPath` (the editor setting and the key of `variants.yaml`) names a Mise executable that is not on `PATH`.
+  The extension offers **Trust** when Mise reports an untrusted configuration.
 
 ### Changed
 
@@ -23,9 +32,15 @@
   `git diff --stat`, and one filtered `git diff -U1` per file. `maxDiffLines` counts those kept patch lines.
   Over the limit the patches are omitted and the status and the stat stay.
 - **Breaking:** `instances` is now `watches` everywhere: `variant.watches`, `runtime.watches`, the fields of records,
-  status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `{{key.port}}` and
+  status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `${key.port}` and
   container names are unchanged. See the migration above.
 - **Breaking:** `variant.reservedPorts` is replaced by `variant.ports.range`; no port is reserved any more.
+- **Breaking:** `${NAME}`, `${NAME:-default}` and the variant placeholders (`${slug}`, `${port}`, `${<key>.port}`, ...)
+  replace `{{...}}` and work in every string setting, `db` included; `$${` is a literal `${`. Files with `{{...}}` load
+  with a notice and are rewritten like the other former names.
+- The environment comes from `mise env` only, read lazily and once, merged over the process environment; `mise.local.toml`
+  and other Mise files are no longer parsed. `variant list` of a configuration that needs no environment value starts no
+  Mise process.
 - `kind` and `dir` of a watch are optional; `dir` defaults to the key of the watch.
 - The release changelog no longer keeps an empty `Unreleased` heading in the promoted section.
 - The GitHub Actions workflows use the Node 24 versions of their actions.

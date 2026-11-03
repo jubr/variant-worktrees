@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { loadConfig } from "variant-config";
+import { loadVariantConfig } from "./mise.js";
 import { defaultStateDir, isValidSlug, stateSlugs } from "./state.js";
 
 /**
@@ -16,7 +16,7 @@ export const listSlugs = (
   configPath: string | undefined = process.env.VARIANT_CONFIG,
 ): string[] => {
   try {
-    const config = loadConfig({ cwd, ...(configPath ? { configPath } : {}) });
+    const config = loadVariantConfig({ cwd, ...(configPath ? { configPath } : {}) });
     const { prefix, root } = config.variant;
     const worktrees = readdirSync(root, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix))

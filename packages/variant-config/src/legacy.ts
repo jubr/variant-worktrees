@@ -1,11 +1,51 @@
-import { type Document, isMap, isNode, isScalar, type Pair, parseDocument, type YAMLMap } from "yaml";
+import { type Document, isMap, isNode, isPair, isScalar, type Pair, parseDocument, visit, type YAMLMap } from "yaml";
 
 /**
  * Specification: openspec/specs/variant-config/core/spec.md (Legacy configuration is read under the current names)
  *
- * The names of the 0.0.x files: `variant.instances` and `runtime.instances` became `watches`, and the setting
- * `variant.reservedPorts` is gone (a range replaces it). Nothing here touches the file system.
+ * The names of the 0.0.x files: `variant.instances` and `runtime.instances` became `watches`, the setting
+ * `variant.reservedPorts` is gone (a range replaces it), and the templates `{{...}}` became `${...}`. Nothing here
+ * touches the file system.
+ *
+ * Specification: openspec/specs/variant-config/core/spec.md (Legacy template syntax)
  */
+
+const FORMER_TEMPLATE = /\{\{((?:[^{}]|\$\{[^{}]*\})*)\}\}/g;
+const FORMER_PLACEHOLDER =
+  /^(?:slug|abbr|schema|storage|worktree|url|port|port\.[A-Za-z][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_-]*\.port)$/;
+const FORMER_ENVIRONMENT = /^[A-Za-z_][A-Za-z0-9_]*(?::-[\s\S]*)?$/;
+/** Settings that hold regular expressions, in which `{{` can be a quantifier. */
+const REGEX_SETTINGS = new Set(["filterLinesRegex", "activationPatterns"]);
+
+/** `text` with each former template of a placeholder or environment shape in the current form, innermost first. */
+const convertTemplates = (text: string): string => {
+  let current = text;
+  for (;;) {
+    const next = current.replace(FORMER_TEMPLATE, (match, inner: string) =>
+      FORMER_PLACEHOLDER.test(inner) || FORMER_ENVIRONMENT.test(inner) ? `\${${inner}}` : match,
+    );
+    if (next === current) {
+      return current;
+    }
+    current = next;
+  }
+};
+
+/** Converts the former templates of every string in `value`, except in regular-expression settings; counts changes. */
+const convertData = (value: unknown, setting: string | undefined, changed: { count: number }): unknown => {
+  if (typeof value === "string") {
+    const converted = setting !== undefined && REGEX_SETTINGS.has(setting) ? value : convertTemplates(value);
+    changed.count += converted === value ? 0 : 1;
+    return converted;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => convertData(item, setting, changed));
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, convertData(item, key, changed)]));
+  }
+  return value;
+};
 
 export interface Migrated {
   data: unknown;
@@ -56,7 +96,12 @@ export const migrateLegacy = (data: unknown, file: string): Migrated => {
   if (isRecord(runtime)) {
     renameInstances(runtime, "runtime", file, notices);
   }
-  return { data: copy, notices };
+  const templates = { count: 0 };
+  const converted = convertData(copy, undefined, templates);
+  if (templates.count > 0) {
+    notices.push(`${file}: {{...}} templates are now \${...}; write $\${ for a literal \${ that a shell must see`);
+  }
+  return { data: converted, notices };
 };
 
 const mapAt = (root: YAMLMap, key: string): YAMLMap | undefined => {
@@ -115,6 +160,28 @@ const removeEdits = (text: string, map: YAMLMap, key: string): Edit[] | undefine
   return edit ? [edit] : undefined;
 };
 
+/** Whether `path` (the ancestors of a node) passes through a setting that holds regular expressions. */
+const inRegexSetting = (path: readonly unknown[]): boolean =>
+  path.some((item) => isPair(item) && isScalar(item.key) && REGEX_SETTINGS.has(String(item.key.value)));
+
+/** The edits that give the string values of `document` the current template form, each in its own source text. */
+const templateEdits = (text: string, document: Document.Parsed): Edit[] => {
+  const edits: Edit[] = [];
+  visit(document, {
+    Scalar(key, node, path) {
+      if (key === "key" || typeof node.value !== "string" || !node.range || inRegexSetting(path)) {
+        return;
+      }
+      const raw = text.slice(node.range[0], node.range[1]);
+      const converted = convertTemplates(raw);
+      if (converted !== raw) {
+        edits.push({ start: node.range[0], end: node.range[1], replacement: converted });
+      }
+    },
+  });
+  return edits;
+};
+
 /** The same changes through the document, which keeps order and comments but may move a comment of a key. */
 const rewriteDocument = (document: Document.Parsed): string | undefined => {
   let changed = false;
@@ -136,6 +203,17 @@ const rewriteDocument = (document: Document.Parsed): string | undefined => {
     variant.delete("reservedPorts");
     changed = true;
   }
+  visit(document, {
+    Scalar(key, node, path) {
+      if (key !== "key" && typeof node.value === "string" && !inRegexSetting(path)) {
+        const converted = convertTemplates(node.value);
+        if (converted !== node.value) {
+          node.value = converted;
+          changed = true;
+        }
+      }
+    },
+  });
   return changed ? document.toString({ lineWidth: 0 }) : undefined;
 };
 
@@ -159,7 +237,12 @@ export const migrateText = (text: string): string | undefined => {
   if (parts.some((part) => part === undefined)) {
     return rewriteDocument(document);
   }
-  const edits = (parts as Edit[][]).flat().sort((left, right) => right.start - left.start);
+  const structural = (parts as Edit[][]).flat();
+  const removed = structural.filter((edit) => edit.replacement === "" && edit.end > edit.start);
+  const templates = templateEdits(text, document).filter(
+    (edit) => !removed.some((gone) => edit.start >= gone.start && edit.end <= gone.end),
+  );
+  const edits = [...structural, ...templates].sort((left, right) => right.start - left.start);
   return edits.length === 0
     ? undefined
     : edits.reduce((result, edit) => result.slice(0, edit.start) + edit.replacement + result.slice(edit.end), text);

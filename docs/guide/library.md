@@ -12,9 +12,19 @@ const variant = await client.create("preview-one");
 console.log(variant.target);
 ```
 
-The client resolves configuration from `variants.yaml`, then
-`mise.local.toml`, then environment variables. Pass `worktree: false` when
-database-only behavior is required.
+The client resolves configuration from `variants.yaml`, then the environment as
+`mise env` prints it (merged over the process environment, read lazily and once), so
+`mise.local.toml` and the like keep working. Pass `worktree: false` when
+database-only behavior is required, and `miseBinPath` to name a Mise executable that is not on `PATH`.
+
+## Bootstrap
+
+```ts
+const result = await client.init({ prefix: "wt-", mise: false });
+console.log(result.file, result.gitignore.status, result.detected?.dialect);
+```
+
+`init` writes `variants.yaml` from autodetection (secrets as `${NAME}` references), adds `<prefix>*` to `.gitignore` and adds the CLI to the Mise configuration; `file`, `gitignore` and `mise` are on unless `false`, and `force` replaces an existing `variants.yaml` of the directory. A failing Mise step is reported in `result.mise` and stops no other step. `loadVariantConfig`, `augmentMiseConfig`, `miseEnvironment`, `readVariableSources` and `runMiseTrust` are exported for callers that run Mise themselves.
 
 ## Lifecycle
 
@@ -56,7 +66,7 @@ variant:
       kind: vite
       dir: fe
       watch: bun run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://${slug}.vw.localhost:${port}
     be:
       kind: nestjs
       dir: be
@@ -67,9 +77,9 @@ variant:
 ::: v-pre
 
 Use `variant.watches` for explicit Vite/NestJS directories, keyed by watch name (the key is the
-name in runtime state, templates such as `{{be.port}}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
+name in runtime state, templates such as `${be.port}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
 environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `url` is a URL template
-with `{{slug}}` and `{{port}}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
+with `${slug}` and `${port}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
 copied for a variant and amended with `env.overrides`. The port is `VARIANT_<KEY>_PORT`, else `runtime.watches.<key>.port`
 from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
 port of `variant.ports.range` (default `42000-42999`). If `variant.watches` is omitted, subdirectories below the configuration file are

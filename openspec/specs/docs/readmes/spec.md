@@ -93,7 +93,7 @@ The repository README and the configuration guide of the documentation site SHAL
 #### Scenario: Mapping to settings
 
 - **WHEN** the mapping is read
-- **THEN** `VARIANT_SLUG` is tied to `{{slug}}`, `VARIANT_TARGET` to `{{schema}}`, `VARIANT_<KEY>_PORT` to `{{<key>.port}}` and `runtime.watches.<key>.port`, `VARIANT_OPEN` to `variant.open`, `VARIANT_MIGRATE` to the rewrite of migrated configuration files (`0` turns it off), `VARIANT_ENV_SOURCE` to `env.sourceFile` and `VARIANT_STEP_<NAME>` to the step `name`
+- **THEN** `VARIANT_SLUG` is tied to `${slug}`, `VARIANT_TARGET` to `${schema}`, `VARIANT_<KEY>_PORT` to `${<key>.port}` and `runtime.watches.<key>.port`, `VARIANT_OPEN` to `variant.open`, `VARIANT_MIGRATE` to the rewrite of migrated configuration files (`0` turns it off), `VARIANT_ENV_SOURCE` to `env.sourceFile` and `VARIANT_STEP_<NAME>` to the step `name`
 
 ### Requirement: Extension README has no relative images
 

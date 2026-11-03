@@ -56,6 +56,20 @@ describe("migrateFile", () => {
     expect(read(directory, "variants.yaml")).toBe(NEW);
   });
 
+  it("rewrites former {{...}} templates and says so in one notice", () => {
+    const directory = repository({
+      "variants.yaml": `${HEADER}\n\nvariant:\n  watches:\n    fe:\n      url: http://{{slug}}.localhost:{{port}}\n`,
+    });
+
+    const result = migrateFile(join(directory, "variants.yaml"), {});
+
+    expect(result).toMatchObject({ status: "rewritten" });
+    expect(result?.notices).toHaveLength(1);
+    expect(read(directory, "variants.yaml")).toBe(
+      `${HEADER}\n\nvariant:\n  watches:\n    fe:\n      url: http://\${slug}.localhost:\${port}\n`,
+    );
+  });
+
   it("leaves a rewritten file revertible with git checkout", () => {
     const directory = repository({ "variants.yaml": OLD });
     migrateFile(join(directory, "variants.yaml"), {});

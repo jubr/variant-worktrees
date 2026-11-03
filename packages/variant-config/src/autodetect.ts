@@ -1,10 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
-import { parse as parseToml } from "smol-toml";
 import { type DbConfig, type DbDialect, DEFAULT_URL, type VariantWatch, WATCH_KEY } from "./schema.js";
 
-const MISE_FILENAMES = ["mise.local.toml", "mise.toml"] as const;
 const ENV_KEYS = [
   "DATABASE_URL",
   "POSTGRES_HOST",
@@ -20,12 +18,16 @@ const ENV_KEYS = [
   "MYSQL_PASSWORD",
   "MYSQL_DATABASE",
   "MYSQL_SCHEMA",
+  "MARIADB_HOST",
+  "MARIADB_PORT",
+  "MARIADB_USER",
+  "MARIADB_PASSWORD",
+  "MARIADB_DATABASE",
   "SQLITE_DATABASE",
   "SQLITE_PATH",
 ] as const;
 
 type Environment = Record<string, string | undefined>;
-type TomlDocument = { env?: Record<string, unknown> };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49,32 +51,6 @@ const parsePort = (value: string | undefined): number | undefined => {
   }
   const port = Number(value);
   return Number.isInteger(port) && port > 0 ? port : undefined;
-};
-
-const ancestorDirectories = (startDir: string): string[] => {
-  const directories: string[] = [];
-  let current = resolve(startDir);
-  while (!directories.includes(current)) {
-    directories.push(current);
-    const parent = dirname(current);
-    if (parent === current) {
-      break;
-    }
-    current = parent;
-  }
-  return directories;
-};
-
-export const findMiseFile = (startDir = process.cwd()): string | undefined => {
-  for (const directory of ancestorDirectories(startDir)) {
-    for (const filename of MISE_FILENAMES) {
-      const path = join(directory, filename);
-      if (existsSync(path)) {
-        return path;
-      }
-    }
-  }
-  return undefined;
 };
 
 const gitCommonRoot = (startDir: string): string | undefined => {
@@ -153,27 +129,11 @@ export const abbreviate = (name: string): string => {
   return letters === "" ? "app" : letters;
 };
 
-const readMiseEnvironment = (path: string): Environment => {
-  const parsed = parseToml(readFileSync(path, "utf8")) as TomlDocument;
-  const env = isRecord(parsed.env) ? parsed.env : {};
-  const result: Environment = {};
-  for (const key of ENV_KEYS) {
-    const value = env[key];
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      result[key] = String(value);
-    }
-  }
-  return result;
-};
-
-const choose = (primary: Environment, fallback: Environment, key: string): string | undefined =>
-  primary[key] ?? fallback[key];
-
 const detectDialect = (values: Environment): DbDialect | undefined => {
   if (values.DATABASE_URL?.startsWith("postgres")) {
     return "postgres";
   }
-  if (values.DATABASE_URL?.startsWith("mysql")) {
+  if (values.DATABASE_URL?.startsWith("mysql") || values.DATABASE_URL?.startsWith("mariadb")) {
     return "mysql";
   }
   if (values.DATABASE_URL?.startsWith("sqlite")) {
@@ -182,7 +142,14 @@ const detectDialect = (values: Environment): DbDialect | undefined => {
   if (values.POSTGRES_HOST || values.POSTGRES_DB || values.POSTGRES_USER) {
     return "postgres";
   }
-  if (values.MYSQL_HOST || values.MYSQL_DATABASE || values.MYSQL_USER) {
+  if (
+    values.MYSQL_HOST ||
+    values.MYSQL_DATABASE ||
+    values.MYSQL_USER ||
+    values.MARIADB_HOST ||
+    values.MARIADB_DATABASE ||
+    values.MARIADB_USER
+  ) {
     return "mysql";
   }
   if (values.SQLITE_DATABASE || values.SQLITE_PATH) {
@@ -191,19 +158,24 @@ const detectDialect = (values: Environment): DbDialect | undefined => {
   return undefined;
 };
 
+/** Supplies the environment on demand; the first call may cost a process start, so callers call it only when needed. */
+export type EnvironmentProvider = () => NodeJS.ProcessEnv;
+
 export interface DetectedConnection {
   config: DbConfig;
-  source: "mise" | "env" | "default";
-  misePath?: string;
+  source: "env" | "default";
+  /** The name of the environment variable that supplied each field of `config`. */
+  variables: Partial<Record<keyof DbConfig, string>>;
 }
 
-export const detectConnection = (startDir = process.cwd()): DetectedConnection => {
-  const misePath = findMiseFile(startDir);
-  const miseEnvironment = misePath ? readMiseEnvironment(misePath) : {};
-  const processEnvironment = process.env;
+export const detectConnection = (
+  startDir = process.cwd(),
+  environment: EnvironmentProvider = () => process.env,
+): DetectedConnection => {
+  const current = environment();
   const values: Environment = {};
   for (const key of ENV_KEYS) {
-    values[key] = choose(miseEnvironment, processEnvironment, key);
+    values[key] = current[key];
   }
 
   const dialect = detectDialect(values);
@@ -214,25 +186,36 @@ export const detectConnection = (startDir = process.cwd()): DetectedConnection =
         filename: join(startDir, ".cache", "variants", "variants.db"),
       },
       source: "default",
-      misePath,
+      variables: {},
     };
   }
 
-  const source = misePath && detectDialect(miseEnvironment) ? "mise" : "env";
+  const variables: DetectedConnection["variables"] = {};
+  /** The first of `names` that is set, recording which one supplied `field`. */
+  const take = (field: keyof DbConfig, ...names: (typeof ENV_KEYS)[number][]): string | undefined => {
+    for (const name of names) {
+      const value = values[name];
+      if (value !== undefined) {
+        variables[field] = name;
+        return value;
+      }
+    }
+    return undefined;
+  };
   const config: DbConfig = {
     dialect,
-    url: values.DATABASE_URL,
-    host: values.POSTGRES_HOST ?? values.MYSQL_HOST,
-    port: parsePort(values.POSTGRES_PORT ?? values.MYSQL_PORT),
-    user: values.POSTGRES_USER ?? values.MYSQL_USER,
-    password: values.POSTGRES_PASSWORD ?? values.MYSQL_PASSWORD,
-    database: values.POSTGRES_DB ?? values.MYSQL_DATABASE ?? values.SQLITE_DATABASE,
-    schema: values.POSTGRES_SCHEMA ?? values.MYSQL_SCHEMA,
-    filename: values.SQLITE_PATH,
-    ssl: parseBoolean(values.POSTGRES_SSL),
+    url: take("url", "DATABASE_URL"),
+    host: take("host", "POSTGRES_HOST", "MYSQL_HOST", "MARIADB_HOST"),
+    port: parsePort(take("port", "POSTGRES_PORT", "MYSQL_PORT", "MARIADB_PORT")),
+    user: take("user", "POSTGRES_USER", "MYSQL_USER", "MARIADB_USER"),
+    password: take("password", "POSTGRES_PASSWORD", "MYSQL_PASSWORD", "MARIADB_PASSWORD"),
+    database: take("database", "POSTGRES_DB", "MYSQL_DATABASE", "MARIADB_DATABASE", "SQLITE_DATABASE"),
+    schema: take("schema", "POSTGRES_SCHEMA", "MYSQL_SCHEMA"),
+    filename: take("filename", "SQLITE_PATH"),
+    ssl: parseBoolean(take("ssl", "POSTGRES_SSL")),
   };
 
-  return { config, source, misePath };
+  return { config, source: "env", variables };
 };
 
 const packageDeclares = (path: string, dependency: string): boolean => {
@@ -328,19 +311,29 @@ const shouldSkip = (name: string): boolean =>
   name === "build" ||
   name.startsWith(".");
 
-/** A watch found by autodetection, which always knows its kind. */
-type DetectedWatch = VariantWatch & { kind: NonNullable<VariantWatch["kind"]> };
-
-/** The key of an autodetected watch: its directory's base name, or its kind for the configuration directory. */
-const watchKeyFor = (watch: DetectedWatch): string => {
-  const base = watch.dir === "." ? watch.kind : basename(watch.dir);
+/** The key of an autodetected watch: its directory's base name, or its kind (`app` without one) for the configuration directory. */
+const watchKeyFor = (watch: VariantWatch): string => {
+  const base = watch.dir === "." ? (watch.kind ?? "app") : basename(watch.dir);
   const plain = base.replace(/[^A-Za-z0-9_-]/g, "-");
-  return WATCH_KEY.test(plain) ? plain : `${watch.kind}-${plain}`;
+  return WATCH_KEY.test(plain) ? plain : `${watch.kind ?? "app"}-${plain}`;
 };
 
-/** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
-export const detectWatches = (configDir: string): Record<string, VariantWatch> => {
-  const found: DetectedWatch[] = [];
+/** The watches keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
+const keyWatches = (found: readonly VariantWatch[]): Record<string, VariantWatch> => {
+  const watches: Record<string, VariantWatch> = {};
+  for (const watch of [...found].sort((left, right) => left.dir.localeCompare(right.dir))) {
+    const base = watchKeyFor(watch);
+    let key = base;
+    for (let suffix = 2; key in watches; suffix += 1) {
+      key = `${base}-${suffix}`;
+    }
+    watches[key] = watch;
+  }
+  return watches;
+};
+
+/** Calls `visit` for every directory below `configDir` that autodetection looks at, depth first. */
+const walkDirectories = (configDir: string, visit: (directory: string) => void): void => {
   const visited = new Set<string>();
   const walk = (directory: string): void => {
     const resolved = resolve(directory);
@@ -354,12 +347,7 @@ export const detectWatches = (configDir: string): Record<string, VariantWatch> =
         continue;
       }
       const child = join(resolved, entry.name);
-      const kind = detectKind(child);
-      if (kind) {
-        const dir = relative(configDir, child) || ".";
-        const watch = detectWatch(kind, child);
-        found.push(kind === "vite" ? { kind, dir, url: DEFAULT_URL, watch } : { kind, dir, watch });
-      }
+      visit(child);
       walk(child);
     }
   };
@@ -367,16 +355,131 @@ export const detectWatches = (configDir: string): Record<string, VariantWatch> =
   if (existsSync(configDir) && statSync(configDir).isDirectory()) {
     walk(configDir);
   }
-  const watches: Record<string, VariantWatch> = {};
-  for (const watch of found.sort((left, right) => left.dir.localeCompare(right.dir))) {
-    const base = watchKeyFor(watch);
-    let key = base;
-    for (let suffix = 2; key in watches; suffix += 1) {
-      key = `${base}-${suffix}`;
+};
+
+const findKindedWatches = (configDir: string): VariantWatch[] => {
+  const found: VariantWatch[] = [];
+  walkDirectories(configDir, (child) => {
+    const kind = detectKind(child);
+    if (kind) {
+      const dir = relative(configDir, child) || ".";
+      const watch = detectWatch(kind, child);
+      found.push(kind === "vite" ? { kind, dir, url: DEFAULT_URL, watch } : { kind, dir, watch });
     }
-    watches[key] = watch;
+  });
+  return found;
+};
+
+/** The applications below `configDir`, keyed by directory name (`web`, `web-2`, ...) and ordered by directory. */
+export const detectWatches = (configDir: string): Record<string, VariantWatch> =>
+  keyWatches(findKindedWatches(configDir));
+
+/** Whether `name` is `watch` or has `watch` as a segment split on `:`, `-`, `_` and `.`. */
+const isWatchScript = (name: string): boolean => name.split(/[:\-_.]/).includes("watch");
+
+const LOCKFILE_RUNNERS: ReadonlyArray<readonly [string[], string]> = [
+  [["bun.lock", "bun.lockb"], "bun"],
+  [["pnpm-lock.yaml"], "pnpm"],
+  [["yarn.lock"], "yarn"],
+];
+
+/** The package manager of the lockfile in `directory`, else in `configDir`, else `npm`. */
+const runnerFor = (directory: string, configDir: string): string => {
+  for (const place of [directory, configDir]) {
+    for (const [files, runner] of LOCKFILE_RUNNERS) {
+      if (files.some((file) => existsSync(join(place, file)))) {
+        return runner;
+      }
+    }
   }
-  return watches;
+  return "npm";
+};
+
+/**
+ * The directories at or below `configDir` that have a `package.json` with a watch-like script and are not a Vite or
+ * NestJS application, as watches without a `kind` that run the first such script through the package manager of the
+ * lockfile. Only `variant init` writes them: runtime autodetection does not use them.
+ */
+export const detectScriptWatches = (configDir: string): Record<string, VariantWatch> => {
+  const found: VariantWatch[] = [];
+  const consider = (directory: string): void => {
+    if (!existsSync(directory) || detectKind(directory)) {
+      return;
+    }
+    const script = Object.keys(packageScripts(directory)).find(isWatchScript);
+    if (script !== undefined) {
+      found.push({
+        dir: relative(configDir, directory) || ".",
+        watch: `${runnerFor(directory, configDir)} run ${script}`,
+      });
+    }
+  };
+  consider(configDir);
+  walkDirectories(configDir, consider);
+  return keyWatches(found);
+};
+
+/** The watches `variant init` writes: Vite, NestJS and script watches below `configDir`, keyed uniquely and ordered by directory. */
+export const detectWatchesForInit = (configDir: string): Record<string, VariantWatch> => {
+  const scripts: VariantWatch[] = Object.values(detectScriptWatches(configDir));
+  return keyWatches([...findKindedWatches(configDir), ...scripts]);
+};
+
+export type OnboardingApplication = "vite" | "nestjs" | "package-script-watch";
+
+export interface OnboardingDetection {
+  /** `postgres`, `mysql`, `mariadb` or `sqlite` when one was actually detected, never the SQLite fallback. */
+  database: string | undefined;
+  /** The distinct kinds of application found, in the order `vite`, `nestjs`, `package-script-watch`. */
+  applications: OnboardingApplication[];
+  /** `<database>+<application>+...` when both a database and an application were detected. */
+  label: string | undefined;
+  /** Why nothing was detected, when reading the environment failed. */
+  error?: unknown;
+}
+
+/** Whether the detected MySQL-dialect database is MariaDB: a `mariadb` URL, or only `MARIADB_` variables. */
+const isMariaDb = (detected: DetectedConnection): boolean => {
+  if (detected.config.url?.startsWith("mariadb")) {
+    return true;
+  }
+  const names = Object.values(detected.variables);
+  return names.some((name) => name.startsWith("MARIADB_")) && !names.some((name) => name.startsWith("MYSQL_"));
+};
+
+/**
+ * What the onboarding notification needs: the database and the application kinds of `configDir`. The environment is
+ * asked only when an application exists, and a failure of it counts as nothing detected (the error is returned).
+ */
+export const detectOnboarding = (
+  configDir: string,
+  environment: EnvironmentProvider = () => process.env,
+): OnboardingDetection => {
+  const kinds = new Set<OnboardingApplication>();
+  for (const watch of Object.values(detectWatches(configDir))) {
+    if (watch.kind) {
+      kinds.add(watch.kind);
+    }
+  }
+  if (Object.keys(detectScriptWatches(configDir)).length > 0) {
+    kinds.add("package-script-watch");
+  }
+  const applications = (["vite", "nestjs", "package-script-watch"] as const).filter((kind) => kinds.has(kind));
+  const nothing: OnboardingDetection = { database: undefined, applications: [], label: undefined };
+  if (applications.length === 0) {
+    return { ...nothing, applications };
+  }
+  let detected: DetectedConnection;
+  try {
+    detected = detectConnection(configDir, environment);
+  } catch (error) {
+    return { ...nothing, error };
+  }
+  if (detected.source === "default") {
+    return { database: undefined, applications, label: undefined };
+  }
+  const database = detected.config.dialect === "mysql" && isMariaDb(detected) ? "mariadb" : detected.config.dialect;
+  return { database, applications, label: [database, ...applications].join("+") };
 };
 
 export const inferConfigRoot = (path: string): string => parsePath(resolve(path)).dir;

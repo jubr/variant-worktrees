@@ -103,6 +103,7 @@ export const implodeVariant = async (
     [projectDir, ...Object.values(config.variant.watches).map((watch) => resolve(projectDir, watch.dir))],
     preRm,
     slug,
+    config.environment,
   );
   const report = worktreeReport(removable, maxDiffLines);
   log(report);

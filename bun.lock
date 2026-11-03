@@ -51,6 +51,7 @@
         "drizzle-orm": "^0.45.2",
         "mysql2": "^3.24.4",
         "postgres": "^3.4.9",
+        "smol-toml": "^1.8.0",
         "tinyglobby": "^0.2.17",
         "variant-config": "workspace:*",
         "yaml": "^2.9.1",

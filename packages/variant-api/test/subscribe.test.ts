@@ -4,6 +4,7 @@ import { type FSWatcher, mkdirSync, mkdtempSync, realpathSync, rmSync, watch, wr
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
+import { MiseError } from "../src/mise.js";
 import { createStateSubscriptions } from "../src/subscribe.js";
 import type { VariantRecord, VariantUpdate } from "../src/types.js";
 
@@ -272,6 +273,29 @@ describe("state subscriptions", () => {
         (update) => update.error === undefined && received.updates.indexOf(update) > received.updates.indexOf(failed),
       );
       expect(slugs(recovered)).toEqual(["demo"]);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("tells a failure of Mise from any other and says whether trust would fix it", async () => {
+    let failure: Error = new MiseError("/proj", "mise.toml is not trusted");
+    const subscriptions = createStateSubscriptions({
+      ...quick,
+      read: async () => {
+        throw failure;
+      },
+      targets: () => [],
+    });
+    const received = collector();
+    const unsubscribe = subscriptions.subscribe(received.listener);
+    try {
+      const mise = await received.until((update) => update.error !== undefined);
+      expect(mise.mise).toEqual({ directory: "/proj", detail: "mise.toml is not trusted", untrusted: true });
+
+      failure = new Error("database unreachable");
+      const other = await received.until((update) => update.error === "database unreachable");
+      expect(other.mise).toBeUndefined();
     } finally {
       unsubscribe();
     }

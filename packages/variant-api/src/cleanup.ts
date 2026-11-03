@@ -1,10 +1,11 @@
 import { existsSync, rmSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { globSync } from "tinyglobby";
+import { renderTemplate } from "variant-config";
 import { git, runGit } from "./git.js";
 
 /**
- * The paths below `worktree` that match one of `patterns` (`{{slug}}` replaced), matched from each of `bases`, and that
+ * The paths below `worktree` that match one of `patterns` (`${slug}` replaced), matched from each of `bases`, and that
  * `removeMatching` would delete: not `.git`, not a tracked file, not a directory that holds one. Symlinks are not
  * followed. Paths are relative to `worktree`; nothing is deleted.
  */
@@ -13,18 +14,22 @@ export const findRemovable = (
   bases: readonly string[],
   patterns: readonly string[],
   slug: string,
+  environment?: () => NodeJS.ProcessEnv,
 ): Array<{ base: string; match: string; path: string }> => {
   const found: Array<{ base: string; match: string; path: string }> = [];
   for (const base of new Set(bases)) {
     for (const pattern of patterns) {
-      for (const entry of globSync(pattern.replaceAll("{{slug}}", slug), {
-        cwd: base,
-        dot: true,
-        onlyFiles: false,
-        // AIDEV-NOTE: matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
-        expandDirectories: false,
-        followSymbolicLinks: false,
-      })) {
+      for (const entry of globSync(
+        renderTemplate(pattern, { slug, env: environment, setting: "variant.implode.preRm" }),
+        {
+          cwd: base,
+          dot: true,
+          onlyFiles: false,
+          // AIDEV-NOTE: matched literally, symlinks not followed: what Bun.Glob did before this ran on Node too.
+          expandDirectories: false,
+          followSymbolicLinks: false,
+        },
+      )) {
         const match = entry.replace(/\/+$/, "");
         const path = relative(worktree, resolve(base, match));
         if (path === "" || path.startsWith("..") || isAbsolute(path) || basename(match) === ".git") {
@@ -49,9 +54,10 @@ export const removeMatching = (
   bases: readonly string[],
   patterns: readonly string[],
   slug: string,
+  environment?: () => NodeJS.ProcessEnv,
 ): string[] => {
   const removed: string[] = [];
-  for (const { base, match, path } of findRemovable(worktree, bases, patterns, slug)) {
+  for (const { base, match, path } of findRemovable(worktree, bases, patterns, slug, environment)) {
     if (existsSync(join(base, match))) {
       rmSync(join(base, match), { recursive: true, force: true });
       removed.push(path);

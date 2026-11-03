@@ -43,7 +43,7 @@ variant:
       kind: vite
       dir: fe
       watch: npm run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://${slug}.vw.localhost:${port}
     be:
       kind: nestjs
       dir: be
@@ -51,7 +51,7 @@ variant:
       watch: npm run start:dev
 ```
 
-Vite and NestJS apps are detected automatically, so a small project may need no watches at all. Database settings are read from `mise.local.toml`, then from environment variables. Every option, including templates, steps, and the `implode` safety rules, is in the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
+Vite and NestJS apps are detected automatically, so a small project may need no watches at all. Database settings are read from the environment (as `mise env` prints it), then explicit `db` values override them. `variant init` writes a first `variants.yaml` from what it detects. Every option, including templates, steps, and the `implode` safety rules, is in the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
 
 A configuration that still uses `instances` (now `watches`) or `reservedPorts` (now `ports.range`) loads as before. When `variants.yaml` is tracked by git without uncommitted changes (or untracked, with the old text saved as `variants.yaml~`), the extension rewrites it and shows a warning with the actions **Open file** and **Undo**; the change is a plain `git diff`, or the backup. `VARIANT_MIGRATE=0` turns the rewrite off.
 
@@ -70,7 +70,7 @@ The same operations are available as an MCP server, so Cursor, Claude, or any MC
 }
 ```
 
-The tools are `variant_config`, `variant_list`, `variant_create`, `variant_switch`, `variant_provision`, `variant_up`, `variant_down`, `variant_watch`, and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
+The tools are `variant_init`, `variant_config`, `variant_list`, `variant_create`, `variant_switch`, `variant_provision`, `variant_up`, `variant_down`, `variant_watch`, and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
 
 ## See your variants
 
@@ -86,6 +86,14 @@ Each item has a watching, up or down icon, the uptime as description and a toolt
 **Variant: Open Variants Panel** opens the same app in an editor panel and follows `variant.sort`. **Variant: Open Variants in Browser** opens the page of a running `variant ui` server with its token; start one with `variant ui --detach`. That page stays in name order.
 
 The view and the panel call `variant-api` inside the extension host. The extension socket does not carry these actions. Requires VS Code 1.101 or a host with Node.js 22.13 or newer.
+
+## Set up a project
+
+**Variant: Initialize in this Repo** shows a dialog in place of the variants tree: a `Prefix` field (default `_v-`), three checkboxes (write `variants.yaml` with autodetected values, add `<prefix>*` to `.gitignore`, augment `mise.toml` with variant-cli), and `Cancel` and `Init`. `Init` runs `variant init` inside the extension host, opens the written `variants.yaml` and confirms each step; a step that fails keeps the dialog open with its message. In a workspace that already has a `variants.yaml` the first checkbox is off.
+
+After a local commit in a workspace without `variants.yaml` where a database and an application (Vite, NestJS or a package with a `watch` script) are detected, a notification such as `Detected postgres+vite, want to bootstrap Variant in this repo?` offers `Bootstrap Variant` once per workspace.
+
+The environment comes from Mise. When Mise fails, a notification names the directory and Mise's message, and for an untrusted configuration offers **Trust**, which runs `mise -C <dir> trust --all` and repeats the action. `variant.mise.binPath` names the Mise executable when it is not on the `PATH` of the editor; a change applies without a reload.
 
 ## One chat per variant
 

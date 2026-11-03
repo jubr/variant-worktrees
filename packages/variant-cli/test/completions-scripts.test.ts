@@ -72,6 +72,15 @@ describe("describeCli", () => {
     expect(byName("list").flags.find((flag) => flag.long === "json")?.takesValue).toBe(false);
   });
 
+  it("describes the flags of init: prefix takes a value, the steps and force are switches", () => {
+    const flags = byName("init").flags;
+
+    expect(flags.map((flag) => flag.long)).toEqual(["prefix", "file", "gitignore", "mise", "force", "json", "yaml"]);
+    expect(flags.find((flag) => flag.long === "prefix")?.takesValue).toBe(true);
+    expect(flags.find((flag) => flag.long === "gitignore")?.takesValue).toBe(false);
+    expect(byName("init").takesSlug).toBe(false);
+  });
+
   it("describes ui with its two flags and no slug", () => {
     expect(byName("ui").flags.map((flag) => flag.long)).toEqual(["detach", "stop"]);
     expect(byName("ui").takesSlug).toBe(false);
@@ -127,7 +136,8 @@ describe.each(SHELLS)("%s completion script", (shell) => {
   });
 
   it("offers --verbose on every lifecycle subcommand", () => {
-    for (const command of commands) {
+    // `init` bootstraps a project and has no verbose output.
+    for (const command of commands.filter((definition) => definition.name !== "init")) {
       expect(section(shell, script, String(command.name))).toContain(longFlag(shell, "verbose"));
     }
   });

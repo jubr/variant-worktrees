@@ -96,7 +96,7 @@ describe("VariantsConfigSchema", () => {
   });
 
   it("accepts a url template on a watch, rejects an empty one and ignores the former open key with a warning", () => {
-    const watch = { kind: "vite", dir: "app", url: "http://{{slug}}.vw.localhost:{{port}}" };
+    const watch = { kind: "vite", dir: "app", url: "http://${slug}.vw.localhost:${port}" };
     const parse = (value: object) => VariantsConfigSchema.safeParse({ variant: { watches: { app: value } } }).success;
 
     expect(parse(watch)).toBe(true);
@@ -104,7 +104,7 @@ describe("VariantsConfigSchema", () => {
     expect(
       warnings({
         variant: {
-          watches: { app: { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" } },
+          watches: { app: { kind: "vite", dir: "app", open: "http://${slug}.vw.localhost:${port}" } },
         },
       }),
     ).toEqual(["variant.watches.app.open"]);
@@ -114,8 +114,8 @@ describe("VariantsConfigSchema", () => {
     const watch = {
       kind: "nestjs",
       dir: "server",
-      url: "http://{{slug}}.vw.localhost:{{port}}",
-      env: { sourceFile: ".env", overrides: { PORT: "{{port}}" } },
+      url: "http://${slug}.vw.localhost:${port}",
+      env: { sourceFile: ".env", overrides: { PORT: "${port}" } },
     };
 
     expect(VariantsConfigSchema.safeParse({ variant: { watches: { app: watch } } }).success).toBe(true);
@@ -140,7 +140,7 @@ describe("VariantsConfigSchema", () => {
     expect(warned({ dotenv: ".env" })).toEqual(["variant.watches.app.dotenv"]);
     expect(warned({ dotenvSource: "~/app.env" })).toEqual(["variant.watches.app.dotenvSource"]);
     expect(warned({ envAlways: { A: "b" } })).toEqual(["variant.watches.app.envAlways"]);
-    expect(warned({ env: { PORT: "{{port}}" } })).toEqual(["variant.watches.app.env.PORT"]);
+    expect(warned({ env: { PORT: "${port}" } })).toEqual(["variant.watches.app.env.PORT"]);
     expect(warned({ env: { overrides: {}, other: 1 } })).toEqual(["variant.watches.app.env.other"]);
   });
 

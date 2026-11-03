@@ -31,7 +31,7 @@ The system SHALL provide a `status` command that takes the optional `slug` argum
 
 ### Requirement: Status carries the runtime meta information
 
-The `runtime` object of a status result SHALL hold every value of the `runtime` section of the variant's `variants.local.yaml`, with `{{NAME}}` templates replaced as when discovering runtime states (the `VARIANT_<KEY>_*` overrides describe only the variant being run and do not apply): `slug`, `mode`, `dir`, `log`, `db`, and `watches` with each watch's `port`, `pid`, `url`, `alive` (set when a pid is recorded) and `uptimeSeconds`. It SHALL also hold `file`, the path of the runtime file it was read from. The `db.password` value SHALL be shown as `***` in every output format. A variant with no runtime state SHALL have no `runtime` object.
+The `runtime` object of a status result SHALL hold every value of the `runtime` section of the variant's `variants.local.yaml`, with `${NAME}` templates replaced as when discovering runtime states (the `VARIANT_<KEY>_*` overrides describe only the variant being run and do not apply): `slug`, `mode`, `dir`, `log`, `db`, and `watches` with each watch's `port`, `pid`, `url`, `alive` (set when a pid is recorded) and `uptimeSeconds`. It SHALL also hold `file`, the path of the runtime file it was read from. The `db.password` value SHALL be shown as `***` in every output format. A variant with no runtime state SHALL have no `runtime` object.
 
 #### Scenario: Full runtime section
 

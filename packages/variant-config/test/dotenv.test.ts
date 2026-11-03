@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { amendDotenv, dotenvFor, loadConfig } from "../src/index.js";
+import { amendDotenv, dotenvFor, loadConfig, parseDotenv } from "../src/index.js";
 import type { VariantWatch } from "../src/schema.js";
 
 describe("amendDotenv", () => {
@@ -76,4 +76,29 @@ describe("dotenvFor", () => {
 
       expect(dotenvFor(loadConfig({ cwd: directory }), watch, { PORT: "1" })).toBeUndefined();
     }));
+});
+
+describe("parseDotenv", () => {
+  it("reads KEY=value lines as Mise prints them, without unquoting", () => {
+    expect(parseDotenv("A=plain\nB=with space\nC=quote'single\nD=dq\"x\nE=a=b\nF=\n")).toEqual({
+      A: "plain",
+      B: "with space",
+      C: "quote'single",
+      D: 'dq"x',
+      E: "a=b",
+      F: "",
+    });
+  });
+
+  it("joins the lines of a multi-line value", () => {
+    expect(parseDotenv("A=one\ntwo\n\nthree\nB=x\n")).toEqual({ A: "one\ntwo\n\nthree", B: "x" });
+  });
+
+  it("lets a later definition win and tolerates a missing final newline and CRLF", () => {
+    expect(parseDotenv("A=1\r\nA=2")).toEqual({ A: "2" });
+  });
+
+  it("ignores text before the first assignment", () => {
+    expect(parseDotenv("# comment\n\nA=1\n")).toEqual({ A: "1" });
+  });
 });
