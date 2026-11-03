@@ -297,6 +297,7 @@ export {
   schemaHeaderFor,
   schemaHeaderNotice,
 } from "./header.js";
+export { type RenderedInitConfig, type RenderInitConfigOptions, renderInitConfig } from "./init-config.js";
 export { type Migrated, migrateLegacy, migrateText } from "./legacy.js";
 export type { DiscoveredRuntime, LocalState, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimeState, readRuntimes, writeRuntime } from "./local.js";
