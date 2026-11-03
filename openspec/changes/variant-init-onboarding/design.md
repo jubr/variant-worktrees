@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md for motivation. Autodetection exists in `variant-config` (`detectConnection`, `detectInstances`,
+See proposal.md for motivation. Autodetection exists in `variant-config` (`detectConnection`, `detectWatches`,
 `abbreviate`, `findConfigFile`) and runs on every `loadConfig`. `commands.ts` in `variant-api` drives the CLI, MCP tools
 and shell completions from one list, and `scripts/docs-coverage.spec.ts` fails for a registered command missing from
 README and docs. Only requests that need the editor use the extension socket; the extension calls `variant-api`
@@ -10,8 +10,8 @@ The Explorer section `Variant Worktrees` is a tree view (`variant.variants`); `v
 with the generated command `variant.variants.focus`. A view is a tree or a webview, never both, and the VS Code API has
 no native modal with an input and checkboxes and no way to set the size of a section.
 
-The `schema-config-etc` change renames `instances` to `watches` and defaults `dir` to the key. This change's specs use
-those names; it lands after that change, and code written before then uses the old names and is renamed on rebase.
+The `schema-config-etc` change (merged into this branch, archived) renamed `instances` to `watches`, defaults `dir` to the key
+and made `kind` optional. This change's specs and code use those names.
 
 ## Goals / Non-Goals
 
@@ -109,13 +109,13 @@ variable supplied a value, so `detectConnection` also returns the variable name 
 `mariadb` dialect and the drivers are the same). The notification label says `mariadb` when only MariaDB signals
 exist, so it matches what the person sees in their mise file.
 
-**Script watches: init only, no kind.** `detectScriptWatches(dir)` walks like `detectInstances` (same skip list),
+**Script watches: init only, no kind.** `detectScriptWatches(dir)` walks like `detectWatches` (same skip list),
 returns directories whose `package.json` has a watch-like script (name equals `watch` or has `watch` as a segment
 split on `:`, `-`, `_`, `.`; first in file order) and that are not Vite or NestJS. The command is
 `<runner> run <script>` with the runner from the lockfile (`bun`, `pnpm`, `yarn`, else `npm`), looked up in the
-directory then the project directory. The same function feeds the notification (`package-script-watch`). It makes
-`kind` optional in `VariantWatchSchema` rather than inventing a kind: `kind` has no consumer in the code besides the
-schema, and the user's target shape is `watches.<dir>.watch`. Keys come from the existing key function, with `app`
+directory then the project directory. The same function feeds the notification (`package-script-watch`). It relies on
+`kind` being optional in `VariantWatchSchema` (from `schema-config-etc`) rather than inventing a kind: the user's target
+shape is `watches.<dir>.watch`. Keys come from the existing key function, with `app`
 standing in for the missing kind in the project directory. `dir` is omitted when it equals the key
 (`schema-config-etc` default).
 
@@ -185,8 +185,6 @@ detected (`source !== "default"`) and the distinct application kinds.
   watch] → intended; the written file is the source of truth for script watches.
 - [Reflog format differs across git versions or when reflogs are disabled (`core.logAllRefUpdates=false`)] → no
   notification; the command remains available. Covered by the "not a local commit" scenarios with fixture lines.
-- [Optional `kind` touches the schema that `schema-config-etc` also edits] → added as a separate requirement and
-  merged after that change; the JSON schema for editors is regenerated from Zod.
 - [Writing `variants.yaml` makes autodetection explicit: later environment changes no longer flow into listed keys]
   → intended; the file is for editing, and the comments say what else is possible. Secret references keep following
   the environment.

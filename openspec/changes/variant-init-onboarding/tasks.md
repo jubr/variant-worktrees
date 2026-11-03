@@ -5,7 +5,6 @@
 - [ ] 1.3 Switch the template engine to `${...}` (`${slug}`, `${abbr}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}`, `${<key>.port}`, `${NAME}`, `${NAME:-default}`, `$${` escape, nested default) and apply it at every use site named by the spec (db, commands, env, url, dir, preRm, seed, steps), with regex settings exempt; failing-first tests per site and per scenario of "Interpolation in every setting"
 - [ ] 1.4 Read `{{...}}` as `${...}` with a migration notice for `variants.yaml` and `variants.local.yaml` and extend the text-rewrite function of `schema-config-etc` (nested defaults, layout and comments kept), with tests for each scenario of "Legacy template syntax"
 - [ ] 1.5 Detect MariaDB (`mariadb://`, `MARIADB_*`, `MYSQL_*` wins, dialect `mysql`) with tests for URL, variables, precedence and the Postgres-first order
-- [ ] 1.6 Make `kind` optional on a watch and verify a watch with only `watch` loads and `kind: rails` fails (schema, JSON schema file and its test updated)
 - [ ] 1.7 Return the variable name per detected `db` field from `detectConnection`, with tests for each field
 - [ ] 1.8 Add `detectScriptWatches(dir)` (watch-like script rule, lockfile runner, project directory, skip list, not Vite/NestJS directories) and `detectOnboarding(dir)` (database label incl. `mariadb`, SQLite fallback not counting, application kinds in order, mise failure = nothing detected) with tests for every script-watch and notification-detection scenario
 

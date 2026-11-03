@@ -23,7 +23,7 @@ blank file.
 - Detect MariaDB (`mariadb://`, `MARIADB_*`) as the `mysql` dialect, next to Postgres, MySQL and SQLite.
 - A package with a watch-like script becomes a script watch in the written file, for example
   `variant.watches.api.watch: npm run watch` (the first watch-like script, run through the package manager of its
-  lockfile). `kind` becomes optional for such a watch.
+  lockfile). Such a watch has no `kind` (optional since `schema-config-etc`).
 - Locate Mise with `resolveMiseBinary` in `variant-config`: the editor setting `variant.mise.binPath` first, then the
   `variant.mise.binPath` key of `variants.yaml`, then `PATH`, then usual install locations such as Homebrew. All other
   Mise functionality (environment, variable sources, configuration listing, augmenting, trust) lives in `variant-api`
@@ -38,7 +38,7 @@ blank file.
   or a package with a watch-like script) are detected, the extension shows
   `Detected postgres+vite, want to bootstrap Variant in this repo?` with a button that opens the dialog.
 
-Ordering: this branch is rebased on `schema-config-etc` (`variant.watches`, default `dir`, legacy migration notices
+Ordering: this branch has `schema-config-etc` merged in (archived; optional `kind`, `detectWatches`, `cfg-watches`) (`variant.watches`, default `dir`, legacy migration notices
 and rewrite) and merges after it.
 
 ## Capabilities
@@ -58,12 +58,10 @@ and rewrite) and merges after it.
 - `variant-config/core`: interpolation in every setting with `${...}`; legacy `{{...}}` migration; MariaDB detection
   (added requirements).
 - `variant-config/cfg-settings`: the key `variant.mise.binPath` (added requirement, pointing at `tools/mise`).
-- `variant-config/cfg-instances`: a watch may omit `kind` (added requirement).
-
 ## Impact
 
 - `variant-config`: MariaDB keys, `resolveMiseBinary`, a lazy environment provider that callers inject (replacing direct mise file parsing), the `${...}` template
-  engine at every use site (replacing `{{...}}`) and its legacy migration, optional `kind`, variable sources, an
+  engine at every use site (replacing `{{...}}`) and its legacy migration, variable sources, an
   onboarding detection summary, the init renderer.
 - `variant-api`: the Mise module (environment, sources, `config ls`, augment, trust, Mise errors), `init` operation
   (file, `.gitignore`, Mise configuration) and client method, command definition shared by CLI and MCP.
