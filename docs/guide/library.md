@@ -12,9 +12,19 @@ const variant = await client.create("preview-one");
 console.log(variant.target);
 ```
 
-The client resolves configuration from `variants.yaml`, then
-`mise.local.toml`, then environment variables. Pass `worktree: false` when
-database-only behavior is required.
+The client resolves configuration from `variants.yaml`, then the environment as
+`mise env` prints it (merged over the process environment, read lazily and once), so
+`mise.local.toml` and the like keep working. Pass `worktree: false` when
+database-only behavior is required, and `miseBinPath` to name a Mise executable that is not on `PATH`.
+
+## Bootstrap
+
+```ts
+const result = await client.init({ prefix: "wt-", mise: false });
+console.log(result.file, result.gitignore.status, result.detected?.dialect);
+```
+
+`init` writes `variants.yaml` from autodetection (secrets as `${NAME}` references), adds `<prefix>*` to `.gitignore` and adds the CLI to the Mise configuration; `file`, `gitignore` and `mise` are on unless `false`, and `force` replaces an existing `variants.yaml` of the directory. A failing Mise step is reported in `result.mise` and stops no other step. `loadVariantConfig`, `augmentMiseConfig`, `miseEnvironment`, `readVariableSources` and `runMiseTrust` are exported for callers that run Mise themselves.
 
 ## Lifecycle
 
