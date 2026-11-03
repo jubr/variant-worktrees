@@ -23,7 +23,7 @@ await client.create("preview-one");
 await client.provision("preview-one");
 const variants = await client.list();
 
-await client.up("preview-one"); // instances as containers, on a fresh database
+await client.up("preview-one"); // watches as containers, on a fresh database
 const watched = await client.watch("preview-one", { detach: true }); // host processes
 await client.down("preview-one"); // stop what runs, keep the data
 await client.implode("preview-one"); // tear down and remove the worktree
@@ -34,7 +34,7 @@ await client.implode("preview-one"); // tear down and remove the worktree
 `variant.baseBranch` unless `{ force: true }`, and resolves with the removed
 worktree and the report of what it held. An attached `watch` (no `detach`)
 resolves with an `exitCode` when it ends: 130 after an interrupt (pass an
-`AbortSignal` as `signal`), 1 when an instance ended or the worktree vanished.
+`AbortSignal` as `signal`), 1 when a watch ended or the worktree vanished.
 `up` and `watch` accept `opener` and `log` to replace the browser launcher and
 the stderr progress lines.
 
@@ -51,7 +51,7 @@ db:
   database: variants
 variant:
   seed: bun run db:seed
-  instances:
+  watches:
     fe:
       kind: vite
       dir: fe
@@ -66,13 +66,13 @@ variant:
 
 ::: v-pre
 
-Use `variant.instances` for explicit Vite/NestJS directories, keyed by instance name (the key is the
+Use `variant.watches` for explicit Vite/NestJS directories, keyed by watch name (the key is the
 name in runtime state, templates such as `{{be.port}}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
 environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `url` is a URL template
 with `{{slug}}` and `{{port}}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
-copied for a variant and amended with `env.overrides`. The port is `VARIANT_<KEY>_PORT`, else `runtime.instances.<key>.port`
+copied for a variant and amended with `env.overrides`. The port is `VARIANT_<KEY>_PORT`, else `runtime.watches.<key>.port`
 from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
-port that is not in `variant.reservedPorts` (default 3000, 4200, 5432). If `variant.instances` is omitted, subdirectories below the configuration file are
+port of `variant.ports.range` (default `42000-42999`). If `variant.watches` is omitted, subdirectories below the configuration file are
 searched automatically.
 
 :::

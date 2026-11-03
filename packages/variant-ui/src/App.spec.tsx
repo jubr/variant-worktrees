@@ -21,8 +21,8 @@ const row = (slug: string): HTMLElement => screen.getByRole("listitem", { name: 
 const control = (slug: string, name: string): HTMLButtonElement =>
   within(row(slug)).getByRole("button", { name: `${name} ${slug}` }) as HTMLButtonElement;
 
-const watching: Variant = { slug: "demo", mode: "watch", instances: { fe: { alive: true } } };
-const up: Variant = { slug: "demo", mode: "up", instances: { fe: { alive: true } } };
+const watching: Variant = { slug: "demo", mode: "watch", watches: { fe: { alive: true } } };
+const up: Variant = { slug: "demo", mode: "up", watches: { fe: { alive: true } } };
 const down: Variant = { slug: "demo" };
 
 describe("controls per state", () => {
@@ -166,7 +166,7 @@ describe("implode confirmation", () => {
 describe("UI server row", () => {
   const server: Variant = {
     slug: "main",
-    instances: { "variant-ui": { port: 62100, pid: 7, alive: true, url: "http://ui.vw.localhost:62100" } },
+    watches: { "variant-ui": { port: 62100, pid: 7, alive: true, url: "http://ui.vw.localhost:62100" } },
   };
 
   it("shows the URL with open and stop controls in the editor, and stop brings the server down", async () => {
@@ -188,7 +188,7 @@ describe("UI server row", () => {
     expect(within(uiRow).queryByRole("button")).toBeNull();
   });
 
-  it("shows no UI server row without the instance, and is not a variant row of its own", () => {
+  it("shows no UI server row without the watch, and is not a variant row of its own", () => {
     renderApp([{ slug: "main" }]);
 
     expect(screen.queryByRole("listitem", { name: "UI server" })).toBeNull();

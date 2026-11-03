@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 export const DbDialectSchema = z.enum(["postgres", "mysql", "sqlite"]);
 export type DbDialect = z.infer<typeof DbDialectSchema>;
 
-/** A TCP port: shared by the database settings and the runtime state of instances. */
+/** A TCP port: shared by the database settings and the runtime state of watches. */
 export const PortSchema = z.number().int().positive();
 
 export const DbConfigSchema = z.strictObject({
@@ -27,7 +27,7 @@ export const VariantEntrySchema = z.strictObject({
 });
 export type VariantEntry = z.infer<typeof VariantEntrySchema>;
 
-/** Template of the URL of a Vite instance. `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
+/** Template of the URL of a Vite watch. `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
 export const DEFAULT_URL = "http://{{slug}}.{{abbr}}.localhost:{{port}}";
 
 /** A relative path that stays below its base directory: not absolute, never `..`. */
@@ -43,57 +43,62 @@ const plainName = z
 /** A map of environment variable names to templated values. */
 const envMapSchema = z.record(z.string().min(1), z.string());
 
-/** The environment of an instance: the file copied for a variant, and the values for commands and that copy. */
-export const InstanceEnvSchema = z.strictObject({
-  /** Environment file relative to the instance directory, copied for a variant to `<worktree>/<dir>/<sourceFile>`. */
+/** The environment of a watch: the file copied for a variant, and the values for commands and that copy. */
+export const WatchEnvSchema = z.strictObject({
+  /** Environment file relative to the watch directory, copied for a variant to `<worktree>/<dir>/<sourceFile>`. */
   sourceFile: relativeDirectory.optional(),
-  /** Templated values for the instance's commands and, when it is created, the copy of `sourceFile`. */
+  /** Templated values for the watch's commands and, when it is created, the copy of `sourceFile`. */
   overrides: envMapSchema.optional(),
 });
-export type InstanceEnv = z.infer<typeof InstanceEnvSchema>;
+export type WatchEnv = z.infer<typeof WatchEnvSchema>;
 
-/** Key of an instance: starts with a letter, then letters, digits, `-` and `_`. */
-export const INSTANCE_KEY = /^[A-Za-z][A-Za-z0-9_-]*$/;
+/** Key of a watch: starts with a letter, then letters, digits, `-` and `_`. */
+export const WATCH_KEY = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
-/** Key of the instance that `variant ui` records for itself in the runtime state of `main`; no project may define it. */
-export const UI_INSTANCE_KEY = "variant-ui";
+/** Key of the watch that `variant ui` records for itself in the runtime state of `main`; no project may define it. */
+export const UI_WATCH_KEY = "variant-ui";
 
-/** The segment of environment variables derived from an instance key: `my-api` becomes `MY_API`. */
+/** The segment of environment variables derived from a watch key: `my-api` becomes `MY_API`. */
 export const envSegment = (key: string): string => key.toUpperCase().replace(/[^A-Z0-9]/g, "_");
 
-/** The environment segment of the `variant.ui` settings: `VARIANT_UI_PORT` is `variant.ui.port`. No instance key may use it. */
+/** The environment segment of the `variant.ui` settings: `VARIANT_UI_PORT` is `variant.ui.port`. No watch key may use it. */
 export const UI_ENV_SEGMENT = "UI";
 
 /** The environment override of `variant.ui.port`. */
 export const UI_PORT_ENV = `VARIANT_${UI_ENV_SEGMENT}_PORT`;
 
 /**
- * How an instance runs under `up`. Everything else about the container (base image, build, files, web server) is the
+ * How a watch runs under `up`. Everything else about the container (base image, build, files, web server) is the
  * business of the Dockerfile.
  */
-export const InstanceContainerSchema = z.strictObject({
+export const WatchContainerSchema = z.strictObject({
   /** Relative to the worktree, built with the worktree as context. */
   dockerfile: z.string().min(1),
   /** Port inside the container; 80 when absent. */
   internalPort: PortSchema.optional(),
 });
-export type InstanceContainer = z.infer<typeof InstanceContainerSchema>;
+export type WatchContainer = z.infer<typeof WatchContainerSchema>;
 
-export const VariantInstanceSchema = z.strictObject({
-  kind: z.enum(["vite", "nestjs"]),
-  dir: z.string().min(1),
+export const VariantWatchSchema = z.strictObject({
+  /** What the watch runs; only a label (autodetection sets it and names a root-level watch after it). */
+  kind: z.enum(["vite", "nestjs"]).optional(),
+  /** Relative to the worktree; the key of the watch when absent. */
+  dir: z.string().min(1).optional(),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
-  /** URL template of the instance; `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
+  /** URL template of the watch; `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
   url: z.string().min(1).optional(),
-  env: InstanceEnvSchema.optional(),
+  env: WatchEnvSchema.optional(),
   /** Shell command that runs in `dir` when `dir` has no `node_modules`. */
   install: z.string().min(1).optional(),
-  /** URL path that answers with a success status when the instance serves. */
+  /** URL path that answers with a success status when the watch serves. */
   ready: z.string().startsWith("/").optional(),
-  container: InstanceContainerSchema.optional(),
+  container: WatchContainerSchema.optional(),
 });
-export type VariantInstance = z.infer<typeof VariantInstanceSchema>;
+/** A watch as written in `variants.yaml`: `dir` may be absent. */
+export type VariantWatchConfig = z.infer<typeof VariantWatchSchema>;
+/** A watch as resolved: `dir` is always set. */
+export type VariantWatch = Omit<VariantWatchConfig, "dir"> & { dir: string };
 
 /**
  * Prefix of every name derived from a variant slug: `<prefix><slug>`. It carries its own leading character and
@@ -138,7 +143,39 @@ export type VariantStep = z.infer<typeof VariantStepSchema>;
 
 export const DEFAULT_BASE_BRANCH = "main";
 export const DEFAULT_BRANCH_PREFIXES: readonly string[] = ["feat/", "fix/"];
-export const DEFAULT_RESERVED_PORTS: readonly number[] = [3000, 4200, 5432];
+/** The range of ports that free ports of watches and of the `variant ui` server are picked from. */
+export const DEFAULT_PORT_RANGE = "42000-42999";
+const PORT_RANGE = /^(\d+)-(\d+)$/;
+const LOWEST_RANGE_PORT = 1024;
+const HIGHEST_RANGE_PORT = 65535;
+
+export interface PortRange {
+  low: number;
+  high: number;
+}
+
+/** `<low>-<high>` as numbers; nothing when it is not of that form or an end is outside 1024 to 65535 or low exceeds high. */
+export const parsePortRange = (range: string): PortRange | undefined => {
+  const match = PORT_RANGE.exec(range);
+  if (!match) {
+    return undefined;
+  }
+  const low = Number(match[1]);
+  const high = Number(match[2]);
+  const inside = (port: number): boolean => port >= LOWEST_RANGE_PORT && port <= HIGHEST_RANGE_PORT;
+  return inside(low) && inside(high) && low <= high ? { low, high } : undefined;
+};
+
+export const VariantPortsSchema = z.strictObject({
+  /** `<low>-<high>`, both ends from 1024 to 65535; default `42000-42999`. */
+  range: z
+    .string()
+    .refine(
+      (value) => parsePortRange(value) !== undefined,
+      "must be <low>-<high>, both from 1024 to 65535, low not above high",
+    )
+    .optional(),
+});
 export const DEFAULT_STORAGE_DIR = ".storage";
 export const DEFAULT_STORAGE_ENV_VAR = "STORAGE_ROOT";
 export const DEFAULT_MAX_DIFF_LINES = 200;
@@ -158,13 +195,13 @@ export const VariantSuperviseSchema = z.strictObject({
 
 /** Settings of the `variant ui` server. The environment override of `variant.ui.<name>` is `VARIANT_UI_<NAME>`. */
 export const VariantUiSchema = z.strictObject({
-  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port that is not reserved. */
+  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port of `variant.ports.range`. */
   port: PortSchema.optional(),
 });
 
 export const VariantImplodeSchema = z.strictObject({
   /**
-   * Glob patterns of paths removed before the report: matched from the project directory and from each instance
+   * Glob patterns of paths removed before the report: matched from the project directory and from each watch
    * directory; `{{slug}}` is replaced; tracked files stay.
    */
   preRm: z.array(relativeDirectory).optional(),
@@ -193,8 +230,8 @@ export const VariantRuntimeSchema = z
     containerEngine: z.enum(["docker", "podman"]).optional(),
     /** Whether URLs are opened in the browser. `VARIANT_OPEN=0` wins. */
     open: z.boolean().optional(),
-    /** Ports that are never picked for an instance. */
-    reservedPorts: z.array(PortSchema).optional(),
+    /** The range free ports are picked from; no port is reserved. */
+    ports: VariantPortsSchema.optional(),
     storage: VariantStorageSchema.optional(),
     steps: z.array(VariantStepSchema).optional(),
     supervise: VariantSuperviseSchema.optional(),
@@ -202,11 +239,11 @@ export const VariantRuntimeSchema = z
     ui: VariantUiSchema.optional(),
     /** Command that seeds a new variant database. A per-variant `seed` wins. */
     seed: z.string().min(1).optional(),
-    /** Keyed by instance name; the key is the name in runtime state, templates and environment variables. */
-    instances: z
+    /** Keyed by watch name; the key is the name in runtime state, templates and environment variables. */
+    watches: z
       .record(
-        z.string().regex(INSTANCE_KEY, "must start with a letter and hold letters, digits, - and _"),
-        VariantInstanceSchema,
+        z.string().regex(WATCH_KEY, "must start with a letter and hold letters, digits, - and _"),
+        VariantWatchSchema,
       )
       .optional(),
   })
@@ -233,30 +270,30 @@ export const VariantRuntimeSchema = z
       }
       stepSegments.set(segment, step.name);
     }
-    const instances = variant.instances ?? {};
-    if (UI_INSTANCE_KEY in instances) {
+    const watches = variant.watches ?? {};
+    if (UI_WATCH_KEY in watches) {
       context.addIssue({
         code: "custom",
-        path: ["instances", UI_INSTANCE_KEY],
-        message: `the instance key ${UI_INSTANCE_KEY} is reserved for the variant ui server`,
+        path: ["watches", UI_WATCH_KEY],
+        message: `the watch key ${UI_WATCH_KEY} is reserved for the variant ui server`,
       });
     }
     const segments = new Map<string, string>();
-    for (const key of Object.keys(instances)) {
+    for (const key of Object.keys(watches)) {
       const segment = envSegment(key);
       if (segment === UI_ENV_SEGMENT) {
         context.addIssue({
           code: "custom",
-          path: ["instances", key],
-          message: `the instance key ${key} is reserved: its port variable ${UI_PORT_ENV} belongs to the variant ui server`,
+          path: ["watches", key],
+          message: `the watch key ${key} is reserved: its port variable ${UI_PORT_ENV} belongs to the variant ui server`,
         });
       }
       const other = segments.get(segment);
       if (other !== undefined) {
         context.addIssue({
           code: "custom",
-          path: ["instances", key],
-          message: `instances ${other} and ${key} share the environment variable segment ${segment}`,
+          path: ["watches", key],
+          message: `watches ${other} and ${key} share the environment variable segment ${segment}`,
         });
       }
       segments.set(segment, key);
@@ -289,13 +326,13 @@ const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\{\{[A
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
 export const RuntimeDbSchema = DbConfigSchema.extend({ port: portOrTemplateSchema.optional() });
 
-/** What is known about one running instance of a variant. */
-export const RuntimeInstanceSchema = z.strictObject({
+/** What is known about one running watch of a variant. */
+export const RuntimeWatchSchema = z.strictObject({
   port: PortSchema.optional(),
   pid: z.number().int().positive().optional(),
   url: z.string().min(1).optional(),
 });
-export type RuntimeInstance = z.infer<typeof RuntimeInstanceSchema>;
+export type RuntimeWatch = z.infer<typeof RuntimeWatchSchema>;
 
 /** Ephemeral state of one variant, written into the variant's own worktree. */
 export const RuntimeSchema = z.strictObject({
@@ -305,8 +342,8 @@ export const RuntimeSchema = z.strictObject({
   /** The log file of a detached `watch`: the output of all its processes. */
   log: z.string().min(1).optional(),
   db: RuntimeDbSchema.optional(),
-  /** Keyed by the key of the entry in `variant.instances`. */
-  instances: z.record(z.string().min(1), RuntimeInstanceSchema).optional(),
+  /** Keyed by the key of the entry in `variant.watches`. */
+  watches: z.record(z.string().min(1), RuntimeWatchSchema).optional(),
 });
 export type Runtime = z.infer<typeof RuntimeSchema>;
 /** The runtime state as resolved: environment templates replaced, so the database port is a number. */
@@ -318,18 +355,18 @@ export const LOCAL_FILENAME = "variants.local.yaml";
 export const VariantsLocalSchema = z.looseObject({ runtime: RuntimeSchema.optional() });
 export type VariantsLocal = z.infer<typeof VariantsLocalSchema>;
 
-/** `variant` as resolved by `loadConfig`: defaults applied, instances always a record. */
+/** `variant` as resolved by `loadConfig`: defaults applied, watches always a record. */
 export type ResolvedVariant = Omit<
   VariantRuntime,
   | "main"
   | "root"
   | "abbr"
   | "prefix"
-  | "instances"
+  | "watches"
   | "baseBranch"
   | "branchPrefixes"
   | "open"
-  | "reservedPorts"
+  | "ports"
   | "storage"
   | "supervise"
   | "implode"
@@ -338,11 +375,11 @@ export type ResolvedVariant = Omit<
   root: string;
   abbr: string;
   prefix: string;
-  instances: Record<string, VariantInstance>;
+  watches: Record<string, VariantWatch>;
   baseBranch: string;
   branchPrefixes: string[];
   open: boolean;
-  reservedPorts: number[];
+  ports: { range: string; low: number; high: number };
   storage?: { dir: string; envVarName: string };
   supervise: { startDelaySeconds: number; readyTimeoutSeconds: number; checkoutPollSeconds: number };
   implode: {
@@ -360,6 +397,10 @@ export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {
   configDir: string;
   runtime?: ResolvedRuntime;
   source: "mise" | "env" | "config" | "default";
+  /** One line per key of `variants.yaml` that the schema does not define; such keys are ignored. */
+  warnings: string[];
+  /** One line per name of an earlier version (`instances`, `reservedPorts`) that was read under the current one. */
+  migrations: string[];
 };
 
 export const variantsJsonSchema = z.toJSONSchema(VariantsConfigSchema);

@@ -70,7 +70,7 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "up",
-    description: "Run the instances of a variant as containers on a fresh database",
+    description: "Run the watches of a variant as containers on a fresh database",
     args: [slugArg, verboseArg],
     execute: (client, args) => client.up(slugString(args), verbose(args)),
   },
@@ -82,7 +82,7 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "watch",
-    description: "Run the instances of a variant as supervised host processes",
+    description: "Run the watches of a variant as supervised host processes",
     args: [
       slugArg,
       {

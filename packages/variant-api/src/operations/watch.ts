@@ -10,7 +10,7 @@ import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
-import { instanceReports, runtimeOf } from "./up.js";
+import { runtimeOf, watchReports } from "./up.js";
 
 interface Launch {
   key: string;
@@ -28,14 +28,14 @@ type Outcome = "interrupted" | "ended" | "checkout";
 
 const launches = (context: OperationContext, run: VariantRun): Launch[] => {
   const { config } = context;
-  return Object.entries(config.variant.instances).flatMap(([key, instance]) =>
-    instance.watch
+  return Object.entries(config.variant.watches).flatMap(([key, watch]) =>
+    watch.watch
       ? [
           {
             key,
-            command: instance.watch,
-            cwd: resolve(run.projectDir, instance.dir),
-            env: commandEnvironment(config, run, instance.env?.overrides, key),
+            command: watch.watch,
+            cwd: resolve(run.projectDir, watch.dir),
+            env: commandEnvironment(config, run, watch.env?.overrides, key),
           },
         ]
       : [],
@@ -107,7 +107,7 @@ const untilEnd = (
   });
 
 /**
- * Runs the `watch` command of every instance as a host process in the instance directory and records the process ids.
+ * Runs the `watch` command of every watch as a host process in the watch directory and records the process ids.
  * Detached, it returns right away. Attached, it supervises: an interrupt ends everything with 130, one process that ends
  * takes the others down with 1, and so does a worktree that disappears (which also drops the variant's database target).
  */
@@ -125,7 +125,7 @@ export const watchVariant = async (
   const started: Started[] = [];
   const toStart = launches(context, run);
   if (toStart.length === 0) {
-    log("Warning: nothing was started: no instance has a watch command. Set `watch` on an instance in variants.yaml.");
+    log("Warning: nothing was started: no watch has a watch command. Set `watch` on a watch in variants.yaml.");
   }
   // AIDEV-NOTE: a detached watch has no console, so every process appends to one file the kernel writes directly
   // (no pipe), which keeps the output real-time and alive after this process exits. Truncated on each start.
@@ -166,7 +166,7 @@ export const watchVariant = async (
     mode: "watch",
     worktree: run.worktree,
     target: run.target,
-    instances: instanceReports(run, pids),
+    watches: watchReports(run, pids),
     processes: started.map(({ key, pid, command }) => ({ key, pid, command })),
     urls: run.urls,
     exitCode: 0,

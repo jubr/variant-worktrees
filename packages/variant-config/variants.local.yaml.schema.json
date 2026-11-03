@@ -81,7 +81,7 @@
           },
           "additionalProperties": false
         },
-        "instances": {
+        "watches": {
           "type": "object",
           "propertyNames": {
             "type": "string",

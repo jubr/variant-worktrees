@@ -117,7 +117,7 @@ describe("VARIANT_* environment variables", () => {
         "{{slug}}",
         "{{schema}}",
         "{{<key>.port}}",
-        "runtime.instances.<key>.port",
+        "runtime.watches.<key>.port",
         "variant.open",
         "env.sourceFile",
       ]) {

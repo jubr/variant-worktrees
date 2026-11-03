@@ -64,16 +64,30 @@ describe("unpackVsix", () => {
 });
 
 describe("unpackIntoMain", () => {
-  test("refuses the main checkout and leaves its out directory untouched", () => {
+  test("unpacks in the main checkout into its own out/variant-worktrees-main", () => {
     const directory = temp();
     const repo = join(directory, "main");
     mkdirSync(repo);
     initRepo(repo);
 
-    expect(() => unpackIntoMain(repo, fixtureVsix(directory))).toThrow(
-      "package:vsix:unpacked runs only in a variant worktree",
-    );
-    expect(existsSync(join(repo, "out", "variant-worktrees-main"))).toBe(false);
+    const destination = unpackIntoMain(repo, fixtureVsix(directory));
+
+    expect(destination).toBe(join(realpathSync(repo), "out", "variant-worktrees-main"));
+    const manifest = JSON.parse(readFileSync(join(destination, "package.json"), "utf8")) as { name: string };
+    expect(manifest.name).toBe("variant-worktrees");
+  });
+
+  test("replaces what the destination held in the main checkout", () => {
+    const directory = temp();
+    const repo = join(directory, "main");
+    mkdirSync(join(repo, "out", "variant-worktrees-main"), { recursive: true });
+    initRepo(repo);
+    writeFileSync(join(repo, "out", "variant-worktrees-main", "stale.js"), "old");
+
+    const destination = unpackIntoMain(repo, fixtureVsix(directory));
+
+    expect(existsSync(join(destination, "stale.js"))).toBe(false);
+    expect(existsSync(join(destination, "package.json"))).toBe(true);
   });
 
   test("unpacks a linked worktree into the main checkout at out/variant-worktrees-main", () => {
@@ -90,31 +104,6 @@ describe("unpackIntoMain", () => {
     const manifest = JSON.parse(readFileSync(join(destination, "package.json"), "utf8")) as { name: string };
     expect(manifest.name).toBe("variant-worktrees");
     expect(existsSync(join(feature, "out", "variant-worktrees-main"))).toBe(false);
-  });
-});
-
-describe("package-vsix-unpacked --check", () => {
-  const script = join(import.meta.dir, "package-vsix-unpacked.ts");
-
-  const runScript = (...args: string[]) => {
-    const result = Bun.spawnSync(["bun", script, ...args], { stderr: "pipe", stdout: "pipe" });
-    return { status: result.exitCode, stderr: result.stderr.toString() };
-  };
-
-  test("exits 0 in a linked worktree and fails in the main checkout", () => {
-    const directory = temp();
-    const repo = join(directory, "main");
-    const feature = join(directory, "_v-vscode-view");
-    mkdirSync(repo);
-    initRepo(repo);
-    git(repo, "worktree", "add", "-q", "-b", "feat/vscode-view", feature, "main");
-
-    const main = runScript("--check", repo);
-    const linked = runScript("--check", feature);
-
-    expect(main.status).not.toBe(0);
-    expect(main.stderr).toContain("package:vsix:unpacked runs only in a variant worktree");
-    expect(linked.status).toBe(0);
   });
 });
 

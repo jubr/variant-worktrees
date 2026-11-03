@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
+import { parseConfig } from "../src/parse.js";
 import { VariantsConfigSchema } from "../src/schema.js";
+
+const warnings = (value: unknown): string[] =>
+  parseConfig(VariantsConfigSchema, value, "variants.yaml").warnings.map((warning) =>
+    warning.replace("variants.yaml: unknown key ", ""),
+  );
 
 describe("VariantsConfigSchema", () => {
   it("rejects an incomplete explicit database config", () => {
@@ -20,16 +26,14 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
-  it("rejects an instance with the reserved key variant-ui, naming it", () => {
+  it("rejects a watch with the reserved key variant-ui, naming it", () => {
     const result = VariantsConfigSchema.safeParse({
-      variant: { instances: { "variant-ui": { kind: "vite", dir: "ui" } } },
+      variant: { watches: { "variant-ui": { kind: "vite", dir: "ui" } } },
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      const issue = result.error.issues.find(
-        (candidate) => candidate.path.join(".") === "variant.instances.variant-ui",
-      );
+      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === "variant.watches.variant-ui");
       expect(issue?.message).toContain("variant-ui");
       expect(issue?.message).toContain("reserved");
     }
@@ -39,23 +43,21 @@ describe("VariantsConfigSchema", () => {
     "ui",
     "UI",
     "Ui",
-  ])("rejects an instance with the key %s, which shares VARIANT_UI_PORT with the server", (key) => {
-    const result = VariantsConfigSchema.safeParse({ variant: { instances: { [key]: { kind: "vite", dir: "ui" } } } });
+  ])("rejects a watch with the key %s, which shares VARIANT_UI_PORT with the server", (key) => {
+    const result = VariantsConfigSchema.safeParse({ variant: { watches: { [key]: { kind: "vite", dir: "ui" } } } });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === `variant.instances.${key}`);
+      const issue = result.error.issues.find((candidate) => candidate.path.join(".") === `variant.watches.${key}`);
       expect(issue?.message).toContain(key);
       expect(issue?.message).toContain("VARIANT_UI_PORT");
     }
   });
 
-  it("accepts instance keys that merely contain ui", () => {
-    const instance = { kind: "vite", dir: "ui" };
+  it("accepts watch keys that merely contain ui", () => {
+    const watch = { kind: "vite", dir: "ui" };
 
-    expect(
-      VariantsConfigSchema.safeParse({ variant: { instances: { ui2: instance, "my-ui": instance } } }).success,
-    ).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { watches: { ui2: watch, "my-ui": watch } } }).success).toBe(true);
   });
 
   describe("variant.ui", () => {
@@ -74,8 +76,8 @@ describe("VariantsConfigSchema", () => {
       expect(VariantsConfigSchema.safeParse({ variant: { ui: { port } } }).success).toBe(false);
     });
 
-    it("rejects an unknown key", () => {
-      expect(VariantsConfigSchema.safeParse({ variant: { ui: { color: "red" } } }).success).toBe(false);
+    it("ignores an unknown key with a warning", () => {
+      expect(warnings({ variant: { ui: { color: "red" } } })).toEqual(["variant.ui.color"]);
     });
   });
 
@@ -88,35 +90,41 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "a/b" } }).success).toBe(false);
   });
 
-  it("accepts a seed command under variant and rejects the former top-level key", () => {
-    expect(VariantsConfigSchema.safeParse({ variant: { seed: "bun run db:seed" } }).success).toBe(true);
-    expect(VariantsConfigSchema.safeParse({ seed: "bun run db:seed" }).success).toBe(false);
+  it("accepts a seed command under variant and ignores the former top-level key with a warning", () => {
+    expect(warnings({ variant: { seed: "bun run db:seed" } })).toEqual([]);
+    expect(warnings({ seed: "bun run db:seed" })).toEqual(["seed"]);
   });
 
-  it("accepts a url template on an instance and rejects an empty one and the former open key", () => {
-    const instance = { kind: "vite", dir: "app", url: "http://{{slug}}.vw.localhost:{{port}}" };
-    const parse = (value: object) => VariantsConfigSchema.safeParse({ variant: { instances: { app: value } } }).success;
+  it("accepts a url template on a watch, rejects an empty one and ignores the former open key with a warning", () => {
+    const watch = { kind: "vite", dir: "app", url: "http://{{slug}}.vw.localhost:{{port}}" };
+    const parse = (value: object) => VariantsConfigSchema.safeParse({ variant: { watches: { app: value } } }).success;
 
-    expect(parse(instance)).toBe(true);
-    expect(parse({ ...instance, url: "" })).toBe(false);
-    expect(parse({ kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" })).toBe(false);
+    expect(parse(watch)).toBe(true);
+    expect(parse({ ...watch, url: "" })).toBe(false);
+    expect(
+      warnings({
+        variant: {
+          watches: { app: { kind: "vite", dir: "app", open: "http://{{slug}}.vw.localhost:{{port}}" } },
+        },
+      }),
+    ).toEqual(["variant.watches.app.open"]);
   });
 
-  it("accepts a url template and an env object on a NestJS instance", () => {
-    const instance = {
+  it("accepts a url template and an env object on a NestJS watch", () => {
+    const watch = {
       kind: "nestjs",
       dir: "server",
       url: "http://{{slug}}.vw.localhost:{{port}}",
       env: { sourceFile: ".env", overrides: { PORT: "{{port}}" } },
     };
 
-    expect(VariantsConfigSchema.safeParse({ variant: { instances: { app: instance } } }).success).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ variant: { watches: { app: watch } } }).success).toBe(true);
   });
 
   it("rejects an empty, absolute or escaping env source file", () => {
     const parse = (sourceFile: string) =>
       VariantsConfigSchema.safeParse({
-        variant: { instances: { app: { kind: "nestjs", dir: "server", env: { sourceFile } } } },
+        variant: { watches: { app: { kind: "nestjs", dir: "server", env: { sourceFile } } } },
       }).success;
 
     expect(parse("")).toBe(false);
@@ -125,16 +133,15 @@ describe("VariantsConfigSchema", () => {
     expect(parse("config/.env")).toBe(true);
   });
 
-  it("rejects the former dotenv, dotenvSource and envAlways keys and a bare env map", () => {
-    const parse = (extra: object) =>
-      VariantsConfigSchema.safeParse({ variant: { instances: { app: { kind: "nestjs", dir: "server", ...extra } } } })
-        .success;
+  it("ignores the former dotenv, dotenvSource and envAlways keys and a bare env map with a warning each", () => {
+    const warned = (extra: object) =>
+      warnings({ variant: { watches: { app: { kind: "nestjs", dir: "server", ...extra } } } });
 
-    expect(parse({ dotenv: ".env" })).toBe(false);
-    expect(parse({ dotenvSource: "~/app.env" })).toBe(false);
-    expect(parse({ envAlways: { A: "b" } })).toBe(false);
-    expect(parse({ env: { PORT: "{{port}}" } })).toBe(false);
-    expect(parse({ env: { overrides: {}, other: 1 } })).toBe(false);
+    expect(warned({ dotenv: ".env" })).toEqual(["variant.watches.app.dotenv"]);
+    expect(warned({ dotenvSource: "~/app.env" })).toEqual(["variant.watches.app.dotenvSource"]);
+    expect(warned({ envAlways: { A: "b" } })).toEqual(["variant.watches.app.envAlways"]);
+    expect(warned({ env: { PORT: "{{port}}" } })).toEqual(["variant.watches.app.env.PORT"]);
+    expect(warned({ env: { overrides: {}, other: 1 } })).toEqual(["variant.watches.app.env.other"]);
   });
 
   it("accepts a chatRenamer section with every option", () => {
@@ -151,10 +158,10 @@ describe("VariantsConfigSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects an invalid or unknown chatRenamer option", () => {
+  it("rejects an invalid chatRenamer option and ignores an unknown one with a warning", () => {
     expect(VariantsConfigSchema.safeParse({ chatRenamer: { renameExistingDays: -1 } }).success).toBe(false);
     expect(VariantsConfigSchema.safeParse({ chatRenamer: { titleEventPromptLines: 0 } }).success).toBe(false);
     expect(VariantsConfigSchema.safeParse({ chatRenamer: { trigger: "poll" } }).success).toBe(false);
-    expect(VariantsConfigSchema.safeParse({ chatRenamer: { colour: "red" } }).success).toBe(false);
+    expect(warnings({ chatRenamer: { colour: "red" } })).toEqual(["chatRenamer.colour"]);
   });
 });

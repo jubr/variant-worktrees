@@ -100,7 +100,7 @@ export const implodeVariant = async (
   const projectDir = variantConfigDir(config, removable);
   removeMatching(
     removable,
-    [projectDir, ...Object.values(config.variant.instances).map((instance) => resolve(projectDir, instance.dir))],
+    [projectDir, ...Object.values(config.variant.watches).map((watch) => resolve(projectDir, watch.dir))],
     preRm,
     slug,
   );

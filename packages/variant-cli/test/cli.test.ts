@@ -65,12 +65,59 @@ describe("variant CLI", () => {
     expect((await runCli(["--version"])).stdout.trim()).toBe(version);
   });
 
+  describe("warnings for extra properties", () => {
+    const withExtra = async (run: (environment: Record<string, string>) => Promise<void>): Promise<void> => {
+      const directory = mkdtempSync(join("/tmp", "variant-cli-warn-"));
+      const configPath = join(directory, "variants.yaml");
+      writeFileSync(configPath, "db:\n  dialect: sqlite\n  colour: red\nvariant:\n  ui:\n    color: red\n");
+      try {
+        await run({ VARIANT_CONFIG: configPath });
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    };
+
+    it("prints one warning line per extra key on stderr and still runs the command", () =>
+      withExtra(async (environment) => {
+        const result = await runCli(["config", "--json"], environment);
+        const lines = result.stderr.split("\n").filter((line) => line.startsWith("warning:"));
+
+        expect(result.exitCode).toBe(0);
+        expect(lines).toHaveLength(2);
+        expect(lines.join("\n")).toContain("variants.yaml: unknown key db.colour");
+        expect(lines.join("\n")).toContain("variants.yaml: unknown key variant.ui.color");
+        expect(JSON.parse(result.stdout).warnings).toHaveLength(2);
+      }));
+
+    it("keeps standard output free of warnings", () =>
+      withExtra(async (environment) => {
+        const result = await runCli(["list", "--json"], environment);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).not.toContain("warning:");
+        expect(JSON.parse(result.stdout)).toBeArray();
+      }));
+
+    it("prints nothing for a configuration without extra keys", async () => {
+      const directory = mkdtempSync(join("/tmp", "variant-cli-warn-"));
+      const configPath = join(directory, "variants.yaml");
+      writeFileSync(configPath, "db:\n  dialect: sqlite\n");
+      try {
+        const result = await runCli(["config", "--json"], { VARIANT_CONFIG: configPath });
+
+        expect(result.stderr).not.toContain("warning:");
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    });
+  });
+
   it("sets the exit code of an attached watch from its result", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
     const configPath = join(directory, "variants.yaml");
     writeFileSync(
       configPath,
-      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
     );
     try {
       const result = await runCli(["watch", "-s", "demo", "--json"], { VARIANT_CONFIG: configPath });

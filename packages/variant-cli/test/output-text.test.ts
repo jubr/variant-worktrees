@@ -34,13 +34,13 @@ describe("text output of each command", () => {
     expect(out).toContain("seeded 3 rows");
   });
 
-  it("shows the instances of an up with their ports and containers", () => {
+  it("shows the watches of an up with their ports and containers", () => {
     const out = text("up", {
       slug: "demo",
       mode: "up",
       worktree: "/work/_v-demo",
       target: "v_demo",
-      instances: { fe: { port: 62060, url: "http://demo.vw.localhost:62060/", container: "v-fe-demo" } },
+      watches: { fe: { port: 62060, url: "http://demo.vw.localhost:62060/", container: "v-fe-demo" } },
       containers: [{ key: "fe", name: "v-fe-demo", port: 62060 }],
       urls: { fe: "http://demo.vw.localhost:62060/" },
       commands: [],
@@ -58,7 +58,7 @@ describe("text output of each command", () => {
       mode: "watch",
       worktree: "/work/_v-demo",
       target: "v_demo",
-      instances: { be: { port: 62061, pid: 4242 } },
+      watches: { be: { port: 62061, pid: 4242 } },
       processes: [{ key: "be", pid: 4242, command: "bun run dev" }],
       urls: {},
       exitCode: 1,
@@ -142,7 +142,7 @@ describe("status text", () => {
     url: "http://demo.vw.localhost:62060/",
     uptimeSeconds: 7500,
     log: "/work/_v-demo/variants.watch.log",
-    instances: {
+    watches: {
       fe: { port: 62060, pid: 123, url: "http://demo.vw.localhost:62060/", alive: true, uptimeSeconds: 7500 },
       be: { port: 62061, pid: 456, alive: false },
     },
@@ -167,7 +167,7 @@ describe("status text", () => {
     expect(out).toMatch(/log:\s+\/work\/_v-demo\/variants\.watch\.log/);
   });
 
-  it("shows each instance with its port, pid, liveness and uptime", () => {
+  it("shows each watch with its port, pid, liveness and uptime", () => {
     const out = text("status", status);
 
     expect(out).toMatch(/fe\s+port 62060\s+pid 123 alive\s+up 2h 5m\s+http:\/\/demo\.vw\.localhost:62060\//);

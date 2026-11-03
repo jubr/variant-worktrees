@@ -2,17 +2,20 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { abbreviate, detectConnection, detectInstances, detectVariantMain, detectVariantRoot } from "./autodetect.js";
-import { readRuntime } from "./local.js";
-import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantInstance, VariantsConfig } from "./schema.js";
+import { abbreviate, detectConnection, detectVariantMain, detectVariantRoot, detectWatches } from "./autodetect.js";
+import { migrateLegacy } from "./legacy.js";
+import { readRuntimeState } from "./local.js";
+import { type ParsedConfig, parseConfig } from "./parse.js";
+import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantsConfig, VariantWatch } from "./schema.js";
 import {
   DEFAULT_BASE_BRANCH,
   DEFAULT_BRANCH_PREFIXES,
   DEFAULT_MAX_DIFF_LINES,
+  DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
-  DEFAULT_RESERVED_PORTS,
   DEFAULT_STORAGE_DIR,
   DEFAULT_STORAGE_ENV_VAR,
+  parsePortRange,
   VariantsConfigSchema,
   variantsJsonSchema,
 } from "./schema.js";
@@ -45,9 +48,15 @@ export const findConfigFile = (startDir = process.cwd()): string | undefined => 
   return undefined;
 };
 
-const readConfigFile = (configPath: string): VariantsConfig => {
+interface ReadConfig extends ParsedConfig<VariantsConfig> {
+  /** The notices of names of an earlier version that were read under the current names. */
+  migrations: string[];
+}
+
+const readConfigFile = (configPath: string): ReadConfig => {
   const parsed: unknown = parseYaml(readFileSync(configPath, "utf8"));
-  return VariantsConfigSchema.parse(parsed ?? {});
+  const { data, notices } = migrateLegacy(parsed ?? {}, configPath);
+  return { ...parseConfig(VariantsConfigSchema, data, configPath), migrations: notices };
 };
 
 const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbConfig => ({
@@ -55,15 +64,26 @@ const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbCo
   ...explicit,
 });
 
-const resolveInstances = (config: VariantsConfig, configDir: string): Record<string, VariantInstance> =>
-  config.variant?.instances ?? detectInstances(configDir);
+/** The configured watches with `dir` defaulted to the key, else the autodetected ones (which carry their `dir`). */
+const resolveWatches = (config: VariantsConfig, configDir: string): Record<string, VariantWatch> =>
+  config.variant?.watches
+    ? Object.fromEntries(
+        Object.entries(config.variant.watches).map(([key, watch]) => [key, { ...watch, dir: watch.dir ?? key }]),
+      )
+    : detectWatches(configDir);
 
 /** `variant.open`, unless `VARIANT_OPEN=0` turns opening off. */
 const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
   env.VARIANT_OPEN === "0" ? false : (configured ?? true);
 
+const resolvePorts = (configured: string | undefined): ResolvedVariant["ports"] => {
+  const range = configured ?? DEFAULT_PORT_RANGE;
+  const { low, high } = parsePortRange(range) as { low: number; high: number };
+  return { range, low, high };
+};
+
 const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
-  const { storage, supervise, implode, ...variant } = config.variant ?? {};
+  const { storage, supervise, implode, ports, ...variant } = config.variant ?? {};
   const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
     ...variant,
@@ -71,11 +91,11 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
     abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
-    instances: resolveInstances(config, configDir),
+    watches: resolveWatches(config, configDir),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
     branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
     open: resolveOpen(variant.open, env),
-    reservedPorts: variant.reservedPorts ?? [...DEFAULT_RESERVED_PORTS],
+    ports: resolvePorts(ports?.range),
     ...(storage
       ? {
           storage: {
@@ -111,14 +131,15 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     ? resolve(cwd, options.configPath)
     : (findConfigFile(cwd) ?? join(cwd, "variants.yaml"));
   const configExists = existsSync(configPath);
-  const config = configExists ? readConfigFile(configPath) : {};
+  const read: ReadConfig = configExists ? readConfigFile(configPath) : { data: {}, warnings: [], migrations: [] };
+  const config = read.data;
   const configDir = dirname(configPath);
   const detected = detectConnection(configDir);
   const db = mergeDbConfig(detected.config, config.db);
   const source = config.db ? "config" : detected.source;
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env);
-  const runtime = readRuntime(configDir, env, Object.keys(variant.instances));
+  const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
 
   return {
     ...config,
@@ -128,14 +149,15 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     configPath,
     configDir,
     source,
+    warnings: read.warnings,
+    migrations: [...read.migrations, ...migrations],
   };
 };
 
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
   config.variants?.[slug]?.seed ?? config.variant.seed;
 
-export const runtimeCommandFor = (kind: "up" | "watch", instance: VariantInstance): string | undefined =>
-  instance[kind];
+export const runtimeCommandFor = (kind: "up" | "watch", watch: VariantWatch): string | undefined => watch[kind];
 
 /**
  * Only the variant name prefix of the nearest variants.yaml. Unlike loadConfig it detects no database settings, so it is
@@ -147,7 +169,7 @@ export const readPrefix = (startDir = process.cwd()): string => {
     return DEFAULT_PREFIX;
   }
   try {
-    return readConfigFile(configPath).variant?.prefix ?? DEFAULT_PREFIX;
+    return readConfigFile(configPath).data.variant?.prefix ?? DEFAULT_PREFIX;
   } catch {
     return DEFAULT_PREFIX;
   }
@@ -163,7 +185,7 @@ export const readChatRenamerConfig = (startDir = process.cwd()): ChatRenamerConf
     return {};
   }
   try {
-    return readConfigFile(configPath).chatRenamer ?? {};
+    return readConfigFile(configPath).data.chatRenamer ?? {};
   } catch {
     return {};
   }
@@ -174,35 +196,48 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 export {
   abbreviate,
   detectConnection,
-  detectInstances,
   detectVariantMain,
   detectVariantRoot,
+  detectWatches,
   findMiseFile,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
-export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
-export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
-export { openUrlFor, pickFreePort, resolveInstancePort } from "./ports.js";
+export {
+  addSchemaHeader,
+  findSchemaHeader,
+  isSchemaHeaderNotice,
+  SCHEMA_HEADER_NOTICE,
+  schemaHeaderFor,
+  schemaHeaderNotice,
+} from "./header.js";
+export { type Migrated, migrateLegacy, migrateText } from "./legacy.js";
+export type { DiscoveredRuntime, LocalState, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
+export { clearRuntime, readRuntime, readRuntimeState, readRuntimes, writeRuntime } from "./local.js";
+export { type MigrationResult, migrateFile } from "./migrate-file.js";
+export { type ParsedConfig, parseConfig } from "./parse.js";
+export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
-  InstanceContainer,
+  PortRange,
   ResolvedConfig,
   ResolvedRuntime,
   Runtime,
   VariantEntry,
-  VariantInstance,
   VariantRuntime,
   VariantsConfig,
   VariantsLocal,
+  VariantWatch,
+  WatchContainer,
 } from "./schema.js";
 export {
+  DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
-  UI_INSTANCE_KEY,
   UI_PORT_ENV,
+  UI_WATCH_KEY,
   VariantsConfigSchema,
   VariantsLocalSchema,
   variantsJsonSchema,

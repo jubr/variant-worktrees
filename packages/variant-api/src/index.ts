@@ -80,8 +80,6 @@ export type {
   DatabaseAdapter,
   DownResult,
   ImplodeResult,
-  InstanceFacts,
-  InstanceReport,
   ListOptions,
   RuntimeStatus,
   UpResult,
@@ -90,6 +88,8 @@ export type {
   VariantRecord,
   VariantState,
   VariantUpdate,
+  WatchFacts,
+  WatchReport,
   WatchResult,
 } from "./types.js";
 export { ensureWorktree, primaryWorktree } from "./worktree.js";

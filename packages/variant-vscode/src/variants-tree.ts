@@ -3,7 +3,7 @@ import {
   formatUptime,
   sortVariants,
   stateOf,
-  UI_INSTANCE_KEY,
+  UI_WATCH_KEY,
   type VariantSort,
   type VariantState,
 } from "variant-ui/state";
@@ -26,13 +26,13 @@ const ICONS: Record<VariantState, string> = {
 
 /** The live UI server entry that `main` records, if there is one. */
 export const uiServerOf = (records: readonly VariantRecord[]): { url?: string; pid?: number } | undefined => {
-  const instance = records.find((entry) => entry.slug === "main")?.instances?.[UI_INSTANCE_KEY];
-  if (instance === undefined || instance.alive === false) {
+  const watch = records.find((entry) => entry.slug === "main")?.watches?.[UI_WATCH_KEY];
+  if (watch === undefined || watch.alive === false) {
     return undefined;
   }
   return {
-    ...(instance.url === undefined ? {} : { url: instance.url }),
-    ...(instance.pid === undefined ? {} : { pid: instance.pid }),
+    ...(watch.url === undefined ? {} : { url: watch.url }),
+    ...(watch.pid === undefined ? {} : { pid: watch.pid }),
   };
 };
 

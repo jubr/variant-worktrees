@@ -4,13 +4,21 @@
 
 ::: v-pre
 
-## Instances are a record
+## Unknown keys and migration
 
-`variant.instances` is keyed by instance name. The key is the name in runtime state, in templates (`{{be.port}}`), in container names (`v-<key>-<slug>`) and in environment variables.
+A key `variants.yaml` or `variants.local.yaml` does not know is a warning, not an error: the command prints `<file>: unknown key <path>` on standard error, one line per key, and runs without it. A value of the wrong type or a missing required value is still an error.
+
+`variant.instances`, `runtime.instances` and `variant.reservedPorts` of earlier versions still load, with a notice on standard error (`variant.instances` is now `variant.watches`; `variant.reservedPorts` was dropped, free ports come from `variant.ports.range`). The new name wins when both exist. The `variant` CLI and the VS Code extension rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (`variants.local.yaml`, which is git-ignored, always); review the change with `git diff` and revert it with `git checkout -- <file>`. A `variants.yaml` that git does not track is rewritten too, after its old text is saved as `variants.yaml~` (nothing happens when that file exists); a tracked file with uncommitted changes is left alone. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`; the notice then names the reason. The library, the MCP server and `variant ui` read the old names but never write.
+
+The same migration puts the schema header on top of a `variants.yaml` or `variants.local.yaml` that has none: `# yaml-language-server: $schema=https://github.com/jubr/variant-worktrees/raw/refs/heads/main/packages/variant-config/variants.yaml.schema.json` (`variants.local.yaml.schema.json` for the local file), so editors offer completion and validation. A `variants.local.yaml` that the tool writes starts with it, and a schema line you wrote yourself stays. When the header cannot be added (a tracked file with uncommitted changes, `CI`, `VARIANT_MIGRATE=0`) nothing is printed, because it is cosmetic.
+
+## Watches are a record
+
+`variant.watches` is keyed by watch name. The key is the name in runtime state, in templates (`{{be.port}}`), in container names (`v-<key>-<slug>`) and in environment variables.
 
 ```yaml
 variant:
-  instances:
+  watches:
     be:
       kind: nestjs
       dir: be
@@ -19,14 +27,14 @@ variant:
       dir: fe
 ```
 
-The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. The key `variant-ui` is reserved for the server of `variant ui`, and so is every key whose segment is `UI` (such as `ui`), because `VARIANT_UI_PORT` is the server's port variable; defining an instance with one fails validation. Instances start in the listed order. List a container that another one reaches by name first: an nginx in a Dockerfile resolves the name of its proxy target when it starts.
+The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. The key `variant-ui` is reserved for the server of `variant ui`, and so is every key whose segment is `UI` (such as `ui`), because `VARIANT_UI_PORT` is the server's port variable; defining a watch with one fails validation. Watches start in the listed order. List a container that another one reaches by name first: an nginx in a Dockerfile resolves the name of its proxy target when it starts.
 
 ## Templates
 
 Values of `env.overrides` and `url` are rendered in two passes.
 
-1. Variant placeholders: `{{slug}}`, `{{schema}}` (the database schema or file), `{{storage}}`, `{{worktree}}`, `{{url}}`, `{{port}}` and `{{<instance>.port}}`.
-   `{{abbr}}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite instance is `http://{{slug}}.{{abbr}}.localhost:{{port}}`.
+1. Variant placeholders: `{{slug}}`, `{{schema}}` (the database schema or file), `{{storage}}`, `{{worktree}}`, `{{url}}`, `{{port}}` and `{{<watch>.port}}`.
+   `{{abbr}}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite watch is `http://{{slug}}.{{abbr}}.localhost:{{port}}`.
 2. Environment templates: `{{NAME}}` reads the environment and fails when it is unset, `{{NAME:-default}}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `{{JWT_SECRET:-variant-local-{{slug}}}}` works.
 
 ## Environment variables
@@ -38,19 +46,20 @@ Every command also sees the variables below. Some are only set for commands, som
 | `VARIANT_SLUG` | set for commands | `{{slug}}` |
 | `VARIANT_TARGET` | set for commands | `{{schema}}`: the database schema, or the SQLite file |
 | `VARIANT_CONFIG` | set for commands | the path of the loaded `variants.yaml` |
-| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.instances.<key>.port` |
-| `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.instances.<key>.url` |
-| `VARIANT_<KEY>_PID` | read as an override | `runtime.instances.<key>.pid` |
+| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.watches.<key>.port` |
+| `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.watches.<key>.url` |
+| `VARIANT_<KEY>_PID` | read as an override | `runtime.watches.<key>.pid` |
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
-| `VARIANT_ENV_SOURCE` | read as an override | `env.sourceFile`: the file an instance's env file is copied from, instead of the primary worktree's |
+| `VARIANT_MIGRATE` | read as an override | the rewrite of configuration files that use names of an earlier version; `0` turns it off |
+| `VARIANT_ENV_SOURCE` | read as an override | `env.sourceFile`: the file a watch's env file is copied from, instead of the primary worktree's |
 | `VARIANT_STEP_<NAME>` | read as an override | the `name` of a step in `variant.steps`; `no` skips the step |
 | `VARIANT_UI_PORT` | read as an override | `variant.ui.port`: the port of the `variant ui` server |
 
-`<KEY>` is the key of an instance and `<NAME>` the `name` of a step, with letters uppercased and every other character replaced by `_`: `VARIANT_BE_PORT` for `be`, `VARIANT_STEP_DEMO_USER=no` for `demo-user`. A variable that is set for commands is part of the environment of the install, `up`, step and seed commands and of containers (which receive the variables only, see `container`); an override is read from the environment of the `variant` process.
+`<KEY>` is the key of a watch and `<NAME>` the `name` of a step, with letters uppercased and every other character replaced by `_`: `VARIANT_BE_PORT` for `be`, `VARIANT_STEP_DEMO_USER=no` for `demo-user`. A variable that is set for commands is part of the environment of the install, `up`, step and seed commands and of containers (which receive the variables only, see `container`); an override is read from the environment of the `variant` process.
 
-## When instances are omitted
+## When watches are omitted
 
-Without `variant.instances`, Vite and NestJS applications below the configuration directory are detected, and each gets a `watch` command that keeps the console across rebuilds, so several dev servers share one terminal:
+Without `variant.watches`, Vite and NestJS applications below the configuration directory are detected, and each gets a `watch` command that keeps the console across rebuilds, so several dev servers share one terminal:
 
 | Application | `watch` |
 | --- | --- |
@@ -58,7 +67,7 @@ Without `variant.instances`, Vite and NestJS applications below the configuratio
 | NestJS | `bun run start:dev --preserveWatchOutput` (`bunx nest start --watch ...` without a `start:dev` script) |
 | `bun --watch` script | the script with `--no-clear-screen` after `--watch` or `--hot` |
 
-The flag is left out when the project sets it: `clearScreen` in the Vite configuration file, `preserveWatchOutput` in `tsconfig.json`. Instances you list in `variants.yaml` keep exactly the `watch` you give them.
+The flag is left out when the project sets it: `clearScreen` in the Vite configuration file, `preserveWatchOutput` in `tsconfig.json`. Watches you list in `variants.yaml` keep exactly the `watch` you give them.
 
 ## Options
 
@@ -74,9 +83,9 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `open` | `false` prints URLs without opening a browser; `VARIANT_OPEN=0` wins |
 | `prefix` | Starts every name derived from a slug, such as worktree directories (default `_v-`) |
 | `root` | Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into `main` (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `main` itself (`./_v-foo`). A worktree directory inside `main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created |
-| `reservedPorts` | Ports that are never picked for an instance (default 3000, 4200, 5432) |
+| `ports` | `{ range }`: `LOW-HIGH` (1024 to 65535, default `42000-42999`) the free ports of watches and of `variant ui` are picked from. An explicit `VARIANT_<KEY>_PORT` or `runtime.watches.<key>.port` may lie anywhere |
 | `storage` | `{ dir, envVarName }`: a per-variant directory (default `.storage`) and the variable that carries it (default `STORAGE_ROOT`) |
-| `ui` | `{ port }`: the port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port that is not reserved |
+| `ui` | `{ port }`: the port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port of `variant.ports.range` |
 | `steps` | Named commands that run between the `up` commands and the seed command |
 | `supervise` | `startDelaySeconds` (2), `readyTimeoutSeconds` (180), `checkoutPollSeconds` (5; 0 turns the check off) |
 | `implode` | See below |
@@ -89,33 +98,33 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 | Option | Meaning |
 | --- | --- |
-| `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each instance directory; `{{slug}}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
+| `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each watch directory; `{{slug}}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
 | `discard` | Base names of tracked files whose local changes are discarded, after the report |
 | `requireMerged` | `false` skips the merge gate (default `true`) |
 | `maxDiffLines` | The report holds the full `git diff` up to this many lines (default 200) |
 
 `implode` refuses `main`. Unless `force` is given it refuses work that is not an ancestor of `origin/<baseBranch>` (or `<baseBranch>` without a remote branch) and changes nothing. After the gate it stops the runtime, drops the database target, deletes the storage, clears the state, removes the `preRm` matches, prints `git status` and `git diff`, discards the changes of the `discard` files and removes the worktree. The branch stays.
 
-### Instances
+### Watches
 
 | Option | Meaning |
 | --- | --- |
-| `kind`, `dir` | `vite` or `nestjs`, and the directory below the worktree |
+| `kind`, `dir` | Both optional. `kind` is `vite` or `nestjs` (a label; autodetection sets it). `dir` is the directory below the worktree, the key of the watch when absent |
 | `up`, `watch` | `up` runs while provisioning; `watch` is the process `variant watch` supervises |
-| `url` | URL template of the instance |
-| `env` | `sourceFile`: an env file in `dir`, copied once for a variant (from the primary worktree's file, its `.example`, or `VARIANT_ENV_SOURCE`). `overrides`: templated values for the instance's commands, written into the copy when it is created together with the storage variable. An existing copy is left alone |
+| `url` | URL template of the watch |
+| `env` | `sourceFile`: an env file in `dir`, copied once for a variant (from the primary worktree's file, its `.example`, or `VARIANT_ENV_SOURCE`). `overrides`: templated values for the watch's commands, written into the copy when it is created together with the storage variable. An existing copy is left alone |
 | `install` | Command that runs in `dir` when `dir` has no `node_modules` |
-| `ready` | URL path that answers with a success status when the instance serves |
-| `container` | How `up` runs the instance |
+| `ready` | URL path that answers with a success status when the watch serves |
+| `container` | How `up` runs the watch |
 
 `container` takes `dockerfile` (relative to the worktree, built with the worktree as context into `v-<key>:v-<slug>`) and `internalPort` (the port inside the container, 80 when absent). The Dockerfile does the rest: build the app, serve it, and reach other containers by name (`v-<key>-<slug>` on the network `v-net-<slug>`); `example/fe/Dockerfile` builds a Vite app and serves it with `nginx:alpine`, proxying `/api/` to the `be` container. The container receives the `VARIANT_*` and database variables only: not `env.overrides`, and neither `SQLITE_DATABASE` nor the storage variable, which are host paths.
 
 ## Runtime
 
-`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every instance (`VARIANT_<KEY>_PORT`, then `variants.local.yaml`, then a free unreserved port), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
+`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `variants.local.yaml`, then a free port of `variant.ports.range`), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
 
-Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands record `runtime` in the `variants.local.yaml` of the variant's worktree (`slug`, `mode`, `dir`, `db`, the `instances` with port, pid and URL and, for a detached `watch`, `log`: the path of `variants.watch.log`, which holds the output of its processes) and, attached, wait for every `ready` path and open the URL of each instance with a `url` template.
+Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands record `runtime` in the `variants.local.yaml` of the variant's worktree (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for a detached `watch`, `log`: the path of `variants.watch.log`, which holds the output of its processes) and, attached, wait for every `ready` path and open the URL of each watch with a `url` template.
 
-An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one instance ends or the worktree disappears, and 0 only when detached. The CLI sets the process exit code from it.
+An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one watch ends or the worktree disappears, and 0 only when detached. The CLI sets the process exit code from it.
 
 :::

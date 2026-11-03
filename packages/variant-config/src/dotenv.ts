@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ResolvedConfig, VariantInstance } from "./schema.js";
+import type { ResolvedConfig, VariantWatch } from "./schema.js";
 
 const ASSIGNMENT = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)=/;
 
@@ -34,19 +34,19 @@ export const amendDotenv = (source: string, entries: Readonly<Record<string, str
 };
 
 /**
- * The amended copy of an instance's env file: `<configDir>/<dir>/<env.sourceFile>` (else `<sourceFile>.example`, else
- * empty) with the variant's values applied. Nothing when the instance has no `env.sourceFile`. It does not write the copy.
+ * The amended copy of a watch's env file: `<configDir>/<dir>/<env.sourceFile>` (else `<sourceFile>.example`, else
+ * empty) with the variant's values applied. Nothing when the watch has no `env.sourceFile`. It does not write the copy.
  */
 export const dotenvFor = (
   config: ResolvedConfig,
-  instance: VariantInstance,
+  watch: VariantWatch,
   entries: Readonly<Record<string, string>>,
 ): string | undefined => {
-  const sourceFile = instance.env?.sourceFile;
+  const sourceFile = watch.env?.sourceFile;
   if (sourceFile === undefined) {
     return undefined;
   }
-  const path = join(config.configDir, instance.dir, sourceFile);
+  const path = join(config.configDir, watch.dir, sourceFile);
   const source = [path, `${path}.example`].find((candidate) => existsSync(candidate));
   return amendDotenv(source ? readFileSync(source, "utf8") : "", entries);
 };

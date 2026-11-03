@@ -12,7 +12,7 @@ const CONFIG = [
   "db:",
   "  dialect: sqlite",
   "variant:",
-  "  instances:",
+  "  watches:",
   "    fe: { kind: vite, dir: fe, container: { dockerfile: fe/Dockerfile } }",
   "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",
   "",
@@ -94,7 +94,7 @@ describe("down", () => {
       const watcher = await startWatcher(join(directory, "fe"));
       writeFileSync(
         localFile,
-        `runtime:\n  slug: demo\n  mode: watch\n  instances:\n    fe: { port: 62060, pid: ${watcher.pid} }\n`,
+        `runtime:\n  slug: demo\n  mode: watch\n  watches:\n    fe: { port: 62060, pid: ${watcher.pid} }\n`,
       );
 
       const result = await down();
@@ -119,7 +119,7 @@ describe("down", () => {
 
   it("ignores a stale pid and still clears the runtime", () =>
     withProject(async ({ down, localFile }) => {
-      writeFileSync(localFile, "runtime:\n  slug: demo\n  instances:\n    fe: { pid: 2147483000 }\n");
+      writeFileSync(localFile, "runtime:\n  slug: demo\n  watches:\n    fe: { pid: 2147483000 }\n");
 
       const result = await down();
 
@@ -131,7 +131,7 @@ describe("down", () => {
     withProject(async ({ down, localFile }) => {
       const outsider = spawn("sleep", ["300"], { cwd: realpathSync("/"), detached: true, stdio: "ignore" });
       spawned.push(outsider);
-      writeFileSync(localFile, `runtime:\n  slug: demo\n  instances:\n    fe: { pid: ${outsider.pid} }\n`);
+      writeFileSync(localFile, `runtime:\n  slug: demo\n  watches:\n    fe: { pid: ${outsider.pid} }\n`);
 
       const result = await down();
 
@@ -168,7 +168,7 @@ describe("down", () => {
   it("works for main", () =>
     withProject(async ({ directory, down, localFile }) => {
       const watcher = await startWatcher(join(directory, "fe"));
-      writeFileSync(localFile, `runtime:\n  slug: main\n  instances:\n    fe: { pid: ${watcher.pid} }\n`);
+      writeFileSync(localFile, `runtime:\n  slug: main\n  watches:\n    fe: { pid: ${watcher.pid} }\n`);
 
       const result = await down("main");
 
@@ -184,7 +184,7 @@ describe("down", () => {
       writeFileSync(
         localFile,
         stringifyYaml({
-          runtime: { slug: "main", instances: { fe: { pid: watcher.pid }, "variant-ui": ui } },
+          runtime: { slug: "main", watches: { fe: { pid: watcher.pid }, "variant-ui": ui } },
         }),
       );
 
@@ -193,7 +193,7 @@ describe("down", () => {
       expect(result.processes.map(({ key }) => key)).toEqual(["fe"]);
       expect(await untilDead(watcher.pid)).toBe(true);
       expect(isProcessAlive(server.pid)).toBe(true);
-      expect(parseYaml(readFileSync(localFile, "utf8"))).toEqual({ runtime: { instances: { "variant-ui": ui } } });
+      expect(parseYaml(readFileSync(localFile, "utf8"))).toEqual({ runtime: { watches: { "variant-ui": ui } } });
     }));
 
   it("succeeds and reports nothing stopped when nothing runs", () =>

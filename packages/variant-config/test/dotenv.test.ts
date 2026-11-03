@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { amendDotenv, dotenvFor, loadConfig } from "../src/index.js";
-import type { VariantInstance } from "../src/schema.js";
+import type { VariantWatch } from "../src/schema.js";
 
 describe("amendDotenv", () => {
   it("replaces a variable in place, keeps other lines, and appends the missing ones", () => {
@@ -38,42 +38,42 @@ describe("dotenvFor", () => {
     }
   };
 
-  it("amends the file named by the instance, relative to its dir", () =>
+  it("amends the file named by the watch, relative to its dir", () =>
     withProject((directory) => {
       writeFileSync(join(directory, "server", ".env"), "PORT=3000\n");
-      const instance: VariantInstance = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
+      const watch: VariantWatch = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
 
-      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "62061" })).toBe("PORT=62061\n");
+      expect(dotenvFor(loadConfig({ cwd: directory }), watch, { PORT: "62061" })).toBe("PORT=62061\n");
     }));
 
   it("falls back to the .example file when the source does not exist", () =>
     withProject((directory) => {
       writeFileSync(join(directory, "server", ".env.example"), "PORT=3000\n");
-      const instance: VariantInstance = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
+      const watch: VariantWatch = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
 
-      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "62061" })).toBe("PORT=62061\n");
+      expect(dotenvFor(loadConfig({ cwd: directory }), watch, { PORT: "62061" })).toBe("PORT=62061\n");
     }));
 
   it("prefers the source over its .example file", () =>
     withProject((directory) => {
       writeFileSync(join(directory, "server", ".env"), "A=1\n");
       writeFileSync(join(directory, "server", ".env.example"), "B=2\n");
-      const instance: VariantInstance = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
+      const watch: VariantWatch = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
 
-      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "1" })).toBe("A=1\nPORT=1\n");
+      expect(dotenvFor(loadConfig({ cwd: directory }), watch, { PORT: "1" })).toBe("A=1\nPORT=1\n");
     }));
 
   it("treats a missing source as empty", () =>
     withProject((directory) => {
-      const instance: VariantInstance = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
+      const watch: VariantWatch = { kind: "nestjs", dir: "server", env: { sourceFile: ".env" } };
 
-      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "1" })).toBe("PORT=1\n");
+      expect(dotenvFor(loadConfig({ cwd: directory }), watch, { PORT: "1" })).toBe("PORT=1\n");
     }));
 
-  it("returns nothing for an instance without env.sourceFile", () =>
+  it("returns nothing for a watch without env.sourceFile", () =>
     withProject((directory) => {
-      const instance: VariantInstance = { kind: "nestjs", dir: "server" };
+      const watch: VariantWatch = { kind: "nestjs", dir: "server" };
 
-      expect(dotenvFor(loadConfig({ cwd: directory }), instance, { PORT: "1" })).toBeUndefined();
+      expect(dotenvFor(loadConfig({ cwd: directory }), watch, { PORT: "1" })).toBeUndefined();
     }));
 });

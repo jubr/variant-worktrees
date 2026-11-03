@@ -1,18 +1,18 @@
 # variant-api/runtime Specification
 
 ## Purpose
-The runtime commands start and stop the instances of a variant, either as containers or as supervised host processes,
+The runtime commands start and stop the watches of a variant, either as containers or as supervised host processes,
 and record what runs in the variant's own `variants.local.yaml`, so a variant is usable in a browser with one command.
 
 ## Requirements
 
 ### Requirement: Runtime preparation
 
-The system SHALL prepare a variant for both `up` and `watch` in this order: ensure its worktree (the primary worktree for slug `main`), assign a port to every instance, prepare the database target, provision (see the provisioning capability), and only then start instances. A port SHALL be the resolved instance port (environment override, then `variants.local.yaml`, then a free unreserved port); no two instances SHALL share a port, and a conflict between two overrides SHALL fail naming both variables. The database target SHALL be created clean by `up` (an existing variant schema or database is dropped first) and created only when missing by `watch`. For slug `main` the target SHALL never be created or dropped.
+The system SHALL prepare a variant for both `up` and `watch` in this order: ensure its worktree (the primary worktree for slug `main`), assign a port to every watch, prepare the database target, provision (see the provisioning capability), and only then start watches. A port SHALL be the resolved watch port (environment override, then `variants.local.yaml`, then a free port of `variant.ports.range`); no two watches SHALL share a port, and a conflict between two overrides SHALL fail naming both variables. The database target SHALL be created clean by `up` (an existing variant schema or database is dropped first) and created only when missing by `watch`. For slug `main` the target SHALL never be created or dropped.
 
 #### Scenario: Ports reused
 
-- **WHEN** `variants.local.yaml` records port 62060 for instance `fe` and `up` runs again
+- **WHEN** `variants.local.yaml` records port 62060 for watch `fe` and `up` runs again
 - **THEN** `fe` is assigned 62060
 
 #### Scenario: Environment port wins
@@ -27,7 +27,7 @@ The system SHALL prepare a variant for both `up` and `watch` in this order: ensu
 
 #### Scenario: Distinct ports
 
-- **WHEN** two instances have no recorded ports
+- **WHEN** two watches have no recorded ports
 - **THEN** they receive two different free ports
 
 #### Scenario: Up recreates the target
@@ -45,18 +45,18 @@ The system SHALL prepare a variant for both `up` and `watch` in this order: ensu
 - **WHEN** `up` or `watch` runs for slug `main`
 - **THEN** the primary worktree is used, no worktree is created, and the database target is neither created nor dropped
 
-### Requirement: Up runs instances as containers
+### Requirement: Up runs watches as containers
 
-The system SHALL start every instance that has a `container` as a container named `v-<key>-<slug>` on a network named `v-net-<slug>`, creating the network when missing and replacing a container of that name that already exists. The image SHALL be built from `container.dockerfile` with the worktree as context into `v-<key>:v-<slug>`, so a Dockerfile can build and serve an instance on its own. The container SHALL publish the instance's assigned port, on all interfaces, to `container.internalPort` (80 when it is not set). The container SHALL receive as environment the variant variables of the command environment: the database connection settings with the host unchanged, the database target variable, `VARIANT_SLUG`, `VARIANT_TARGET` and `VARIANT_<K>_PORT` and `VARIANT_<K>_URL` of every instance. It SHALL NOT receive the instance `env.overrides`, which describe the host process, and SHALL NOT receive `SQLITE_DATABASE` or the storage variable, which hold host paths. When the database host is `host.docker.internal`, the container SHALL be able to resolve it to the host. A container SHALL reach another container of the variant by the name `v-<key>-<slug>` on the shared network. Instances SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. An instance without `container` SHALL NOT be started by `up`.
+The system SHALL start every watch that has a `container` as a container named `v-<key>-<slug>` on a network named `v-net-<slug>`, creating the network when missing and replacing a container of that name that already exists. The image SHALL be built from `container.dockerfile` with the worktree as context into `v-<key>:v-<slug>`, so a Dockerfile can build and serve a watch on its own. The container SHALL publish the watch's assigned port, on all interfaces, to `container.internalPort` (80 when it is not set). The container SHALL receive as environment the variant variables of the command environment: the database connection settings with the host unchanged, the database target variable, `VARIANT_SLUG`, `VARIANT_TARGET` and `VARIANT_<K>_PORT` and `VARIANT_<K>_URL` of every watch. It SHALL NOT receive the watch `env.overrides`, which describe the host process, and SHALL NOT receive `SQLITE_DATABASE` or the storage variable, which hold host paths. When the database host is `host.docker.internal`, the container SHALL be able to resolve it to the host. A container SHALL reach another container of the variant by the name `v-<key>-<slug>` on the shared network. Watches SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. A watch without `container` SHALL NOT be started by `up`.
 
 #### Scenario: Application container
 
-- **WHEN** instance `be` sets `container: { dockerfile: be/Dockerfile, internalPort: 3000 }` and `up` runs for slug `demo` with assigned port 62061
+- **WHEN** watch `be` sets `container: { dockerfile: be/Dockerfile, internalPort: 3000 }` and `up` runs for slug `demo` with assigned port 62061
 - **THEN** the engine builds `v-be:v-demo`, creates network `v-net-demo` and runs container `v-be-demo` publishing `0.0.0.0:62061` to container port 3000
 
 #### Scenario: Static site
 
-- **WHEN** instance `fe` sets `container: { dockerfile: fe/Dockerfile }` and `up` runs with assigned port 62060
+- **WHEN** watch `fe` sets `container: { dockerfile: fe/Dockerfile }` and `up` runs with assigned port 62060
 - **THEN** container `v-fe-demo` publishes `0.0.0.0:62060` to container port 80 and no build command runs on the host
 
 #### Scenario: Container environment
@@ -84,35 +84,35 @@ The system SHALL start every instance that has a `container` as a container name
 - **WHEN** no container engine is available
 - **THEN** `up` fails before building or starting anything, naming `docker` and `podman`
 
-### Requirement: Watch runs instances as host processes
+### Requirement: The watch command runs watches as host processes
 
-The system SHALL start the `watch` command of every instance as a process in the instance directory with the command environment, stdout and stderr attached to the console, and SHALL record the process id of each in the runtime state. An instance without a `watch` command SHALL NOT be started. Instances SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each instance.
+The system SHALL start the `watch` command of every watch as a process in the watch directory with the command environment, stdout and stderr attached to the console, and SHALL record the process id of each in the runtime state. A watch without a `watch` command SHALL NOT be started. Watches SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each watch.
 
 #### Scenario: Two watchers
 
-- **WHEN** instances `be` and `fe` both have a `watch` command
+- **WHEN** watches `be` and `fe` both have a `watch` command
 - **THEN** both processes run in their directories, `be` starts first, and their pids are recorded
 
-#### Scenario: Instance without watch command
+#### Scenario: Watch without watch command
 
-- **WHEN** instance `be` has no `watch` command and `fe` has one
+- **WHEN** watch `be` has no `watch` command and `fe` has one
 - **THEN** only `fe` is started
 
 #### Scenario: Variant-wide command
 
-- **WHEN** no instance has `watch`
+- **WHEN** no watch has `watch`
 - **THEN** no process is started, whatever else the configuration holds
 
 ### Requirement: Watch supervision
 
-The system SHALL keep an attached `watch` running until it is interrupted, an instance process ends, or the worktree directory disappears. On SIGINT or SIGTERM it SHALL terminate every instance process together with its descendants, remove the process ids from the runtime state, and end with exit status 130. When one instance process ends it SHALL terminate the others and end with exit status 1. When the worktree directory disappears (checked every `supervise.checkoutPollSeconds`) it SHALL terminate the processes, drop the variant's database target unless it is the main target, clear the runtime state and end with exit status 1. When `watch` is given the `detach` option it SHALL start the processes detached from the console, write the runtime state, and return without waiting, readiness checks or opening URLs.
+The system SHALL keep an attached `watch` running until it is interrupted, a watch process ends, or the worktree directory disappears. On SIGINT or SIGTERM it SHALL terminate every watch process together with its descendants, remove the process ids from the runtime state, and end with exit status 130. When one watch process ends it SHALL terminate the others and end with exit status 1. When the worktree directory disappears (checked every `supervise.checkoutPollSeconds`) it SHALL terminate the processes, drop the variant's database target unless it is the main target, clear the runtime state and end with exit status 1. When `watch` is given the `detach` option it SHALL start the processes detached from the console, write the runtime state, and return without waiting, readiness checks or opening URLs.
 
 #### Scenario: Interrupt
 
 - **WHEN** an attached watch is interrupted with SIGINT
-- **THEN** both instance processes and their children are terminated, no pid remains in the runtime state, and the exit status is 130
+- **THEN** both watch processes and their children are terminated, no pid remains in the runtime state, and the exit status is 130
 
-#### Scenario: One instance dies
+#### Scenario: One watch dies
 
 - **WHEN** one of two watched processes exits on its own
 - **THEN** the other is terminated and the exit status is 1
@@ -125,7 +125,7 @@ The system SHALL keep an attached `watch` running until it is interrupted, an in
 #### Scenario: Checkout check disabled
 
 - **WHEN** `checkoutPollSeconds` is 0 and the worktree directory is deleted
-- **THEN** the watch keeps running until interrupted or an instance ends
+- **THEN** the watch keeps running until interrupted or a watch ends
 
 #### Scenario: Detached watch
 
@@ -153,17 +153,17 @@ The system SHALL allow only one runtime per slug. `watch` SHALL stop the variant
 
 ### Requirement: Runtime state recording
 
-The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after instances start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every instance by key, `port`, the rendered `url` when it has a `url` template and, for host processes, `pid`. Other top-level keys of the file SHALL be kept.
+The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after watches start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every watch by key, `port`, the rendered `url` when it has a `url` template and, for host processes, `pid`. Other top-level keys of the file SHALL be kept.
 
 #### Scenario: Written after up
 
 - **WHEN** `up` finishes for slug `demo` with `fe` on port 62060 and a `url` template
-- **THEN** `variants.local.yaml` holds `runtime.mode: up`, `runtime.slug: demo` and `runtime.instances.fe` with port 62060 and `url: http://demo.vw.localhost:62060`
+- **THEN** `variants.local.yaml` holds `runtime.mode: up`, `runtime.slug: demo` and `runtime.watches.fe` with port 62060 and `url: http://demo.vw.localhost:62060`
 
 #### Scenario: Pids written for watch
 
 - **WHEN** `watch` starts host processes
-- **THEN** each instance entry holds the `pid` of its process
+- **THEN** each watch entry holds the `pid` of its process
 
 #### Scenario: Other keys kept
 
@@ -172,7 +172,7 @@ The system SHALL write the `runtime` section of the variant's `variants.local.ya
 
 ### Requirement: Readiness and opening
 
-The system SHALL, after instances start in attached `up` and attached `watch`, poll `http://127.0.0.1:<port><ready>` once per second for every instance that sets `ready`, up to `supervise.readyTimeoutSeconds`. When all answer with a success status it SHALL print the URL of each instance with a `url` template and open each in the system browser, unless opening is disabled. When no instance sets `ready` it SHALL print and open the URLs right after start. On timeout it SHALL print a warning and leave the instances running. Failure to launch a browser SHALL NOT fail the command.
+The system SHALL, after watches start in attached `up` and attached `watch`, poll `http://127.0.0.1:<port><ready>` once per second for every watch that sets `ready`, up to `supervise.readyTimeoutSeconds`. When all answer with a success status it SHALL print the URL of each watch with a `url` template and open each in the system browser, unless opening is disabled. When no watch sets `ready` it SHALL print and open the URLs right after start. On timeout it SHALL print a warning and leave the watches running. Failure to launch a browser SHALL NOT fail the command.
 
 #### Scenario: Open after ready
 
@@ -186,8 +186,8 @@ The system SHALL, after instances start in attached `up` and attached `watch`, p
 
 #### Scenario: Ready timeout
 
-- **WHEN** an instance never answers within `readyTimeoutSeconds`
-- **THEN** a warning is printed, no URL is opened, and the instances keep running
+- **WHEN** a watch never answers within `readyTimeoutSeconds`
+- **THEN** a warning is printed, no URL is opened, and the watches keep running
 
 ### Requirement: Down
 
@@ -219,7 +219,7 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 
 #### Scenario: Up prints its engine commands
 
-- **WHEN** `up` starts an instance with a `container`
+- **WHEN** `up` starts a watch with a `container`
 - **THEN** the progress log receives `+ <engine> build ...`, then `+ <engine> network create`, then `+ <engine> run ...`
 
 #### Scenario: Environment values are hidden
@@ -234,16 +234,16 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 
 ### Requirement: Watch without commands
 
-The system SHALL print a warning to the progress log when `watch` starts no process because no instance has a `watch` command. The warning SHALL say that nothing was started and name `watch` on an instance as the way to set a command. The command SHALL otherwise behave as before.
+The system SHALL print a warning to the progress log when `watch` starts no process because no watch has a `watch` command. The warning SHALL say that nothing was started and name `watch` on a watch as the way to set a command. The command SHALL otherwise behave as before.
 
 #### Scenario: Nothing to start
 
-- **WHEN** `watch` runs for instances that have no `watch` command
+- **WHEN** `watch` runs for watches that have no `watch` command
 - **THEN** the progress log receives a warning that no process was started and names `watch`
 
 #### Scenario: Commands present
 
-- **WHEN** at least one instance has a `watch` command
+- **WHEN** at least one watch has a `watch` command
 - **THEN** no such warning is printed
 
 ### Requirement: Detached watch log
@@ -262,7 +262,7 @@ A `watch` with the `detach` option SHALL write the stdout and stderr of every pr
 
 #### Scenario: Two processes, one file
 
-- **WHEN** instances `be` and `fe` both print a line and run detached
+- **WHEN** watches `be` and `fe` both print a line and run detached
 - **THEN** both lines are in the same file, below the lines `[be] <command>` and `[fe] <command>`
 
 #### Scenario: Restart truncates

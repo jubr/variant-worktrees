@@ -132,7 +132,7 @@ The system SHALL define the commands `up`, `down`, `watch` and `implode` next to
 
 ### Requirement: List default output
 
-The system SHALL print `variant list` as a text table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`, one row per variant sorted by slug, with `-` for a missing value. `url` SHALL be the complete URL of the first instance that has one, never shortened. `uptime` SHALL be the human-readable `uptimeSeconds` of the variant. `log` SHALL be the absolute path of the log file of its detached watch. `dir` SHALL be shown relative to the variant root. The `--table` flag SHALL NOT exist. `variant list --json` and `--yaml` SHALL print the records instead (see the output-formats capability).
+The system SHALL print `variant list` as a text table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`, one row per variant sorted by slug, with `-` for a missing value. `url` SHALL be the complete URL of the first watch that has one, never shortened. `uptime` SHALL be the human-readable `uptimeSeconds` of the variant. `log` SHALL be the absolute path of the log file of its detached watch. `dir` SHALL be shown relative to the variant root. The `--table` flag SHALL NOT exist. `variant list --json` and `--yaml` SHALL print the records instead (see the output-formats capability).
 
 #### Scenario: Table output
 
@@ -168,7 +168,7 @@ The system SHALL print `variant list` as a text table with the columns `slug`, `
 #### Scenario: Verbose text
 
 - **WHEN** a user runs `variant list -v` and `alpha` has a runtime state with database settings
-- **THEN** stdout shows the database settings and each instance's port, pid and URL of `alpha` the same way `variant status alpha` does
+- **THEN** stdout shows the database settings and each watch's port, pid and URL of `alpha` the same way `variant status alpha` does
 
 #### Scenario: Minimal by default
 

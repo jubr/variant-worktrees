@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 interface McpResult {
@@ -206,7 +206,7 @@ describe("MCP runtime tools", () => {
           "variant:",
           "  open: false",
           "  supervise: { startDelaySeconds: 0 }",
-          "  instances:",
+          "  watches:",
           "    be:",
           "      kind: nestjs",
           "      dir: be",
@@ -226,9 +226,9 @@ describe("MCP runtime tools", () => {
       const up = JSON.parse(text);
       expect(up).toMatchObject({ slug: "test-feature", mode: "up", worktree: directory });
       expect(up.target).toContain("test-feature");
-      expect(up.instances.be).toEqual({
+      expect(up.watches.be).toEqual({
         port: expect.any(Number),
-        url: `http://test-feature.vw.localhost:${up.instances.be.port}`,
+        url: `http://test-feature.vw.localhost:${up.watches.be.port}`,
         container: "v-be-test-feature",
       });
     } finally {
@@ -243,7 +243,7 @@ describe("MCP runtime tools", () => {
       const configPath = join(directory, "variants.yaml");
       writeFileSync(
         configPath,
-        "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: be, watch: 'sleep 300' }\n",
+        "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be, watch: 'sleep 300' }\n",
       );
 
       const watched = answer(
@@ -253,7 +253,7 @@ describe("MCP runtime tools", () => {
         3,
       );
       const watch = JSON.parse(watched.text);
-      const pid = watch.instances.be.pid as number;
+      const pid = watch.watches.be.pid as number;
       try {
         expect(watched.isError).not.toBe(true);
         expect(watch).toMatchObject({ slug: "test-feature", mode: "watch", worktree: directory, exitCode: 0 });
@@ -335,7 +335,7 @@ describe("MCP status and verbose list", () => {
       mkdirSync(join(directory, "_v-demo"));
       writeFileSync(
         join(directory, "_v-demo", "variants.local.yaml"),
-        "runtime:\n  slug: demo\n  mode: watch\n  log: /work/_v-demo/variants.watch.log\n  db: { dialect: postgres, host: h, password: secret }\n  instances:\n    fe: { port: 62060, url: 'http://demo.vw.localhost:62060/' }\n",
+        "runtime:\n  slug: demo\n  mode: watch\n  log: /work/_v-demo/variants.watch.log\n  db: { dialect: postgres, host: h, password: secret }\n  watches:\n    fe: { port: 62060, url: 'http://demo.vw.localhost:62060/' }\n",
       );
       await run(directory, configFile(directory));
     } finally {
@@ -357,11 +357,46 @@ describe("MCP status and verbose list", () => {
         mode: "watch",
         url: "http://demo.vw.localhost:62060/",
         log: "/work/_v-demo/variants.watch.log",
-        runtime: { file: join(directory, "_v-demo", "variants.local.yaml"), instances: { fe: { port: 62060 } } },
+        runtime: { file: join(directory, "_v-demo", "variants.local.yaml"), watches: { fe: { port: 62060 } } },
       });
       expect(status.runtime.db.password).toBe("***");
       expect(text).not.toContain("secret");
     }));
+
+  it("variant_config carries the warning of an extra property", async () => {
+    const directory = tempDirectory();
+    try {
+      const configPath = join(directory, "variants.yaml");
+      writeFileSync(configPath, "db:\n  dialect: sqlite\n  colour: red\n");
+      const result = await mcp([...initMessages(), call(2, "variant_config")], configPath, { cwd: directory });
+      const config = JSON.parse(answer(result, 2).text);
+
+      expect(config.warnings).toEqual([`${configPath}: unknown key db.colour`]);
+      expect(config.db).not.toHaveProperty("colour");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("reads a configuration with old names under the current ones and does not rewrite it", async () => {
+    const directory = tempDirectory();
+    try {
+      const configPath = join(directory, "variants.yaml");
+      const old = "db:\n  dialect: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+      writeFileSync(configPath, old);
+      const result = await mcp([...initMessages(), call(2, "variant_config")], configPath, {
+        cwd: directory,
+        env: { CI: "", VARIANT_MIGRATE: "" },
+      });
+      const config = JSON.parse(answer(result, 2).text);
+
+      expect(Object.keys(config.variant.watches)).toEqual(["be"]);
+      expect(config.migrations).toHaveLength(1);
+      expect(readFileSync(configPath, "utf8")).toBe(old);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 
   it("variant_status reports an unknown slug as an error that names it", () =>
     withRuntime(async (directory, configPath) => {

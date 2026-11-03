@@ -43,7 +43,7 @@ const answers = async (url: string): Promise<boolean> => {
 };
 
 /**
- * Polls `http://127.0.0.1:<port><ready>` once per second for every instance that sets `ready`, until all answer with a
+ * Polls `http://127.0.0.1:<port><ready>` once per second for every watch that sets `ready`, until all answer with a
  * success status or `supervise.readyTimeoutSeconds` have passed.
  */
 const waitUntilReady = async (
@@ -51,8 +51,8 @@ const waitUntilReady = async (
   run: VariantRun,
   signal: AbortSignal | undefined,
 ): Promise<boolean> => {
-  const waiting = Object.entries(context.config.variant.instances).flatMap(([key, instance]) =>
-    instance.ready === undefined ? [] : [{ key, url: `http://127.0.0.1:${run.ports[key]}${instance.ready}` }],
+  const waiting = Object.entries(context.config.variant.watches).flatMap(([key, watch]) =>
+    watch.ready === undefined ? [] : [{ key, url: `http://127.0.0.1:${run.ports[key]}${watch.ready}` }],
   );
   const deadline = Date.now() + context.config.variant.supervise.readyTimeoutSeconds * 1000;
   while (waiting.length > 0) {
@@ -74,9 +74,9 @@ const waitUntilReady = async (
 };
 
 /**
- * Once the instances serve (or right away when none sets `ready`), prints the URL of every instance that has an `open`
+ * Once the watches serve (or right away when none sets `ready`), prints the URL of every watch that has an `open`
  * template and opens each one unless `variant.open` is off. On timeout it warns and opens nothing. Returns whether the
- * instances became ready.
+ * watches became ready.
  */
 export const announce = async (
   context: OperationContext,
@@ -90,7 +90,7 @@ export const announce = async (
   }
   if (!ready) {
     log(
-      `Warning: not all instances answered within ${context.config.variant.supervise.readyTimeoutSeconds}s; they keep running`,
+      `Warning: not all watches answered within ${context.config.variant.supervise.readyTimeoutSeconds}s; they keep running`,
     );
     return false;
   }

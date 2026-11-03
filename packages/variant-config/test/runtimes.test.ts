@@ -95,7 +95,7 @@ describe("readRuntimes", () => {
     withRoot((root, put) => {
       put(
         "_v-demo/variants.local.yaml",
-        runtime("demo", "  db:\n    port: '{{POSTGRES_PORT}}'\n  instances:\n    be:\n      port: 62060\n"),
+        runtime("demo", "  db:\n    port: '{{POSTGRES_PORT}}'\n  watches:\n    be:\n      port: 62060\n"),
       );
 
       const { states } = readRuntimes({
@@ -105,6 +105,6 @@ describe("readRuntimes", () => {
         env: { POSTGRES_PORT: "5433", VARIANT_BE_PORT: "62099" },
       });
 
-      expect(states[0]?.runtime).toEqual({ slug: "demo", db: { port: 5433 }, instances: { be: { port: 62060 } } });
+      expect(states[0]?.runtime).toEqual({ slug: "demo", db: { port: 5433 }, watches: { be: { port: 62060 } } });
     }));
 });

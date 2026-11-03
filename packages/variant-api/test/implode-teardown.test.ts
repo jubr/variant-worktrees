@@ -27,7 +27,7 @@ const withProject = async (
     mkdirSync(join(directory, "fe"));
     writeFileSync(
       join(directory, "variants.yaml"),
-      "db:\n  dialect: sqlite\nvariant:\n  storage: {}\n  instances:\n    fe: { kind: vite, dir: fe }\n",
+      "db:\n  dialect: sqlite\nvariant:\n  storage: {}\n  watches:\n    fe: { kind: vite, dir: fe }\n",
     );
     const client = createClient({
       config: loadConfig({ cwd: directory, env: {} }),
@@ -51,7 +51,7 @@ describe("implode teardown", () => {
       writeFileSync(join(directory, ".storage", "upload.bin"), "data");
       writeFileSync(
         join(directory, "variants.local.yaml"),
-        `runtime:\n  slug: demo\n  mode: watch\n  instances:\n    fe: { pid: ${watcher.pid} }\n`,
+        `runtime:\n  slug: demo\n  mode: watch\n  watches:\n    fe: { pid: ${watcher.pid} }\n`,
       );
       await sleep(50);
 

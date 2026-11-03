@@ -18,7 +18,7 @@ const context = (): vscode.ExtensionContext =>
   ({ subscriptions: [], extensionUri: vscode.Uri.file("/ext") }) as unknown as vscode.ExtensionContext;
 
 const down = record("demo");
-const watching = record("demo", { mode: "watch", instances: { fe: { alive: true } } });
+const watching = record("demo", { mode: "watch", watches: { fe: { alive: true } } });
 
 const open = async (records = [down], overrides: Partial<ViewDeps> = {}) => {
   const fake = fakeClient(records);
@@ -236,7 +236,7 @@ describe("inline actions", () => {
 
 describe("UI server item", () => {
   const server = record("main", {
-    instances: { "variant-ui": { alive: true, pid: 4242, url: "http://ui.vw.localhost:62100" } },
+    watches: { "variant-ui": { alive: true, pid: 4242, url: "http://ui.vw.localhost:62100" } },
   });
 
   it("stop ends the server process", async () => {
@@ -271,7 +271,7 @@ describe("panel and web page commands", () => {
 
   it("opens the web page of the running server with its token", async () => {
     const server = record("main", {
-      instances: { "variant-ui": { alive: true, pid: 1, url: "http://ui.vw.localhost:62100" } },
+      watches: { "variant-ui": { alive: true, pid: 1, url: "http://ui.vw.localhost:62100" } },
     });
     const { command } = await open([server], { readToken: () => "t0ken" });
 

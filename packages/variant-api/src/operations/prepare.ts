@@ -11,7 +11,7 @@ export interface PreparedVariant {
 }
 
 /**
- * What `up` and `watch` do before they start instances: stop what the other mode (or an earlier run) left behind,
+ * What `up` and `watch` do before they start watches: stop what the other mode (or an earlier run) left behind,
  * ensure the worktree, prepare the database target (`up` recreates it clean, `watch` keeps it; `main` is never touched),
  * assign the ports and provision. Stopping keeps the recorded runtime, so recorded ports are reused.
  */

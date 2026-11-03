@@ -1,6 +1,6 @@
 const app = document.querySelector("#app");
 
-// Goes through the dev server's /api proxy to the `be` instance.
+// Goes through the dev server's /api proxy to the `be` watch.
 fetch("/api")
   .then((response) => response.text())
   .then((text) => {

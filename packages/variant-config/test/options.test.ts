@@ -2,9 +2,25 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../src/index.js";
+import { parseConfig } from "../src/parse.js";
 import { VariantsConfigSchema } from "../src/schema.js";
 
-const variant = (value: unknown): boolean => VariantsConfigSchema.safeParse({ variant: value }).success;
+const FILE = "variants.yaml";
+
+/** Whether `variant` loads: an extra key only warns, every other violation fails. */
+const variant = (value: unknown): boolean => {
+  try {
+    parseConfig(VariantsConfigSchema, { variant: value }, FILE);
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** The warnings `variant` loads with, as key paths below `variant`. */
+const warned = (value: unknown): string[] =>
+  parseConfig(VariantsConfigSchema, { variant: value }, FILE).warnings.map((warning) =>
+    warning.replace(`${FILE}: unknown key variant.`, ""),
+  );
 const issues = (value: unknown): string =>
   JSON.stringify(VariantsConfigSchema.safeParse({ variant: value }).error?.issues ?? []);
 
@@ -87,8 +103,8 @@ describe("variant storage", () => {
     expect(variant({ storage: { dir: "data", envVarName: "APP_DATA" } })).toBe(true);
   });
 
-  it("rejects the former env key", () => {
-    expect(variant({ storage: { env: "APP_DATA" } })).toBe(false);
+  it("ignores the former env key with a warning", () => {
+    expect(warned({ storage: { env: "APP_DATA" } })).toEqual(["storage.env"]);
   });
 });
 
@@ -124,16 +140,16 @@ describe("provisioning steps", () => {
     expect(issues({ steps })).toContain("db_seed");
   });
 
-  it("rejects the former show and unlessEnv keys", () => {
-    expect(variant({ steps: [{ name: "a", run: "b", show: "^x" }] })).toBe(false);
-    expect(variant({ steps: [{ name: "a", run: "b", unlessEnv: { SKIP: "true" } }] })).toBe(false);
+  it("ignores the former show and unlessEnv keys with a warning each", () => {
+    expect(warned({ steps: [{ name: "a", run: "b", show: "^x" }] })).toEqual(["steps.0.show"]);
+    expect(warned({ steps: [{ name: "a", run: "b", unlessEnv: { SKIP: "true" } }] })).toEqual(["steps.0.unlessEnv"]);
   });
 
-  it("rejects an invalid filterLinesRegex pattern, an escaping dir and unknown keys", () => {
+  it("rejects an invalid filterLinesRegex pattern and an escaping dir, and warns for an unknown key", () => {
     expect(variant({ steps: [{ ...step, filterLinesRegex: "(" }] })).toBe(false);
     expect(variant({ steps: [{ ...step, dir: ".." }] })).toBe(false);
     expect(variant({ steps: [{ ...step, dir: "/abs" }] })).toBe(false);
-    expect(variant({ steps: [{ ...step, other: 1 }] })).toBe(false);
+    expect(warned({ steps: [{ ...step, other: 1 }] })).toEqual(["steps.0.other"]);
   });
 });
 
@@ -187,56 +203,112 @@ describe("implode settings", () => {
     expect(variant({ implode: { maxDiffLines: -1 } })).toBe(false);
   });
 
-  it("rejects the former untracked and restore keys", () => {
-    expect(variant({ implode: { untracked: ["x"] } })).toBe(false);
-    expect(variant({ implode: { restore: ["bun.lock"] } })).toBe(false);
+  it("ignores the former untracked and restore keys with a warning each", () => {
+    expect(warned({ implode: { untracked: ["x"], restore: ["bun.lock"] } }).sort()).toEqual([
+      "implode.restore",
+      "implode.untracked",
+    ]);
   });
 });
 
-describe("reserved ports", () => {
-  it("defaults to 3000, 4200 and 5432 and accepts an empty list", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.reservedPorts).toEqual([3000, 4200, 5432]);
-    expect(loaded("variant:\n  reservedPorts: []\n").variant.reservedPorts).toEqual([]);
+describe("port range", () => {
+  it("defaults to 42000-42999", () => {
+    expect(loaded("db:\n  dialect: sqlite\n").variant.ports).toEqual({ range: "42000-42999", low: 42000, high: 42999 });
+  });
+
+  it("carries a custom range", () => {
+    expect(loaded('variant:\n  ports:\n    range: "50000-50099"\n').variant.ports).toEqual({
+      range: "50000-50099",
+      low: 50000,
+      high: 50099,
+    });
+  });
+
+  it("accepts a range of one port and the widest range", () => {
+    expect(variant({ ports: { range: "50000-50000" } })).toBe(true);
+    expect(variant({ ports: { range: "1024-65535" } })).toBe(true);
+  });
+
+  it.each([
+    "42000",
+    "42999-42000",
+    "80-90",
+    "abc",
+    "42000-70000",
+    "42000-",
+    "-42999",
+    " 42000-42999",
+  ])("rejects the range %p", (range) => {
+    expect(variant({ ports: { range } })).toBe(false);
+  });
+
+  it("reads the former reservedPorts as dropped, without a warning", () => {
+    const config = loaded("variant:\n  reservedPorts: [3000]\n");
+
+    expect(config.warnings).toEqual([]);
+    expect(config.variant.ports.range).toBe("42000-42999");
   });
 });
 
-describe("instances as a keyed record", () => {
+describe("watches as a keyed record", () => {
   it("accepts a record and keeps the key order", () => {
-    const { instances } = loaded(
-      "variant:\n  instances:\n    fe:\n      kind: vite\n      dir: fe\n    be:\n      kind: nestjs\n      dir: be\n",
+    const { watches } = loaded(
+      "variant:\n  watches:\n    fe:\n      kind: vite\n      dir: fe\n    be:\n      kind: nestjs\n      dir: be\n",
     ).variant;
 
-    expect(Object.keys(instances)).toEqual(["fe", "be"]);
+    expect(Object.keys(watches)).toEqual(["fe", "be"]);
   });
 
-  it("rejects a list, a name setting and bad keys", () => {
-    expect(variant({ instances: [{ kind: "vite", dir: "fe" }] })).toBe(false);
-    expect(variant({ instances: { api: { kind: "nestjs", dir: "be", name: "api" } } })).toBe(false);
-    expect(variant({ instances: { "1st": { kind: "vite", dir: "fe" } } })).toBe(false);
-    expect(variant({ instances: { "a b": { kind: "vite", dir: "fe" } } })).toBe(false);
+  it("resolves the directory of a watch without dir to its key and keeps a given dir", () => {
+    const { watches } = loaded(
+      "variant:\n  watches:\n    fe:\n      kind: vite\n    be:\n      kind: nestjs\n      dir: server\n    my-api:\n      kind: nestjs\n",
+    ).variant;
+
+    expect(watches.fe?.dir).toBe("fe");
+    expect(watches.be?.dir).toBe("server");
+    expect(watches["my-api"]?.dir).toBe("my-api");
+  });
+
+  it("keeps the explicit dir of an autodetected watch", () => {
+    withProject(
+      "db:\n  dialect: sqlite\n",
+      (directory) => {
+        const { watches } = loadConfig({ cwd: directory }).variant;
+
+        expect(Object.entries(watches).map(([key, watch]) => [key, watch.dir])).toEqual([["web", "a/web"]]);
+      },
+      ["a/web"],
+    );
+  });
+
+  it("rejects a list and bad keys, and ignores a name setting with a warning", () => {
+    expect(variant({ watches: [{ kind: "vite", dir: "fe" }] })).toBe(false);
+    expect(warned({ watches: { api: { kind: "nestjs", dir: "be", name: "api" } } })).toEqual(["watches.api.name"]);
+    expect(variant({ watches: { "1st": { kind: "vite", dir: "fe" } } })).toBe(false);
+    expect(variant({ watches: { "a b": { kind: "vite", dir: "fe" } } })).toBe(false);
   });
 
   it("rejects keys that share an environment segment and names both", () => {
-    const instances = { "my-api": { kind: "nestjs", dir: "a" }, my_api: { kind: "nestjs", dir: "b" } };
+    const watches = { "my-api": { kind: "nestjs", dir: "a" }, my_api: { kind: "nestjs", dir: "b" } };
 
-    expect(variant({ instances })).toBe(false);
-    expect(issues({ instances })).toContain("my-api");
-    expect(issues({ instances })).toContain("my_api");
+    expect(variant({ watches })).toBe(false);
+    expect(issues({ watches })).toContain("my-api");
+    expect(issues({ watches })).toContain("my_api");
   });
 
   it("autodetects keys from directory names, with numeric suffixes for repeats", () => {
     withProject(
       "db:\n  dialect: sqlite\n",
       (directory) => {
-        expect(Object.keys(loadConfig({ cwd: directory }).variant.instances)).toEqual(["web", "web-2"]);
+        expect(Object.keys(loadConfig({ cwd: directory }).variant.watches)).toEqual(["web", "web-2"]);
       },
       ["a/web", "b/web"],
     );
   });
 });
 
-describe("instance runtime options", () => {
-  const instance = {
+describe("watch runtime options", () => {
+  const watch = {
     kind: "nestjs",
     dir: "be",
     env: { sourceFile: ".env", overrides: { PORT: "{{port}}", PUBLIC_BASE_URL: "{{url}}" } },
@@ -245,17 +317,17 @@ describe("instance runtime options", () => {
   };
 
   it("accepts the options", () => {
-    expect(variant({ instances: { be: instance } })).toBe(true);
+    expect(variant({ watches: { be: watch } })).toBe(true);
   });
 
   it("rejects a ready path without a leading slash", () => {
-    expect(variant({ instances: { be: { ...instance, ready: "api/health" } } })).toBe(false);
+    expect(variant({ watches: { be: { ...watch, ready: "api/health" } } })).toBe(false);
   });
 });
 
-describe("instance container", () => {
+describe("watch container", () => {
   const be = { kind: "nestjs", dir: "be", container: { dockerfile: "be/Dockerfile", internalPort: 3000 } };
-  const withContainer = (container: object) => ({ instances: { be: { ...be, container } } });
+  const withContainer = (container: object) => ({ watches: { be: { ...be, container } } });
 
   it("accepts a Dockerfile with and without an internal port", () => {
     expect(variant(withContainer({ dockerfile: "fe/Dockerfile" }))).toBe(true);
@@ -263,11 +335,11 @@ describe("instance container", () => {
   });
 
   it("carries the container unchanged", () => {
-    const { instances } = loaded(
-      "variant:\n  instances:\n    be:\n      kind: nestjs\n      dir: be\n      container:\n        dockerfile: be/Dockerfile\n",
+    const { watches } = loaded(
+      "variant:\n  watches:\n    be:\n      kind: nestjs\n      dir: be\n      container:\n        dockerfile: be/Dockerfile\n",
     ).variant;
 
-    expect(instances.be?.container).toEqual({ dockerfile: "be/Dockerfile" });
+    expect(watches.be?.container).toEqual({ dockerfile: "be/Dockerfile" });
   });
 
   it("requires a Dockerfile and a valid internal port", () => {
@@ -277,23 +349,28 @@ describe("instance container", () => {
     expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: 1.5 }))).toBe(false);
   });
 
-  it("rejects the former image, build, static, port, proxy, volumes and env keys", () => {
-    const dockerfile = "be/Dockerfile";
+  it.each([
+    ["image", "app"],
+    ["build", "bunx vite build"],
+    ["static", "dist"],
+    ["port", 3000],
+    ["proxy", { path: "/api/", to: "be" }],
+    ["volumes", ["a:b"]],
+    ["env", { A: "b" }],
+  ])("ignores the former container key %s with a warning", (key, value) => {
+    expect(warned(withContainer({ dockerfile: "be/Dockerfile", [key]: value }))).toEqual([
+      `watches.be.container.${key}`,
+    ]);
+  });
 
-    expect(variant(withContainer({ dockerfile, image: "app" }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, build: "bunx vite build" }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, static: "dist" }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, port: 3000 }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, proxy: { path: "/api/", to: "be" } }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, volumes: ["a:b"] }))).toBe(false);
-    expect(variant(withContainer({ dockerfile, env: { A: "b" } }))).toBe(false);
+  it("keeps a wrong type as an error", () => {
+    expect(variant(withContainer({ dockerfile: "be/Dockerfile", internalPort: "3000" }))).toBe(false);
   });
 });
 
 describe("variant-wide commands", () => {
-  it("rejects variant.up and variant.watch and keeps variant.seed", () => {
-    expect(variant({ up: "bun run dev" })).toBe(false);
-    expect(variant({ watch: "bun run watch" })).toBe(false);
-    expect(variant({ seed: "bun run seed" })).toBe(true);
+  it("ignores variant.up and variant.watch with a warning and keeps variant.seed", () => {
+    expect(warned({ up: "bun run dev", watch: "bun run watch" }).sort()).toEqual(["up", "watch"]);
+    expect(warned({ seed: "bun run seed" })).toEqual([]);
   });
 });

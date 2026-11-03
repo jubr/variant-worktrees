@@ -28,7 +28,7 @@ const CONFIG = lines(
   "  dialect: sqlite",
   "variant:",
   "  storage: {}",
-  "  instances:",
+  "  watches:",
   "    fe: { kind: vite, dir: fe }",
 );
 
@@ -189,7 +189,7 @@ describe("implode teardown and worktree", () => {
       const pid = watcher.pid as number;
       writeFileSync(
         join(worktree, "variants.local.yaml"),
-        `runtime:\n  slug: demo\n  mode: watch\n  instances:\n    fe: { pid: ${pid} }\n`,
+        `runtime:\n  slug: demo\n  mode: watch\n  watches:\n    fe: { pid: ${pid} }\n`,
       );
       await sleep(50);
 
@@ -237,7 +237,7 @@ describe("implode teardown and worktree", () => {
 });
 
 describe("implode cleanup", () => {
-  it("deletes the preRm matches below every instance directory", () =>
+  it("deletes the preRm matches below every watch directory", () =>
     withProject(async ({ implode, worktree, messages }) => {
       mkdirSync(join(worktree, "fe", "dist"));
       writeFileSync(join(worktree, "fe", "dist", "out.js"), "x");

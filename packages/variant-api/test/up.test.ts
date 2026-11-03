@@ -59,7 +59,7 @@ const FE_BE = lines(
   "db:",
   "  dialect: sqlite",
   "variant:",
-  "  instances:",
+  "  watches:",
   "    be:",
   "      kind: nestjs",
   "      dir: be",
@@ -166,16 +166,16 @@ describe("up preparation", () => {
       expect(database).toEqual([]);
     }));
 
-  it("reuses the recorded port of an instance", () =>
+  it("reuses the recorded port of a watch", () =>
     withProject(
       async ({ up, engine, runtime }) => {
         await up();
 
         expect(runCall(engine, "v-fe-demo")).toContain("0.0.0.0:62060:80");
-        expect((runtime().instances as Record<string, { port: number }>).fe?.port).toBe(62060);
+        expect((runtime().watches as Record<string, { port: number }>).fe?.port).toBe(62060);
       },
       FE_BE,
-      { "variants.local.yaml": "runtime:\n  instances:\n    fe: { port: 62060 }\n" },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe: { port: 62060 }\n" },
     ));
 
   it("lets VARIANT_<KEY>_PORT win over the recorded port and records it", () =>
@@ -186,10 +186,10 @@ describe("up preparation", () => {
         await up();
 
         expect(runCall(engine, "v-fe-demo")).toContain("0.0.0.0:62070:80");
-        expect((runtime().instances as Record<string, { port: number }>).fe?.port).toBe(62070);
+        expect((runtime().watches as Record<string, { port: number }>).fe?.port).toBe(62070);
       },
       FE_BE,
-      { "variants.local.yaml": "runtime:\n  instances:\n    fe: { port: 62060 }\n" },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe: { port: 62060 }\n" },
     ));
 
   it("fails naming both variables when two overrides give the same port", () =>
@@ -204,11 +204,11 @@ describe("up preparation", () => {
       expect(engine.calls()).toEqual([]);
     }));
 
-  it("gives instances without a recorded port different free ports", () =>
+  it("gives watches without a recorded port different free ports", () =>
     withProject(async ({ up, runtime }) => {
       const result = await up();
 
-      const ports = Object.values(runtime().instances as Record<string, { port: number }>).map(({ port }) => port);
+      const ports = Object.values(runtime().watches as Record<string, { port: number }>).map(({ port }) => port);
       expect(new Set(ports).size).toBe(2);
       expect(result.containers.map(({ port }) => port).sort()).toEqual([...ports].sort());
     }));
@@ -300,7 +300,7 @@ describe("up containers", () => {
       ),
     ));
 
-  it("passes the variant variables only, without instance overrides or host paths", () =>
+  it("passes the variant variables only, without watch overrides or host paths", () =>
     withProject(
       async ({ up, engine }) => {
         await up();
@@ -309,7 +309,7 @@ describe("up containers", () => {
         expect(environment).toContain("VARIANT_SLUG=demo");
         expect(environment).toContain("POSTGRES_USER=u");
         expect(environment.some((entry) => entry.startsWith("VARIANT_BE_PORT="))).toBe(true);
-        expect(environment.some((entry) => entry.startsWith("ONLY_INSTANCE="))).toBe(false);
+        expect(environment.some((entry) => entry.startsWith("ONLY_WATCH="))).toBe(false);
         expect(environment.some((entry) => entry.startsWith("PORT="))).toBe(false);
         expect(environment.some((entry) => entry.startsWith("STORAGE_ROOT="))).toBe(false);
         expect(flagValues(runCall(engine, "v-be-demo"), "-v")).toEqual([]);
@@ -322,7 +322,7 @@ describe("up containers", () => {
         .replace(
           "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           [
-            "      env: { overrides: { ONLY_INSTANCE: 'slug-{{slug}}', PORT: '{{port}}' } }",
+            "      env: { overrides: { ONLY_WATCH: 'slug-{{slug}}', PORT: '{{port}}' } }",
             "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           ].join("\n"),
         ),
@@ -341,7 +341,7 @@ describe("up containers", () => {
       FE_BE.replace("variant:\n", "variant:\n  storage: {}\n"),
     ));
 
-  it("starts instances in their listed order and waits between two of them", () =>
+  it("starts watches in their listed order and waits between two of them", () =>
     withProject(
       async ({ up, engine }) => {
         const started = Date.now();
@@ -393,7 +393,7 @@ describe("up containers", () => {
       expect(database).toEqual([]);
     }));
 
-  it("does not start an instance without a container", () =>
+  it("does not start a watch without a container", () =>
     withProject(
       async ({ up, engine }) => {
         await up();
@@ -413,7 +413,7 @@ describe("up mode switch and runtime state", () => {
       const pid = watcher.pid as number;
       writeFileSync(
         localFile,
-        `runtime:\n  slug: demo\n  mode: watch\n  instances:\n    fe: { port: 62060, pid: ${pid} }\n`,
+        `runtime:\n  slug: demo\n  mode: watch\n  watches:\n    fe: { port: 62060, pid: ${pid} }\n`,
       );
 
       await up();
@@ -424,7 +424,7 @@ describe("up mode switch and runtime state", () => {
       expect(isProcessAlive(pid)).toBe(false);
     }));
 
-  it("records mode, slug, directory, database and the port and URL of every instance", () =>
+  it("records mode, slug, directory, database and the port and URL of every watch", () =>
     withProject(
       async ({ up, runtime, directory }) => {
         await up();
@@ -434,14 +434,14 @@ describe("up mode switch and runtime state", () => {
           mode: "up",
           dir: directory,
           db: { dialect: "sqlite", filename: "v_demo" },
-          instances: {
+          watches: {
             be: { port: expect.any(Number) },
             fe: { port: 62060, url: "http://demo.vw.localhost:62060" },
           },
         });
       },
       FE_BE,
-      { "variants.local.yaml": "runtime:\n  instances:\n    fe: { port: 62060 }\n" },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe: { port: 62060 }\n" },
     ));
 
   it("keeps other top-level keys of variants.local.yaml", () =>
@@ -457,7 +457,7 @@ describe("up mode switch and runtime state", () => {
 });
 
 describe("up opening", () => {
-  it("opens the URL of an instance with an url template after the start", () =>
+  it("opens the URL of a watch with an url template after the start", () =>
     withProject(
       async ({ context }) => {
         const opened: string[] = [];
@@ -469,6 +469,6 @@ describe("up opening", () => {
         expect(lines).toContain("fe: http://demo.vw.localhost:62060");
       },
       FE_BE,
-      { "variants.local.yaml": "runtime:\n  instances:\n    fe: { port: 62060 }\n" },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe: { port: 62060 }\n" },
     ));
 });

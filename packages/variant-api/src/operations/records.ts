@@ -5,13 +5,13 @@ import {
   LOCAL_FILENAME,
   type ResolvedConfig,
   readRuntimes,
-  UI_INSTANCE_KEY,
+  UI_WATCH_KEY,
 } from "variant-config";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { readState, stateSlugs } from "../state.js";
-import type { InstanceFacts, RuntimeStatus, VariantRecord } from "../types.js";
+import type { RuntimeStatus, VariantRecord, WatchFacts } from "../types.js";
 import { processUptimeSeconds } from "../uptime.js";
 import type { OperationContext } from "./types.js";
 
@@ -46,15 +46,15 @@ const runtimeBySlug = (context: OperationContext): Map<string, DiscoveredRuntime
   );
 };
 
-const instanceFacts = (runtime: DiscoveredRuntime["runtime"]): Record<string, InstanceFacts> =>
+const watchFacts = (runtime: DiscoveredRuntime["runtime"]): Record<string, WatchFacts> =>
   Object.fromEntries(
-    Object.entries(runtime.instances ?? {}).map(([key, instance]) => {
-      const alive = instance.pid === undefined ? undefined : isProcessAlive(instance.pid);
-      const uptimeSeconds = alive && instance.pid !== undefined ? processUptimeSeconds(instance.pid) : undefined;
+    Object.entries(runtime.watches ?? {}).map(([key, watch]) => {
+      const alive = watch.pid === undefined ? undefined : isProcessAlive(watch.pid);
+      const uptimeSeconds = alive && watch.pid !== undefined ? processUptimeSeconds(watch.pid) : undefined;
       return [
         key,
         {
-          ...instance,
+          ...watch,
           ...(alive === undefined ? {} : { alive }),
           ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }),
         },
@@ -62,11 +62,11 @@ const instanceFacts = (runtime: DiscoveredRuntime["runtime"]): Record<string, In
     }),
   );
 
-/** The instances that belong to the variant's own run: not the UI server, which `main` only hosts. */
-const ownInstances = (instances: Record<string, InstanceFacts>): InstanceFacts[] =>
-  Object.entries(instances)
-    .filter(([key]) => key !== UI_INSTANCE_KEY)
-    .map(([, instance]) => instance);
+/** The watches that belong to the variant's own run: not the UI server, which `main` only hosts. */
+const ownWatches = (watches: Record<string, WatchFacts>): WatchFacts[] =>
+  Object.entries(watches)
+    .filter(([key]) => key !== UI_WATCH_KEY)
+    .map(([, watch]) => watch);
 
 /** Birth and modification times of one path, or nothing when it cannot be read. */
 const momentOf = (path: string): { birth: number; mtime: number } | undefined => {
@@ -102,16 +102,14 @@ const timesOf = (
   };
 };
 
-/** The longest uptime among the instances that have one. */
-const longestUptime = (instances: Record<string, InstanceFacts>): number | undefined => {
-  const all = ownInstances(instances).flatMap(({ uptimeSeconds }) =>
-    uptimeSeconds === undefined ? [] : [uptimeSeconds],
-  );
+/** The longest uptime among the watches that have one. */
+const longestUptime = (watches: Record<string, WatchFacts>): number | undefined => {
+  const all = ownWatches(watches).flatMap(({ uptimeSeconds }) => (uptimeSeconds === undefined ? [] : [uptimeSeconds]));
   return all.length === 0 ? undefined : Math.max(...all);
 };
 
-const runtimeStatus = (found: DiscoveredRuntime, instances: Record<string, InstanceFacts>): RuntimeStatus => {
-  const { slug, mode, dir, log, db, instances: _recorded } = found.runtime;
+const runtimeStatus = (found: DiscoveredRuntime, watches: Record<string, WatchFacts>): RuntimeStatus => {
+  const { slug, mode, dir, log, db, watches: _recorded } = found.runtime;
   return {
     file: join(found.dir, LOCAL_FILENAME),
     ...(slug ? { slug } : {}),
@@ -119,7 +117,7 @@ const runtimeStatus = (found: DiscoveredRuntime, instances: Record<string, Insta
     ...(dir ? { dir } : {}),
     ...(log ? { log } : {}),
     ...(db ? { db: redacted(db) as RuntimeStatus["db"] } : {}),
-    ...(Object.keys(instances).length > 0 ? { instances } : {}),
+    ...(Object.keys(watches).length > 0 ? { watches } : {}),
   };
 };
 
@@ -148,9 +146,9 @@ export const collectRecords = async (
   return slugs.map((slug) => {
     const state = readState(context.stateDir, slug);
     const found = runtimes.get(slug);
-    const instances = found ? instanceFacts(found.runtime) : undefined;
-    const url = ownInstances(instances ?? {}).find((instance) => instance.url !== undefined)?.url;
-    const uptimeSeconds = instances ? longestUptime(instances) : undefined;
+    const watches = found ? watchFacts(found.runtime) : undefined;
+    const url = ownWatches(watches ?? {}).find((watch) => watch.url !== undefined)?.url;
+    const uptimeSeconds = watches ? longestUptime(watches) : undefined;
     const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
     const directory = [state?.worktree, found?.dir].find((path) => path !== undefined && existsSync(path));
     const yaml = found ? join(found.dir, LOCAL_FILENAME) : directory ? join(directory, LOCAL_FILENAME) : undefined;
@@ -166,10 +164,10 @@ export const collectRecords = async (
       exists: true,
       ...(found?.runtime.mode ? { mode: found.runtime.mode } : {}),
       ...(url ? { url } : {}),
-      ...(instances && Object.keys(instances).length > 0 ? { instances } : {}),
+      ...(watches && Object.keys(watches).length > 0 ? { watches } : {}),
       ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }),
       ...(found?.runtime.log ? { log: found.runtime.log } : {}),
-      ...(options.verbose && found ? { runtime: runtimeStatus(found, instances ?? {}) } : {}),
+      ...(options.verbose && found ? { runtime: runtimeStatus(found, watches ?? {}) } : {}),
     };
   });
 };

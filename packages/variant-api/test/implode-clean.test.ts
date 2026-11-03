@@ -15,7 +15,7 @@ const CONFIG = lines(
   "  dialect: sqlite",
   "variant:",
   "  storage: {}",
-  "  instances:",
+  "  watches:",
   "    fe: { kind: vite, dir: fe }",
 );
 

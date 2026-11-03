@@ -24,12 +24,12 @@ describe("renderTemplate", () => {
     );
   });
 
-  it("replaces the port of another instance by its key", () => {
+  it("replaces the port of another watch by its key", () => {
     expect(renderTemplate("{{be.port}}", { ports: { be: 62061 } })).toBe("62061");
     expect(renderTemplate("{{my-api.port}}", { ports: { "my-api": 62062 } })).toBe("62062");
   });
 
-  it("fails naming an instance that has no port", () => {
+  it("fails naming a watch that has no port", () => {
     expect(() => renderTemplate("{{nope.port}}", { ports: { be: 62061 } })).toThrow("nope");
   });
 

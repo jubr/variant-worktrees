@@ -32,10 +32,7 @@ const removableWorktree = (context: OperationContext, worktree: string | undefin
 const preRmMatches = (context: OperationContext, worktree: string, slug: string): string[] => {
   const { config } = context;
   const projectDir = variantConfigDir(config, worktree);
-  const bases = [
-    projectDir,
-    ...Object.values(config.variant.instances).map((instance) => resolve(projectDir, instance.dir)),
-  ];
+  const bases = [projectDir, ...Object.values(config.variant.watches).map((watch) => resolve(projectDir, watch.dir))];
   return findRemovable(worktree, bases, config.variant.implode.preRm, slug).map(({ path }) => path);
 };
 

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseToml } from "smol-toml";
 import { parse as parseYaml } from "yaml";
-import { detectInstances } from "../src/autodetect.js";
+import { detectWatches } from "../src/autodetect.js";
 import { dotenvFor, loadConfig, openUrlFor, writeRuntime } from "../src/index.js";
 import { DEFAULT_URL, VariantsConfigSchema } from "../src/schema.js";
 
@@ -37,11 +37,11 @@ describe("the example project", () => {
 
     expect(config.db.dialect).toBe("sqlite");
     expect(config.variant?.seed).toBe("bun scripts/seed.mjs");
-    expect(config.variant.instances).toMatchObject({
+    expect(config.variant.watches).toMatchObject({
       fe: { kind: "vite", dir: "fe", url: DEFAULT_URL },
       be: { kind: "nestjs", dir: "be", env: { sourceFile: ".env" } },
     });
-    expect(Object.keys(config.variant.instances)).toEqual(["be", "fe"]);
+    expect(Object.keys(config.variant.watches)).toEqual(["be", "fe"]);
   });
 
   it("uses the options for storage, steps, implode, readiness, environment and containers", () => {
@@ -50,12 +50,12 @@ describe("the example project", () => {
     expect(variant.storage).toEqual({ dir: ".storage", envVarName: "STORAGE_ROOT" });
     expect(variant.steps?.map((step) => step.name)).toEqual(["storage"]);
     expect(variant.implode).toMatchObject({ preRm: ["dist", "node_modules", ".cache", "out"], discard: ["bun.lock"] });
-    expect(variant.instances.be).toMatchObject({
+    expect(variant.watches.be).toMatchObject({
       ready: "/api",
       env: { sourceFile: ".env", overrides: { PORT: "{{port}}", SQLITE_DATABASE: "{{schema}}" } },
       container: { dockerfile: "be/Dockerfile", internalPort: 3000 },
     });
-    expect(variant.instances.fe).toMatchObject({
+    expect(variant.watches.fe).toMatchObject({
       ready: "/",
       env: { overrides: { PORT: "{{port}}", VARIANT_API_PORT: "{{be.port}}" } },
       container: { dockerfile: "fe/Dockerfile" },
@@ -65,8 +65,8 @@ describe("the example project", () => {
   it("ships the Dockerfile of every container, and the fe one serves with nginx:alpine and proxies to be", () => {
     const { variant } = loadConfig({ cwd: exampleDirectory });
 
-    for (const instance of Object.values(variant.instances)) {
-      expect(existsSync(join(exampleDirectory, instance.container?.dockerfile ?? "missing"))).toBe(true);
+    for (const watch of Object.values(variant.watches)) {
+      expect(existsSync(join(exampleDirectory, watch.container?.dockerfile ?? "missing"))).toBe(true);
     }
     const fe = readFileSync(join(exampleDirectory, "fe/Dockerfile"), "utf8");
     const template = readFileSync(join(exampleDirectory, "fe/nginx.conf.template"), "utf8");
@@ -75,21 +75,21 @@ describe("the example project", () => {
     expect(template).toMatch(/proxy_pass http:\/\/v-be-\$\{VARIANT_SLUG\}:3000\/api\/;/);
   });
 
-  it("autodetects the same instances the config lists", () => {
-    const explicit = Object.values(loadConfig({ cwd: exampleDirectory }).variant.instances).map(({ kind, dir }) => ({
+  it("autodetects the same watches the config lists", () => {
+    const explicit = Object.values(loadConfig({ cwd: exampleDirectory }).variant.watches).map(({ kind, dir }) => ({
       kind,
       dir,
     }));
-    const detected = Object.values(detectInstances(exampleDirectory)).map(({ kind, dir }) => ({ kind, dir }));
+    const detected = Object.values(detectWatches(exampleDirectory)).map(({ kind, dir }) => ({ kind, dir }));
 
     expect(detected).toEqual([...explicit].sort((left, right) => left.dir.localeCompare(right.dir)));
   });
 
   it("derives be's env file from .env.example with the variant's values", () => {
     const config = loadConfig({ cwd: exampleDirectory });
-    const be = config.variant.instances.be;
+    const be = config.variant.watches.be;
     if (!be) {
-      throw new Error("example has no be instance");
+      throw new Error("example has no be watch");
     }
 
     expect(dotenvFor(config, be, { PORT: "62061", SQLITE_DATABASE: "/tmp/demo.db" })).toBe(
@@ -99,7 +99,7 @@ describe("the example project", () => {
 
   it("opens fe on the port the runtime state assigns", () =>
     withExampleCopy(async (directory) => {
-      writeRuntime(directory, { slug: "demo", instances: { fe: { port: 62060 }, be: { port: 62061 } } });
+      writeRuntime(directory, { slug: "demo", watches: { fe: { port: 62060 }, be: { port: 62061 } } });
       const config = loadConfig({ cwd: directory });
 
       expect(await openUrlFor(config, "demo", "fe")).toBe("http://demo.vw.localhost:62060");

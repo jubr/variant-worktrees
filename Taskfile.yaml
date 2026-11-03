@@ -91,10 +91,7 @@ tasks:
       - bun run --filter ./packages/chat-renamer-vscode vsce-package
 
   package:vsix:unpacked:
-    desc: "Variant worktree only: build, package the variant-worktrees vsix, and unpack it into the main checkout at out/variant-worktrees-main"
-    preconditions:
-      - sh: bun scripts/package-vsix-unpacked.ts --check
-        msg: "package:vsix:unpacked runs only in a variant worktree"
+    desc: "Build, package the variant-worktrees vsix, and unpack it into the main checkout at out/variant-worktrees-main (in the main checkout or a variant worktree)"
     cmds:
       - task: build
       - bun run --filter ./packages/variant-vscode vsce-package
@@ -125,7 +122,7 @@ tasks:
     cmds: ["bun scripts/release-prepare.ts check"]
 
   release:changelog:
-    desc: "Move Unreleased to the new version in every CHANGELOG*.md and add the GitHub-generated release notes"
+    desc: "Replace Unreleased with the new version section in every CHANGELOG*.md (no Unreleased heading remains) and add the GitHub-generated release notes"
     cmds: ["bun scripts/release-changelog.ts"]
 
   release:pr:

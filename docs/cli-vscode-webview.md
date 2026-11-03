@@ -42,7 +42,7 @@ variant implode preview-one --force
 ```
 
 An attached `variant watch` sets the process exit code from the result: 130
-after an interrupt, 1 when an instance ended or the worktree disappeared.
+after an interrupt, 1 when a watch ended or the worktree disappeared.
 
 ## MCP
 

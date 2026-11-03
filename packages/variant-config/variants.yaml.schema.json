@@ -94,13 +94,14 @@
         "open": {
           "type": "boolean"
         },
-        "reservedPorts": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991
-          }
+        "ports": {
+          "type": "object",
+          "properties": {
+            "range": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         },
         "storage": {
           "type": "object",
@@ -219,7 +220,7 @@
           "type": "string",
           "minLength": 1
         },
-        "instances": {
+        "watches": {
           "type": "object",
           "propertyNames": {
             "type": "string",
@@ -299,10 +300,6 @@
                 "additionalProperties": false
               }
             },
-            "required": [
-              "kind",
-              "dir"
-            ],
             "additionalProperties": false
           }
         }

@@ -2,7 +2,7 @@
   "name": "example-fe",
   "version": "0.0.1",
   "private": true,
-  "description": "Trivial Vite app: the `fe` instance of variants.example.yaml",
+  "description": "Trivial Vite app: the `fe` watch of variants.example.yaml",
   "type": "module",
   "scripts": {
     "dev": "bun --bun vite",

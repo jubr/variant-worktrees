@@ -221,7 +221,7 @@ describe("variants panel", () => {
 
   it("stops the UI server for the variant-ui row", async () => {
     const kills: number[] = [];
-    const fake = fakeClient([record("main", { instances: { "variant-ui": { alive: true, pid: 99 } } })]);
+    const fake = fakeClient([record("main", { watches: { "variant-ui": { alive: true, pid: 99 } } })]);
     const store = createVariantsStore({ loadClient: async () => fake.client, hasConfig: () => true });
     await store.start();
     const page = fakePanel();

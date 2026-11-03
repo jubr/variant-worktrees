@@ -1,5 +1,5 @@
 import { sortVariants } from "./sort.js";
-import { UI_INSTANCE_KEY } from "./state.js";
+import { UI_WATCH_KEY } from "./state.js";
 import { useRecords, useSort } from "./transport-context.js";
 import { UiServerRow } from "./UiServerRow.js";
 import { VariantRow } from "./VariantRow.js";
@@ -14,10 +14,10 @@ export const VariantList = () => {
       </p>
     );
   }
-  const server = records.find((variant) => variant.slug === "main")?.instances?.[UI_INSTANCE_KEY];
+  const server = records.find((variant) => variant.slug === "main")?.watches?.[UI_WATCH_KEY];
   return (
     <ul className="variant-list">
-      {server && server.alive !== false ? <UiServerRow instance={server} /> : null}
+      {server && server.alive !== false ? <UiServerRow watch={server} /> : null}
       {sortVariants(records, sort).map((variant) => (
         <VariantRow key={variant.slug} variant={variant} />
       ))}

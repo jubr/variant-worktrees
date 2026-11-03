@@ -141,7 +141,7 @@ The view title SHALL show a Sort menu immediately to the left of Open Variants P
 
 ### Requirement: UI server item
 
-When the `main` record has a `variant-ui` instance, the view SHALL show an item for it above the variants, labelled `UI server`, with the URL as description, an open-in-browser action and a stop action that stops that server.
+When the `main` record has a `variant-ui` watch, the view SHALL show an item for it above the variants, labelled `UI server`, with the URL as description, an open-in-browser action and a stop action that stops that server.
 
 #### Scenario: Server item
 
@@ -150,7 +150,7 @@ When the `main` record has a `variant-ui` instance, the view SHALL show an item 
 
 #### Scenario: No server
 
-- **WHEN** no `variant-ui` instance is recorded
+- **WHEN** no `variant-ui` watch is recorded
 - **THEN** the view shows no `UI server` item
 
 ### Requirement: Live updates

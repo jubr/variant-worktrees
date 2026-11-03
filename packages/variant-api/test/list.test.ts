@@ -43,7 +43,7 @@ describe("list with runtime facts", () => {
           "runtime:",
           "  slug: demo",
           "  mode: watch",
-          "  instances:",
+          "  watches:",
           "    be: { port: 62061 }",
           "    fe: { port: 62060, url: 'http://demo.vw.localhost:62060' }",
           "",
@@ -57,7 +57,7 @@ describe("list with runtime facts", () => {
         worktree: join(directory, "_v-demo"),
         mode: "watch",
         url: "http://demo.vw.localhost:62060",
-        instances: { be: { port: 62061 }, fe: { port: 62060, url: "http://demo.vw.localhost:62060" } },
+        watches: { be: { port: 62061 }, fe: { port: 62060, url: "http://demo.vw.localhost:62060" } },
       });
     }));
 
@@ -65,12 +65,12 @@ describe("list with runtime facts", () => {
     withProject(async (_directory, put, list) => {
       put(
         "variants.local.yaml",
-        `runtime:\n  slug: main\n  instances:\n    variant-ui: { port: 62100, pid: ${process.pid}, url: 'http://ui.vw.localhost:62100' }\n`,
+        `runtime:\n  slug: main\n  watches:\n    variant-ui: { port: 62100, pid: ${process.pid}, url: 'http://ui.vw.localhost:62100' }\n`,
       );
 
       const main = (await list()).find((variant) => variant.slug === "main");
 
-      expect(main?.instances?.["variant-ui"]).toMatchObject({
+      expect(main?.watches?.["variant-ui"]).toMatchObject({
         port: 62100,
         url: "http://ui.vw.localhost:62100",
         alive: true,
@@ -83,13 +83,13 @@ describe("list with runtime facts", () => {
     withProject(async (_directory, put, list) => {
       put(
         "_v-demo/variants.local.yaml",
-        `runtime:\n  slug: demo\n  instances:\n    fe: { pid: ${process.pid} }\n    be: { pid: ${deadPid()} }\n`,
+        `runtime:\n  slug: demo\n  watches:\n    fe: { pid: ${process.pid} }\n    be: { pid: ${deadPid()} }\n`,
       );
 
       const record = (await list()).find((variant) => variant.slug === "demo");
 
-      expect(record?.instances?.fe).toEqual({ pid: process.pid, alive: true, uptimeSeconds: expect.any(Number) });
-      expect(record?.instances?.be?.alive).toBe(false);
+      expect(record?.watches?.fe).toEqual({ pid: process.pid, alive: true, uptimeSeconds: expect.any(Number) });
+      expect(record?.watches?.be?.alive).toBe(false);
     }));
 
   it("takes values from the state file before the runtime file", () =>
