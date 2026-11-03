@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as vscode from "vscode";
 import { createConfigMigration } from "./config-migration.ts";
@@ -98,6 +98,17 @@ describe("configuration migration in the extension", () => {
     expect((showInformationMessage.mock.calls[0] as unknown as [string])[0]).toContain("VARIANT_MIGRATE=0");
   });
 
+  it("removes the backup of an untracked file on Undo, so the next rewrite can save its own", async () => {
+    const { root, file } = project(OLD, { committed: false });
+    showWarningMessage.mockImplementation((async () => "Undo") as never);
+
+    createConfigMigration({ root, env: ENV }).run();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(existsSync(`${file}~`)).toBe(false);
+  });
+
   it("leaves a file the user changed since the rewrite alone on Undo, and says so", async () => {
     const { root, file } = project(OLD);
     showWarningMessage.mockImplementation((async () => {
@@ -134,14 +145,28 @@ describe("configuration migration in the extension", () => {
     expect(showWarningMessage).toHaveBeenCalledTimes(1);
   });
 
-  it("names the reason and keeps the file when it is not rewritten", () => {
+  it("rewrites an untracked file after saving a backup, and names the backup in the warning", () => {
     const { root, file } = project(OLD, { committed: false });
 
     createConfigMigration({ root, env: ENV }).run();
 
-    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readFileSync(`${file}~`, "utf8")).toBe(OLD);
     const [message, ...actions] = showWarningMessage.mock.calls[0] as unknown as string[];
     expect(message).toContain("not tracked");
+    expect(message).toContain(`${file}~`);
+    expect(actions).toEqual(["Open file", "Undo"]);
+  });
+
+  it("names the reason and keeps the file when it is not rewritten", () => {
+    const { root, file } = project(OLD);
+    writeFileSync(file, `${OLD}# my edit\n`);
+
+    createConfigMigration({ root, env: ENV }).run();
+
+    expect(readFileSync(file, "utf8")).toBe(`${OLD}# my edit\n`);
+    const [message, ...actions] = showWarningMessage.mock.calls[0] as unknown as string[];
+    expect(message).toContain("uncommitted");
     expect(actions).toEqual(["Open file"]);
   });
 

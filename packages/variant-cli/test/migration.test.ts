@@ -62,15 +62,32 @@ describe("configuration migration in the CLI", () => {
     expect(second.stderr).not.toContain("variant.instances");
   });
 
-  it("names the reason when it does not rewrite, and the command still runs", async () => {
+  it("rewrites an untracked file after saving a backup, and says where the old text is", async () => {
     const { file } = project(OLD, false);
 
     const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
 
     expect(result.exitCode).toBe(0);
-    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readFileSync(`${file}~`, "utf8")).toBe(OLD);
     expect(result.stderr).toContain(file);
     expect(result.stderr).toContain("not tracked");
+    expect(result.stderr).toContain(`${file}~`);
+    expect(result.stderr).toContain("variant.watches");
+    expect(result.stderr).not.toContain("git checkout");
+    expect(JSON.parse(result.stdout)).toBeArray();
+  });
+
+  it("names the reason when it does not rewrite, and the command still runs", async () => {
+    const { file } = project(OLD, true);
+    writeFileSync(file, `${OLD}# my edit\n`);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(`${OLD}# my edit\n`);
+    expect(result.stderr).toContain(file);
+    expect(result.stderr).toContain("uncommitted");
     expect(result.stderr).toContain("variant.watches");
     expect(JSON.parse(result.stdout)).toBeArray();
   });

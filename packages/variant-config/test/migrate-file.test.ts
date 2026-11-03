@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { migrateFile } from "../src/index.js";
 
@@ -58,23 +58,58 @@ describe("migrateFile", () => {
     expect(read(directory, "variants.yaml")).toBe(OLD);
   });
 
-  it("skips an untracked variants.yaml and names the reason", () => {
+  it("rewrites an untracked variants.yaml after saving the old text as variants.yaml~", () => {
     const directory = repository({}, { "variants.yaml": OLD });
 
     const result = migrateFile(join(directory, "variants.yaml"), {});
 
-    expect(result).toMatchObject({ status: "skipped" });
-    expect(result?.status === "skipped" && result.reason).toContain("not tracked");
-    expect(read(directory, "variants.yaml")).toBe(OLD);
+    expect(result).toMatchObject({
+      status: "rewritten",
+      file: join(directory, "variants.yaml"),
+      backup: join(directory, "variants.yaml~"),
+    });
+    expect(read(directory, "variants.yaml")).toBe(NEW);
+    expect(read(directory, "variants.yaml~")).toBe(OLD);
   });
 
-  it("skips a variants.yaml outside a git repository", () => {
+  it("rewrites a variants.yaml outside a git repository after saving a backup", () => {
     const directory = mkdtempSync(join("/tmp", "variant-migrate-plain-"));
     directories.push(directory);
     writeFileSync(join(directory, "variants.yaml"), OLD);
 
-    expect(migrateFile(join(directory, "variants.yaml"), {})).toMatchObject({ status: "skipped" });
+    expect(migrateFile(join(directory, "variants.yaml"), {})).toMatchObject({ status: "rewritten" });
+    expect(read(directory, "variants.yaml")).toBe(NEW);
+    expect(read(directory, "variants.yaml~")).toBe(OLD);
+  });
+
+  it("does not touch an untracked file, nor write a backup, when an opt-out applies", () => {
+    const directory = repository({}, { "variants.yaml": OLD });
+
+    const result = migrateFile(join(directory, "variants.yaml"), { VARIANT_MIGRATE: "0" });
+
+    expect(result).toMatchObject({ status: "skipped" });
     expect(read(directory, "variants.yaml")).toBe(OLD);
+    expect(existsSync(join(directory, "variants.yaml~"))).toBe(false);
+  });
+
+  it("skips an untracked file whose backup already exists, and keeps both files", () => {
+    const directory = repository({}, { "variants.yaml": OLD, "variants.yaml~": "older backup\n" });
+
+    const result = migrateFile(join(directory, "variants.yaml"), {});
+
+    expect(result?.status === "skipped" && result.reason).toContain("variants.yaml~");
+    expect(read(directory, "variants.yaml")).toBe(OLD);
+    expect(read(directory, "variants.yaml~")).toBe("older backup\n");
+  });
+
+  it("writes no backup for a tracked file", () => {
+    const directory = repository({ "variants.yaml": OLD });
+
+    const result = migrateFile(join(directory, "variants.yaml"), {});
+
+    expect(result).toMatchObject({ status: "rewritten" });
+    expect(result && "backup" in result).toBe(false);
+    expect(existsSync(join(directory, "variants.yaml~"))).toBe(false);
   });
 
   it("skips a tracked file with uncommitted changes", () => {

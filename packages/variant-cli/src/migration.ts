@@ -19,6 +19,13 @@ const describeResult = (result: MigrationResult): string[] => {
   if (result.file.endsWith(LOCAL_FILENAME)) {
     return [`migrated ${result.file}: names of an earlier version now use the current ones.`, ...notices];
   }
+  if (result.backup !== undefined) {
+    return [
+      `migrated ${result.file}: names of an earlier version now use the current ones.`,
+      ...notices,
+      `  The file is not tracked by git, so git cannot revert the change: the old text is saved as ${result.backup}.`,
+    ];
+  }
   return [
     `migrated ${result.file}: names of an earlier version now use the current ones.`,
     ...notices,

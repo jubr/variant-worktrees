@@ -115,7 +115,7 @@ A key `variants.yaml` or `variants.local.yaml` does not know is a warning, not a
 
 ### Migrating from earlier names
 
-`variant.instances` and `runtime.instances` are now `variant.watches` and `runtime.watches`, and `variant.reservedPorts` is gone (see `variant.ports.range`). The old names still load, with a notice on standard error. The `variant` CLI and the VS Code extension then rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (and always for the git-ignored `variants.local.yaml`), so `git diff` shows the change and `git checkout -- variants.yaml` reverts it. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`. The library, the MCP server and `variant ui` never write the files.
+`variant.instances` and `runtime.instances` are now `variant.watches` and `runtime.watches`, and `variant.reservedPorts` is gone (see `variant.ports.range`). The old names still load, with a notice on standard error. The `variant` CLI and the VS Code extension then rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (and always for the git-ignored `variants.local.yaml`), so `git diff` shows the change and `git checkout -- variants.yaml` reverts it. An untracked `variants.yaml` is rewritten after its old text is saved as `variants.yaml~`. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`. The library, the MCP server and `variant ui` never write the files.
 
 ### Environment variables
 

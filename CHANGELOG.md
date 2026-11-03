@@ -9,8 +9,8 @@
 - `variant.ports.range` (`LOW-HIGH`, default `42000-42999`): free ports of watches and of `variant ui` are picked from
   it. An explicit `VARIANT_<KEY>_PORT` may lie anywhere.
 - Files that use `variant.instances`, `runtime.instances` or `variant.reservedPorts` still load, with a notice. The
-  `variant` CLI and the VS Code extension rewrite them in place when `variants.yaml` is tracked by git and clean (and
-  always `variants.local.yaml`); `VARIANT_MIGRATE=0` or a set `CI` turns the rewrite off. The library, the MCP server
+  `variant` CLI and the VS Code extension rewrite them in place when `variants.yaml` is tracked by git and clean, or
+  untracked after saving the old text as `variants.yaml~` (and always `variants.local.yaml`); `VARIANT_MIGRATE=0` or a set `CI` turns the rewrite off. The library, the MCP server
   and `variant ui` never write.
 - `task package:vsix:unpacked` works in the main checkout.
 
