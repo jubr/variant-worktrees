@@ -285,3 +285,32 @@ When `variants.yaml` or `variants.local.yaml` uses a name of an earlier version,
 - **WHEN** the rewrite function gets a file that uses only current names
 - **THEN** it returns nothing
 
+
+### Requirement: Schema header
+
+A `variants.yaml` and a `variants.local.yaml` SHALL begin with a `yaml-language-server` modeline that names the JSON schema of the file, so editors offer completion and validation: `# yaml-language-server: $schema=https://github.com/jubr/variant-worktrees/raw/refs/heads/main/packages/variant-config/variants.yaml.schema.json` for `variants.yaml` and the same URL ending in `variants.local.yaml.schema.json` for `variants.local.yaml`, followed by a blank line. A `variants.local.yaml` that the system creates or writes SHALL begin with it, and a schema line that the file already has (whatever its URL) SHALL be kept. A file without any `$schema` modeline SHALL count as needing a migration: the function that returns the migrated text (see `Legacy configuration is read under the current names`) is joined by a function that adds the header, and the file migration of the `variant` command and the extension SHALL add it under the same rules as a rename. Loading SHALL NOT write the header and SHALL NOT report it as a migration notice of the resolved configuration. An empty file, a file of comments only and a file that is not a YAML mapping SHALL NOT get a header.
+
+#### Scenario: New local state file
+
+- **WHEN** the system writes `variants.local.yaml` where none exists
+- **THEN** the file begins with the modeline of the local schema followed by a blank line
+
+#### Scenario: Existing schema line kept
+
+- **WHEN** the system writes `variants.local.yaml` and the file begins with `# yaml-language-server: $schema=./mine.json`
+- **THEN** that line is still the first line afterwards and no second schema line is added
+
+#### Scenario: Header added to a file without one
+
+- **WHEN** the migration processes a `variants.yaml` that has no `$schema` modeline
+- **THEN** the modeline of the main schema and a blank line are placed above the first line
+
+#### Scenario: Own schema line left alone
+
+- **WHEN** a `variants.yaml` begins with `# yaml-language-server: $schema=./packages/variant-config/variants.yaml.schema.json`
+- **THEN** the migration changes nothing
+
+#### Scenario: Nothing to annotate
+
+- **WHEN** the file is empty, holds only comments or is invalid YAML
+- **THEN** no header is added
