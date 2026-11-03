@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { createClient } from "../src/index.js";
 import { loadVariantConfig, MiseError, miseEnvironment, readVariableSources, runMiseTrust } from "../src/mise.js";
 import { fakeMise } from "./support/fake-mise.js";
 
@@ -163,5 +164,28 @@ describe("runMiseTrust", () => {
     const mise = fakeMise(root, { trustFailure: "mise ERROR cannot write trust file\n" });
 
     expect(() => runMiseTrust({ directory: root, binary: mise.binary })).toThrow(/cannot write trust file/);
+  });
+});
+
+describe("createClient laziness", () => {
+  it("starts no Mise process for list when the database is an explicit SQLite one", async () => {
+    const mise = fakeMise(root, { env: "POSTGRES_HOST=db\n" });
+    writeFileSync(join(root, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    const client = createClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
+
+    await client.list();
+
+    expect(mise.calls()).toEqual([]);
+  });
+
+  it("reads the environment through Mise once when detection needs it", async () => {
+    const mise = fakeMise(root, { env: "SQLITE_DATABASE=app\n" });
+    writeFileSync(join(root, "variants.yaml"), "variant:\n  prefix: wt-\n");
+    const client = createClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
+
+    await client.list();
+    await client.list();
+
+    expect(mise.callsOf("env")).toHaveLength(1);
   });
 });

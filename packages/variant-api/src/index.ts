@@ -1,7 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { LOCAL_FILENAME, loadConfig } from "variant-config";
+import { LOCAL_FILENAME } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
+import { loadVariantConfig } from "./mise.js";
 import { createVariant } from "./operations/create.js";
 import { downVariant } from "./operations/down.js";
 import { implodeVariant } from "./operations/implode.js";
@@ -18,7 +19,13 @@ import type { VariantClient, VariantClientOptions } from "./types.js";
 
 export const createClient = (options: VariantClientOptions = {}): VariantClient => {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const config = options.config ?? loadConfig({ cwd, configPath: options.configPath ?? process.env.VARIANT_CONFIG });
+  const config =
+    options.config ??
+    loadVariantConfig({
+      cwd,
+      configPath: options.configPath ?? process.env.VARIANT_CONFIG,
+      miseBinPath: options.miseBinPath,
+    });
   const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));
   mkdirSync(stateDir, { recursive: true });

@@ -71,6 +71,17 @@ describe("loadConfig environment provider", () => {
     expect(config.source).toBe("config");
   });
 
+  it("does not call the provider for an explicit SQLite database, which the environment cannot change", () => {
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    const environment = counting({ POSTGRES_HOST: "db.local" });
+
+    const config = loadConfig({ cwd: directory, environment: environment.provider });
+
+    expect(config.db).toMatchObject({ dialect: "sqlite" });
+    expect(config.source).toBe("config");
+    expect(environment.calls()).toBe(0);
+  });
+
   it("uses the process environment when no provider is given", () => {
     const previous = process.env.POSTGRES_HOST;
     process.env.POSTGRES_HOST = "process.host";

@@ -57,6 +57,8 @@ export interface VariantRecord extends VariantState {
 export interface VariantClientOptions {
   config?: ResolvedConfig;
   configPath?: string;
+  /** The Mise executable the caller was given (the editor setting `variant.mise.binPath`); see `loadVariantConfig`. */
+  miseBinPath?: string;
   cwd?: string;
   stateDir?: string;
   worktree?: boolean;

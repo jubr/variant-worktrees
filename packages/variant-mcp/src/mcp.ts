@@ -3,9 +3,8 @@ import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createClient } from "variant-api";
+import { createClient, loadVariantConfig } from "variant-api";
 import { commands } from "variant-api/commands";
-import { loadConfig } from "variant-config";
 import { z } from "zod/v4";
 
 const require = createRequire(import.meta.url);
@@ -19,7 +18,7 @@ const { values } = parseArgs({
   strict: true,
 });
 
-const config = loadConfig({
+const config = loadVariantConfig({
   cwd: process.cwd(),
   configPath: values.config as string | undefined,
 });

@@ -67,10 +67,12 @@ const readConfigFile = (configPath: string): ReadConfig => {
   return { ...parseConfig(VariantsConfigSchema, data, configPath), migrations: notices };
 };
 
-const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbConfig => ({
-  ...detected,
-  ...explicit,
-});
+/** Explicit fields win. An explicit SQLite database takes nothing from detection, so the environment stays unread. */
+const mergeDbConfig = (detected: Partial<DbConfig>, explicit: DbConfig | undefined): DbConfig =>
+  ({
+    ...detected,
+    ...explicit,
+  }) as DbConfig;
 
 const memoize = <Value>(compute: () => Value): (() => Value) => {
   let cached: { value: Value } | undefined;
@@ -221,7 +223,9 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     db: {
       enumerable: true,
       configurable: true,
-      get: memoize(() => expandDb(mergeDbConfig(detected().config, config.db), environment)),
+      get: memoize(() =>
+        expandDb(mergeDbConfig(config.db?.dialect === "sqlite" ? {} : detected().config, config.db), environment),
+      ),
     },
     source: {
       enumerable: true,
