@@ -74,6 +74,15 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 
 export { loadConfig } from "variant-config";
 export { listSlugs } from "./list-slugs.js";
+export {
+  type LoadVariantConfigOptions,
+  loadVariantConfig,
+  MiseError,
+  miseBinaryFor,
+  miseEnvironment,
+  readVariableSources,
+  runMiseTrust,
+} from "./mise.js";
 export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {

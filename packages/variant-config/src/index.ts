@@ -284,7 +284,7 @@ export {
   type OnboardingApplication,
   type OnboardingDetection,
 } from "./autodetect.js";
-export { amendDotenv, dotenvFor } from "./dotenv.js";
+export { amendDotenv, dotenvFor, parseDotenv } from "./dotenv.js";
 export {
   addSchemaHeader,
   findSchemaHeader,
