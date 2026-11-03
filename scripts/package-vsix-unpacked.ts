@@ -1,31 +1,29 @@
 /**
- * From a variant worktree, unpack `out/variant-worktrees-<version>.vsix` into the main checkout at
+ * From the main checkout or a variant worktree, unpack `out/variant-worktrees-<version>.vsix` into the main checkout at
  * `out/variant-worktrees-main`, with `package.json` at that folder's root so Cursor or VS Code can load it.
  *
  * Usage:
- *   bun scripts/package-vsix-unpacked.ts [--check] [cwd]
+ *   bun scripts/package-vsix-unpacked.ts [cwd]
  */
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { detectVariantMain } from "../packages/variant-config/src/autodetect.ts";
 
 const UNPACKED_EXTENSION_DIR = "variant-worktrees-main";
 
-/** The main checkout `cwd` may publish into. Refuses when `cwd` is that checkout. */
-export const requireVariantWorktree = (cwd: string): string => {
+/** The main checkout `cwd` publishes into: the checkout itself, or the one a variant worktree belongs to. */
+export const publishTarget = (cwd: string): string => {
   const main = detectVariantMain(cwd);
   // AIDEV-NOTE: The main checkout is the load target. Only a variant worktree may publish into it.
-  if (realpathSync(resolve(cwd)) === realpathSync(main)) {
-    throw new Error("package:vsix:unpacked runs only in a variant worktree");
-  }
+  // AIDEV-NOTE: The main checkout may now run the task too (openspec meta/release-artifacts): it unpacks into its own out/.
   return main;
 };
 
-/** Unpack `vsixPath` into the main checkout. Refuses when `cwd` is that checkout. */
+/** Unpack `vsixPath` into the main checkout's `out/variant-worktrees-main`, from the main checkout or a worktree. */
 export const unpackIntoMain = (cwd: string, vsixPath: string): string => {
-  const destination = join(requireVariantWorktree(cwd), "out", UNPACKED_EXTENSION_DIR);
+  const destination = join(publishTarget(cwd), "out", UNPACKED_EXTENSION_DIR);
   unpackVsix(vsixPath, destination);
   return destination;
 };
@@ -62,15 +60,9 @@ const variantVsix = (root: string): string => {
 };
 
 if (import.meta.main) {
-  const args = process.argv.slice(2);
-  const check = args[0] === "--check";
-  const cwd = resolve(check ? (args[1] ?? join(import.meta.dir, "..")) : (args[0] ?? join(import.meta.dir, "..")));
+  const cwd = resolve(process.argv[2] ?? join(import.meta.dir, ".."));
   try {
-    if (check) {
-      requireVariantWorktree(cwd);
-    } else {
-      console.log(unpackIntoMain(cwd, variantVsix(cwd)));
-    }
+    console.log(unpackIntoMain(cwd, variantVsix(cwd)));
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
