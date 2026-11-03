@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 
-// AIDEV-NOTE: host 0.0.0.0 so the instance's `open` URL, http://<slug>.vw.localhost:<port>, reaches the dev server.
+// AIDEV-NOTE: host 0.0.0.0 so the watch's `open` URL, http://<slug>.vw.localhost:<port>, reaches the dev server.
 export default defineConfig({
-  // AIDEV-NOTE: keep the console across rebuilds: several instances share one terminal under `variant watch`.
+  // AIDEV-NOTE: keep the console across rebuilds: several watches share one terminal under `variant watch`.
   clearScreen: false,
   server: {
     host: "0.0.0.0",
@@ -11,7 +11,7 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: [".vw.localhost", "localhost"],
     proxy: {
-      // AIDEV-NOTE: the browser stays same-origin; the `be` instance is the target. VARIANT_API_PORT is its port.
+      // AIDEV-NOTE: the browser stays same-origin; the `be` watch is the target. VARIANT_API_PORT is its port.
       "/api": {
         target: `http://localhost:${process.env.VARIANT_API_PORT || 3000}`,
         changeOrigin: true,

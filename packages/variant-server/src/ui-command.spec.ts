@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { createClient } from "variant-api";
 import { parse as parseYaml } from "yaml";
 import { runUi, type UiCommandOptions } from "./index.js";
-import { readEntry, readToken, tokenPath } from "./ui-instance.js";
+import { readEntry, readToken, tokenPath } from "./ui-watch.js";
 
 const SERVE_SCRIPT = (module: string): string => `
 import { runUi } from ${JSON.stringify(module)};

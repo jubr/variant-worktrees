@@ -2,7 +2,7 @@
   "name": "example-be",
   "version": "0.0.1",
   "private": true,
-  "description": "Trivial NestJS app: the `be` instance of variants.example.yaml",
+  "description": "Trivial NestJS app: the `be` watch of variants.example.yaml",
   "scripts": {
     "build": "bun build src/main.ts --outdir dist --target bun --packages external",
     "build:watch": "bun build src/main.ts --outdir dist --target bun --packages external --watch",
