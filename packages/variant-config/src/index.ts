@@ -2,7 +2,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
-import { abbreviate, detectConnection, detectVariantMain, detectVariantRoot, detectWatches } from "./autodetect.js";
+import {
+  abbreviate,
+  detectConnection,
+  detectVariantMain,
+  detectVariantRoot,
+  detectWatches,
+  type EnvironmentProvider,
+} from "./autodetect.js";
 import { migrateLegacy } from "./legacy.js";
 import { readRuntimeState } from "./local.js";
 import { type ParsedConfig, parseConfig } from "./parse.js";
@@ -123,7 +130,20 @@ export interface LoadConfigOptions {
   configPath?: string;
   /** Environment for `VARIANT_*` overrides and `{{NAME}}` templates; the process environment by default. */
   env?: NodeJS.ProcessEnv;
+  /**
+   * Supplies the environment that database autodetection reads. It is called lazily, at most once per loaded
+   * configuration, and not at all when nothing reads `db`. The process environment by default.
+   */
+  environment?: EnvironmentProvider;
 }
+
+const memoize = <Value>(compute: () => Value): (() => Value) => {
+  let cached: { value: Value } | undefined;
+  return () => {
+    cached ??= { value: compute() };
+    return cached.value;
+  };
+};
 
 export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const cwd = resolve(options.cwd ?? process.cwd());
@@ -134,24 +154,35 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const read: ReadConfig = configExists ? readConfigFile(configPath) : { data: {}, warnings: [], migrations: [] };
   const config = read.data;
   const configDir = dirname(configPath);
-  const detected = detectConnection(configDir);
-  const db = mergeDbConfig(detected.config, config.db);
-  const source = config.db ? "config" : detected.source;
+  const environment = memoize(options.environment ?? (() => process.env));
+  const detected = memoize(() => detectConnection(configDir, environment));
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env);
   const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
 
-  return {
+  const resolved = {
     ...config,
-    db,
     variant,
     ...(runtime ? { runtime } : {}),
     configPath,
     configDir,
-    source,
     warnings: read.warnings,
     migrations: [...read.migrations, ...migrations],
   };
+  // The database and its source are read lazily: detecting them is what asks the environment provider.
+  Object.defineProperties(resolved, {
+    db: {
+      enumerable: true,
+      configurable: true,
+      get: memoize(() => mergeDbConfig(detected().config, config.db)),
+    },
+    source: {
+      enumerable: true,
+      configurable: true,
+      get: () => (config.db ? "config" : detected().source),
+    },
+  });
+  return resolved as ResolvedConfig;
 };
 
 export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
@@ -199,7 +230,7 @@ export {
   detectVariantMain,
   detectVariantRoot,
   detectWatches,
-  findMiseFile,
+  type EnvironmentProvider,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
 export {

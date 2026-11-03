@@ -396,7 +396,7 @@ export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {
   configPath: string;
   configDir: string;
   runtime?: ResolvedRuntime;
-  source: "mise" | "env" | "config" | "default";
+  source: "env" | "config" | "default";
   /** One line per key of `variants.yaml` that the schema does not define; such keys are ignored. */
   warnings: string[];
   /** One line per name of an earlier version (`instances`, `reservedPorts`) that was read under the current one. */

@@ -1,10 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
-import { parse as parseToml } from "smol-toml";
 import { type DbConfig, type DbDialect, DEFAULT_URL, type VariantWatch, WATCH_KEY } from "./schema.js";
 
-const MISE_FILENAMES = ["mise.local.toml", "mise.toml"] as const;
 const ENV_KEYS = [
   "DATABASE_URL",
   "POSTGRES_HOST",
@@ -25,7 +23,6 @@ const ENV_KEYS = [
 ] as const;
 
 type Environment = Record<string, string | undefined>;
-type TomlDocument = { env?: Record<string, unknown> };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49,32 +46,6 @@ const parsePort = (value: string | undefined): number | undefined => {
   }
   const port = Number(value);
   return Number.isInteger(port) && port > 0 ? port : undefined;
-};
-
-const ancestorDirectories = (startDir: string): string[] => {
-  const directories: string[] = [];
-  let current = resolve(startDir);
-  while (!directories.includes(current)) {
-    directories.push(current);
-    const parent = dirname(current);
-    if (parent === current) {
-      break;
-    }
-    current = parent;
-  }
-  return directories;
-};
-
-export const findMiseFile = (startDir = process.cwd()): string | undefined => {
-  for (const directory of ancestorDirectories(startDir)) {
-    for (const filename of MISE_FILENAMES) {
-      const path = join(directory, filename);
-      if (existsSync(path)) {
-        return path;
-      }
-    }
-  }
-  return undefined;
 };
 
 const gitCommonRoot = (startDir: string): string | undefined => {
@@ -153,22 +124,6 @@ export const abbreviate = (name: string): string => {
   return letters === "" ? "app" : letters;
 };
 
-const readMiseEnvironment = (path: string): Environment => {
-  const parsed = parseToml(readFileSync(path, "utf8")) as TomlDocument;
-  const env = isRecord(parsed.env) ? parsed.env : {};
-  const result: Environment = {};
-  for (const key of ENV_KEYS) {
-    const value = env[key];
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      result[key] = String(value);
-    }
-  }
-  return result;
-};
-
-const choose = (primary: Environment, fallback: Environment, key: string): string | undefined =>
-  primary[key] ?? fallback[key];
-
 const detectDialect = (values: Environment): DbDialect | undefined => {
   if (values.DATABASE_URL?.startsWith("postgres")) {
     return "postgres";
@@ -191,19 +146,22 @@ const detectDialect = (values: Environment): DbDialect | undefined => {
   return undefined;
 };
 
+/** Supplies the environment on demand; the first call may cost a process start, so callers call it only when needed. */
+export type EnvironmentProvider = () => NodeJS.ProcessEnv;
+
 export interface DetectedConnection {
   config: DbConfig;
-  source: "mise" | "env" | "default";
-  misePath?: string;
+  source: "env" | "default";
 }
 
-export const detectConnection = (startDir = process.cwd()): DetectedConnection => {
-  const misePath = findMiseFile(startDir);
-  const miseEnvironment = misePath ? readMiseEnvironment(misePath) : {};
-  const processEnvironment = process.env;
+export const detectConnection = (
+  startDir = process.cwd(),
+  environment: EnvironmentProvider = () => process.env,
+): DetectedConnection => {
+  const current = environment();
   const values: Environment = {};
   for (const key of ENV_KEYS) {
-    values[key] = choose(miseEnvironment, processEnvironment, key);
+    values[key] = current[key];
   }
 
   const dialect = detectDialect(values);
@@ -214,11 +172,9 @@ export const detectConnection = (startDir = process.cwd()): DetectedConnection =
         filename: join(startDir, ".cache", "variants", "variants.db"),
       },
       source: "default",
-      misePath,
     };
   }
 
-  const source = misePath && detectDialect(miseEnvironment) ? "mise" : "env";
   const config: DbConfig = {
     dialect,
     url: values.DATABASE_URL,
@@ -232,7 +188,7 @@ export const detectConnection = (startDir = process.cwd()): DetectedConnection =
     ssl: parseBoolean(values.POSTGRES_SSL),
   };
 
-  return { config, source, misePath };
+  return { config, source: "env" };
 };
 
 const packageDeclares = (path: string, dependency: string): boolean => {
