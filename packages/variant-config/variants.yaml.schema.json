@@ -94,13 +94,14 @@
         "open": {
           "type": "boolean"
         },
-        "reservedPorts": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991
-          }
+        "ports": {
+          "type": "object",
+          "properties": {
+            "range": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         },
         "storage": {
           "type": "object",

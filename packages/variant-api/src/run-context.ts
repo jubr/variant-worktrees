@@ -87,7 +87,7 @@ export const prepareRun = async (
     ports[key] =
       assigned[key] ??
       recorded?.instances?.[key]?.port ??
-      (await pickFreePort([...config.variant.reservedPorts, ...Object.values(ports)]));
+      (await pickFreePort(config.variant.ports, { exclude: Object.values(ports) }));
   }
   const storage = config.variant.storage ? join(worktree, config.variant.storage.dir) : undefined;
   const primary = primaryOf(context.cwd, worktree);

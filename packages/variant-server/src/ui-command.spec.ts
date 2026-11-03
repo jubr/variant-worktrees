@@ -198,15 +198,42 @@ describe("variant ui", () => {
       expect(project.printed).toEqual([]);
     }));
 
-  it("never picks a reserved port", () =>
+  it("picks a free port of variant.ports.range", () =>
     withProject(async (project) => {
-      const reserved = await freePort();
-      const free = await freePort();
-      const candidates = [reserved, reserved, free][Symbol.iterator]();
-      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  reservedPorts: [${reserved}]\n`);
-      const server = await attached(project, { candidatePort: async () => candidates.next().value as number });
+      project.put(
+        "variants.yaml",
+        'db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ports:\n    range: "50000-50009"\n',
+      );
+      const server = await attached(project, { isFree: async (port) => port === 50003 });
       try {
-        expect(new URL(project.printed[0] as string).port).toBe(String(free));
+        expect(new URL(project.printed[0] as string).port).toBe("50003");
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("picks from the default range when none is configured", () =>
+    withProject(async (project) => {
+      const server = await attached(project);
+      try {
+        const port = Number(new URL(project.printed[0] as string).port);
+        expect(port).toBeGreaterThanOrEqual(42000);
+        expect(port).toBeLessThanOrEqual(42999);
+      } finally {
+        await server.stop();
+      }
+    }));
+
+  it("keeps a port named by VARIANT_UI_PORT that lies outside the range", () =>
+    withProject(async (project) => {
+      const port = await freePort();
+      project.put(
+        "variants.yaml",
+        'db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ports:\n    range: "50000-50009"\n',
+      );
+      const server = await attached(project, { env: { ...project.options().env, VARIANT_UI_PORT: String(port) } });
+      try {
+        expect(new URL(project.printed[0] as string).port).toBe(String(port));
       } finally {
         await server.stop();
       }

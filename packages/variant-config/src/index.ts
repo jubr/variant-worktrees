@@ -10,10 +10,11 @@ import {
   DEFAULT_BASE_BRANCH,
   DEFAULT_BRANCH_PREFIXES,
   DEFAULT_MAX_DIFF_LINES,
+  DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
-  DEFAULT_RESERVED_PORTS,
   DEFAULT_STORAGE_DIR,
   DEFAULT_STORAGE_ENV_VAR,
+  parsePortRange,
   VariantsConfigSchema,
   variantsJsonSchema,
 } from "./schema.js";
@@ -63,8 +64,14 @@ const resolveInstances = (config: VariantsConfig, configDir: string): Record<str
 const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
   env.VARIANT_OPEN === "0" ? false : (configured ?? true);
 
+const resolvePorts = (configured: string | undefined): ResolvedVariant["ports"] => {
+  const range = configured ?? DEFAULT_PORT_RANGE;
+  const { low, high } = parsePortRange(range) as { low: number; high: number };
+  return { range, low, high };
+};
+
 const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
-  const { storage, supervise, implode, ...variant } = config.variant ?? {};
+  const { storage, supervise, implode, ports, ...variant } = config.variant ?? {};
   const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
     ...variant,
@@ -76,7 +83,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
     branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
     open: resolveOpen(variant.open, env),
-    reservedPorts: variant.reservedPorts ?? [...DEFAULT_RESERVED_PORTS],
+    ports: resolvePorts(ports?.range),
     ...(storage
       ? {
           storage: {
@@ -187,11 +194,12 @@ export { amendDotenv, dotenvFor } from "./dotenv.js";
 export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
 export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
 export { type ParsedConfig, parseConfig } from "./parse.js";
-export { openUrlFor, pickFreePort, resolveInstancePort } from "./ports.js";
+export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveInstancePort } from "./ports.js";
 export type {
   DbConfig,
   DbDialect,
   InstanceContainer,
+  PortRange,
   ResolvedConfig,
   ResolvedRuntime,
   Runtime,
@@ -202,6 +210,7 @@ export type {
   VariantsLocal,
 } from "./schema.js";
 export {
+  DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
   DEFAULT_URL,
   envSegment,

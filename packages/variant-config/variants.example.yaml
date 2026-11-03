@@ -29,15 +29,13 @@ variant:
     - fix/
   containerEngine: docker # podman; CONTAINER_ENGINE wins. Absent: docker if installed, else podman
   open: true # false; open URLs in the browser after `up` and `watch`. VARIANT_OPEN=0 turns it off
-  reservedPorts: # ports that are never picked for an instance; an explicit VARIANT_<KEY>_PORT may still use them
-    - 3000
-    - 4200
-    - 5432
+  ports:
+    range: 42000-42999 # free ports of instances and of `variant ui` are picked from here (1024 to 65535); an explicit VARIANT_<KEY>_PORT may lie anywhere
   storage: # per-variant data directory; absent: none
     dir: .storage # relative to the worktree
     envVarName: STORAGE_ROOT # variable amended for commands, set in instance .env
   ui: # the `variant ui` web server
-    port: 62100 # VARIANT_UI_PORT wins. Absent: a free port that is not reserved
+    port: 62100 # VARIANT_UI_PORT wins. Absent: a free port of ports.range
   steps: # run in order between the `up` commands and the seed command
     - name: migrations # unique, only [A-Za-z0-9_-]+, VARIANT_STEP_MIGRATIONS=no skips
       run: bun run migrate # shell commands

@@ -96,13 +96,13 @@ export const removeEntry = (cwd: string, pid?: number): void => {
 };
 
 /**
- * The port of the server: `VARIANT_UI_PORT` when set, else `variant.ui.port`, otherwise a free port that is not
- * reserved. A reserved port that is named explicitly is kept, as for any instance.
+ * The port of the server: `VARIANT_UI_PORT` when set, else `variant.ui.port`, otherwise a free port of
+ * `variant.ports.range`. A port that is named explicitly is kept even when it lies outside the range, as for any watch.
  */
 export const chooseUiPort = async (
   config: ResolvedConfig,
   env: NodeJS.ProcessEnv = process.env,
-  candidate?: () => Promise<number>,
+  isFree?: (port: number) => Promise<boolean>,
 ): Promise<number> => {
   const given = env[UI_PORT_ENV];
   if (given !== undefined && given !== "") {
@@ -112,5 +112,5 @@ export const chooseUiPort = async (
     }
     return port;
   }
-  return config.variant.ui?.port ?? pickFreePort(config.variant.reservedPorts, candidate);
+  return config.variant.ui?.port ?? pickFreePort(config.variant.ports, { isFree });
 };

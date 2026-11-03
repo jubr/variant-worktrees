@@ -138,7 +138,39 @@ export type VariantStep = z.infer<typeof VariantStepSchema>;
 
 export const DEFAULT_BASE_BRANCH = "main";
 export const DEFAULT_BRANCH_PREFIXES: readonly string[] = ["feat/", "fix/"];
-export const DEFAULT_RESERVED_PORTS: readonly number[] = [3000, 4200, 5432];
+/** The range of ports that free ports of watches and of the `variant ui` server are picked from. */
+export const DEFAULT_PORT_RANGE = "42000-42999";
+const PORT_RANGE = /^(\d+)-(\d+)$/;
+const LOWEST_RANGE_PORT = 1024;
+const HIGHEST_RANGE_PORT = 65535;
+
+export interface PortRange {
+  low: number;
+  high: number;
+}
+
+/** `<low>-<high>` as numbers; nothing when it is not of that form or an end is outside 1024 to 65535 or low exceeds high. */
+export const parsePortRange = (range: string): PortRange | undefined => {
+  const match = PORT_RANGE.exec(range);
+  if (!match) {
+    return undefined;
+  }
+  const low = Number(match[1]);
+  const high = Number(match[2]);
+  const inside = (port: number): boolean => port >= LOWEST_RANGE_PORT && port <= HIGHEST_RANGE_PORT;
+  return inside(low) && inside(high) && low <= high ? { low, high } : undefined;
+};
+
+export const VariantPortsSchema = z.strictObject({
+  /** `<low>-<high>`, both ends from 1024 to 65535; default `42000-42999`. */
+  range: z
+    .string()
+    .refine(
+      (value) => parsePortRange(value) !== undefined,
+      "must be <low>-<high>, both from 1024 to 65535, low not above high",
+    )
+    .optional(),
+});
 export const DEFAULT_STORAGE_DIR = ".storage";
 export const DEFAULT_STORAGE_ENV_VAR = "STORAGE_ROOT";
 export const DEFAULT_MAX_DIFF_LINES = 200;
@@ -158,7 +190,7 @@ export const VariantSuperviseSchema = z.strictObject({
 
 /** Settings of the `variant ui` server. The environment override of `variant.ui.<name>` is `VARIANT_UI_<NAME>`. */
 export const VariantUiSchema = z.strictObject({
-  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port that is not reserved. */
+  /** Port the server listens on; `VARIANT_UI_PORT` wins. Absent: a free port of `variant.ports.range`. */
   port: PortSchema.optional(),
 });
 
@@ -193,8 +225,8 @@ export const VariantRuntimeSchema = z
     containerEngine: z.enum(["docker", "podman"]).optional(),
     /** Whether URLs are opened in the browser. `VARIANT_OPEN=0` wins. */
     open: z.boolean().optional(),
-    /** Ports that are never picked for an instance. */
-    reservedPorts: z.array(PortSchema).optional(),
+    /** The range free ports are picked from; no port is reserved. */
+    ports: VariantPortsSchema.optional(),
     storage: VariantStorageSchema.optional(),
     steps: z.array(VariantStepSchema).optional(),
     supervise: VariantSuperviseSchema.optional(),
@@ -329,7 +361,7 @@ export type ResolvedVariant = Omit<
   | "baseBranch"
   | "branchPrefixes"
   | "open"
-  | "reservedPorts"
+  | "ports"
   | "storage"
   | "supervise"
   | "implode"
@@ -342,7 +374,7 @@ export type ResolvedVariant = Omit<
   baseBranch: string;
   branchPrefixes: string[];
   open: boolean;
-  reservedPorts: number[];
+  ports: { range: string; low: number; high: number };
   storage?: { dir: string; envVarName: string };
   supervise: { startDelaySeconds: number; readyTimeoutSeconds: number; checkoutPollSeconds: number };
   implode: {

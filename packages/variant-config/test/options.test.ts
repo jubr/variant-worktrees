@@ -211,10 +211,39 @@ describe("implode settings", () => {
   });
 });
 
-describe("reserved ports", () => {
-  it("defaults to 3000, 4200 and 5432 and accepts an empty list", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.reservedPorts).toEqual([3000, 4200, 5432]);
-    expect(loaded("variant:\n  reservedPorts: []\n").variant.reservedPorts).toEqual([]);
+describe("port range", () => {
+  it("defaults to 42000-42999", () => {
+    expect(loaded("db:\n  dialect: sqlite\n").variant.ports).toEqual({ range: "42000-42999", low: 42000, high: 42999 });
+  });
+
+  it("carries a custom range", () => {
+    expect(loaded('variant:\n  ports:\n    range: "50000-50099"\n').variant.ports).toEqual({
+      range: "50000-50099",
+      low: 50000,
+      high: 50099,
+    });
+  });
+
+  it("accepts a range of one port and the widest range", () => {
+    expect(variant({ ports: { range: "50000-50000" } })).toBe(true);
+    expect(variant({ ports: { range: "1024-65535" } })).toBe(true);
+  });
+
+  it.each([
+    "42000",
+    "42999-42000",
+    "80-90",
+    "abc",
+    "42000-70000",
+    "42000-",
+    "-42999",
+    " 42000-42999",
+  ])("rejects the range %p", (range) => {
+    expect(variant({ ports: { range } })).toBe(false);
+  });
+
+  it("ignores the former reservedPorts with a warning", () => {
+    expect(warned({ reservedPorts: [3000] })).toEqual(["reservedPorts"]);
   });
 });
 

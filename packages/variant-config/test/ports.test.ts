@@ -54,8 +54,8 @@ describe("resolveInstancePort", () => {
       const port = await resolveInstancePort(load(), "fe");
 
       expect(Number.isInteger(port)).toBe(true);
-      expect(port).toBeGreaterThanOrEqual(1024);
-      expect(port).toBeLessThanOrEqual(65535);
+      expect(port).toBeGreaterThanOrEqual(42000);
+      expect(port).toBeLessThanOrEqual(42999);
     }));
 
   it("prefers VARIANT_<KEY>_PORT over the runtime state", () =>
@@ -68,7 +68,16 @@ describe("resolveInstancePort", () => {
       expect(await resolveInstancePort(load({ VARIANT_MY_API_PORT: "62010" }), "my-api")).toBe(62010);
     }));
 
-  it("accepts an explicitly assigned reserved port", () =>
+  it("picks from variant.ports.range when one is configured", () =>
+    withProject(undefined, async (directory, load) => {
+      writeFileSync(join(directory, "variants.yaml"), `${PROJECT}  ports:\n    range: "50000-50003"\n`);
+      const port = await resolveInstancePort(load(), "fe");
+
+      expect(port).toBeGreaterThanOrEqual(50000);
+      expect(port).toBeLessThanOrEqual(50003);
+    }));
+
+  it("keeps an explicitly assigned port that lies outside the range", () =>
     withProject(undefined, async (_directory, load) => {
       expect(await resolveInstancePort(load({ VARIANT_BE_PORT: "3000" }), "be")).toBe(3000);
     }));
@@ -80,14 +89,67 @@ describe("resolveInstancePort", () => {
 });
 
 describe("pickFreePort", () => {
-  it("skips reserved ports", async () => {
-    const candidates = [3000, 4200, 5432, 62000][Symbol.iterator]();
+  const range = { low: 50000, high: 50009 };
+  const everythingFree = async () => true;
 
-    expect(await pickFreePort([3000, 4200, 5432], async () => candidates.next().value as number)).toBe(62000);
+  it("returns a port inside the range", async () => {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const port = await pickFreePort(range, { isFree: everythingFree });
+
+      expect(port).toBeGreaterThanOrEqual(range.low);
+      expect(port).toBeLessThanOrEqual(range.high);
+    }
   });
 
-  it("accepts any port when nothing is reserved", async () => {
-    expect(await pickFreePort([], async () => 3000)).toBe(3000);
+  it("tries the ports in order from the start offset", async () => {
+    expect(await pickFreePort(range, { isFree: everythingFree, start: 3 })).toBe(50003);
+  });
+
+  it("skips ports that are in use", async () => {
+    const inUse = new Set([50003, 50004]);
+
+    expect(await pickFreePort(range, { isFree: async (port) => !inUse.has(port), start: 3 })).toBe(50005);
+  });
+
+  it("wraps once from the top of the range to its bottom", async () => {
+    const free = new Set([50001]);
+
+    expect(await pickFreePort(range, { isFree: async (port) => free.has(port), start: 8 })).toBe(50001);
+  });
+
+  it("skips excluded ports", async () => {
+    expect(await pickFreePort(range, { isFree: everythingFree, start: 3, exclude: [50003, 50004] })).toBe(50005);
+  });
+
+  it("throws an error that names the range when no port is free", async () => {
+    await expect(pickFreePort(range, { isFree: async () => false })).rejects.toThrow("50000-50009");
+  });
+
+  it("throws when every free port is excluded", async () => {
+    const exclude = [50000, 50001, 50002, 50003, 50004, 50005, 50006, 50007, 50008, 50009];
+
+    await expect(pickFreePort(range, { isFree: everythingFree, exclude })).rejects.toThrow("50000-50009");
+  });
+
+  it("asks the operating system by default and returns a port it reports free", async () => {
+    const port = await pickFreePort({ low: 51000, high: 51999 });
+
+    expect(port).toBeGreaterThanOrEqual(51000);
+    expect(port).toBeLessThanOrEqual(51999);
+  });
+
+  it("does not return a port that a listener holds", async () => {
+    const { createServer } = await import("node:net");
+    const holder = createServer();
+    await new Promise<void>((resolve) => holder.listen(0, "127.0.0.1", resolve));
+    const held = (holder.address() as { port: number }).port;
+    try {
+      const port = await pickFreePort({ low: held, high: held + 1 });
+
+      expect(port).toBe(held + 1);
+    } finally {
+      holder.close();
+    }
   });
 });
 

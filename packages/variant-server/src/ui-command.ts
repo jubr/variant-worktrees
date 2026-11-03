@@ -29,8 +29,8 @@ export interface UiCommandOptions {
   staticDir?: StaticApp;
   /** Ends an attached run, the way an interrupt does. */
   signal?: AbortSignal;
-  /** The ports to try, instead of asking the operating system; for tests. */
-  candidatePort?: () => Promise<number>;
+  /** Decides whether a port of the range is free, instead of a loopback listen; for tests. */
+  isFree?: (port: number) => Promise<boolean>;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,7 +93,7 @@ const bind = async (
   const env = options.env ?? process.env;
   const staticDir = options.staticDir ?? defaultStaticDir();
   for (let attempt = 0; ; attempt += 1) {
-    const port = await chooseUiPort(client.config(), env, options.candidatePort);
+    const port = await chooseUiPort(client.config(), env, options.isFree);
     try {
       return await startUiServer({ client, port, abbr, staticDir });
     } catch (error) {
