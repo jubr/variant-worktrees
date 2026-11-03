@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 interface McpResult {
@@ -373,6 +373,26 @@ describe("MCP status and verbose list", () => {
 
       expect(config.warnings).toEqual([`${configPath}: unknown key db.colour`]);
       expect(config.db).not.toHaveProperty("colour");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("reads a configuration with old names under the current ones and does not rewrite it", async () => {
+    const directory = tempDirectory();
+    try {
+      const configPath = join(directory, "variants.yaml");
+      const old = "db:\n  dialect: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+      writeFileSync(configPath, old);
+      const result = await mcp([...initMessages(), call(2, "variant_config")], configPath, {
+        cwd: directory,
+        env: { CI: "", VARIANT_MIGRATE: "" },
+      });
+      const config = JSON.parse(answer(result, 2).text);
+
+      expect(Object.keys(config.variant.watches)).toEqual(["be"]);
+      expect(config.migrations).toHaveLength(1);
+      expect(readFileSync(configPath, "utf8")).toBe(old);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

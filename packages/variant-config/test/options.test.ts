@@ -242,8 +242,11 @@ describe("port range", () => {
     expect(variant({ ports: { range } })).toBe(false);
   });
 
-  it("ignores the former reservedPorts with a warning", () => {
-    expect(warned({ reservedPorts: [3000] })).toEqual(["reservedPorts"]);
+  it("reads the former reservedPorts as dropped, without a warning", () => {
+    const config = loaded("variant:\n  reservedPorts: [3000]\n");
+
+    expect(config.warnings).toEqual([]);
+    expect(config.variant.ports.range).toBe("42000-42999");
   });
 });
 

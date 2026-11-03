@@ -3,7 +3,8 @@ import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import { abbreviate, detectConnection, detectVariantMain, detectVariantRoot, detectWatches } from "./autodetect.js";
-import { readRuntime } from "./local.js";
+import { migrateLegacy } from "./legacy.js";
+import { readRuntimeState } from "./local.js";
 import { type ParsedConfig, parseConfig } from "./parse.js";
 import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantsConfig, VariantWatch } from "./schema.js";
 import {
@@ -47,9 +48,15 @@ export const findConfigFile = (startDir = process.cwd()): string | undefined => 
   return undefined;
 };
 
-const readConfigFile = (configPath: string): ParsedConfig<VariantsConfig> => {
+interface ReadConfig extends ParsedConfig<VariantsConfig> {
+  /** The notices of names of an earlier version that were read under the current names. */
+  migrations: string[];
+}
+
+const readConfigFile = (configPath: string): ReadConfig => {
   const parsed: unknown = parseYaml(readFileSync(configPath, "utf8"));
-  return parseConfig(VariantsConfigSchema, parsed ?? {}, configPath);
+  const { data, notices } = migrateLegacy(parsed ?? {}, configPath);
+  return { ...parseConfig(VariantsConfigSchema, data, configPath), migrations: notices };
 };
 
 const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbConfig => ({
@@ -124,16 +131,15 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     ? resolve(cwd, options.configPath)
     : (findConfigFile(cwd) ?? join(cwd, "variants.yaml"));
   const configExists = existsSync(configPath);
-  const { data: config, warnings } = configExists
-    ? readConfigFile(configPath)
-    : { data: {} as VariantsConfig, warnings: [] };
+  const read: ReadConfig = configExists ? readConfigFile(configPath) : { data: {}, warnings: [], migrations: [] };
+  const config = read.data;
   const configDir = dirname(configPath);
   const detected = detectConnection(configDir);
   const db = mergeDbConfig(detected.config, config.db);
   const source = config.db ? "config" : detected.source;
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env);
-  const runtime = readRuntime(configDir, env, Object.keys(variant.watches));
+  const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
 
   return {
     ...config,
@@ -143,7 +149,8 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     configPath,
     configDir,
     source,
-    warnings,
+    warnings: read.warnings,
+    migrations: [...read.migrations, ...migrations],
   };
 };
 
@@ -195,8 +202,10 @@ export {
   findMiseFile,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor } from "./dotenv.js";
-export type { DiscoveredRuntime, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
-export { clearRuntime, readRuntime, readRuntimes, writeRuntime } from "./local.js";
+export { type Migrated, migrateLegacy, migrateText } from "./legacy.js";
+export type { DiscoveredRuntime, LocalState, ReadRuntimesOptions, RuntimeReadError } from "./local.js";
+export { clearRuntime, readRuntime, readRuntimeState, readRuntimes, writeRuntime } from "./local.js";
+export { type MigrationResult, migrateFile } from "./migrate-file.js";
 export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {

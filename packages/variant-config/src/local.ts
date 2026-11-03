@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { migrateLegacy } from "./legacy.js";
 import {
   envSegment,
   LOCAL_FILENAME,
@@ -37,14 +38,20 @@ const resolveRuntime = (runtime: Runtime): ResolvedRuntime => {
   return { ...rest, db: numeric === undefined ? dbRest : { ...dbRest, port: numeric } };
 };
 
-const readLocal = (configDir: string, env: NodeJS.ProcessEnv): ResolvedRuntime | undefined => {
+export interface LocalState {
+  runtime?: ResolvedRuntime;
+  /** Notices of names of an earlier version that were read under the current ones. */
+  migrations: string[];
+}
+
+const readLocal = (configDir: string, env: NodeJS.ProcessEnv): LocalState => {
   const path = join(configDir, LOCAL_FILENAME);
   if (!existsSync(path)) {
-    return undefined;
+    return { migrations: [] };
   }
-  const parsed: unknown = parseYaml(readFileSync(path, "utf8"));
-  const local = VariantsLocalSchema.parse(expandEnv(parsed ?? {}, env));
-  return local.runtime ? resolveRuntime(local.runtime) : undefined;
+  const { data, notices } = migrateLegacy(parseYaml(readFileSync(path, "utf8")) ?? {}, path);
+  const local = VariantsLocalSchema.parse(expandEnv(data, env));
+  return { ...(local.runtime ? { runtime: resolveRuntime(local.runtime) } : {}), migrations: notices };
 };
 
 const positiveInteger = (name: string, value: string): number => {
@@ -89,21 +96,28 @@ export const readRuntime = (
   configDir: string,
   env: NodeJS.ProcessEnv = process.env,
   watchKeys: readonly string[] = [],
-): ResolvedRuntime | undefined => {
-  const runtime = readLocal(configDir, env);
+): ResolvedRuntime | undefined => readRuntimeState(configDir, env, watchKeys).runtime;
+
+/** `readRuntime` with the notices of the names of an earlier version that were read under the current ones. */
+export const readRuntimeState = (
+  configDir: string,
+  env: NodeJS.ProcessEnv = process.env,
+  watchKeys: readonly string[] = [],
+): LocalState => {
+  const { runtime, migrations } = readLocal(configDir, env);
   const overrides = Object.fromEntries(
     watchKeys
       .map((key) => [key, watchOverrides(key, env)] as const)
       .filter(([, override]) => Object.keys(override).length > 0),
   );
   if (Object.keys(overrides).length === 0) {
-    return runtime;
+    return { ...(runtime ? { runtime } : {}), migrations };
   }
   const watches = { ...runtime?.watches };
   for (const [key, override] of Object.entries(overrides)) {
     watches[key] = { ...watches[key], ...override };
   }
-  return { ...runtime, watches };
+  return { runtime: { ...runtime, watches }, migrations };
 };
 
 /** Writes the `runtime` section of `<configDir>/variants.local.yaml`, validated, keeping the file's other top-level keys. */
@@ -171,7 +185,7 @@ export const readRuntimes = (
   const errors: RuntimeReadError[] = [];
   for (const dir of directories) {
     try {
-      const runtime = readLocal(dir, env);
+      const { runtime } = readLocal(dir, env);
       if (runtime) {
         states.push({ dir, runtime });
       }
