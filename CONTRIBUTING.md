@@ -162,8 +162,10 @@ runnable alone to resume after a failure:
 
 1. `task release:check`: refuses unless on `main`, tracked files unchanged, not behind `origin/main`, versions agree, `gh` authenticated.
 2. `task version:incr:patch`: bumps every package and `bun.lock`.
-3. `task release:changelog`: in every `CHANGELOG*.md` moves `Unreleased` under `## [<version>] - <date>` and adds the
-   GitHub-generated pull request list as `### Release notes`.
+3. `task release:changelog`: in every `CHANGELOG*.md` replaces the `Unreleased` heading with `## [<version>] - <date>` (the
+   section's bullets stay under it; a changelog without `Unreleased` gets the section above its newest version) and adds the
+   GitHub-generated pull request list as `### Release notes`. No `Unreleased` heading remains, so add `## Unreleased` again
+   when you record the next change.
 4. `task release:pr`: commits `chore(release): v<version>` on `release/v<version>`, pushes it and opens a pull request into
    `main` with the generated notes as its body. If the push fails, fix the remote and run `task release:pr` again.
 

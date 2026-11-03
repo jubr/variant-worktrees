@@ -19,31 +19,55 @@ describe("promoteUnreleased", () => {
     const output = promoteUnreleased(input, "1.2.4", "2026-02-02", notes);
 
     expect(output).toBe(
-      `# Changelog\n\nPreamble.\n\n## [Unreleased]\n\n## [1.2.4] - 2026-02-02\n\n### Added\n\n- curated bullet\n\n### Release notes\n\n${notes.join("\n")}\n\n## [1.2.3] - 2026-01-01\n\n### Fixed\n\n- old\n`,
+      `# Changelog\n\nPreamble.\n\n## [1.2.4] - 2026-02-02\n\n### Added\n\n- curated bullet\n\n### Release notes\n\n${notes.join("\n")}\n\n## [1.2.3] - 2026-01-01\n\n### Fixed\n\n- old\n`,
     );
   });
 });
 
 describe("promoteUnreleased edge cases", () => {
-  test("accepts the unbracketed Unreleased heading and keeps it in place", () => {
+  test("removes the unbracketed Unreleased heading and puts the new section in its place", () => {
     const input = changelog("## Unreleased", "- curated\n");
 
     const output = promoteUnreleased(input, "1.2.4", "2026-02-02", notes);
 
-    expect(output).toContain("## Unreleased\n\n## [1.2.4] - 2026-02-02\n\n- curated\n\n### Release notes");
+    expect(output).toContain("Preamble.\n\n## [1.2.4] - 2026-02-02\n\n- curated\n\n### Release notes");
+    expect(output).not.toMatch(/Unreleased/);
+  });
+
+  test("removes the bracketed Unreleased heading", () => {
+    const output = promoteUnreleased(changelog("## [Unreleased]", "- curated\n"), "1.2.4", "2026-02-02", notes);
+
+    expect(output).not.toMatch(/Unreleased/);
   });
 
   test("holds only the release notes when Unreleased is empty", () => {
     const output = promoteUnreleased(changelog("## [Unreleased]", ""), "1.2.4", "2026-02-02", notes);
 
     expect(output).toContain(`## [1.2.4] - 2026-02-02\n\n### Release notes\n\n${notes.join("\n")}\n\n## [1.2.3]`);
+    expect(output).not.toMatch(/Unreleased/);
+  });
+
+  test("puts the new section directly above the newest version when there is no Unreleased section", () => {
+    const input = "# Changelog\n\nPreamble.\n\n## [1.2.3] - 2026-01-01\n\n### Fixed\n\n- old\n";
+
+    const output = promoteUnreleased(input, "1.2.4", "2026-02-02", notes);
+
+    expect(output).toBe(
+      `# Changelog\n\nPreamble.\n\n## [1.2.4] - 2026-02-02\n\n### Release notes\n\n${notes.join("\n")}\n\n## [1.2.3] - 2026-01-01\n\n### Fixed\n\n- old\n`,
+    );
+  });
+
+  test("appends the new section when the changelog has no version section and no Unreleased section", () => {
+    const output = promoteUnreleased("# Changelog\n", "1.0.0", "2026-02-02", notes);
+
+    expect(output).toBe(`# Changelog\n\n## [1.0.0] - 2026-02-02\n\n### Release notes\n\n${notes.join("\n")}\n`);
   });
 
   test("handles an Unreleased section that is the last section", () => {
     const output = promoteUnreleased("# Changelog\n\n## Unreleased\n\n- curated\n", "1.0.0", "2026-02-02", notes);
 
     expect(output).toBe(
-      `# Changelog\n\n## Unreleased\n\n## [1.0.0] - 2026-02-02\n\n- curated\n\n### Release notes\n\n${notes.join("\n")}\n`,
+      `# Changelog\n\n## [1.0.0] - 2026-02-02\n\n- curated\n\n### Release notes\n\n${notes.join("\n")}\n`,
     );
   });
 
@@ -52,7 +76,7 @@ describe("promoteUnreleased edge cases", () => {
 
     const output = promoteUnreleased(input, "1.2.4", "2026-02-02", notes);
 
-    expect(output.startsWith("# Changelog\n\nPreamble.\n\n## [Unreleased]")).toBe(true);
+    expect(output.startsWith("# Changelog\n\nPreamble.\n\n## [1.2.4] - 2026-02-02")).toBe(true);
     expect(output.endsWith("## [1.2.3] - 2026-01-01\n\n### Fixed\n\n- old\n")).toBe(true);
   });
 
@@ -62,9 +86,6 @@ describe("promoteUnreleased edge cases", () => {
     expect(() => promoteUnreleased(input, "1.2.4", "2026-02-02", notes)).toThrow("already has a section for 1.2.4");
   });
 
-  test("fails when there is no Unreleased section", () => {
-    expect(() => promoteUnreleased("# Changelog\n", "1.2.4", "2026-02-02", notes)).toThrow("no Unreleased section");
-  });
 });
 
 const generated = [
@@ -109,7 +130,20 @@ describe("prepareChangelogs", () => {
       const text = readFileSync(join(root, file), "utf8");
       expect(text).toContain("## [1.2.4] - 2026-02-02");
       expect(text).toContain("- feat: one by @a in https://github.com/o/r/pull/1");
+      expect(text).not.toMatch(/Unreleased/);
     }
+  });
+
+  test("succeeds for a changelog that has no Unreleased section", () => {
+    const root = workspace();
+    writeFileSync(join(root, "packages", "a", "CHANGELOG.md"), "# Changelog\n\n## [1.2.3] - 2026-01-01\n\n- old\n");
+
+    const written = prepareChangelogs(root, "1.2.4", "2026-02-02", generated);
+
+    expect(written.sort()).toEqual(["CHANGELOG.md", "packages/a/CHANGELOG.md"]);
+    expect(readFileSync(join(root, "packages", "a", "CHANGELOG.md"), "utf8")).toMatch(
+      /^# Changelog\n\n## \[1\.2\.4\] - 2026-02-02\n\n### Release notes[\s\S]*## \[1\.2\.3\]/,
+    );
   });
 
   test("writes nothing when one changelog already has the version", () => {

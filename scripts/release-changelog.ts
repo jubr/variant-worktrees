@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Write the notes GitHub generates for the next release into every `CHANGELOG*.md` of the workspace root and of
- * `packages/*`: the `Unreleased` bullets move under `## [version] - date`, followed by `### Release notes`.
+ * `packages/*`: the `Unreleased` bullets move under `## [version] - date`, followed by `### Release notes`; the `Unreleased` heading is removed.
  * The version is read from the root `package.json` (bump it first). The raw notes are also saved for the
  * release pull request body (see `notesFile`).
  *
@@ -18,26 +18,34 @@ const UNRELEASED_HEADING = /^## \[?Unreleased\]?[ \t]*$/m;
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Promote the `Unreleased` section of one changelog to a `## [version] - date` section that ends with the
- * generated release notes. `Unreleased` stays above it, empty. Text outside that span is untouched.
+ * Promote the `Unreleased` section of one changelog to a `## [version] - date` section that ends with the generated
+ * release notes. The `Unreleased` heading goes away and the new section takes its place; a changelog without one gets
+ * the section directly above its newest version section (or at its end). Text outside that span is untouched.
  */
 export const promoteUnreleased = (text: string, version: string, date: string, notes: string[]): string => {
   if (new RegExp(`^## \\[?${escapeRegExp(version)}\\]?( |$)`, "m").test(text)) {
     throw new Error(`already has a section for ${version}`);
   }
   const heading = UNRELEASED_HEADING.exec(text);
-  if (!heading) {
-    throw new Error("has no Unreleased section");
+  let before: string;
+  let body = "";
+  let rest: string;
+  if (heading) {
+    const bodyStart = heading.index + heading[0].length;
+    const next = /^## /m.exec(text.slice(bodyStart));
+    const bodyEnd = next ? bodyStart + next.index : text.length;
+    before = text.slice(0, heading.index);
+    body = text.slice(bodyStart, bodyEnd).trim();
+    rest = text.slice(bodyEnd);
+  } else {
+    const newest = /^## /m.exec(text);
+    before = newest ? text.slice(0, newest.index) : `${text.trimEnd()}\n\n`;
+    rest = newest ? text.slice(newest.index) : "";
   }
-  const bodyStart = heading.index + heading[0].length;
-  const next = /^## /m.exec(text.slice(bodyStart));
-  const bodyEnd = next ? bodyStart + next.index : text.length;
-  const body = text.slice(bodyStart, bodyEnd).trim();
   const section = [`## [${version}] - ${date}`, body, `### Release notes\n\n${notes.join("\n")}`]
     .filter((part) => part !== "")
     .join("\n\n");
-  const rest = text.slice(bodyEnd);
-  return `${text.slice(0, bodyStart)}\n\n${section}\n${rest === "" ? "" : `\n${rest}`}`;
+  return `${before}${section}\n${rest === "" ? "" : `\n${rest}`}`;
 };
 
 /** The pull request lines of generated notes as dash bullets, plus the full-changelog link. */
