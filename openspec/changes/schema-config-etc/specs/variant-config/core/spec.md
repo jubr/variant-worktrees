@@ -253,3 +253,35 @@ The system SHALL accept an optional top-level `chatRenamer` section in `variants
 
 - **WHEN** the lightweight reader is called and no `variants.yaml` exists above the directory
 - **THEN** it returns an empty section
+
+## ADDED Requirements
+
+### Requirement: Legacy configuration is read under the current names
+
+When `variants.yaml` or `variants.local.yaml` uses a name of an earlier version, loading SHALL read it under the current name in memory and SHALL NOT write anything. The renames are `variant.instances` to `variant.watches` and `runtime.instances` to `runtime.watches`; the setting `variant.reservedPorts` is dropped. When the old and the new key are both present the new one SHALL win and the old one SHALL be dropped. Each such change SHALL produce a migration notice (the file, the old and the new name) that is part of the resolved configuration, and SHALL NOT produce an unknown-key warning. The system SHALL offer a function that returns the text of a file with those changes applied, keeping comments, key order and layout, and returns nothing when the file needs no change. The offered function SHALL NOT touch the file system.
+
+#### Scenario: Legacy watches record
+
+- **WHEN** `variants.yaml` sets `variant.instances: { fe: { kind: vite } }`
+- **THEN** loading succeeds, the resolved configuration has the watch `fe`, carries one migration notice and has no warning for `instances`
+
+#### Scenario: Both names present
+
+- **WHEN** `variants.yaml` sets both `variant.instances` and `variant.watches`
+- **THEN** the watches of `variant.watches` are used and the notice says that `variant.instances` was ignored
+
+#### Scenario: Former reserved ports dropped
+
+- **WHEN** `variants.yaml` sets `variant.reservedPorts: [3000]`
+- **THEN** loading succeeds, the resolved configuration carries a notice that the setting was dropped, and it has no warning for it
+
+#### Scenario: Text rewritten with comments kept
+
+- **WHEN** the rewrite function gets a file whose `variant.instances` line carries a trailing comment
+- **THEN** the returned text names `watches` instead, with that comment and every other line unchanged
+
+#### Scenario: Current file needs no change
+
+- **WHEN** the rewrite function gets a file that uses only current names
+- **THEN** it returns nothing
+

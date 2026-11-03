@@ -1,8 +1,3 @@
-## RENAMED Requirements
-
-- FROM: `### Requirement: Instance port resolution`
-- TO: `### Requirement: Watch port resolution`
-
 ## MODIFIED Requirements
 
 ### Requirement: Runtime environment overrides
@@ -38,8 +33,16 @@ The system SHALL let environment variables override the runtime state of the var
 - **WHEN** `VARIANT_BE_PORT` is `62099` and runtime state discovery reads another worktree's file that records port 62060 for `be`
 - **THEN** the discovered port is 62060
 
+## REMOVED Requirements
+
+### Requirement: Instance port resolution
+**Reason**: Ports are no longer picked at random from the whole unprivileged range with a list of reserved ports; they come from a configurable range, and the reserved-ports concept is gone.
+**Migration**: Use `Watch port resolution` and `variant.ports.range` (see `variant-config/cfg-settings`). `variant.reservedPorts` is dropped when a configuration is migrated.
+
+## ADDED Requirements
+
 ### Requirement: Watch port resolution
-The system SHALL resolve the port of a watch, by its key, from the first of: the environment variable `VARIANT_<K>_PORT`, `runtime.watches.<key>.port` in the local runtime state, and a random free port between 1024 and 65535 that is not in `variant.reservedPorts`. `variant.reservedPorts` SHALL be an optional list of ports, defaulting to `[3000, 4200, 5432]`, and the resolved configuration SHALL always carry it. The system SHALL NOT write the state when resolving.
+The system SHALL resolve the port of a watch, by its key, from the first of: the environment variable `VARIANT_<K>_PORT`, `runtime.watches.<key>.port` in the local runtime state, and a free port of `variant.ports.range`. The free port SHALL be found by trying the ports of the range in order, starting at a random offset and wrapping around, and taking the first that the operating system reports as free. When no port of the range is free the system SHALL fail with an error that names the range. A port that is assigned through the environment or the runtime state SHALL be kept even when it lies outside the range, and no port is otherwise excluded. The system SHALL NOT write the state when resolving.
 
 #### Scenario: Assigned port
 
@@ -48,20 +51,20 @@ The system SHALL resolve the port of a watch, by its key, from the first of: the
 
 #### Scenario: No assignment
 
-- **WHEN** neither the environment nor the runtime state holds a port for the watch
-- **THEN** the port is a random free port between 1024 and 65535
+- **WHEN** neither the environment nor the runtime state holds a port for the watch and `variant.ports` is absent
+- **THEN** the port is a free port between 42000 and 42999
 
-#### Scenario: Reserved ports are never picked
+#### Scenario: Custom range
 
-- **WHEN** no port is assigned and `variant.reservedPorts` is `[3000, 4200, 5432]`
-- **THEN** the picked port is none of 3000, 4200 and 5432
+- **WHEN** `variant.ports.range` is `43100-43109` and no port is assigned
+- **THEN** the picked port is a free port between 43100 and 43109
 
-#### Scenario: Custom reserved ports
+#### Scenario: Range exhausted
 
-- **WHEN** `variant.reservedPorts` is `[]`
-- **THEN** the picked port may be any free port between 1024 and 65535
+- **WHEN** every port of the range is in use
+- **THEN** resolving fails with an error that names the range
 
-#### Scenario: Reserved port assigned explicitly
+#### Scenario: Assigned port outside the range
 
-- **WHEN** `VARIANT_BE_PORT` is 3000 and 3000 is reserved
-- **THEN** its port is 3000, because reservation limits only picked ports
+- **WHEN** `VARIANT_BE_PORT` is 3000 and the range is `42000-42999`
+- **THEN** its port is 3000

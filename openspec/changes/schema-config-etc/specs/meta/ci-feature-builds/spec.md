@@ -2,14 +2,9 @@
 
 ### Requirement: Workflow actions run on the supported Node runtime
 
-Every GitHub Action that the workflows under `.github/workflows/` use SHALL be pinned to a major version that runs on the Node.js 24 runtime (or is a composite action), so a run reports no annotation that an action targets a deprecated Node.js runtime. The actions are `actions/checkout`, `actions/upload-artifact`, `actions/download-artifact`, `jdx/mise-action`, `oven-sh/setup-bun`, `actions/upload-pages-artifact`, `actions/deploy-pages` and `azure/login` (when enabled). A repository test SHALL fail when a workflow uses an action whose major version is below the minimum listed for it.
+Every GitHub Action that the workflows under `.github/workflows/` use SHALL be pinned to a major version that runs on the Node.js 24 runtime (or is a composite action), so a run reports no annotation that an action targets a deprecated Node.js runtime. The actions are `actions/checkout`, `actions/upload-artifact`, `actions/download-artifact`, `jdx/mise-action`, `oven-sh/setup-bun`, `actions/upload-pages-artifact`, `actions/deploy-pages` and `azure/login` (when enabled).
 
 #### Scenario: Run without Node deprecation annotations
 
 - **WHEN** the CI workflow runs on a feature branch
 - **THEN** its annotations hold no warning that an action targets Node.js 20
-
-#### Scenario: Outdated action pin
-
-- **WHEN** a workflow uses `actions/checkout@v4`
-- **THEN** the repository test fails and names the workflow and the action

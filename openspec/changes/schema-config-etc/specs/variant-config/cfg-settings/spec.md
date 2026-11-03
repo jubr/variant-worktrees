@@ -92,3 +92,29 @@ The system SHALL accept an optional `variant.implode` with `preRm` (a list of gl
 
 - **WHEN** `variant.implode` sets `untracked` or `restore`
 - **THEN** loading succeeds, neither key takes effect and one warning names each
+
+## ADDED Requirements
+
+### Requirement: Port range
+The system SHALL accept an optional `variant.ports` object with the optional string `range`, written `<low>-<high>` with both ends integers from 1024 to 65535 and `low` not above `high`, defaulting to `42000-42999`. The range SHALL be the set of ports from which free ports are picked for watches and for the `variant ui` server; no other port list or reservation exists. A `range` that is not of that form, has an end outside 1024 to 65535 or has `low` above `high` SHALL fail validation. The former key `variant.reservedPorts` SHALL be ignored with a warning. The resolved configuration SHALL always carry the range.
+
+#### Scenario: Default range
+
+- **WHEN** `variant.ports` is absent
+- **THEN** the resolved range is `42000-42999`
+
+#### Scenario: Custom range accepted
+
+- **WHEN** `variant.ports.range` is `50000-50099`
+- **THEN** loading succeeds and the resolved range is `50000-50099`
+
+#### Scenario: Invalid range
+
+- **WHEN** `variant.ports.range` is `42000`, `42999-42000`, `80-90` or `abc`
+- **THEN** loading the configuration fails validation
+
+#### Scenario: Former reserved ports
+
+- **WHEN** `variant.reservedPorts` is `[3000]`
+- **THEN** loading succeeds, the key takes no effect and one warning names it
+
