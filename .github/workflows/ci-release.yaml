@@ -34,8 +34,8 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       exists: ${{ steps.resolve.outputs.exists }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
         with:
           install_args: bun task
       - id: resolve
@@ -59,8 +59,8 @@ jobs:
     if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
       - run: task install:ci
       - run: task package:vsix
       - run: task package:cli:all
@@ -71,7 +71,7 @@ jobs:
       - name: Checksums
         working-directory: out
         run: sha256sum -- * > SHA256SUMS
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: out/*
@@ -92,7 +92,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-assets
           path: out

@@ -24,16 +24,16 @@ jobs:
     name: Gate and extension packages
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # commitlint needs origin/main..HEAD
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v5
       - run: task install:ci
       - run: task check:full
       - run: task lint:workflows
       - run: task package:vsix
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vsix
           path: out/*.vsix
@@ -43,8 +43,8 @@ jobs:
     name: Library and CLI under Node
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
       - run: task install:ci
       - run: task test:node
 
@@ -52,8 +52,8 @@ jobs:
     name: Pre-release CLI (macOS arm64)
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
         with:
           install_args: bun task
       - run: task install:ci
@@ -64,7 +64,7 @@ jobs:
         run: |
           bin=(out/variant-*-darwin-arm64)
           "${bin[0]}" --help
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: variant-darwin-arm64
           path: out/variant-*-darwin-arm64
