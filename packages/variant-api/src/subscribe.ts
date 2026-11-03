@@ -1,5 +1,6 @@
 import { type FSWatcher, watch as fsWatch } from "node:fs";
-import type { VariantRecord, VariantUpdate } from "./types.js";
+import { MiseError } from "./mise.js";
+import type { MiseFailure, VariantRecord, VariantUpdate } from "./types.js";
 
 /** A directory whose entries are watched; `accept` narrows the entry names that count as a change. */
 export interface WatchTarget {
@@ -28,6 +29,11 @@ const withoutUptime = (records: VariantRecord[]): string =>
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+const miseOf = (error: unknown): MiseFailure | undefined =>
+  error instanceof MiseError
+    ? { directory: error.directory, detail: error.detail, untrusted: error.untrusted }
+    : undefined;
+
 interface Subscriber {
   listener: (update: VariantUpdate) => void;
   ended: boolean;
@@ -49,6 +55,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
   let last: VariantRecord[] | undefined;
   let lastKey: string | undefined;
   let lastError: string | undefined;
+  let lastMise: MiseFailure | undefined;
   let reading = false;
   let readAgain = false;
 
@@ -124,10 +131,12 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
     try {
       let next: VariantRecord[] | undefined;
       let failure: string | undefined;
+      let mise: MiseFailure | undefined;
       try {
         next = await options.read();
       } catch (error) {
         failure = messageOf(error);
+        mise = miseOf(error);
       }
       if (subscribers.size === 0) {
         return;
@@ -135,7 +144,12 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
       if (next === undefined) {
         if (failure !== lastError) {
           lastError = failure;
-          broadcast({ records: last ?? [], ...(failure === undefined ? {} : { error: failure }) });
+          lastMise = mise;
+          broadcast({
+            records: last ?? [],
+            ...(failure === undefined ? {} : { error: failure }),
+            ...(mise === undefined ? {} : { mise }),
+          });
         }
       } else {
         const key = withoutUptime(next);
@@ -143,6 +157,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
         last = next;
         lastKey = key;
         lastError = undefined;
+        lastMise = undefined;
         if (changed) {
           broadcast({ records: next });
         }
@@ -180,6 +195,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
     last = undefined;
     lastKey = undefined;
     lastError = undefined;
+    lastMise = undefined;
   };
 
   return {
@@ -190,7 +206,11 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
       if (subscribers.size === 1) {
         start();
       } else if (last !== undefined) {
-        const update: VariantUpdate = { records: last, ...(lastError === undefined ? {} : { error: lastError }) };
+        const update: VariantUpdate = {
+          records: last,
+          ...(lastError === undefined ? {} : { error: lastError }),
+          ...(lastMise === undefined ? {} : { mise: lastMise }),
+        };
         queueMicrotask(() => deliver(subscriber, update));
       }
       return () => {

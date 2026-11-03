@@ -113,6 +113,7 @@ export type {
   InitOptions,
   InitResult,
   ListOptions,
+  MiseFailure,
   RuntimeStatus,
   UpResult,
   VariantClient,

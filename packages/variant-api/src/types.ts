@@ -72,10 +72,19 @@ export interface VariantClientOptions {
 }
 
 /** What a subscriber receives: the current records, and the reason the last read failed, when it did. */
+/** A read that failed because Mise did: where, what Mise said, and whether `mise trust` fixes it. */
+export interface MiseFailure {
+  directory: string;
+  detail: string;
+  untrusted: boolean;
+}
+
 export interface VariantUpdate {
   /** The records `list` returns; after a failed read, those of the last successful read. */
   records: VariantRecord[];
   error?: string;
+  /** Set with `error` when the read failed because of Mise. */
+  mise?: MiseFailure;
 }
 
 /** How `down` talks to the person running it. */
