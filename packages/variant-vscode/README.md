@@ -53,6 +53,8 @@ variant:
 
 Vite and NestJS apps are detected automatically, so a small project may need no watches at all. Database settings are read from `mise.local.toml`, then from environment variables. Every option, including templates, steps, and the `implode` safety rules, is in the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
 
+A configuration that still uses `instances` (now `watches`) or `reservedPorts` (now `ports.range`) loads as before. When `variants.yaml` is tracked by git without uncommitted changes, the extension rewrites it and shows a warning with an **Open file** action; the change is a plain `git diff`. `VARIANT_MIGRATE=0` turns the rewrite off.
+
 ## Let your agents drive
 
 The same operations are available as an MCP server, so Cursor, Claude, or any MCP client can create, watch, and implode variants itself:

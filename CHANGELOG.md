@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added
+
+- A key that `variants.yaml` or `variants.local.yaml` does not know is a warning (`<file>: unknown key <path>` on
+  standard error) instead of an error; a value of the wrong type is still an error.
+- `variant.ports.range` (`LOW-HIGH`, default `42000-42999`): free ports of watches and of `variant ui` are picked from
+  it. An explicit `VARIANT_<KEY>_PORT` may lie anywhere.
+- Files that use `variant.instances`, `runtime.instances` or `variant.reservedPorts` still load, with a notice. The
+  `variant` CLI and the VS Code extension rewrite them in place when `variants.yaml` is tracked by git and clean (and
+  always `variants.local.yaml`); `VARIANT_MIGRATE=0` or a set `CI` turns the rewrite off. The library, the MCP server
+  and `variant ui` never write.
+- `task package:vsix:unpacked` works in the main checkout.
+
+### Changed
+
+- **Breaking:** `instances` is now `watches` everywhere: `variant.watches`, `runtime.watches`, the fields of records,
+  status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `{{key.port}}` and
+  container names are unchanged. See the migration above.
+- **Breaking:** `variant.reservedPorts` is replaced by `variant.ports.range`; no port is reserved any more.
+- `dir` of a watch is optional and defaults to its key.
+- The release changelog no longer keeps an empty `Unreleased` heading in the promoted section.
+- The GitHub Actions workflows use the Node 24 versions of their actions.
+
 ## [0.0.5] - 2026-11-03
 
 ### Added

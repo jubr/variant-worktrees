@@ -4,6 +4,12 @@
 
 ::: v-pre
 
+## Unknown keys and migration
+
+A key `variants.yaml` or `variants.local.yaml` does not know is a warning, not an error: the command prints `<file>: unknown key <path>` on standard error, one line per key, and runs without it. A value of the wrong type or a missing required value is still an error.
+
+`variant.instances`, `runtime.instances` and `variant.reservedPorts` of earlier versions still load, with a notice on standard error (`variant.instances` is now `variant.watches`; `variant.reservedPorts` was dropped, free ports come from `variant.ports.range`). The new name wins when both exist. The `variant` CLI and the VS Code extension rewrite the file in place, keeping comments and layout, when `variants.yaml` is tracked by git and has no uncommitted changes (`variants.local.yaml`, which is git-ignored, always); review the change with `git diff` and revert it with `git checkout -- <file>`. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`; the notice then names the reason. The library, the MCP server and `variant ui` read the old names but never write.
+
 ## Watches are a record
 
 `variant.watches` is keyed by watch name. The key is the name in runtime state, in templates (`{{be.port}}`), in container names (`v-<key>-<slug>`) and in environment variables.
@@ -42,6 +48,7 @@ Every command also sees the variables below. Some are only set for commands, som
 | `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.watches.<key>.url` |
 | `VARIANT_<KEY>_PID` | read as an override | `runtime.watches.<key>.pid` |
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
+| `VARIANT_MIGRATE` | read as an override | the rewrite of configuration files that use names of an earlier version; `0` turns it off |
 | `VARIANT_ENV_SOURCE` | read as an override | `env.sourceFile`: the file a watch's env file is copied from, instead of the primary worktree's |
 | `VARIANT_STEP_<NAME>` | read as an override | the `name` of a step in `variant.steps`; `no` skips the step |
 | `VARIANT_UI_PORT` | read as an override | `variant.ui.port`: the port of the `variant ui` server |
@@ -74,9 +81,9 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `open` | `false` prints URLs without opening a browser; `VARIANT_OPEN=0` wins |
 | `prefix` | Starts every name derived from a slug, such as worktree directories (default `_v-`) |
 | `root` | Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into `main` (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `main` itself (`./_v-foo`). A worktree directory inside `main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created |
-| `reservedPorts` | Ports that are never picked for a watch (default 3000, 4200, 5432) |
+| `ports` | `{ range }`: `LOW-HIGH` (1024 to 65535, default `42000-42999`) the free ports of watches and of `variant ui` are picked from. An explicit `VARIANT_<KEY>_PORT` or `runtime.watches.<key>.port` may lie anywhere |
 | `storage` | `{ dir, envVarName }`: a per-variant directory (default `.storage`) and the variable that carries it (default `STORAGE_ROOT`) |
-| `ui` | `{ port }`: the port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port that is not reserved |
+| `ui` | `{ port }`: the port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port of `variant.ports.range` |
 | `steps` | Named commands that run between the `up` commands and the seed command |
 | `supervise` | `startDelaySeconds` (2), `readyTimeoutSeconds` (180), `checkoutPollSeconds` (5; 0 turns the check off) |
 | `implode` | See below |
@@ -112,7 +119,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 ## Runtime
 
-`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `variants.local.yaml`, then a free unreserved port), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
+`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `variants.local.yaml`, then a free port of `variant.ports.range`), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
 
 Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands record `runtime` in the `variants.local.yaml` of the variant's worktree (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for a detached `watch`, `log`: the path of `variants.watch.log`, which holds the output of its processes) and, attached, wait for every `ready` path and open the URL of each watch with a `url` template.
 
