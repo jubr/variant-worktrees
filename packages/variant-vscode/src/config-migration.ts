@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findConfigFile, LOCAL_FILENAME, loadConfig, type MigrationResult, migrateFile } from "variant-config";
 import * as vscode from "vscode";
@@ -14,6 +15,7 @@ export interface ConfigMigrationDeps {
 }
 
 const OPEN_FILE = "Open file";
+const UNDO = "Undo";
 
 const messageFor = (result: MigrationResult): string => {
   const names = result.notices.join("; ");
@@ -26,14 +28,45 @@ const messageFor = (result: MigrationResult): string => {
   return `${result.file} used names of an earlier version and was rewritten. ${how} (${names})`;
 };
 
+const readText = (file: string): string | undefined => {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return undefined;
+  }
+};
+
 const openFile = async (file: string): Promise<void> => {
   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
   await vscode.window.showTextDocument(document, { preview: false });
 };
 
 /**
+ * Puts the text from before the rewrite back, unless the file changed since: then the user's edits win and git is the
+ * way to revert. The extension rewrites the file again on its next load unless `VARIANT_MIGRATE=0`.
+ */
+const undo = (file: string, before: string, after: string): void => {
+  try {
+    if (readFileSync(file, "utf8") !== after) {
+      void vscode.window.showErrorMessage(
+        `${file} changed since it was rewritten, so it was left alone. Revert it with git.`,
+      );
+      return;
+    }
+    writeFileSync(file, before);
+    void vscode.window.showInformationMessage(
+      `${file} is back to its old names. It is rewritten again when the extension next loads it; set VARIANT_MIGRATE=0 to stop that.`,
+    );
+  } catch (error) {
+    void vscode.window.showErrorMessage(
+      `${file} could not be restored: ${error instanceof Error ? error.message : error}`,
+    );
+  }
+};
+
+/**
  * Rewrites the configuration files of the workspace that use names of an earlier version, best effort, and tells the user
- * with a warning notification that has the action **Open file**. A warning with an action stays until it is closed.
+ * with a warning notification that has the actions **Open file** and, after a rewrite, **Undo**. A warning with an action stays until it is closed.
  * Each file is announced once per session. A failure never reaches the caller: the views load on whatever the outcome.
  */
 export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => void } => {
@@ -55,10 +88,22 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
             continue;
           }
           announced.add(file);
+          const before = readText(file);
           const result = migrateFile(file, env);
           if (result) {
-            void Promise.resolve(vscode.window.showWarningMessage(messageFor(result), OPEN_FILE))
-              .then((choice) => (choice === OPEN_FILE ? openFile(file) : undefined))
+            const after = result.status === "rewritten" ? readText(file) : undefined;
+            const canUndo = before !== undefined && after !== undefined;
+            const actions = canUndo ? [OPEN_FILE, UNDO] : [OPEN_FILE];
+            void Promise.resolve(vscode.window.showWarningMessage(messageFor(result), ...actions))
+              .then((choice) => {
+                if (choice === OPEN_FILE) {
+                  return openFile(file);
+                }
+                if (choice === UNDO && canUndo) {
+                  undo(file, before, after);
+                }
+                return undefined;
+              })
               .catch(() => undefined);
           }
         }

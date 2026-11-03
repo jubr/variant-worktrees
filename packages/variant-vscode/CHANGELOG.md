@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - A configuration that uses `instances` or `reservedPorts` is rewritten to `watches` and `ports.range` when
-  `variants.yaml` is tracked by git and clean; a warning with the action **Open file** names the change.
+  `variants.yaml` is tracked by git and clean; a warning with the actions **Open file** and **Undo** names the change.
 
 ### Changed
 

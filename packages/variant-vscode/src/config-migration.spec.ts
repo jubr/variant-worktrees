@@ -68,7 +68,7 @@ describe("configuration migration in the extension", () => {
     const [message, ...actions] = showWarningMessage.mock.calls[0] as unknown as string[];
     expect(message).toContain(file);
     expect(message).toContain("git");
-    expect(actions).toEqual(["Open file"]);
+    expect(actions).toEqual(["Open file", "Undo"]);
   });
 
   it("opens the file when the user picks Open file", async () => {
@@ -81,6 +81,38 @@ describe("configuration migration in the extension", () => {
     expect(openTextDocument).toHaveBeenCalledTimes(1);
     expect((openTextDocument.mock.calls[0] as unknown as [{ fsPath: string }])[0].fsPath).toBe(file);
     expect(showTextDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts the old text back when the user picks Undo, and says so", async () => {
+    const { root, file } = project(OLD);
+    showWarningMessage.mockImplementation((async () => "Undo") as never);
+    const showInformationMessage = spyOn(vscode.window, "showInformationMessage");
+    showInformationMessage.mockClear();
+    showInformationMessage.mockImplementation((async () => undefined) as never);
+
+    createConfigMigration({ root, env: ENV }).run();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(showInformationMessage).toHaveBeenCalledTimes(1);
+    expect((showInformationMessage.mock.calls[0] as unknown as [string])[0]).toContain("VARIANT_MIGRATE=0");
+  });
+
+  it("leaves a file the user changed since the rewrite alone on Undo, and says so", async () => {
+    const { root, file } = project(OLD);
+    showWarningMessage.mockImplementation((async () => {
+      writeFileSync(file, `${NEW}# edited\n`);
+      return "Undo";
+    }) as never);
+    const showErrorMessage = spyOn(vscode.window, "showErrorMessage");
+    showErrorMessage.mockClear();
+    showErrorMessage.mockImplementation((async () => undefined) as never);
+
+    createConfigMigration({ root, env: ENV }).run();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(readFileSync(file, "utf8")).toBe(`${NEW}# edited\n`);
+    expect(showErrorMessage).toHaveBeenCalledTimes(1);
   });
 
   it("does not open anything when the notification is closed", async () => {
