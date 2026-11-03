@@ -13,9 +13,9 @@ import {
   VariantsLocalSchema,
 } from "./schema.js";
 
-const TEMPLATE = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
+const TEMPLATE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 
-/** Replaces `{{NAME}}` in every string with the environment variable `NAME`; an unset variable leaves the template. */
+/** Replaces `${NAME}` in every string with the environment variable `NAME`; an unset variable leaves the template. */
 const expandEnv = (value: unknown, env: NodeJS.ProcessEnv): unknown => {
   if (typeof value === "string") {
     return value.replace(TEMPLATE, (template, name: string) => env[name] ?? template);

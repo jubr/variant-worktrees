@@ -26,6 +26,7 @@ import {
   VariantsConfigSchema,
   variantsJsonSchema,
 } from "./schema.js";
+import { renderTemplate } from "./template.js";
 
 const CONFIG_FILENAMES = ["variants.yaml", "variants.yml"] as const;
 
@@ -71,13 +72,60 @@ const mergeDbConfig = (detected: DbConfig, explicit: DbConfig | undefined): DbCo
   ...explicit,
 });
 
+const memoize = <Value>(compute: () => Value): (() => Value) => {
+  let cached: { value: Value } | undefined;
+  return () => {
+    cached ??= { value: compute() };
+    return cached.value;
+  };
+};
+
+/** A watch with `dir` set; a `dir` that references the environment is expanded when first read. */
+const withDir = (
+  watch: Omit<VariantWatch, "dir">,
+  key: string,
+  dir: string,
+  environment: EnvironmentProvider,
+): VariantWatch => {
+  if (!dir.includes("${")) {
+    return { ...watch, dir };
+  }
+  const copy = { ...watch, dir } as VariantWatch;
+  Object.defineProperty(copy, "dir", {
+    enumerable: true,
+    configurable: true,
+    get: memoize(() =>
+      renderTemplate(dir, { env: environment, variant: false, setting: `variant.watches.${key}.dir` }),
+    ),
+  });
+  return copy;
+};
+
 /** The configured watches with `dir` defaulted to the key, else the autodetected ones (which carry their `dir`). */
-const resolveWatches = (config: VariantsConfig, configDir: string): Record<string, VariantWatch> =>
+const resolveWatches = (
+  config: VariantsConfig,
+  configDir: string,
+  environment: EnvironmentProvider,
+): Record<string, VariantWatch> =>
   config.variant?.watches
     ? Object.fromEntries(
-        Object.entries(config.variant.watches).map(([key, watch]) => [key, { ...watch, dir: watch.dir ?? key }]),
+        Object.entries(config.variant.watches).map(([key, watch]) => [
+          key,
+          withDir(watch, key, watch.dir ?? key, environment),
+        ]),
       )
     : detectWatches(configDir);
+
+/** `db` with the environment references of its text settings expanded; `db` belongs to no variant. */
+const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig =>
+  Object.fromEntries(
+    Object.entries(db).map(([name, value]) => [
+      name,
+      typeof value === "string"
+        ? renderTemplate(value, { env: environment, variant: false, setting: `db.${name}` })
+        : value,
+    ]),
+  ) as DbConfig;
 
 /** `variant.open`, unless `VARIANT_OPEN=0` turns opening off. */
 const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
@@ -89,7 +137,12 @@ const resolvePorts = (configured: string | undefined): ResolvedVariant["ports"] 
   return { range, low, high };
 };
 
-const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.ProcessEnv): ResolvedVariant => {
+const resolveVariant = (
+  config: VariantsConfig,
+  configDir: string,
+  env: NodeJS.ProcessEnv,
+  environment: EnvironmentProvider,
+): ResolvedVariant => {
   const { storage, supervise, implode, ports, ...variant } = config.variant ?? {};
   const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
@@ -98,7 +151,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
     root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
     abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
-    watches: resolveWatches(config, configDir),
+    watches: resolveWatches(config, configDir, environment),
     baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
     branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
     open: resolveOpen(variant.open, env),
@@ -128,7 +181,7 @@ const resolveVariant = (config: VariantsConfig, configDir: string, env: NodeJS.P
 export interface LoadConfigOptions {
   cwd?: string;
   configPath?: string;
-  /** Environment for `VARIANT_*` overrides and `{{NAME}}` templates; the process environment by default. */
+  /** Environment for `VARIANT_*` overrides and `${NAME}` templates; the process environment by default. */
   env?: NodeJS.ProcessEnv;
   /**
    * Supplies the environment that database autodetection reads. It is called lazily, at most once per loaded
@@ -136,14 +189,6 @@ export interface LoadConfigOptions {
    */
   environment?: EnvironmentProvider;
 }
-
-const memoize = <Value>(compute: () => Value): (() => Value) => {
-  let cached: { value: Value } | undefined;
-  return () => {
-    cached ??= { value: compute() };
-    return cached.value;
-  };
-};
 
 export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const cwd = resolve(options.cwd ?? process.cwd());
@@ -157,12 +202,13 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const environment = memoize(options.environment ?? (() => process.env));
   const detected = memoize(() => detectConnection(configDir, environment));
   const env = options.env ?? process.env;
-  const variant = resolveVariant(config, configDir, env);
+  const variant = resolveVariant(config, configDir, env, environment);
   const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
 
   const resolved = {
     ...config,
     variant,
+    environment,
     ...(runtime ? { runtime } : {}),
     configPath,
     configDir,
@@ -174,7 +220,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     db: {
       enumerable: true,
       configurable: true,
-      get: memoize(() => mergeDbConfig(detected().config, config.db)),
+      get: memoize(() => expandDb(mergeDbConfig(detected().config, config.db), environment)),
     },
     source: {
       enumerable: true,

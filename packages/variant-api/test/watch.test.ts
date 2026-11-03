@@ -55,7 +55,7 @@ if (process.env.DIE_AFTER) setTimeout(() => process.exit(3), Number(process.env.
 const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
 
 const watcher = (who: string, extra = ""): string =>
-  `{ kind: ${who === "be" ? "nestjs" : "vite"}, dir: ${who}, watch: "${process.execPath} ../watch.js", env: { overrides: { WHO: ${who}, ORDER_LOG: "{{worktree}}/order.log" } }${extra} }`;
+  `{ kind: ${who === "be" ? "nestjs" : "vite"}, dir: ${who}, watch: "${process.execPath} ../watch.js", env: { overrides: { WHO: ${who}, ORDER_LOG: "${worktree}/order.log" } }${extra} }`;
 
 /** `watcher`, with a process that also prints one line to stdout and one to stderr. */
 const printingWatcher = (who: string): string => watcher(who).replace("ORDER_LOG:", "PRINT: '1', ORDER_LOG:");
@@ -67,7 +67,7 @@ const BASE = lines(
   "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 3, checkoutPollSeconds: 0 }",
   "  watches:",
   `    be: ${watcher("be")}`,
-  `    fe: ${watcher("fe", ", url: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
+  `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
 );
 
 interface Project {
@@ -491,7 +491,7 @@ describe("watch readiness and opening", () => {
 
 describe("detached watch log", () => {
   const PRINTING = BASE.replace(`    be: ${watcher("be")}`, `    be: ${printingWatcher("be")}`).replace(
-    `    fe: ${watcher("fe", ", url: 'http://{{slug}}.vw.localhost:{{port}}'")}`,
+    `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
     `    fe: ${printingWatcher("fe")}`,
   );
   const logIn = (directory: string): string => join(directory, "variants.watch.log");

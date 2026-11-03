@@ -14,7 +14,7 @@ The same migration puts the schema header on top of a `variants.yaml` or `varian
 
 ## Watches are a record
 
-`variant.watches` is keyed by watch name. The key is the name in runtime state, in templates (`{{be.port}}`), in container names (`v-<key>-<slug>`) and in environment variables.
+`variant.watches` is keyed by watch name. The key is the name in runtime state, in templates (`${be.port}`), in container names (`v-<key>-<slug>`) and in environment variables.
 
 ```yaml
 variant:
@@ -33,9 +33,9 @@ The environment segment of a key is uppercase with every non-alphanumeric charac
 
 Values of `env.overrides` and `url` are rendered in two passes.
 
-1. Variant placeholders: `{{slug}}`, `{{schema}}` (the database schema or file), `{{storage}}`, `{{worktree}}`, `{{url}}`, `{{port}}` and `{{<watch>.port}}`.
-   `{{abbr}}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite watch is `http://{{slug}}.{{abbr}}.localhost:{{port}}`.
-2. Environment templates: `{{NAME}}` reads the environment and fails when it is unset, `{{NAME:-default}}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `{{JWT_SECRET:-variant-local-{{slug}}}}` works.
+1. Variant placeholders: `${slug}`, `${schema}` (the database schema or file), `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<watch>.port}`.
+   `${abbr}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}`.
+2. Environment templates: `${NAME}` reads the environment and fails when it is unset, `${NAME:-default}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `${JWT_SECRET:-variant-local-${slug}}` works.
 
 ## Environment variables
 
@@ -43,10 +43,10 @@ Every command also sees the variables below. Some are only set for commands, som
 
 | Variable | Direction | Setting or placeholder |
 | --- | --- | --- |
-| `VARIANT_SLUG` | set for commands | `{{slug}}` |
-| `VARIANT_TARGET` | set for commands | `{{schema}}`: the database schema, or the SQLite file |
+| `VARIANT_SLUG` | set for commands | `${slug}` |
+| `VARIANT_TARGET` | set for commands | `${schema}`: the database schema, or the SQLite file |
 | `VARIANT_CONFIG` | set for commands | the path of the loaded `variants.yaml` |
-| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.watches.<key>.port` |
+| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `${<key>.port}` and `runtime.watches.<key>.port` |
 | `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.watches.<key>.url` |
 | `VARIANT_<KEY>_PID` | read as an override | `runtime.watches.<key>.pid` |
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
@@ -98,7 +98,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 | Option | Meaning |
 | --- | --- |
-| `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each watch directory; `{{slug}}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
+| `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each watch directory; `${slug}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
 | `discard` | Base names of tracked files whose local changes are discarded, after the report |
 | `requireMerged` | `false` skips the merge gate (default `true`) |
 | `maxDiffLines` | The report holds the full `git diff` up to this many lines (default 200) |

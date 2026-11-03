@@ -260,7 +260,7 @@ describe("command environment", () => {
       "  database: appdb",
       "variant:",
       "  watches:",
-      "    fe: { kind: vite, dir: fe, url: 'http://{{slug}}.vw.localhost:{{port}}' }",
+      "    fe: { kind: vite, dir: fe, url: 'http://${slug}.vw.localhost:${port}' }",
       "    be: { kind: nestjs, dir: be }",
       "  steps:",
       `    - { name: dump, ${step} }`,
@@ -330,7 +330,7 @@ describe("command environment", () => {
       () =>
         dump().replace(
           "    be: { kind: nestjs, dir: be }",
-          "    be: { kind: nestjs, dir: be, up: 'env > ../up.env', env: { overrides: { POSTGRES_SCHEMA: 'mine', PORT: '{{port}}' } } }",
+          "    be: { kind: nestjs, dir: be, up: 'env > ../up.env', env: { overrides: { POSTGRES_SCHEMA: 'mine', PORT: '${port}' } } }",
         ),
       async (directory, provision) => {
         await provision();
@@ -347,7 +347,7 @@ describe("command environment", () => {
 
   it("lets the expanded step env win", () =>
     withProject(
-      () => dump([], 'run: "env > env.out", env: { POSTGRES_SCHEMA: "custom", PEER: "{{be.port}}" }'),
+      () => dump([], 'run: "env > env.out", env: { POSTGRES_SCHEMA: "custom", PEER: "${be.port}" }'),
       async (directory, provision) => {
         await provision();
         const env = parseEnv(read(directory, "env.out"));
@@ -356,6 +356,88 @@ describe("command environment", () => {
         expect(env.PEER).toBe("62061");
       },
       { "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
+    ));
+});
+
+/** Specification: openspec/specs/variant-config/core/spec.md (Interpolation in every setting) */
+describe("interpolation in commands", () => {
+  const PORTS = "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n";
+  const project = (extra: string[]) =>
+    lines(
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      "  watches:",
+      "    fe: { kind: vite, dir: fe, install: 'echo ${port} > ../install.out', up: 'echo ${be.port} > ../up.out' }",
+      "    be: { kind: nestjs, dir: be }",
+      ...extra,
+    );
+  const files = { "fe/.keep": "", "be/.keep": "", "variants.local.yaml": PORTS };
+
+  it("expands placeholders in watch install and up commands and in steps", () =>
+    withProject(
+      () => project(["  steps:", '    - { name: peer, run: "echo ${slug}-${be.port} > step.out" }']),
+      async (directory, provision) => {
+        await provision();
+
+        expect(read(directory, "install.out").trim()).toBe("62060");
+        expect(read(directory, "up.out").trim()).toBe("62061");
+        expect(read(directory, "step.out").trim()).toBe("demo-62061");
+      },
+      files,
+    ));
+
+  it("expands an environment reference with a default that holds a placeholder", () =>
+    withProject(
+      () =>
+        project([
+          "  steps:",
+          '    - { name: secret, run: "echo $SECRET > secret.out", env: { SECRET: "${JWT_SECRET_FOR_TEST:-local-${slug}}" } }',
+        ]),
+      async (directory, provision) => {
+        setEnv("JWT_SECRET_FOR_TEST", undefined);
+        await provision();
+
+        expect(read(directory, "secret.out").trim()).toBe("local-demo");
+      },
+      files,
+    ));
+
+  it("expands an environment reference in the seed command", () =>
+    withProject(
+      () => project(["  seed: 'echo ${SEED_ARG_FOR_TEST} > seed.out'"]),
+      async (directory, provision) => {
+        setEnv("SEED_ARG_FOR_TEST", "fixtures");
+        await provision();
+
+        expect(read(directory, "seed.out").trim()).toBe("fixtures");
+      },
+      files,
+    ));
+
+  it("passes $${NAME} on to the shell as ${NAME}", () =>
+    withProject(
+      () => project(["  steps:", '    - { name: shell, run: "echo $${SHELL_VAR_FOR_TEST} > shell.out" }']),
+      async (directory, provision) => {
+        setEnv("SHELL_VAR_FOR_TEST", "from-shell");
+        await provision();
+
+        expect(read(directory, "shell.out").trim()).toBe("from-shell");
+      },
+      files,
+    ));
+
+  it("fails naming the setting and the variable when a reference is set nowhere", () =>
+    withProject(
+      () => project(["  steps:", '    - { name: broken, run: "echo ${NOWHERE_FOR_TEST}" }']),
+      async (_directory, provision) => {
+        setEnv("NOWHERE_FOR_TEST", undefined);
+        const failure = await provision().catch((error: Error) => error);
+
+        expect((failure as Error).message).toContain("NOWHERE_FOR_TEST");
+        expect((failure as Error).message).toContain("variant.steps.broken.run");
+      },
+      files,
     ));
 });
 
@@ -451,7 +533,7 @@ const DOTENV_YAML = (extra: string[] = []) =>
     "      dir: be",
     "      env:",
     "        sourceFile: .env",
-    "        overrides: { PORT: '{{port}}' }",
+    "        overrides: { PORT: '${port}' }",
     ...extra,
   );
 
@@ -467,8 +549,8 @@ describe("env file copy", () => {
 
   it("keeps an existing file unchanged and says the copy was skipped", () =>
     withRepo(
-      DOTENV_YAML(["        overrides: { PORT: '{{port}}', PUBLIC_BASE_URL: 'http://demo.localhost' }"]).replace(
-        "        overrides: { PORT: '{{port}}' }\n",
+      DOTENV_YAML(["        overrides: { PORT: '${port}', PUBLIC_BASE_URL: 'http://demo.localhost' }"]).replace(
+        "        overrides: { PORT: '${port}' }\n",
         "",
       ),
       { "be/.env": "PORT=3000\n" },

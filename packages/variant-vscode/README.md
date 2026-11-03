@@ -43,7 +43,7 @@ variant:
       kind: vite
       dir: fe
       watch: npm run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://${slug}.vw.localhost:${port}
     be:
       kind: nestjs
       dir: be

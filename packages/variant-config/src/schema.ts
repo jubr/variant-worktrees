@@ -27,8 +27,8 @@ export const VariantEntrySchema = z.strictObject({
 });
 export type VariantEntry = z.infer<typeof VariantEntrySchema>;
 
-/** Template of the URL of a Vite watch. `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
-export const DEFAULT_URL = "http://{{slug}}.{{abbr}}.localhost:{{port}}";
+/** Template of the URL of a Vite watch. `${slug}`, `${abbr}` and `${port}` are placeholders. */
+export const DEFAULT_URL = "http://${slug}.${abbr}.localhost:${port}";
 
 /** A relative path that stays below its base directory: not absolute, never `..`. */
 const insideDirectory = (value: string): boolean => !isAbsolute(value) && !value.split(/[\\/]/).includes("..");
@@ -86,7 +86,7 @@ export const VariantWatchSchema = z.strictObject({
   dir: z.string().min(1).optional(),
   up: z.string().min(1).optional(),
   watch: z.string().min(1).optional(),
-  /** URL template of the watch; `{{slug}}`, `{{abbr}}` and `{{port}}` are placeholders. */
+  /** URL template of the watch; `${slug}`, `${abbr}` and `${port}` are placeholders. */
   url: z.string().min(1).optional(),
   env: WatchEnvSchema.optional(),
   /** Shell command that runs in `dir` when `dir` has no `node_modules`. */
@@ -202,7 +202,7 @@ export const VariantUiSchema = z.strictObject({
 export const VariantImplodeSchema = z.strictObject({
   /**
    * Glob patterns of paths removed before the report: matched from the project directory and from each watch
-   * directory; `{{slug}}` is replaced; tracked files stay.
+   * directory; `${slug}` is replaced; tracked files stay.
    */
   preRm: z.array(relativeDirectory).optional(),
   /** Tracked files whose local modifications are discarded. */
@@ -217,7 +217,7 @@ export const VariantRuntimeSchema = z
     main: z.string().min(1).optional(),
     /** The directory that holds the worktrees; default: the directory of a parent `AGENTS.md` symlink, else `main`. */
     root: z.string().min(1).optional(),
-    /** Short project label for hostnames and `{{abbr}}` in `open` templates. Derived from the checkout name when absent. */
+    /** Short project label for hostnames and `${abbr}` in `open` templates. Derived from the checkout name when absent. */
     abbr: z
       .string()
       .regex(ABBR_PATTERN, "must be lowercase letters and digits, optionally separated by single -")
@@ -320,8 +320,8 @@ export const VariantsConfigSchema = z
   });
 export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
 
-/** A port written literally, or as a `{{NAME}}` template that is replaced from the environment when the file is read. */
-const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\{\{[A-Za-z_][A-Za-z0-9_]*\}\})$/)]);
+/** A port written literally, or as a `${NAME}` template that is replaced from the environment when the file is read. */
+const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
 
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
 export const RuntimeDbSchema = DbConfigSchema.extend({ port: portOrTemplateSchema.optional() });
@@ -392,7 +392,10 @@ export type ResolvedVariant = Omit<
 
 export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {
   variant: ResolvedVariant;
+  /** The database settings, detected and expanded when first read; fails when a reference cannot be resolved. */
   db: DbConfig;
+  /** The environment of `${NAME}` references: from the provider given to `loadConfig`, read once on first call. */
+  environment: () => NodeJS.ProcessEnv;
   configPath: string;
   configDir: string;
   runtime?: ResolvedRuntime;

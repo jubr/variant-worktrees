@@ -95,7 +95,7 @@ describe("readRuntimes", () => {
     withRoot((root, put) => {
       put(
         "_v-demo/variants.local.yaml",
-        runtime("demo", "  db:\n    port: '{{POSTGRES_PORT}}'\n  watches:\n    be:\n      port: 62060\n"),
+        runtime("demo", "  db:\n    port: '${POSTGRES_PORT}'\n  watches:\n    be:\n      port: 62060\n"),
       );
 
       const { states } = readRuntimes({

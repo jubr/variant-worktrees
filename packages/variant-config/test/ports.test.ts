@@ -12,7 +12,7 @@ const PROJECT = [
   "    fe:",
   "      kind: vite",
   "      dir: fe",
-  "      url: http://{{slug}}.vw.localhost:{{port}}",
+  "      url: http://${slug}.vw.localhost:${port}",
   "    be:",
   "      kind: nestjs",
   "      dir: be",
@@ -196,7 +196,7 @@ describe("runtime environment overrides", () => {
 });
 
 describe("openUrlFor", () => {
-  it("replaces {{slug}} and {{port}} in the watch template", () =>
+  it("replaces ${slug} and ${port} in the watch template", () =>
     withProject(assigned, async (_directory, load) => {
       expect(await openUrlFor(load(), "add-auth", "fe")).toBe("http://add-auth.vw.localhost:62060");
     }));
@@ -227,9 +227,9 @@ describe("openUrlFor with an abbreviation", () => {
       },
     ));
 
-  it("renders {{abbr}} in an explicit template", () =>
+  it("renders ${abbr} in an explicit template", () =>
     withAbbr(
-      "variant:\n  abbr: otc\n  watches:\n    fe:\n      kind: vite\n      dir: fe\n      url: http://{{abbr}}-{{slug}}.localhost:{{port}}\n",
+      "variant:\n  abbr: otc\n  watches:\n    fe:\n      kind: vite\n      dir: fe\n      url: http://${abbr}-${slug}.localhost:${port}\n",
       async (config) => {
         expect(await openUrlFor(config, "demo", "fe")).toBe("http://otc-demo.localhost:62060");
       },

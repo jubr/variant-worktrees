@@ -25,8 +25,8 @@ variant:
       env:
         sourceFile: .env # copied from .env.example and amended with the variant's values
         overrides:
-          PORT: '{{port}}'
-          SQLITE_DATABASE: '{{schema}}'
+          PORT: '${port}'
+          SQLITE_DATABASE: '${schema}'
       ready: /api # answers 200 once the server runs
       container:
         dockerfile: be/Dockerfile # SQLITE_DATABASE and PORT are set in the image
@@ -35,11 +35,11 @@ variant:
       kind: vite
       dir: fe
       watch: bun run dev
-      url: http://{{slug}}.{{abbr}}.localhost:{{port}}
+      url: http://${slug}.${abbr}.localhost:${port}
       env:
         overrides:
-          PORT: '{{port}}'
-          VARIANT_API_PORT: '{{be.port}}'
+          PORT: '${port}'
+          VARIANT_API_PORT: '${be.port}'
       ready: /
       container:
         dockerfile: fe/Dockerfile # builds the app, serves it with nginx and proxies /api/ to the be container

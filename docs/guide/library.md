@@ -56,7 +56,7 @@ variant:
       kind: vite
       dir: fe
       watch: bun run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://${slug}.vw.localhost:${port}
     be:
       kind: nestjs
       dir: be
@@ -67,9 +67,9 @@ variant:
 ::: v-pre
 
 Use `variant.watches` for explicit Vite/NestJS directories, keyed by watch name (the key is the
-name in runtime state, templates such as `{{be.port}}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
+name in runtime state, templates such as `${be.port}` and the `VARIANT_<KEY>_PORT` / `_URL` / `_PID`
 environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `url` is a URL template
-with `{{slug}}` and `{{port}}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
+with `${slug}` and `${port}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
 copied for a variant and amended with `env.overrides`. The port is `VARIANT_<KEY>_PORT`, else `runtime.watches.<key>.port`
 from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
 port of `variant.ports.range` (default `42000-42999`). If `variant.watches` is omitted, subdirectories below the configuration file are

@@ -33,7 +33,7 @@ const preRmMatches = (context: OperationContext, worktree: string, slug: string)
   const { config } = context;
   const projectDir = variantConfigDir(config, worktree);
   const bases = [projectDir, ...Object.values(config.variant.watches).map((watch) => resolve(projectDir, watch.dir))];
-  return findRemovable(worktree, bases, config.variant.implode.preRm, slug).map(({ path }) => path);
+  return findRemovable(worktree, bases, config.variant.implode.preRm, slug, config.environment).map(({ path }) => path);
 };
 
 const underPrefix = (path: string, prefixes: readonly string[]): boolean =>

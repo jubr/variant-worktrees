@@ -37,7 +37,7 @@ describe("removeMatching", () => {
     put(worktree, "rec/demo/pr7-demo.webm");
     put(worktree, "rec/demo/notes.txt");
 
-    const removed = removeFromRoot(["rec/{{slug}}/pr*-demo.webm"]);
+    const removed = removeFromRoot(["rec/${slug}/pr*-demo.webm"]);
 
     expect(removed).toEqual(["rec/demo/pr7-demo.webm"]);
     expect(existsSync(join(worktree, "rec/demo/pr7-demo.webm"))).toBe(false);

@@ -1,5 +1,6 @@
 import { createServer } from "node:net";
 import type { PortRange, ResolvedConfig } from "./schema.js";
+import { renderTemplate } from "./template.js";
 
 /** Whether a loopback listen on `port` succeeds right now. */
 const listensOnLoopback = (port: number): Promise<boolean> =>
@@ -47,15 +48,18 @@ export const pickFreePort = async (range: PortRange, options: PickFreePortOption
 export const resolveWatchPort = async (config: ResolvedConfig, key: string): Promise<number> =>
   config.runtime?.watches?.[key]?.port ?? (await pickFreePort(config.variant.ports));
 
-/** The `url` template of the watch with the given key, `{{slug}}`, `{{abbr}}` and `{{port}}` replaced, or nothing without one. */
+/** The `url` template of the watch with the given key, `${slug}`, `${abbr}` and `${port}` replaced, or nothing without one. */
 export const openUrlFor = async (config: ResolvedConfig, slug: string, key: string): Promise<string | undefined> => {
   const template = config.variant.watches[key]?.url;
   if (template === undefined) {
     return undefined;
   }
   const port = await resolveWatchPort(config, key);
-  return template
-    .replaceAll("{{slug}}", slug)
-    .replaceAll("{{abbr}}", config.variant.abbr)
-    .replaceAll("{{port}}", String(port));
+  return renderTemplate(template, {
+    slug,
+    abbr: config.variant.abbr,
+    port,
+    env: config.environment,
+    setting: `variant.watches.${key}.url`,
+  });
 };

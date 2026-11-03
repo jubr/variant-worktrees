@@ -26,7 +26,7 @@ describe("VariantsLocalSchema", () => {
       slug: "demo",
       mode: "watch",
       dir: "/work/_v-demo",
-      db: { dialect: "postgres", schema: "v_demo", port: "{{POSTGRES_PORT}}" },
+      db: { dialect: "postgres", schema: "v_demo", port: "${POSTGRES_PORT}" },
       watches: { fe: { port: 62060, pid: 123, url: "http://demo.vw.localhost:62060/" }, be: { port: 62061 } },
     });
 
@@ -67,15 +67,15 @@ describe("readRuntime and loadConfig", () => {
       expect(loadConfig({ cwd: directory }).runtime).toBeUndefined();
     }));
 
-  it("replaces {{NAME}} from the environment and turns a numeric db.port into a number", () =>
-    withProject("runtime:\n  db:\n    port: '{{POSTGRES_PORT}}'\n    schema: v_{{SLUG_ENV}}\n", (directory) => {
+  it("replaces ${NAME} from the environment and turns a numeric db.port into a number", () =>
+    withProject("runtime:\n  db:\n    port: '${POSTGRES_PORT}'\n    schema: v_${SLUG_ENV}\n", (directory) => {
       expect(readRuntime(directory, { POSTGRES_PORT: "5433", SLUG_ENV: "demo" })).toEqual({
         db: { port: 5433, schema: "v_demo" },
       });
     }));
 
   it("leaves db.port out when the variable is unset", () =>
-    withProject("runtime:\n  db:\n    port: '{{POSTGRES_PORT}}'\n    schema: v_demo\n", (directory) => {
+    withProject("runtime:\n  db:\n    port: '${POSTGRES_PORT}'\n    schema: v_demo\n", (directory) => {
       expect(readRuntime(directory, {})).toEqual({ db: { schema: "v_demo" } });
     }));
 

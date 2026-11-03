@@ -83,7 +83,7 @@ variant:
       kind: vite
       dir: fe
       watch: bun run dev
-      url: http://{{slug}}.vw.localhost:{{port}}
+      url: http://${slug}.vw.localhost:${port}
     be:
       kind: nestjs
       dir: be
@@ -91,7 +91,7 @@ variant:
       watch: bun run start:dev
       env:
         sourceFile: .env # copied for a variant
-        overrides: { PORT: '{{port}}' }
+        overrides: { PORT: '${port}' }
 ```
 
 The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite). The
@@ -101,7 +101,7 @@ Database settings load from `mise.local.toml` first, then environment
 variables. Explicit `db` values in `variants.yaml` override autodetected
 values.
 
-Watches take an optional `url` template (`{{slug}}`, `{{abbr}}`, `{{port}}`; autodetected Vite watches get `http://{{slug}}.{{abbr}}.localhost:{{port}}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'{{POSTGRES_PORT}}'` from the environment) and `watches.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `{{port}}` is `runtime.watches.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
+Watches take an optional `url` template (`${slug}`, `${abbr}`, `${port}`; autodetected Vite watches get `http://${slug}.${abbr}.localhost:${port}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. Ephemeral state of a variant lives in `variants.local.yaml` in its worktree (git-ignored): a `runtime` section with `slug`, `mode`, `dir`, `log`, `db` (the `db` settings, port may be `'${POSTGRES_PORT}'` from the environment) and `watches.<name>.{port,pid,url}`; see [`variants.local.example.yaml`](./packages/variant-config/variants.local.example.yaml). `${port}` is `runtime.watches.<name>.port`, otherwise a random free port. `up` and `watch` write the section; `list`, `status` and `down` read it.
 
 `variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. A free port of a watch or of the UI server comes from `variant.ports.range` (default `42000-42999`; an explicit `VARIANT_<KEY>_PORT` may lie anywhere). The watch key `variant-ui` is reserved for the UI server, and so is `ui`: `VARIANT_UI_PORT` (or `variant.ui.port`) sets the server's port.
 
@@ -123,10 +123,10 @@ The `VARIANT_*` variables map to `variants.yaml` settings and template placehold
 
 | Variable | Direction | Setting or placeholder |
 | --- | --- | --- |
-| `VARIANT_SLUG` | set for commands | `{{slug}}` |
-| `VARIANT_TARGET` | set for commands | `{{schema}}`: the database schema, or the SQLite file |
+| `VARIANT_SLUG` | set for commands | `${slug}` |
+| `VARIANT_TARGET` | set for commands | `${schema}`: the database schema, or the SQLite file |
 | `VARIANT_CONFIG` | set for commands | the path of the loaded `variants.yaml` |
-| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.watches.<key>.port` |
+| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `${<key>.port}` and `runtime.watches.<key>.port` |
 | `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.watches.<key>.url` |
 | `VARIANT_<KEY>_PID` | read as an override | `runtime.watches.<key>.pid` |
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
