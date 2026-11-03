@@ -13,15 +13,17 @@ import type { VariantsView } from "./variants-view.ts";
 const showErrorMessage = spyOn(vscode.window, "showErrorMessage");
 const showInformationMessage = spyOn(vscode.window, "showInformationMessage");
 const executeCommand = spyOn(vscode.commands, "executeCommand");
-const getConfiguration = spyOn(vscode.workspace, "getConfiguration");
+// Spy the shared configuration object. Replacing `getConfiguration` hides `configuration.update` from other files.
+const getSetting = spyOn(vscode.configuration, "get");
 
 let root: string;
 
 beforeEach(() => {
   root = realpathSync(mkdtempSync(join("/tmp", "variant-flow-")));
-  for (const mocked of [showErrorMessage, showInformationMessage, executeCommand, getConfiguration]) {
+  for (const mocked of [showErrorMessage, showInformationMessage, executeCommand, getSetting]) {
     mocked.mockClear();
   }
+  getSetting.mockImplementation(() => undefined);
   showErrorMessage.mockImplementation((async () => undefined) as never);
   showInformationMessage.mockImplementation((async () => undefined) as never);
   executeCommand.mockImplementation((async () => undefined) as never);
@@ -32,10 +34,7 @@ afterEach(() => {
 });
 
 const setting = (value: unknown): void => {
-  getConfiguration.mockImplementation(((section: string) => ({
-    get: (key: string) => (section === "variant" && key === "mise.binPath" ? value : undefined),
-    update: async () => {},
-  })) as never);
+  getSetting.mockImplementation((key: string) => (key === "mise.binPath" ? value : undefined));
 };
 
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
