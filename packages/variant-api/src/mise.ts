@@ -35,13 +35,13 @@ export class MiseError extends Error {
   }
 }
 
-interface MiseRun {
+export interface MiseRun {
   directory: string;
   binary: string;
 }
 
 /** Runs `mise -C <directory> <args>` and returns its output; any failure is a `MiseError`. */
-const runMise = ({ directory, binary }: MiseRun, args: readonly string[]): string => {
+export const runMise = ({ directory, binary }: MiseRun, args: readonly string[]): string => {
   const result = spawnSync(binary, ["-C", directory, ...args], {
     encoding: "utf8",
     maxBuffer: MAX_OUTPUT,

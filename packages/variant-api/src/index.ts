@@ -90,6 +90,7 @@ export {
   readVariableSources,
   runMiseTrust,
 } from "./mise.js";
+export { type AugmentMiseOptions, type AugmentMiseResult, augmentMiseConfig, MISE_TOOL } from "./mise-augment.js";
 export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
