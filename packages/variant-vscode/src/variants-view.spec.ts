@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import * as vscode from "vscode";
 import { fakeClient, record } from "./variants-test-support.ts";
 import type { VariantNode } from "./variants-tree.ts";
@@ -13,6 +14,7 @@ const showErrorMessage = spyOn(vscode.window, "showErrorMessage");
 const showTextDocument = spyOn(vscode.window, "showTextDocument");
 const openTextDocument = spyOn(vscode.workspace, "openTextDocument");
 const openExternal = spyOn(vscode.env, "openExternal");
+const createInputBox = spyOn(vscode.window, "createInputBox");
 
 const context = (): vscode.ExtensionContext =>
   ({ subscriptions: [], extensionUri: vscode.Uri.file("/ext") }) as unknown as vscode.ExtensionContext;
@@ -58,6 +60,7 @@ beforeEach(() => {
     showTextDocument,
     openTextDocument,
     openExternal,
+    createInputBox,
   ]) {
     mocked.mockClear();
   }
@@ -88,18 +91,21 @@ describe("Variants view registration", () => {
     expect(executeCommand).toHaveBeenCalledWith("setContext", "variant.noVariants", false);
   });
 
-  it("sets the welcome context for a project without variants", async () => {
-    await open([]);
+  it("lists a down main when the library has no variants", async () => {
+    const { view } = await open([]);
 
+    expect(view.store.records().map((entry) => entry.slug)).toEqual(["main"]);
+    expect(view.store.records()[0]?.implodeClean).toBe(false);
     expect(executeCommand).toHaveBeenCalledWith("setContext", "variant.noConfig", false);
-    expect(executeCommand).toHaveBeenCalledWith("setContext", "variant.noVariants", true);
+    expect(executeCommand).toHaveBeenCalledWith("setContext", "variant.noVariants", false);
   });
 
-  it("clears the welcome context when a variant appears", async () => {
-    const { fake } = await open([]);
+  it("keeps main when another variant appears", async () => {
+    const { fake, view } = await open([]);
 
     fake.publish([down]);
 
+    expect(view.store.records().map((entry) => entry.slug)).toEqual(["main", "demo"]);
     expect(executeCommand).toHaveBeenLastCalledWith("setContext", "variant.noVariants", false);
   });
 });
@@ -151,6 +157,16 @@ describe("inline actions", () => {
 
     expect(fake.calls).toEqual([]);
     expect(entries).toEqual(['implode cancelled {"slug":"demo"}']);
+  });
+
+  it("does not implode when the muted explosion is activated", async () => {
+    const dirty = record("demo", { implodeClean: false });
+    const { command, node, fake } = await open([dirty]);
+
+    await command("variant.implodeDirty")(node("demo"));
+
+    expect(showWarningMessage).not.toHaveBeenCalled();
+    expect(fake.calls).toEqual([]);
   });
 
   it("records play in the extension log, including a line the watch reports", async () => {
@@ -303,7 +319,7 @@ describe("manifest contributions", () => {
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
     contributes: {
       commands: Array<{ command: string; title: string; icon?: string | { light: string; dark: string } }>;
-      views: Record<string, Array<{ id: string; name: string; when?: string; visibility?: string }>>;
+      views: Record<string, Array<{ id: string; name: string; type?: string; when?: string; visibility?: string }>>;
       viewsWelcome: Array<{ view: string; contents: string; when?: string }>;
       menus: Record<string, Menu[]>;
     };
@@ -329,12 +345,15 @@ describe("manifest contributions", () => {
     expect(update).toHaveBeenCalledWith("sort", "created-asc", vscode.ConfigurationTarget.Global);
   });
 
-  it("contributes the Variant Worktrees section to the Explorer, expanded, only with a folder open", () => {
+  it("contributes the Variant Worktrees section to the Explorer, collapsed, only with a folder open", () => {
     const view = views.explorer?.find((entry) => entry.id === "variant.variants");
 
     expect(view?.name).toBe("Variant Worktrees");
     expect(view?.when).toBe("workspaceFolderCount > 0 && !variant.onboardingOpen");
-    expect(view?.visibility).toBe("visible");
+    expect(view?.visibility).toBe("collapsed");
+    expect(view?.when).toContain("workspaceFolderCount > 0");
+    expect(views.explorer?.find((entry) => entry.id === "variant.variants")).not.toHaveProperty("type");
+    expect(views.explorer?.find((entry) => entry.id === "variant.onboarding")?.type).toBe("webview");
     const settings = (
       JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
         contributes: { configuration: { properties: Record<string, { default?: boolean | string }> } };
@@ -360,19 +379,58 @@ describe("manifest contributions", () => {
     const title = manifest.contributes.menus["view/title"].filter((entry) => entry.group?.startsWith("navigation"));
 
     expect(title.map((entry) => entry.submenu ?? entry.command)).toEqual([
-      "variant.sort",
+      "variant.create",
+      "variant.sort.name-asc",
+      "variant.sort.name-desc",
+      "variant.sort.created-asc",
+      "variant.sort.created-desc",
+      "variant.sort.changed-asc",
+      "variant.sort.changed-desc",
       "variant.openPanel",
       "variant.openInBrowser",
     ]);
   });
 
-  it("contributes a welcome message for no variants.yaml and one that names variant create", () => {
+  it("names the selected sort in the tooltip and checks only that item", () => {
+    const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+      contributes: {
+        commands: Array<{ command: string; title: string }>;
+        submenus: Array<{ id: string; label: string }>;
+        menus: Record<string, Array<{ command?: string; when?: string }>>;
+      };
+    };
+    const selected = manifest.contributes.submenus.find((entry) => entry.id === "variant.sort.created-desc");
+    const shown = manifest.contributes.menus["view/title"]?.find((entry) =>
+      entry.when?.includes("variant.currentSort == 'created-desc'"),
+    );
+    const items = manifest.contributes.menus["variant.sort.name-asc"]?.map((entry) => entry.command);
+    const titleOf = (id: string): string | undefined =>
+      manifest.contributes.commands.find((entry) => entry.command === id)?.title;
+
+    expect(selected?.label).toBe("Sort: Created (new→old)");
+    expect(shown?.when).toContain("variant.currentSort == 'created-desc'");
+    expect(items).toEqual([
+      "variant.sort.nameAscChecked",
+      "variant.sort.nameDesc",
+      "variant.sort.createdAsc",
+      "variant.sort.createdDesc",
+      "variant.sort.changedAsc",
+      "variant.sort.changedDesc",
+    ]);
+    expect(titleOf("variant.sort.nameAscChecked")).toBe("$(check) Name (A→Z)");
+    expect(titleOf("variant.sort.nameDesc")).toBe("Name (Z→A)");
+    expect(titleOf("variant.sort.createdAsc")).toBe("Created (old→new)");
+    expect(titleOf("variant.sort.createdDesc")).toBe("Created (new→old)");
+    expect(titleOf("variant.sort.changedAsc")).toBe("Changed (old→new)");
+    expect(titleOf("variant.sort.changedDesc")).toBe("Changed (new→old)");
+  });
+
+  it("contributes a not-initialized welcome with Onboard", () => {
     const noConfig = viewsWelcome.find((entry) => entry.when === "variant.noConfig");
-    const noVariants = viewsWelcome.find((entry) => entry.when === "variant.noVariants");
 
     expect(noConfig?.view).toBe("variant.variants");
-    expect(noConfig?.contents).toContain("variants.yaml");
-    expect(noVariants?.contents).toContain("variant create");
+    expect(noConfig?.contents).toContain("not initialized");
+    expect(noConfig?.contents).toContain("[Onboard](command:variant.onboardingInit)");
   });
 
   it("contributes every command the menus and the view use", () => {
@@ -388,21 +446,22 @@ describe("manifest contributions", () => {
       "variant.openPanel",
       "variant.openInBrowser",
       "variant.stopUiServer",
+      "variant.create",
     ]) {
       expect(ids).toContain(id);
     }
   });
 
-  it("offers play on down and up items, stop on watching and up items", () => {
+  it("offers play on down items only, and stop on watching and up items", () => {
     expect(matches(inline("variant.play")?.when, "variant down removable")).toBe(true);
-    expect(matches(inline("variant.play")?.when, "variant up removable")).toBe(true);
+    expect(matches(inline("variant.play")?.when, "variant up removable")).toBe(false);
     expect(matches(inline("variant.play")?.when, "variant watching removable")).toBe(false);
     expect(matches(inline("variant.stop")?.when, "variant watching removable")).toBe(true);
     expect(matches(inline("variant.stop")?.when, "variant up removable")).toBe(true);
     expect(matches(inline("variant.stop")?.when, "variant down removable")).toBe(false);
   });
 
-  it("offers implode on every item except main, foreground when clean and red when dirty", () => {
+  it("offers implode on every item except main, and a muted explosion when dirty", () => {
     expect(matches(inline("variant.implode")?.when, "variant down removable clean")).toBe(true);
     expect(matches(inline("variant.implode")?.when, "variant watching removable clean")).toBe(true);
     expect(matches(inline("variant.implode")?.when, "variant down removable dirty")).toBe(false);
@@ -414,27 +473,15 @@ describe("manifest contributions", () => {
     const clean = commands.find((entry) => entry.command === "variant.implode");
     const dirty = commands.find((entry) => entry.command === "variant.implodeDirty");
     expect(clean?.title).toBe("Implode (would succeed)");
-    expect(clean?.icon).toBe("$(trash)");
+    expect(clean?.icon).toEqual({ light: "media/explode-light.svg", dark: "media/explode-dark.svg" });
     expect(dirty?.title).toBe("Implode (would fail)");
     expect(dirty?.icon).toEqual({
-      light: "media/trash-dirty-light.svg",
-      dark: "media/trash-dirty-dark.svg",
+      light: "media/explode-muted-light.svg",
+      dark: "media/explode-muted-dark.svg",
     });
-    const fill = (file: string): string =>
-      /fill="(#[0-9a-fA-F]{6})"/.exec(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"))?.[1] ?? "";
-    const luminance = (hex: string): number => {
-      const [r, g, b] = [1, 3, 5].map((at) => {
-        const channel = Number.parseInt(hex.slice(at, at + 2), 16) / 255;
-        return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-      }) as [number, number, number];
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    };
-    const contrast = (a: string, b: string): number => {
-      const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
-      return (lighter + 0.05) / (darker + 0.05);
-    };
-    expect(contrast(fill("media/trash-dirty-light.svg"), "#ffffff")).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(fill("media/trash-dirty-dark.svg"), "#1e1e1e")).toBeGreaterThanOrEqual(4.5);
+    for (const file of ["media/explode-muted-light.svg", "media/explode-muted-dark.svg"]) {
+      expect(readFileSync(new URL(`../${file}`, import.meta.url), "utf8")).toContain('opacity="0.4"');
+    }
   });
 
   it("offers no inline action while an action runs, or on the error item", () => {
@@ -476,5 +523,190 @@ describe("manifest contributions", () => {
         "variant.stopUiServer",
       ]),
     );
+  });
+});
+
+const project = () => {
+  const directory = mkdtempSync(join("/tmp", "variant-view-"));
+  return {
+    directory,
+    put: (path: string, content = ""): void => {
+      mkdirSync(dirname(join(directory, path)), { recursive: true });
+      writeFileSync(join(directory, path), content);
+    },
+    remove: (): void => {
+      rmSync(directory, { recursive: true, force: true });
+    },
+  };
+};
+
+const focused = (): boolean => executeCommand.mock.calls.some((call) => call[0] === "variant.variants.focus");
+
+const settle = (): Promise<void> => Promise.resolve();
+
+describe("section startup", () => {
+  it("expands an active project and does not read the environment", async () => {
+    const folder = project();
+    folder.put("variants.yaml", "variant: {}\n");
+    let reads = 0;
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => true,
+        loadClient: async () => fakeClient([]).client,
+        environment: () => {
+          reads += 1;
+          return {};
+        },
+      });
+      await settle();
+
+      expect(focused()).toBe(true);
+      expect(executeCommand).toHaveBeenCalledWith("workbench.action.focusActiveEditorGroup");
+      expect(reads).toBe(0);
+    } finally {
+      folder.remove();
+    }
+  });
+
+  it("expands again when a config file is found and the section starts collapsed", async () => {
+    const folder = project();
+    folder.put("variants.yaml", "variant: {}\n");
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => true,
+        loadClient: async () => fakeClient([]).client,
+        environment: () => ({}),
+      });
+      await settle();
+
+      expect(executeCommand.mock.calls.map((call) => call[0])).toEqual(
+        expect.arrayContaining(["variant.variants.focus", "workbench.action.focusActiveEditorGroup"]),
+      );
+    } finally {
+      folder.remove();
+    }
+  });
+
+  it("leaves the section when auto-expand is off", async () => {
+    const folder = project();
+    folder.put("variants.yaml", "variant: {}\n");
+    const get = spyOn(vscode.configuration, "get");
+    get.mockImplementation((key: string) => (key === "autoExpand" ? false : undefined));
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => true,
+        loadClient: async () => fakeClient([]).client,
+        environment: () => ({}),
+      });
+      await settle();
+
+      expect(focused()).toBe(false);
+    } finally {
+      get.mockRestore();
+      folder.remove();
+    }
+  });
+
+  it("expands a detected project and reads the environment once", async () => {
+    const folder = project();
+    folder.put("fe/vite.config.ts", "export default {};\n");
+    let reads = 0;
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => false,
+        loadClient: async () => fakeClient([]).client,
+        environment: () => {
+          reads += 1;
+          return { POSTGRES_HOST: "h" };
+        },
+      });
+      await settle();
+
+      expect(focused()).toBe(true);
+      expect(reads).toBe(1);
+    } finally {
+      folder.remove();
+    }
+  });
+
+  it("does not expand when adoption is none, and still reads the environment", async () => {
+    const folder = project();
+    folder.put("fe/vite.config.ts", "export default {};\n");
+    let reads = 0;
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => false,
+        loadClient: async () => fakeClient([]).client,
+        environment: () => {
+          reads += 1;
+          throw new Error("mise failed");
+        },
+      });
+      await settle();
+
+      expect(focused()).toBe(false);
+      expect(reads).toBe(1);
+    } finally {
+      folder.remove();
+    }
+  });
+});
+
+interface InputBox {
+  title: string;
+  value: string;
+  validationMessage?: string;
+  accept: () => Promise<void>;
+  dismiss: () => void;
+}
+
+describe("Create variant", () => {
+  it("opens an input titled Create variant", async () => {
+    const { command } = await open();
+
+    await command("variant.create")();
+
+    const box = createInputBox.mock.results[0]?.value as InputBox;
+    expect(box.title).toBe("Create variant");
+  });
+
+  it("creates the slug and lists it", async () => {
+    const { command, fake, view } = await open([]);
+
+    await command("variant.create")();
+    const box = createInputBox.mock.results[0]?.value as InputBox;
+    box.value = "demo";
+    await box.accept();
+
+    expect(fake.calls).toEqual([{ name: "create", slug: "demo" }]);
+    expect(view.store.records().map((entry) => entry.slug)).toEqual(["main", "demo"]);
+  });
+
+  it("rejects an empty value", async () => {
+    const { command, fake } = await open([]);
+
+    await command("variant.create")();
+    const box = createInputBox.mock.results[0]?.value as InputBox;
+    box.value = "  ";
+    await box.accept();
+
+    expect(box.validationMessage).toBe("Enter a slug");
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("does not create when the input is dismissed", async () => {
+    const { command, fake, view } = await open([down]);
+
+    await command("variant.create")();
+    const box = createInputBox.mock.results[0]?.value as InputBox;
+    box.dismiss();
+
+    expect(fake.calls).toEqual([]);
+    expect(view.store.records().map((entry) => entry.slug)).toEqual(["main", "demo"]);
   });
 });

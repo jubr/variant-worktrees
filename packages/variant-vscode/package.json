@@ -75,14 +75,17 @@
       {
         "command": "variant.implode",
         "title": "Implode (would succeed)",
-        "icon": "$(trash)"
+        "icon": {
+          "light": "media/explode-light.svg",
+          "dark": "media/explode-dark.svg"
+        }
       },
       {
         "command": "variant.implodeDirty",
         "title": "Implode (would fail)",
         "icon": {
-          "light": "media/trash-dirty-light.svg",
-          "dark": "media/trash-dirty-dark.svg"
+          "light": "media/explode-muted-light.svg",
+          "dark": "media/explode-muted-dark.svg"
         }
       },
       {
@@ -109,34 +112,88 @@
         "icon": "$(debug-stop)"
       },
       {
+        "command": "variant.create",
+        "title": "Create variant",
+        "icon": "$(add)"
+      },
+      {
         "command": "variant.sort.nameAsc",
-        "title": "Name (A-Z)"
+        "title": "Name (A→Z)"
+      },
+      {
+        "command": "variant.sort.nameAscChecked",
+        "title": "$(check) Name (A→Z)"
       },
       {
         "command": "variant.sort.nameDesc",
-        "title": "Name (Z-A)"
+        "title": "Name (Z→A)"
+      },
+      {
+        "command": "variant.sort.nameDescChecked",
+        "title": "$(check) Name (Z→A)"
       },
       {
         "command": "variant.sort.createdAsc",
-        "title": "Created (oldest)"
+        "title": "Created (old→new)"
+      },
+      {
+        "command": "variant.sort.createdAscChecked",
+        "title": "$(check) Created (old→new)"
       },
       {
         "command": "variant.sort.createdDesc",
-        "title": "Created (newest)"
+        "title": "Created (new→old)"
+      },
+      {
+        "command": "variant.sort.createdDescChecked",
+        "title": "$(check) Created (new→old)"
       },
       {
         "command": "variant.sort.changedAsc",
-        "title": "Changed (oldest)"
+        "title": "Changed (old→new)"
+      },
+      {
+        "command": "variant.sort.changedAscChecked",
+        "title": "$(check) Changed (old→new)"
       },
       {
         "command": "variant.sort.changedDesc",
-        "title": "Changed (newest)"
+        "title": "Changed (new→old)"
+      },
+      {
+        "command": "variant.sort.changedDescChecked",
+        "title": "$(check) Changed (new→old)"
       }
     ],
     "submenus": [
       {
-        "id": "variant.sort",
-        "label": "Sort",
+        "id": "variant.sort.name-asc",
+        "label": "Sort: Name (A→Z)",
+        "icon": "$(list-filter)"
+      },
+      {
+        "id": "variant.sort.name-desc",
+        "label": "Sort: Name (Z→A)",
+        "icon": "$(list-filter)"
+      },
+      {
+        "id": "variant.sort.created-asc",
+        "label": "Sort: Created (old→new)",
+        "icon": "$(list-filter)"
+      },
+      {
+        "id": "variant.sort.created-desc",
+        "label": "Sort: Created (new→old)",
+        "icon": "$(list-filter)"
+      },
+      {
+        "id": "variant.sort.changed-asc",
+        "label": "Sort: Changed (old→new)",
+        "icon": "$(list-filter)"
+      },
+      {
+        "id": "variant.sort.changed-desc",
+        "label": "Sort: Changed (new→old)",
         "icon": "$(list-filter)"
       }
     ],
@@ -146,7 +203,7 @@
         "variant.autoExpand": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Expand the Variant Worktrees section in the Explorer when the editor starts, then return focus to the editor. `false` leaves the section as it was last collapsed. Default `true`."
+          "markdownDescription": "Expand the Variant Worktrees section when the editor starts and the workspace already uses variants or looks ready for them, then return focus to the editor. `false` leaves the section as it was. A workspace with nothing to detect is not expanded. Default `true`."
         },
         "variant.sort": {
           "type": "string",
@@ -159,7 +216,7 @@
             "changed-desc"
           ],
           "default": "name-asc",
-          "markdownDescription": "Order of the Variant Worktrees section and the Variants panel. `name` is the slug. `created` is the earlier birth time of the variant directory and `variants.local.yaml`. `changed` is the later modification time of those two. A missing time sorts as older than every known time. Default `name-asc`."
+          "markdownDescription": "Order of the Variant Worktrees section and the Variants panel. `name` is the slug. `created` is `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`) read as local time, or the directory creation time when that stamp is missing. `changed` is the later modification time of the variant directory and `variants.local.yaml`. A missing time sorts as older than every known time. `main` stays first. Default `name-asc`."
         },
         "variant.enable": {
           "type": "boolean",
@@ -237,7 +294,7 @@
           "id": "variant.variants",
           "name": "Variant Worktrees",
           "when": "workspaceFolderCount > 0 && !variant.onboardingOpen",
-          "visibility": "visible"
+          "visibility": "collapsed"
         },
         {
           "id": "variant.onboarding",
@@ -251,7 +308,7 @@
     "viewsWelcome": [
       {
         "view": "variant.variants",
-        "contents": "No variants.yaml was found for this workspace. Add one to start using variants.",
+        "contents": "Variants are not initialized in this workspace.\n[Onboard](command:variant.onboardingInit)",
         "when": "variant.noConfig"
       },
       {
@@ -301,29 +358,87 @@
         {
           "command": "variant.onboardingInit",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "variant.create",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "variant.sort.nameAscChecked",
+          "when": "false"
+        },
+        {
+          "command": "variant.sort.nameDescChecked",
+          "when": "false"
+        },
+        {
+          "command": "variant.sort.createdAscChecked",
+          "when": "false"
+        },
+        {
+          "command": "variant.sort.createdDescChecked",
+          "when": "false"
+        },
+        {
+          "command": "variant.sort.changedAscChecked",
+          "when": "false"
+        },
+        {
+          "command": "variant.sort.changedDescChecked",
+          "when": "false"
         }
       ],
       "view/title": [
         {
-          "submenu": "variant.sort",
+          "command": "variant.create",
           "when": "view == variant.variants",
           "group": "navigation@0"
         },
         {
+          "submenu": "variant.sort.name-asc",
+          "when": "view == variant.variants && variant.currentSort == 'name-asc'",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "variant.sort.name-desc",
+          "when": "view == variant.variants && variant.currentSort == 'name-desc'",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "variant.sort.created-asc",
+          "when": "view == variant.variants && variant.currentSort == 'created-asc'",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "variant.sort.created-desc",
+          "when": "view == variant.variants && variant.currentSort == 'created-desc'",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "variant.sort.changed-asc",
+          "when": "view == variant.variants && variant.currentSort == 'changed-asc'",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "variant.sort.changed-desc",
+          "when": "view == variant.variants && variant.currentSort == 'changed-desc'",
+          "group": "navigation@1"
+        },
+        {
           "command": "variant.openPanel",
           "when": "view == variant.variants",
-          "group": "navigation@1"
+          "group": "navigation@2"
         },
         {
           "command": "variant.openInBrowser",
           "when": "view == variant.variants",
-          "group": "navigation@2"
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
         {
           "command": "variant.play",
-          "when": "view == variant.variants && viewItem =~ /^variant (down|up)( |$)/",
+          "when": "view == variant.variants && viewItem =~ /^variant down( |$)/",
           "group": "inline@1"
         },
         {
@@ -372,31 +487,53 @@
           "group": "inline@2"
         }
       ],
-      "variant.sort": [
-        {
-          "command": "variant.sort.nameAsc",
-          "group": "1_sort@1"
-        },
-        {
-          "command": "variant.sort.nameDesc",
-          "group": "1_sort@2"
-        },
-        {
-          "command": "variant.sort.createdAsc",
-          "group": "1_sort@3"
-        },
-        {
-          "command": "variant.sort.createdDesc",
-          "group": "1_sort@4"
-        },
-        {
-          "command": "variant.sort.changedAsc",
-          "group": "1_sort@5"
-        },
-        {
-          "command": "variant.sort.changedDesc",
-          "group": "1_sort@6"
-        }
+      "variant.sort.name-asc": [
+        { "command": "variant.sort.nameAscChecked", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+      ],
+      "variant.sort.name-desc": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDescChecked", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+      ],
+      "variant.sort.created-asc": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAscChecked", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+      ],
+      "variant.sort.created-desc": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDescChecked", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+      ],
+      "variant.sort.changed-asc": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAscChecked", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDesc", "group": "1_sort@6" }
+      ],
+      "variant.sort.changed-desc": [
+        { "command": "variant.sort.nameAsc", "group": "1_sort@1" },
+        { "command": "variant.sort.nameDesc", "group": "1_sort@2" },
+        { "command": "variant.sort.createdAsc", "group": "1_sort@3" },
+        { "command": "variant.sort.createdDesc", "group": "1_sort@4" },
+        { "command": "variant.sort.changedAsc", "group": "1_sort@5" },
+        { "command": "variant.sort.changedDescChecked", "group": "1_sort@6" }
       ]
     }
   }

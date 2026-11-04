@@ -253,7 +253,7 @@ describe("the views when the migration fails", () => {
     });
     await view.store.start();
 
-    expect(view.store.records().map((entry) => entry.slug)).toEqual(["demo"]);
+    expect(view.store.records().map((entry) => entry.slug)).toEqual(["main", "demo"]);
   });
 
   it("run the migration once at registration", async () => {

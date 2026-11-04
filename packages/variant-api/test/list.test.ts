@@ -148,6 +148,13 @@ describe("list with runtime facts", () => {
       expect(record?.changedMs).toBeGreaterThan(statSync(variantDir).mtimeMs);
     }));
 
+  it("does not invent a main record when the library has none", () =>
+    withProject(async (_directory, put, list) => {
+      put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
+
+      expect((await list()).map((variant) => variant.slug)).toEqual(["demo"]);
+    }));
+
   it("uses the directory creation time when createdAt is missing", () =>
     withProject(async (directory, put, list) => {
       const variantDir = join(directory, "_v-demo");

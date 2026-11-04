@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { findConfigFile } from "variant-config";
+import { findConfigFile, getVariantsAdoption } from "variant-config";
 import { type VariantSort, variantSort } from "variant-ui/state";
 import * as vscode from "vscode";
 import { createConfigMigration } from "./config-migration.ts";
@@ -13,14 +13,21 @@ import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
 
 export const VIEW_ID = "variant.variants";
 
-const SORT_COMMANDS: Record<string, VariantSort> = {
-  "variant.sort.nameAsc": "name-asc",
-  "variant.sort.nameDesc": "name-desc",
-  "variant.sort.createdAsc": "created-asc",
-  "variant.sort.createdDesc": "created-desc",
-  "variant.sort.changedAsc": "changed-asc",
-  "variant.sort.changedDesc": "changed-desc",
-};
+const SORT_VALUES = [
+  ["nameAsc", "name-asc"],
+  ["nameDesc", "name-desc"],
+  ["createdAsc", "created-asc"],
+  ["createdDesc", "created-desc"],
+  ["changedAsc", "changed-asc"],
+  ["changedDesc", "changed-desc"],
+] as const satisfies ReadonlyArray<readonly [string, VariantSort]>;
+
+const SORT_COMMANDS: Record<string, VariantSort> = Object.fromEntries(
+  SORT_VALUES.flatMap(([name, value]) => [
+    [`variant.sort.${name}`, value],
+    [`variant.sort.${name}Checked`, value],
+  ]),
+);
 
 const readSort = (): VariantSort => variantSort(vscode.workspace.getConfiguration("variant").get("sort"));
 
@@ -41,6 +48,8 @@ export interface ViewDeps {
   readIndex?: (directory: string) => string;
   /** Rewrites a configuration that uses names of an earlier version and tells the user; see `createConfigMigration`. */
   migrate?: () => void;
+  /** Environment for adoption. Tests pass one that counts reads. Absent: the process environment. */
+  environment?: () => NodeJS.ProcessEnv;
 }
 
 export interface VariantsView {
@@ -154,7 +163,28 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
         : attempt("stop", () => store.run(slug, () => actions.down(slug)), { slug });
     }),
     register("variant.implode", implode),
-    register("variant.implodeDirty", implode),
+    register("variant.implodeDirty", () => Promise.resolve()),
+    register("variant.create", async () => {
+      const box = vscode.window.createInputBox();
+      box.title = "Create variant";
+      box.placeholder = "Slug";
+      box.onDidAccept(async () => {
+        const slug = box.value.trim();
+        if (slug.length === 0) {
+          box.validationMessage = "Enter a slug";
+          return;
+        }
+        box.hide();
+        await attempt("create", async () => {
+          await (await loadClient()).create(slug);
+          await store.restart();
+        });
+      });
+      box.onDidHide(() => {
+        box.dispose();
+      });
+      box.show();
+    }),
     register("variant.showOutput", (node) => {
       const slug = slugOf(node);
       return slug === undefined ? Promise.resolve() : attempt("show output", () => actions.showOutput(slug), { slug });
@@ -177,15 +207,18 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("variant.sort")) {
+        void vscode.commands.executeCommand("setContext", "variant.currentSort", readSort());
         provider.refresh();
       }
     }),
     { dispose: () => panel.dispose() },
   );
 
-  // The host remembers a collapsed section. Expand it unless the setting opts out, then leave the editor focused.
+  void vscode.commands.executeCommand("setContext", "variant.currentSort", readSort());
+  // The contribution starts collapsed. Expand only for active or detected adoption, then leave the editor focused.
+  const adoption = deps.environment ? getVariantsAdoption(deps.root, deps.environment) : getVariantsAdoption(deps.root);
   void expandVariantsView(
-    autoExpandEnabled(vscode.workspace.getConfiguration("variant").get("autoExpand")),
+    adoption.status !== "none" && autoExpandEnabled(vscode.workspace.getConfiguration("variant").get("autoExpand")),
     (command) => Promise.resolve(vscode.commands.executeCommand(command)),
   );
   try {
