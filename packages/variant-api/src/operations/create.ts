@@ -36,10 +36,7 @@ export const createVariant = async (context: OperationContext, requestedSlug?: s
         )
       : undefined;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
-
-  if (slug !== "main") {
-    await context.adapter.create(slug);
-  }
+  // AIDEV-NOTE: the schema or database file appears at provision, which watch and up imply. create only records the target.
   const state = existing ?? {
     slug,
     target,

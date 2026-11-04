@@ -24,5 +24,5 @@ export const provisionVariant = async (
         )
       : (locateWorktree(context, slug) ?? checkoutRoot(repositoryDirectory(context)));
   const run = await prepareRun(context, slug, worktree);
-  return { slug, ...runProvisioning(context, run, options) };
+  return { slug, ...(await runProvisioning(context, run, options)) };
 };

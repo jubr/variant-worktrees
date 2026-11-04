@@ -88,11 +88,11 @@ const prepareEnvFile = (config: ResolvedConfig, run: VariantRun, key: string, wa
  * dependency installs, env file copies, the `up` commands, the steps of `variant.steps` and the seed command. The first
  * failure stops the pipeline and names the command.
  */
-export const runProvisioning = (
+export const runProvisioning = async (
   context: OperationContext,
   run: VariantRun,
   options: ProvisionOptions = {},
-): ProvisionResult => {
+): Promise<ProvisionResult> => {
   const { config } = context;
   const commands: string[] = [];
   let output = "";
@@ -147,6 +147,14 @@ export const runProvisioning = (
   for (const [name, step] of Object.entries(config.variant.steps)) {
     // AIDEV-NOTE: ${builtin.step.<name>} is the builtin implementation, not a shell command.
     if (/^\$\{builtin\.step\.[A-Za-z0-9_-]+\}$/.test(step.cmd)) {
+      const skipVariable = `VARIANT_STEP_${envSegment(name)}`;
+      if (process.env[skipVariable] === "no") {
+        output += `Skipping step ${name}: ${skipVariable}=no\n`;
+        continue;
+      }
+      if (name === "provision" && run.slug !== "main") {
+        await context.adapter.create(run.slug);
+      }
       continue;
     }
     const skipVariable = `VARIANT_STEP_${envSegment(name)}`;

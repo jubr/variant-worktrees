@@ -264,6 +264,7 @@ describe("command environment", () => {
       "    fe: { kind: vite, dir: fe, url: 'http://${slug}.vw.localhost:${port}' }",
       "    be: { kind: nestjs, dir: be }",
       "  steps:",
+      '    provision: { cmd: "true" }',
       `    dump: { ${step} }`,
       ...extra,
     );

@@ -12,7 +12,7 @@ export interface PreparedVariant {
 
 /**
  * What `up` and `watch` do before they start watches: stop what the other mode (or an earlier run) left behind,
- * ensure the worktree, prepare the database target (`up` recreates it clean, `watch` keeps it; `main` is never touched),
+ * ensure the worktree, prepare the database target (the builtin provision step creates it; `main` is never touched),
  * assign the ports and provision. Stopping keeps the recorded runtime, so recorded ports are reused.
  */
 export const prepareVariant = async (
@@ -33,12 +33,9 @@ export const prepareVariant = async (
   if (slug === "main") {
     worktree = earlier ?? repositoryDirectory(context);
   } else {
-    if (mode === "up") {
-      await context.adapter.destroy(slug);
-    }
     worktree = (await createVariant(context, slug)).worktree ?? checkoutRoot(repositoryDirectory(context));
   }
 
   const run = await prepareRun(context, slug, worktree);
-  return { run, provisioned: runProvisioning(context, run, options) };
+  return { run, provisioned: await runProvisioning(context, run, options) };
 };
