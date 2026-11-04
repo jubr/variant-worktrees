@@ -2,7 +2,7 @@
 
 ### Requirement: Implode report
 
-The system SHALL return and print, before removing the worktree and before discarding lockfile changes, a report of what the worktree still holds. The same report string SHALL be the value returned on the result and the text printed for it.
+The system SHALL return and print, before removing the worktree and before discarding lockfile changes, a report of what the worktree still holds. The same report string SHALL be the value returned on the result and the text printed for it. The text summary printed after the command returns SHALL NOT repeat that report.
 
 The report SHALL list the git commands that show that dirt, in this order, skipping a command whose output is empty: `git status --porcelain`, `git diff --stat`, then one `git diff -U1 <path>` for each path that `git diff --name-only` lists, in that order. `<path>` SHALL be the path that listing prints, relative to the worktree. Each kept command SHALL be the string `\n\033[33m+ <command>\033[0m\n` (dark yellow `\033[33m` around `+ <command>`, then `\033[0m`) followed by that command's output. The output SHALL be plain git text: git color SHALL be off, and the output SHALL contain no ANSI sequence. The trace SHALL be the only colored part of the report.
 
