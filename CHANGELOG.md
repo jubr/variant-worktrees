@@ -34,6 +34,10 @@
   `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. `main` stays pinned
   first. Down is a hollow dot, watching a filled green dot, and up a different shape. The implode control is an
   explosion, muted when implode would fail. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
+- **Breaking:** the implode report is a dark-yellow `+ <command>` trace around plain `git status --porcelain`,
+  `git diff --stat`, and one filtered `git diff -U1` per file. `maxDiffLines` counts those kept patch lines.
+  Over the limit the patches are omitted and the status and the stat stay. The text summary after the command
+  returns does not repeat the report.
 - **Breaking:** `instances` is now `watches` everywhere: `variant.watches`, `runtime.watches`, the fields of records,
   status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `${key.port}` and
   container names are unchanged. See the migration above.

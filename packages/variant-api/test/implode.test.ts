@@ -22,6 +22,8 @@ const git = (cwd: string, ...args: string[]): string =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
 const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
+/** Dark-yellow `+ <command>` the implode report wraps around plain git output. */
+const yellowTrace = (command: string): string => `\n\x1b[33m+ ${command}\x1b[0m\n`;
 
 const CONFIG = lines(
   "db:",
@@ -288,7 +290,7 @@ describe("implode cleanup", () => {
 
       const report = messages.join("\n");
       expect(report).not.toContain("pr7-demo.webm");
-      expect(report).toContain("modified:   rec/demo/pr2-demo.webm");
+      expect(report).toContain(" M rec/demo/pr2-demo.webm");
     }, `${CONFIG}  implode: { preRm: ['rec/\${slug}/pr*-demo.webm'] }\n`));
 
   it("discards modified lockfiles after the report and leaves other modified files", () =>
@@ -298,7 +300,7 @@ describe("implode cleanup", () => {
 
       await expect(implode()).rejects.toThrow(/modified or untracked files/);
 
-      expect(messages.join("\n")).toContain("modified:   bun.lock");
+      expect(messages.join("\n")).toContain(" M bun.lock");
       expect(readFileSync(join(worktree, "bun.lock"), "utf8")).toBe("lock v1\n");
       expect(readFileSync(join(worktree, "src/a.ts"), "utf8")).toBe("export const a = 99;\n");
     }, `${CONFIG}  implode: { discard: [bun.lock] }\n`));
@@ -320,32 +322,97 @@ describe("implode cleanup", () => {
 });
 
 describe("implode report", () => {
-  const edit = (worktree: string, count: number): void =>
-    writeFileSync(
-      join(worktree, "src/a.ts"),
-      Array.from({ length: count }, (_, line) => `export const v${line} = ${line};`).join("\n"),
-    );
-
-  it("contains status, stat and the full diff when it is short", () =>
+  it("traces a one-line edit with porcelain status, a stat and a patch that starts at +++", () =>
     withProject(async ({ implode, worktree, messages }) => {
-      edit(worktree, 5);
+      git(worktree, "config", "color.ui", "always");
+      writeFileSync(join(worktree, "src/a.ts"), "export const a = 2;\n");
 
       const result = await implode({ force: true });
+      const report = result.report as string;
+      const status = yellowTrace("git status --porcelain");
+      const stat = yellowTrace("git diff --stat");
+      const diff = yellowTrace("git diff -U1 src/a.ts");
+      const statusAt = report.indexOf(status);
+      const statAt = report.indexOf(stat);
+      const diffAt = report.indexOf(diff);
 
-      expect(result.report).toContain("modified:   src/a.ts");
-      expect(result.report).toContain("1 file changed");
-      expect(result.report).toContain("diff --git");
-      expect(messages).toContain(result.report as string);
+      expect(statusAt).toBe(0);
+      expect(statAt).toBeGreaterThan(statusAt);
+      expect(diffAt).toBeGreaterThan(statAt);
+      expect(report.slice(statusAt + status.length, statAt)).toContain(" M src/a.ts");
+      expect(report.slice(statAt + stat.length, diffAt)).toContain("1 file changed");
+      const patch = report.slice(diffAt + diff.length);
+      const [first] = patch.split("\n");
+      expect(first).toContain("+++");
+      expect(first).toContain("src/a.ts");
+      expect(patch).toContain("@@");
+      expect(patch).not.toContain("\x1b");
+      expect(report).not.toContain("diff --git");
+      expect(report.split("\n").some((line) => /^index [0-9a-f]+\.\.[0-9a-f]+ /.test(line))).toBe(false);
+      expect(report.split("\n").some((line) => line.startsWith("--- "))).toBe(false);
+      expect(messages).toContain(report);
     }));
 
-  it("leaves out the full diff when it exceeds maxDiffLines", () =>
+  it("traces src/a.ts before src/b.ts and drops both files' headers", () =>
+    withProject(async ({ implode, worktree, commit }) => {
+      commit("src/b.ts", "export const b = 1;\n");
+      writeFileSync(join(worktree, "src/a.ts"), "export const a = 2;\n");
+      writeFileSync(join(worktree, "src/b.ts"), "export const b = 2;\n");
+
+      const report = (await implode({ force: true })).report as string;
+      const first = report.indexOf("+ git diff -U1 src/a.ts");
+      const second = report.indexOf("+ git diff -U1 src/b.ts");
+
+      expect(first).toBeGreaterThanOrEqual(0);
+      expect(second).toBeGreaterThan(first);
+      const pluses = report.split("\n").filter((line) => line.startsWith("+++"));
+      expect(pluses[0]).toContain("src/a.ts");
+      expect(pluses[1]).toContain("src/b.ts");
+      expect(report).not.toContain("diff --git");
+      expect(report.split("\n").some((line) => /^index [0-9a-f]+\.\.[0-9a-f]+ /.test(line))).toBe(false);
+      expect(report.split("\n").some((line) => line.startsWith("--- "))).toBe(false);
+    }));
+
+  it("keeps porcelain status and the stat and drops every patch when maxDiffLines is 0", () =>
     withProject(async ({ implode, worktree }) => {
-      edit(worktree, 500);
+      writeFileSync(join(worktree, "src/a.ts"), "export const a = 2;\n");
 
-      const result = await implode({ force: true });
+      const report = (await implode({ force: true })).report as string;
 
-      expect(result.report).toContain("modified:   src/a.ts");
-      expect(result.report).toContain("1 file changed");
-      expect(result.report).not.toContain("diff --git");
-    }, `${CONFIG}  implode: { maxDiffLines: 200 }\n`));
+      expect(report).toContain("+ git status --porcelain");
+      expect(report).toContain("+ git diff --stat");
+      expect(report).toContain(" M src/a.ts");
+      expect(report).not.toContain("git diff -U1");
+    }, `${CONFIG}  implode: { maxDiffLines: 0 }\n`));
+
+  it("lists an untracked file in porcelain and does not diff it", () =>
+    withProject(async ({ implode, worktree }) => {
+      writeFileSync(join(worktree, "src/new.ts"), "export const n = 1;\n");
+
+      const report = (await implode({ force: true })).report as string;
+
+      expect(report).toContain("?? src/new.ts");
+      expect(report).not.toContain("git diff -U1");
+    }));
+
+  it("lists a staged-only change in porcelain and does not diff it", () =>
+    withProject(async ({ implode, worktree }) => {
+      writeFileSync(join(worktree, "src/a.ts"), "export const a = 2;\n");
+      git(worktree, "add", "src/a.ts");
+
+      const report = (await implode({ force: true })).report as string;
+
+      expect(report).toContain("M  src/a.ts");
+      expect(report).not.toContain("git diff -U1");
+    }));
+
+  it("quotes a path that contains a space in its trace", () =>
+    withProject(async ({ implode, worktree, commit }) => {
+      commit("src/a file.ts", "export const spaced = 1;\n");
+      writeFileSync(join(worktree, "src/a file.ts"), "export const spaced = 2;\n");
+
+      const report = (await implode({ force: true })).report as string;
+
+      expect(report).toContain(yellowTrace('git diff -U1 "src/a file.ts"'));
+    }));
 });

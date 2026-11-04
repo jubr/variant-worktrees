@@ -66,16 +66,59 @@ export const removeMatching = (
   return removed;
 };
 
-/** What would be lost with the worktree: `git status`, `git diff --stat` and, when short enough, `git diff`. */
+const TRACE_YELLOW = "\x1b[33m";
+const TRACE_RESET = "\x1b[0m";
+
+/** `git -c color.ui=never` so a user's `color.ui=always` cannot paint captured output. The `-c` is not part of the trace. */
+const plainGit = (worktree: string, args: readonly string[]): string =>
+  git(worktree, ["-c", "color.ui=never", ...args]);
+
+const droppedHeader = (line: string): boolean =>
+  line.startsWith("diff --git ") || /^index [0-9a-f]+\.\.[0-9a-f]+ /.test(line) || line.startsWith("--- ");
+
+/** Drops `diff --git`, `index <hex>..<hex>`, and `--- ` lines wherever they sit. Keeps the trailing newline. */
+const filterPatch = (patch: string): { text: string; lines: number } => {
+  if (patch === "") {
+    return { text: "", lines: 0 };
+  }
+  const trailingNewline = patch.endsWith("\n");
+  const kept = (trailingNewline ? patch.slice(0, -1) : patch).split("\n").filter((line) => !droppedHeader(line));
+  if (kept.length === 0) {
+    return { text: "", lines: 0 };
+  }
+  return { text: `${kept.join("\n")}${trailingNewline ? "\n" : ""}`, lines: kept.length };
+};
+
+/** A path with whitespace is quoted so the traced command is still one shell word. */
+const tracePath = (path: string): string =>
+  /\s/.test(path) ? `"${path.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"` : path;
+
+const traced = (command: string, output: string): string =>
+  output === "" ? "" : `\n${TRACE_YELLOW}+ ${command}${TRACE_RESET}\n${output}`;
+
+/**
+ * What would be lost with the worktree: a dark-yellow trace of `git status --porcelain`, `git diff --stat`, and, when
+ * the kept patch lines fit in `maxDiffLines`, one filtered `git diff -U1` per path.
+ *
+ * Specification: openspec/specs/variant-api/implode/spec.md
+ */
 export const worktreeReport = (worktree: string, maxDiffLines: number): string => {
-  const status = git(worktree, ["status"]);
-  const stat = git(worktree, ["diff", "--stat"]);
-  const diff = git(worktree, ["diff"]);
-  const full = (diff === "" ? 0 : diff.trimEnd().split("\n").length) <= maxDiffLines;
-  return [status, stat, ...(full && diff !== "" ? [diff] : [])]
-    .map((part) => part.trimEnd())
-    .filter((part) => part !== "")
-    .join("\n\n");
+  const status = plainGit(worktree, ["status", "--porcelain"]);
+  const stat = plainGit(worktree, ["diff", "--stat"]);
+  const names = plainGit(worktree, ["diff", "-z", "--name-only"])
+    .split("\0")
+    .filter((name) => name !== "");
+  const patches = names.map((name) => {
+    const filtered = filterPatch(plainGit(worktree, ["diff", "-U1", "--", name]));
+    return { command: `git diff -U1 ${tracePath(name)}`, ...filtered };
+  });
+  const keptLines = patches.reduce((total, patch) => total + patch.lines, 0);
+  const shown = keptLines <= maxDiffLines ? patches : [];
+  return [
+    traced("git status --porcelain", status),
+    traced("git diff --stat", stat),
+    ...shown.map((patch) => traced(patch.command, patch.text)),
+  ].join("");
 };
 
 /** Discards the local modifications of tracked files whose base name is in `names`. */
