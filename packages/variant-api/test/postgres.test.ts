@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createSchemaSql, PostgresAdapter } from "../src/db/postgres.js";
+import { createSchemaSql, matchingSchemasSql, PostgresAdapter } from "../src/db/postgres.js";
 
 describe("PostgresAdapter", () => {
   it("maps slugs to isolated schema names", async () => {
@@ -17,6 +17,12 @@ describe("PostgresAdapter", () => {
 
   it("creates a tenant schema without replacing one that already exists", () => {
     expect(createSchemaSql("v_demo-east")).toBe('CREATE SCHEMA IF NOT EXISTS "v_demo-east"');
+  });
+
+  it("matches a prefix with a literal underscore", () => {
+    expect(matchingSchemasSql("v_demo-")).toBe(
+      "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'v\\_demo-%' ESCAPE '\\'",
+    );
   });
 
   it("keeps server notices off standard output", async () => {

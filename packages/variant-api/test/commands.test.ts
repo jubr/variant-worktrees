@@ -36,6 +36,7 @@ describe("command registry", () => {
       "provision",
       "up",
       "down",
+      "deprovision",
       "watch",
       "implode",
     ]);
@@ -65,6 +66,8 @@ describe("command registry", () => {
 
   it("gives watch a detach argument and implode a force argument", () => {
     expect(definition("watch").args).toContainEqual(expect.objectContaining({ name: "detach", type: "boolean" }));
+    expect(definition("watch").args).toContainEqual(expect.objectContaining({ name: "reprovision", type: "boolean" }));
+    expect(definition("deprovision").args[0]).toMatchObject({ name: "slug", required: false });
     expect(definition("implode").args).toContainEqual(expect.objectContaining({ name: "force", type: "boolean" }));
   });
 

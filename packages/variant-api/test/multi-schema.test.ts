@@ -33,6 +33,13 @@ const withMulti = async (yaml: string, run: (tools: Tools) => Promise<void>): Pr
     createSchema: async (name) => {
       schemas.push(name);
     },
+    matchingSchemas: async (prefix) => {
+      schemas.push(`match ${prefix}`);
+      return [];
+    },
+    dropSchema: async (name) => {
+      schemas.push(`drop ${name}`);
+    },
     destroy: async () => {
       schemas.push("destroy");
       return true;

@@ -109,6 +109,13 @@ const withProject = async (
       createSchema: async (name) => {
         database.push(`schema ${name}`);
       },
+      matchingSchemas: async (prefix) => {
+        database.push(`match ${prefix}`);
+        return [];
+      },
+      dropSchema: async (name) => {
+        database.push(`drop ${name}`);
+      },
       destroy: async (slug) => {
         database.push(`destroy ${slug}`);
         return true;

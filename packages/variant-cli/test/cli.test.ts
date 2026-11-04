@@ -40,19 +40,20 @@ describe("variant CLI", () => {
   it("lists the runtime commands with their descriptions", async () => {
     const help = (await runCli(["--help"])).stdout;
 
-    for (const name of ["up", "down", "watch", "implode"]) {
+    for (const name of ["up", "down", "deprovision", "watch", "implode"]) {
       expect(help).toMatch(new RegExp(`^\\s+${name}\\s+\\S`, "m"));
     }
   });
 
   it("takes --detach, --force and --verbose", async () => {
     expect((await runCli(["watch", "--help"])).stdout).toContain("--detach");
+    expect((await runCli(["watch", "--help"])).stdout).toContain("--reprovision");
     expect((await runCli(["implode", "--help"])).stdout).toContain("--force");
     expect((await runCli(["provision", "--help"])).stdout).toContain("--verbose");
   });
 
   it("takes -v as the short form of --verbose on every command", async () => {
-    for (const name of ["config", "create", "list", "provision", "up", "down", "watch", "implode"]) {
+    for (const name of ["config", "create", "list", "provision", "up", "down", "deprovision", "watch", "implode"]) {
       expect((await runCli([name, "--help"])).stdout).toContain("-v, --verbose");
     }
     expect((await runCli(["config", "-v"])).exitCode).toBe(0);

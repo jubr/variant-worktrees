@@ -2,6 +2,7 @@ import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js"
 import { type ProvisionOptions, type ProvisionResult, runProvisioning } from "../provisioning.js";
 import { prepareRun, type VariantRun } from "../run-context.js";
 import { createVariant } from "./create.js";
+import { deprovisionPhase } from "./deprovision.js";
 import { stopContainers, stopHostProcesses } from "./down.js";
 import type { OperationContext } from "./types.js";
 
@@ -37,5 +38,8 @@ export const prepareVariant = async (
   }
 
   const run = await prepareRun(context, slug, worktree);
+  if (mode === "watch" && options.reprovision && slug !== "main") {
+    await deprovisionPhase(context, run, options.log);
+  }
   return { run, provisioned: await runProvisioning(context, run, options) };
 };

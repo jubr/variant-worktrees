@@ -19,6 +19,8 @@ export interface ProvisionOptions {
   verbose?: boolean;
   /** Receives progress lines, such as the command about to run; the default writes to stderr. */
   log?: ProgressLog;
+  /** `watch` only: drop the schemas before the provision phase creates them again. */
+  reprovision?: boolean;
 }
 
 export interface ProvisionResult {

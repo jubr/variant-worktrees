@@ -4,6 +4,7 @@ import { LOCAL_FILENAME } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
 import { loadVariantConfig } from "./mise.js";
 import { createVariant } from "./operations/create.js";
+import { deprovisionVariant } from "./operations/deprovision.js";
 import { downVariant } from "./operations/down.js";
 import { implodeVariant } from "./operations/implode.js";
 import { initProject } from "./operations/init.js";
@@ -83,6 +84,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     up: (slug, options) => withAdapter((context) => upVariant(context, slug, options)),
     watch: (slug, options) => withAdapter((context) => watchVariant(context, slug, options)),
     down: (slug, options) => withAdapter((context) => downVariant(context, slug, options)),
+    deprovision: (slug, options) => withAdapter((context) => deprovisionVariant(context, slug, options)),
     implode: (slug, options) => withAdapter((context) => implodeVariant(context, slug, options)),
     list: (options) => withAdapter((context) => listVariants(context, options)),
     status: (slug) => withAdapter((context) => statusVariant(context, slug)),
@@ -112,6 +114,7 @@ export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
   DatabaseAdapter,
+  DeprovisionResult,
   DownResult,
   ImplodeResult,
   InitOptions,
