@@ -341,6 +341,59 @@ describe("inline actions", () => {
     expect(entries).toEqual(['implode failed Variant demo is not merged into main {"slug":"demo"}']);
   });
 
+  it("shows a non-modal error when watch fails and logs that failure", async () => {
+    const entries: string[] = [];
+    const { command, node, fake } = await open([down], {
+      log: {
+        info: () => {},
+        error: (message, cause, fields) =>
+          entries.push(`${message} ${cause instanceof Error ? cause.message : ""} ${JSON.stringify(fields ?? {})}`),
+      },
+    });
+    fake.failNext("mise failed");
+
+    await command("variant.play")(node("demo"));
+
+    expect(showErrorMessage).toHaveBeenCalledWith("mise failed");
+    expect(entries).toEqual(['watch failed mise failed {"slug":"demo"}']);
+  });
+
+  it("shows a non-modal error when down fails and logs that failure", async () => {
+    const entries: string[] = [];
+    const { command, node, fake } = await open([watching], {
+      log: {
+        info: () => {},
+        error: (message, cause, fields) =>
+          entries.push(`${message} ${cause instanceof Error ? cause.message : ""} ${JSON.stringify(fields ?? {})}`),
+      },
+    });
+    fake.failNext("no such variant");
+
+    await command("variant.stop")(node("demo"));
+
+    expect(showErrorMessage).toHaveBeenCalledWith("no such variant");
+    expect(entries).toEqual(['stop failed no such variant {"slug":"demo"}']);
+  });
+
+  it("shows a non-modal error when a forced implode fails and logs that failure", async () => {
+    showWarningMessage.mockImplementation((async () => "Force") as never);
+    const entries: string[] = [];
+    const dirty = record("demo", { implodeClean: false });
+    const { command, node, fake } = await open([dirty], {
+      log: {
+        info: () => {},
+        error: (message, cause, fields) =>
+          entries.push(`${message} ${cause instanceof Error ? cause.message : ""} ${JSON.stringify(fields ?? {})}`),
+      },
+    });
+    fake.failNext("worktree is locked");
+
+    await command("variant.implodeDirty")(node("demo"));
+
+    expect(showErrorMessage).toHaveBeenCalledWith("worktree is locked");
+    expect(entries).toEqual(['implode failed worktree is locked {"slug":"demo"}']);
+  });
+
   it("shows a progress icon and no actions on the item while the action runs", async () => {
     const { command, node, view } = await open();
     const provider = createTreeView.mock.calls[0]?.[1] as {
