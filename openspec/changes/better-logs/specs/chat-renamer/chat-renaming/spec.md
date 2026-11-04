@@ -84,7 +84,7 @@ The renamer SHALL read a setting `titleEventPromptLines` (integer of at least 1,
 
 ### Requirement: The title event decision is logged
 
-For the first title event of every chat, the renamer SHALL log exactly one decision entry at `info` level in category `title-event`. The entry SHALL carry the chat id (`session`), `matched` (whether a slash command or an activation pattern matched), `decision`, and `reason`. For `malformed request` and `title event failed` it SHALL also carry `detail`, the parse reason or the error message. When an activation pattern matched it SHALL carry `pattern`, the zero-based index of the pattern in the compiled list. `decision` SHALL be `rename` when the chat is renamed, `keep` when the chat already has the requested base, and `ignore` otherwise, with a rename request written as `title`. `reason` SHALL be `rename request` for `rename`, `current title shares the base` for `keep`, and for `ignore` one of `no first prompt`, `before startup`, `too old`, `no rename request`, `malformed request`, or `title event failed`. An `ignore` for `no first prompt`, `before startup` or `too old` SHALL be logged at `debug` level instead, so the burst of title events at editor load does not fill the `info` log, and an `ignore` for `title event failed` SHALL be logged at `error` level with the failure text. Later title events of the same chat SHALL log no decision.
+For the first title event of every chat, the renamer SHALL log exactly one decision entry at `info` level in category `title-event`. The entry SHALL carry the chat id (`session`), `matched` (whether a slash command or an activation pattern matched), `decision`, and `reason`. For `malformed request` and `title event failed` it SHALL also carry `detail`, the parse reason or the error message. When an activation pattern matched it SHALL carry `pattern`, the zero-based index of the pattern in the compiled list. `decision` SHALL be `rename` when the chat is renamed, `keep` when the chat already has the requested base, and `ignore` otherwise, with a rename request written as `title`. `reason` SHALL be `rename request` for `rename`, `current title shares the base` for `keep`, and for `ignore` one of `no first prompt`, `before startup`, `too old`, `no rename request`, `malformed request`, or `title event failed`. An `ignore` for `no first prompt` or `too old` SHALL be logged at `debug` level instead, an `ignore` for `before startup` SHALL be logged at `trace` level, so the burst of title events at editor load does not fill the `info` log, and an `ignore` for `title event failed` SHALL be logged at `error` level with the failure text. Later title events of the same chat SHALL log no decision.
 
 #### Scenario: Pattern matched and renamed
 
@@ -114,7 +114,7 @@ For the first title event of every chat, the renamer SHALL log exactly one decis
 #### Scenario: Existing chat at editor load
 
 - **WHEN** a title event reports a chat whose first prompt was submitted before the renamer started
-- **THEN** a `debug` entry in `[title-event]` has `decision="ignore"` and `reason="before startup"`, and no `info` decision entry is written
+- **THEN** a `trace` entry in `[title-event]` has `decision="ignore"` and `reason="before startup"`, and no `info` decision entry is written
 
 #### Scenario: Later title event
 
