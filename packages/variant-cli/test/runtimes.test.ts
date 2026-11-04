@@ -71,7 +71,8 @@ describe("variant on Node, Bun and as a compiled executable", () => {
       withVariants(async (environment, directory) => {
         const created = await runCommand(command(), ["create", "-s", "gamma", "--json"], environment);
         expect(created.stderr).toBe("");
-        expect(existsSync(join(directory, ".cache/variants/gamma.db"))).toBe(true);
+        expect(existsSync(join(directory, ".cache/variants/gamma.db"))).toBe(false);
+        expect(existsSync(join(directory, ".cache/variants/gamma.yaml"))).toBe(true);
 
         const listed = await runCommand(command(), ["list", "--json"], environment);
         expect(listed.exitCode).toBe(0);
