@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- A title event for a chat that already existed at startup, and the decision that skips it (`before startup`), are
+  logged at Trace. A title event after startup stays at Debug.
+
 ## [0.0.5] - 2026-11-03
 
 ### Release notes

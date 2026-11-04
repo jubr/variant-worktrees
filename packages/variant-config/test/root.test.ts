@@ -109,6 +109,52 @@ describe("variant main and root resolution", () => {
       expect(loadConfig({ cwd: feature }).variant?.root).toBe(repo);
     }));
 
+  it("loads the main checkout from a variant root that has no variants.yaml", () =>
+    withDirectory((directory) => {
+      const workspace = join(directory, "workspace");
+      const main = join(workspace, "app");
+      mkdirSync(main, { recursive: true });
+      initRepo(main);
+      symlinkSync(join(main, "AGENTS.md"), join(workspace, "AGENTS.md"));
+
+      const loaded = loadConfig({ cwd: workspace });
+
+      expect(loaded.configPath).toBe(join(main, "variants.yaml"));
+      expect(loaded.variant?.main).toBe(main);
+      expect(loaded.variant?.root).toBe(workspace);
+    }));
+
+  it("warns and skips a variants.yaml symlink in the variant root", () =>
+    withDirectory((directory) => {
+      const workspace = join(directory, "workspace");
+      const main = join(workspace, "app");
+      mkdirSync(main, { recursive: true });
+      initRepo(main);
+      symlinkSync(join(main, "AGENTS.md"), join(workspace, "AGENTS.md"));
+      symlinkSync(join(main, "variants.yaml"), join(workspace, "variants.yaml"));
+
+      const loaded = loadConfig({ cwd: workspace });
+
+      expect(loaded.configPath).toBe(join(main, "variants.yaml"));
+      expect(loaded.warnings.join("\n")).toContain(join(workspace, "variants.yaml"));
+      expect(loaded.warnings.join("\n")).toContain("anti-pattern");
+    }));
+
+  it("keeps a real variants.yaml in the variant root and does not warn", () =>
+    withDirectory((directory) => {
+      const workspace = join(directory, "workspace");
+      const main = join(workspace, "app");
+      mkdirSync(main, { recursive: true });
+      initRepo(main);
+      symlinkSync(join(main, "AGENTS.md"), join(workspace, "AGENTS.md"));
+      writeFileSync(join(workspace, "variants.yaml"), "variant: {}\n");
+
+      const loaded = loadConfig({ cwd: workspace });
+
+      expect(loaded.configPath).toBe(join(workspace, "variants.yaml"));
+      expect(loaded.warnings).toEqual([]);
+    }));
+
   it("uses the directory of variants.yaml as main and root outside git", () =>
     withDirectory((directory) => {
       expect(detectVariantMain(directory)).toBe(directory);

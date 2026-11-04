@@ -769,7 +769,7 @@ describe("catalogTitleDecision", () => {
       () => undefined,
       () => undefined,
     );
-    return { result, calls, entries: entries.filter((entry) => entry.level !== "trace") };
+    return { result, calls, entries: entries.filter((entry) => !entry.message.startsWith("[title-event] prompt")) };
   };
 
   it("logs a pattern match that renames, with the pattern index and the final title", async () => {
@@ -832,14 +832,14 @@ describe("catalogTitleDecision", () => {
     expect(entries[0]?.message).toContain('decision="keep" reason="current title shares the base"');
   });
 
-  it("logs a chat that existed before startup at debug level", async () => {
+  it("logs a chat that existed before startup at trace level", async () => {
     const { result, entries } = await run(
       { text: "/vw-spec-start abc", submittedAtMs: NOW - 5000 },
       { notBeforeMs: NOW - 1000 },
     );
 
     await expect(result).resolves.toMatchObject({ decision: "ignore", reason: "before startup" });
-    expect(entries.map((entry) => entry.level)).toEqual(["debug"]);
+    expect(entries.map((entry) => entry.level)).toEqual(["trace"]);
     expect(entries[0]?.message).toContain('decision="ignore" reason="before startup"');
   });
 

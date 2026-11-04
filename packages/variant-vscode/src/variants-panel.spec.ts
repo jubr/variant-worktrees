@@ -176,6 +176,41 @@ describe("variants panel", () => {
     ]);
   });
 
+  it("runs watch, down and implode in the item directory", async () => {
+    const foo = record("foo", { worktree: "/work/_v-foo" });
+    const fake = fakeClient([foo]);
+    const directories: Array<string | undefined> = [];
+    const loadClient = async (cwd?: string) => {
+      directories.push(cwd);
+      return fake.client;
+    };
+    const store = createVariantsStore({ loadClient, hasConfig: () => true });
+    await store.start();
+    const actions = createActions({ loadClient, records: store.records });
+    const page = fakePanel();
+    createWebviewPanel.mockImplementation((() => page.panel) as never);
+    const manager = createPanelManager({
+      extensionUri: vscode.Uri.file("/ext"),
+      loadClient,
+      actions,
+      store,
+      readIndex: () => INDEX,
+      nonce: () => "n0nce",
+    });
+    await manager.open();
+
+    await page.send({ type: "action", id: 1, action: "watch", slug: "foo" });
+    await page.send({ type: "action", id: 2, action: "down", slug: "foo" });
+    await page.send({ type: "action", id: 3, action: "implode", slug: "foo", confirm: true });
+
+    expect(fake.calls.map((call) => [call.name, call.slug])).toEqual([
+      ["watch", "foo"],
+      ["down", "foo"],
+      ["implode", "foo"],
+    ]);
+    expect(directories.filter((cwd) => cwd !== undefined)).toEqual(["/work/_v-foo", "/work/_v-foo", "/work/_v-foo"]);
+  });
+
   it("runs play of the page as a detached watch and shows the result", async () => {
     const { manager, page, fake } = await setup();
     await manager.open();

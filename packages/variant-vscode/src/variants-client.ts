@@ -3,7 +3,8 @@ import type { VariantClient, VariantRecord } from "variant-api";
 /** What the view, the panel and the onboarding dialog need of the library: the state subscription, the three actions and `init`. */
 export type ViewClient = Pick<VariantClient, "subscribe" | "watch" | "down" | "implode" | "init">;
 
-export type LoadClient = () => Promise<ViewClient>;
+/** Loads the library. `cwd` is the directory an action runs in; omitted, it is the workspace folder the view lists. */
+export type LoadClient = (cwd?: string) => Promise<ViewClient>;
 
 /** The message of anything thrown, for a notification or a row. */
 export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -15,22 +16,26 @@ export const messageOf = (error: unknown): string => (error instanceof Error ? e
  * `engines.vscode` asks for, or a remote host), the import fails here and the view shows why, instead of the whole
  * extension failing to activate. A failed load is not remembered, so the next use tries again.
  */
-export const loadVariantClient = (cwd: string, miseBinPath: () => string | undefined = () => undefined): LoadClient => {
-  let loading: Promise<ViewClient> | undefined;
-  let loadedWith: string | undefined;
-  return () => {
+export const loadVariantClient = (
+  fallback: string,
+  miseBinPath: () => string | undefined = () => undefined,
+): LoadClient => {
+  const clients = new Map<string, Promise<ViewClient>>();
+  return (cwd = fallback) => {
     // The setting `variant.mise.binPath` applies to the next call: a client made with another value is made anew.
     const configured = miseBinPath();
-    if (loading !== undefined && configured !== loadedWith) {
-      loading = undefined;
+    const key = `${cwd}\0${configured ?? ""}`;
+    const cached = clients.get(key);
+    if (cached) {
+      return cached;
     }
-    loadedWith = configured;
-    loading ??= import("variant-api")
+    const loading = import("variant-api")
       .then(({ createClient }) => createClient({ cwd, ...(configured ? { miseBinPath: configured } : {}) }))
       .catch((error: unknown) => {
-        loading = undefined;
+        clients.delete(key);
         throw new Error(`The variant library could not be loaded: ${messageOf(error)}`);
       });
+    clients.set(key, loading);
     return loading;
   };
 };

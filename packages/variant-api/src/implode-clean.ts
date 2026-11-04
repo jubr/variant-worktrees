@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { findRemovable, isMerged } from "./cleanup.js";
 import { runGit } from "./git.js";
+import { repositoryDirectory } from "./locate.js";
 import type { OperationContext } from "./operations/types.js";
 import { variantConfigDir } from "./runtime-state.js";
 import { worktreeEntries } from "./slug.js";
@@ -20,7 +21,9 @@ const removableWorktree = (context: OperationContext, worktree: string | undefin
     return undefined;
   }
   try {
-    const [primary, ...others] = worktreeEntries(context.cwd).map((entry) => realpathOrSelf(entry.path));
+    const [primary, ...others] = worktreeEntries(repositoryDirectory(context)).map((entry) =>
+      realpathOrSelf(entry.path),
+    );
     const target = realpathOrSelf(worktree);
     return target !== primary && others.includes(target) ? worktree : undefined;
   } catch {
