@@ -24,7 +24,7 @@ const CONFIG = lines(
   "      up: pwd > up.cwd",
   "      watch: pwd > watch.cwd",
   "  steps:",
-  "    - { name: in-be, run: pwd > step.cwd, dir: be }",
+  "    in-be: { cmd: pwd > step.cwd, dir: be, runBefore: seed }",
 );
 
 interface Repository {

@@ -15,8 +15,8 @@ import {
 import { migrateLegacy } from "./legacy.js";
 import { readRuntimeState } from "./local.js";
 import { type ParsedConfig, parseConfig } from "./parse.js";
-import type { DbConfig, ResolvedConfig, ResolvedVariant, VariantsConfig, VariantWatch } from "./schema.js";
 import {
+  type DbConfig,
   DEFAULT_BASE_BRANCH,
   DEFAULT_BRANCH_PREFIXES,
   DEFAULT_MAX_DIFF_LINES,
@@ -25,7 +25,12 @@ import {
   DEFAULT_STORAGE_DIR,
   DEFAULT_STORAGE_ENV_VAR,
   parsePortRange,
+  type ResolvedConfig,
+  type ResolvedVariant,
+  resolveSteps,
+  type VariantsConfig,
   VariantsConfigSchema,
+  type VariantWatch,
   variantsJsonSchema,
 } from "./schema.js";
 import { renderTemplate } from "./template.js";
@@ -236,10 +241,11 @@ const resolveVariant = (
   env: NodeJS.ProcessEnv,
   environment: EnvironmentProvider,
 ): ResolvedVariant => {
-  const { storage, supervise, implode, ports, ...variant } = config.variant ?? {};
+  const { storage, supervise, implode, ports, steps, ...variant } = config.variant ?? {};
   const main = variant.main ? resolve(configDir, variant.main) : detectVariantMain(configDir);
   return {
     ...variant,
+    steps: resolveSteps(steps),
     main,
     root: variant.root ? resolve(configDir, variant.root) : detectVariantRoot(configDir, main),
     abbr: variant.abbr ?? abbreviate(basename(main)),

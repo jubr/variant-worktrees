@@ -144,13 +144,17 @@ export const runProvisioning = (
     command(up.text, up.cwd, up.env, "Command");
   }
 
-  for (const step of config.variant.steps ?? []) {
-    const skipVariable = `VARIANT_STEP_${envSegment(step.name)}`;
-    if (process.env[skipVariable] === "no") {
-      output += `Skipping step ${step.name}: ${skipVariable}=no\n`;
+  for (const [name, step] of Object.entries(config.variant.steps)) {
+    // AIDEV-NOTE: ${builtin.step.<name>} is the builtin implementation, not a shell command.
+    if (/^\$\{builtin\.step\.[A-Za-z0-9_-]+\}$/.test(step.cmd)) {
       continue;
     }
-    const stepCommand = expandSetting(config, run, step.run, `variant.steps.${step.name}.run`);
+    const skipVariable = `VARIANT_STEP_${envSegment(name)}`;
+    if (process.env[skipVariable] === "no") {
+      output += `Skipping step ${name}: ${skipVariable}=no\n`;
+      continue;
+    }
+    const stepCommand = expandSetting(config, run, step.cmd, `variant.steps.${name}.cmd`);
     commands.push(stepCommand);
     echoCommand(stepCommand, options.log);
     const result = execute(
@@ -159,7 +163,7 @@ export const runProvisioning = (
       commandEnvironment(config, run, step.env),
     );
     if (!result.ok) {
-      throw new Error(`Step ${step.name} failed (${result.status}): ${stepCommand}\n${result.output}`);
+      throw new Error(`Step ${name} failed (${result.status}): ${stepCommand}\n${result.output}`);
     }
     if (step.filterLinesRegex !== undefined && !options.verbose) {
       const pattern = new RegExp(step.filterLinesRegex);

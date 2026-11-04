@@ -109,47 +109,124 @@ describe("variant storage", () => {
 });
 
 describe("provisioning steps", () => {
-  const step = { name: "migrations", run: "bun run migrate", dir: "server", filterLinesRegex: "^Migration " };
+  const step = { cmd: "bun run migrate", dir: "server", filterLinesRegex: "^Migration ", runAfter: "seed" };
 
-  it("accepts steps and carries them unchanged", () => {
-    expect(loaded("variant:\n  steps:\n    - name: migrations\n      run: bun run migrate\n").variant.steps).toEqual([
-      { name: "migrations", run: "bun run migrate" },
-    ]);
-    expect(variant({ steps: [{ ...step, env: { A: "b" } }] })).toBe(true);
+  it("accepts a step map and carries the step unchanged", () => {
+    expect(
+      loaded(
+        "variant:\n  steps:\n    migrations:\n      cmd: bun run migrate\n      dir: server\n      filterLinesRegex: '^Migration '\n      runAfter: seed\n",
+      ).variant.steps.migrations,
+    ).toEqual({
+      cmd: "bun run migrate",
+      dir: "server",
+      filterLinesRegex: "^Migration ",
+      runAfter: "seed",
+    });
+    expect(variant({ steps: { migrations: { ...step, env: { A: "b" } } } })).toBe(true);
   });
 
-  it("rejects duplicate names and names the duplicate", () => {
-    expect(variant({ steps: [step, step] })).toBe(false);
-    expect(issues({ steps: [step, step] })).toContain("migrations");
-  });
+  it("rejects a duplicated step name and names it", () => {
+    const yaml =
+      "variant:\n  steps:\n    migrations: { cmd: a, runAfter: seed }\n    migrations: { cmd: b, runAfter: seed }\n";
 
-  it("rejects names with other characters than letters, digits, - and _", () => {
-    expect(variant({ steps: [{ ...step, name: "db-seed_2" }] })).toBe(true);
-    expect(variant({ steps: [{ ...step, name: "run migrations" }] })).toBe(false);
-    expect(variant({ steps: [{ ...step, name: "a.b" }] })).toBe(false);
+    expect(() => loaded(yaml)).toThrow(/migrations/);
   });
 
   it("rejects names that share an environment segment and names both", () => {
-    const steps = [
-      { ...step, name: "db-seed" },
-      { ...step, name: "db_seed" },
-    ];
+    const steps = {
+      "db-seed": step,
+      db_seed: { ...step, runAfter: "seed" },
+    };
 
     expect(variant({ steps })).toBe(false);
     expect(issues({ steps })).toContain("db-seed");
     expect(issues({ steps })).toContain("db_seed");
   });
 
-  it("ignores the former show and unlessEnv keys with a warning each", () => {
-    expect(warned({ steps: [{ name: "a", run: "b", show: "^x" }] })).toEqual(["steps.0.show"]);
-    expect(warned({ steps: [{ name: "a", run: "b", unlessEnv: { SKIP: "true" } }] })).toEqual(["steps.0.unlessEnv"]);
+  it("rejects a name with other characters, a one-character name and a name of 21 characters", () => {
+    expect(variant({ steps: { "db-seed_2": step } })).toBe(true);
+    expect(variant({ steps: { "run migrations": step } })).toBe(false);
+    expect(variant({ steps: { "a.b": step } })).toBe(false);
+    expect(variant({ steps: { a: step } })).toBe(false);
+    expect(variant({ steps: { a23456789012345678901: step } })).toBe(false);
   });
 
-  it("rejects an invalid filterLinesRegex pattern and an escaping dir, and warns for an unknown key", () => {
-    expect(variant({ steps: [{ ...step, filterLinesRegex: "(" }] })).toBe(false);
-    expect(variant({ steps: [{ ...step, dir: ".." }] })).toBe(false);
-    expect(variant({ steps: [{ ...step, dir: "/abs" }] })).toBe(false);
-    expect(warned({ steps: [{ ...step, other: 1 }] })).toEqual(["steps.0.other"]);
+  it("keeps a builtin command when the overlay sets no cmd", () => {
+    const { steps } = loaded("variant:\n  steps:\n    watch:\n      dir: server\n").variant;
+
+    expect(steps.watch).toEqual({ cmd: "${builtin.step.watch}", dir: "server" });
+  });
+
+  it("rejects an invalid filterLinesRegex, an escaping dir, and warns for an unknown key", () => {
+    expect(variant({ steps: { migrations: { ...step, filterLinesRegex: "(" } } })).toBe(false);
+    expect(variant({ steps: { migrations: { ...step, dir: ".." } } })).toBe(false);
+    expect(variant({ steps: { migrations: { ...step, dir: "/abs" } } })).toBe(false);
+    expect(warned({ steps: { migrations: { ...step, other: 1 } } })).toEqual(["steps.migrations.other"]);
+  });
+
+  it("ignores show, unlessEnv and a run key beside cmd, and reads run as cmd", () => {
+    const placed = { cmd: "bun run migrate", runAfter: "seed" };
+
+    expect(warned({ steps: { migrations: { ...placed, show: "^x" } } })).toEqual(["steps.migrations.show"]);
+    expect(warned({ steps: { migrations: { ...placed, unlessEnv: { SKIP: "true" } } } })).toEqual([
+      "steps.migrations.unlessEnv",
+    ]);
+    expect(warned({ steps: { migrations: { ...placed, run: "other" } } })).toEqual(["steps.migrations.run"]);
+    const migrated = loaded("variant:\n  steps:\n    migrations:\n      run: bun run migrate\n      runAfter: seed\n");
+    expect(migrated.variant.steps.migrations?.cmd).toBe("bun run migrate");
+    expect(migrated.warnings.join("\n")).toContain("variant.steps.migrations.run");
+    expect(
+      loaded(
+        "variant:\n  steps:\n    migrations:\n      cmd: bun run migrate\n      run: other\n      runAfter: seed\n",
+      ).variant.steps.migrations?.cmd,
+    ).toBe("bun run migrate");
+  });
+
+  it("rejects a list", () => {
+    expect(variant({ steps: [{ name: "migrations", run: "bun run migrate" }] })).toBe(false);
+  });
+
+  it("accepts a placement that names a builtin and rejects a missing one, both, itself, none, and a builtin that moves", () => {
+    expect(variant({ steps: { report: { cmd: "bun run report", runBefore: "watch" } } })).toBe(true);
+    expect(issues({ steps: { report: { cmd: "bun run report", runAfter: "missing" } } })).toContain("missing");
+    expect(variant({ steps: { report: { cmd: "bun run report", runBefore: "seed", runAfter: "watch" } } })).toBe(false);
+    expect(variant({ steps: { migrations: { cmd: "bun run migrate", runAfter: "migrations" } } })).toBe(false);
+    expect(variant({ steps: { migrations: { cmd: "bun run migrate" } } })).toBe(false);
+    expect(variant({ steps: { provision: { cmd: "bun run db:provision", runAfter: "seed" } } })).toBe(false);
+    expect(variant({ steps: { implode: { runBefore: "watch" } } })).toBe(false);
+  });
+});
+
+describe("resolved steps", () => {
+  const builtin = ["create", "provision", "seed", "watch", "down", "deprovision", "implode"];
+
+  it("prints every builtin step when variant.steps is absent", () => {
+    const { steps } = loaded("db:\n  dialect: sqlite\n").variant;
+
+    expect(Object.keys(steps)).toEqual(builtin);
+    expect(Object.values(steps).map((entry) => entry.cmd)).toEqual(builtin.map((name) => `\${builtin.step.${name}}`));
+  });
+
+  it("prints a user command in place of the builtin command", () => {
+    const { steps } = loaded("variant:\n  steps:\n    provision:\n      cmd: bun run db:provision\n").variant;
+
+    expect(steps.provision?.cmd).toBe("bun run db:provision");
+    expect(steps.seed?.cmd).toBe("${builtin.step.seed}");
+  });
+
+  it("keeps the builtin command when the overlay sets env and no cmd", () => {
+    const { steps } = loaded("variant:\n  steps:\n    provision:\n      env:\n        A: b\n").variant;
+
+    expect(steps.provision).toEqual({ cmd: "${builtin.step.provision}", env: { A: "b" } });
+  });
+
+  it("inserts a custom step immediately after the step it names", () => {
+    const names = Object.keys(
+      loaded("variant:\n  steps:\n    migrations:\n      cmd: bun run migrate\n      runAfter: seed\n").variant.steps,
+    );
+
+    expect(names.indexOf("migrations")).toBe(names.indexOf("seed") + 1);
+    expect(names[names.indexOf("migrations") + 1]).toBe("watch");
   });
 });
 

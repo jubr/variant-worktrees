@@ -38,13 +38,17 @@ variant:
     port: 62100 # VARIANT_UI_PORT wins. Absent: a free port of ports.range
   mise: # Mise supplies the environment (`mise env`)
     binPath: /opt/homebrew/bin/mise # when mise is not on PATH; the editor setting variant.mise.binPath wins
-  steps: # run in order between the `up` commands and the seed command
-    - name: migrations # unique, only [A-Za-z0-9_-]+, VARIANT_STEP_MIGRATIONS=no skips
-      run: bun run migrate # shell commands
+  steps: # map keyed by step name. A custom step sets runBefore or runAfter. Builtins stay in flow order
+    migrations: # unique, only [A-Za-z0-9_-]{2,20}, VARIANT_STEP_MIGRATIONS=no skips
+      cmd: bun run migrate # shell commands
       dir: be # relative to the worktree; default: the worktree root
       env: # templated values; win over everything else the command sees
         JWT_SECRET: '${JWT_SECRET:-variant-local-${slug}}' # ${NAME} and ${NAME:-default} read the environment
       filterLinesRegex: '^Migration ' # print only the output lines that match; --verbose and failures print everything
+      runAfter: seed # run after the seed step
+    report: # the other placement. A step has exactly one of runBefore or runAfter
+      cmd: bun run report
+      runBefore: watch
   supervise: # `up` and `watch` timing
     startDelaySeconds: 2 # wait between starting two watches
     readyTimeoutSeconds: 180 # wait for the watches that set `ready`

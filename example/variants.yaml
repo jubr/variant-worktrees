@@ -10,9 +10,10 @@ variant:
   seed: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
   storage: {} # a per-variant .storage directory, passed to commands in STORAGE_ROOT
   steps:
-    - name: storage
-      run: echo "Preparing $VARIANT_SLUG with storage in $STORAGE_ROOT"
+    storage:
+      cmd: echo "Preparing $VARIANT_SLUG with storage in $STORAGE_ROOT"
       filterLinesRegex: ^Preparing
+      runBefore: seed
   implode:
     preRm: [dist, node_modules, .cache, out] # removed below the project and fe/ and be/ before the worktree goes
     discard: [bun.lock] # a lockfile touched by `bun install` does not block the removal

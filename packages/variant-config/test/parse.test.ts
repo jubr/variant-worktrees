@@ -34,7 +34,7 @@ describe("parseConfig", () => {
       {
         variant: {
           ui: { color: "red" },
-          steps: [{ name: "one", run: "true", colour: "red" }],
+          steps: { one: { cmd: "true", runBefore: "seed", colour: "red" } },
         },
         chatRenamer: { colour: "red" },
         extra: 1,
@@ -48,7 +48,7 @@ describe("parseConfig", () => {
       [
         `${FILE}: unknown key chatRenamer.colour`,
         `${FILE}: unknown key extra`,
-        `${FILE}: unknown key variant.steps.0.colour`,
+        `${FILE}: unknown key variant.steps.one.colour`,
         `${FILE}: unknown key variant.ui.color`,
       ].sort(),
     );
@@ -81,15 +81,15 @@ describe("parseConfig", () => {
   it("throws for a failed cross-field rule although an extra key is present", () => {
     const duplicate = {
       variant: {
-        steps: [
-          { name: "a", run: "true" },
-          { name: "a", run: "true" },
-        ],
+        steps: {
+          "db-seed": { cmd: "true", runBefore: "seed" },
+          db_seed: { cmd: "true", runBefore: "seed" },
+        },
         ui: { color: "red" },
       },
     };
 
-    expect(() => parseConfig(VariantsConfigSchema, duplicate, FILE)).toThrow(/duplicate step name a/);
+    expect(() => parseConfig(VariantsConfigSchema, duplicate, FILE)).toThrow(/db-seed/);
   });
 
   it("throws for a cross-field rule that only shows once the extra key is dropped", () => {

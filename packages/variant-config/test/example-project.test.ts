@@ -48,7 +48,11 @@ describe("the example project", () => {
     const { variant } = loadConfig({ cwd: exampleDirectory });
 
     expect(variant.storage).toEqual({ dir: ".storage", envVarName: "STORAGE_ROOT" });
-    expect(variant.steps?.map((step) => step.name)).toEqual(["storage"]);
+    expect(variant.steps.storage).toMatchObject({
+      cmd: 'echo "Preparing $VARIANT_SLUG with storage in $STORAGE_ROOT"',
+      filterLinesRegex: "^Preparing",
+      runBefore: "seed",
+    });
     expect(variant.implode).toMatchObject({ preRm: ["dist", "node_modules", ".cache", "out"], discard: ["bun.lock"] });
     expect(variant.watches.be).toMatchObject({
       ready: "/api",

@@ -87,8 +87,8 @@ describe("provisioning order", () => {
           "  watches:",
           `    fe: { kind: vite, dir: fe, up: "echo up >> ${d}/order.log" }`,
           "  steps:",
-          `    - { name: one, run: "echo one >> ${d}/order.log" }`,
-          `    - { name: two, run: "echo two >> ${d}/order.log" }`,
+          `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
+          `    two: { cmd: "echo two >> ${d}/order.log", runBefore: seed }`,
         ),
       async (directory, provision) => {
         await provision();
@@ -107,8 +107,8 @@ describe("provisioning order", () => {
           "variant:",
           `  seed: echo seed >> ${d}/order.log`,
           "  steps:",
-          '    - { name: first, run: "echo boom; exit 3" }',
-          `    - { name: second, run: "echo second >> ${d}/order.log" }`,
+          '    first: { cmd: "echo boom; exit 3", runBefore: seed }',
+          `    second: { cmd: "echo second >> ${d}/order.log", runBefore: seed }`,
         ),
       async (directory, provision) => {
         const failure = await provision().catch((error: Error) => error);
@@ -129,7 +129,7 @@ describe("provisioning order", () => {
           "  dialect: sqlite",
           "variant:",
           "  steps:",
-          '    - { name: here, run: "pwd > pwd.out", dir: server }',
+          '    here: { cmd: "pwd > pwd.out", dir: server, runBefore: seed }',
         ),
       async (directory, provision) => {
         await provision();
@@ -147,7 +147,7 @@ describe("skippable and quiet steps", () => {
       "  dialect: sqlite",
       "variant:",
       "  steps:",
-      `    - { name: demo-user, run: "echo ran > ${d}/ran.out" }`,
+      `    demo-user: { cmd: "echo ran > ${d}/ran.out", runBefore: seed }`,
     );
 
   it("skips a step whose VARIANT_STEP_<NAME> is no and says so", () => {
@@ -177,9 +177,10 @@ describe("skippable and quiet steps", () => {
     "  dialect: sqlite",
     "variant:",
     "  steps:",
-    "    - name: migrations",
-    '      run: "echo query-noise; echo Migration Init applied"',
+    "    migrations:",
+    '      cmd: "echo query-noise; echo Migration Init applied"',
     '      filterLinesRegex: "^Migration "',
+    "      runBefore: seed",
   );
 
   it("prints only the lines that match filterLinesRegex", () =>
@@ -249,7 +250,7 @@ describe("watch install", () => {
 });
 
 describe("command environment", () => {
-  const dump = (extra: string[] = [], step = 'run: "env > env.out"') =>
+  const dump = (extra: string[] = [], step = 'cmd: "env > env.out", runBefore: seed') =>
     lines(
       "db:",
       "  dialect: postgres",
@@ -263,7 +264,7 @@ describe("command environment", () => {
       "    fe: { kind: vite, dir: fe, url: 'http://${slug}.vw.localhost:${port}' }",
       "    be: { kind: nestjs, dir: be }",
       "  steps:",
-      `    - { name: dump, ${step} }`,
+      `    dump: { ${step} }`,
       ...extra,
     );
 
@@ -290,7 +291,14 @@ describe("command environment", () => {
 
   it("passes SQLITE_DATABASE for SQLite", () =>
     withProject(
-      () => lines("db:", "  dialect: sqlite", "variant:", "  steps:", '    - { name: dump, run: "env > env.out" }'),
+      () =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          "  steps:",
+          '    dump: { cmd: "env > env.out", runBefore: seed }',
+        ),
       async (directory, provision) => {
         await provision();
 
@@ -347,7 +355,7 @@ describe("command environment", () => {
 
   it("lets the expanded step env win", () =>
     withProject(
-      () => dump([], 'run: "env > env.out", env: { POSTGRES_SCHEMA: "custom", PEER: "${be.port}" }'),
+      () => dump([], 'cmd: "env > env.out", runBefore: seed, env: { POSTGRES_SCHEMA: "custom", PEER: "${be.port}" }'),
       async (directory, provision) => {
         await provision();
         const env = parseEnv(read(directory, "env.out"));
@@ -376,7 +384,7 @@ describe("interpolation in commands", () => {
 
   it("expands placeholders in watch install and up commands and in steps", () =>
     withProject(
-      () => project(["  steps:", '    - { name: peer, run: "echo ${slug}-${be.port} > step.out" }']),
+      () => project(["  steps:", '    peer: { cmd: "echo ${slug}-${be.port} > step.out", runBefore: seed }']),
       async (directory, provision) => {
         await provision();
 
@@ -392,7 +400,7 @@ describe("interpolation in commands", () => {
       () =>
         project([
           "  steps:",
-          '    - { name: secret, run: "echo $SECRET > secret.out", env: { SECRET: "${JWT_SECRET_FOR_TEST:-local-${slug}}" } }',
+          '    secret: { cmd: "echo $SECRET > secret.out", runBefore: seed, env: { SECRET: "${JWT_SECRET_FOR_TEST:-local-${slug}}" } }',
         ]),
       async (directory, provision) => {
         setEnv("JWT_SECRET_FOR_TEST", undefined);
@@ -417,7 +425,7 @@ describe("interpolation in commands", () => {
 
   it("passes $${NAME} on to the shell as ${NAME}", () =>
     withProject(
-      () => project(["  steps:", '    - { name: shell, run: "echo $${SHELL_VAR_FOR_TEST} > shell.out" }']),
+      () => project(["  steps:", '    shell: { cmd: "echo $${SHELL_VAR_FOR_TEST} > shell.out", runBefore: seed }']),
       async (directory, provision) => {
         setEnv("SHELL_VAR_FOR_TEST", "from-shell");
         await provision();
@@ -429,13 +437,13 @@ describe("interpolation in commands", () => {
 
   it("fails naming the setting and the variable when a reference is set nowhere", () =>
     withProject(
-      () => project(["  steps:", '    - { name: broken, run: "echo ${NOWHERE_FOR_TEST}" }']),
+      () => project(["  steps:", '    broken: { cmd: "echo ${NOWHERE_FOR_TEST}", runBefore: seed }']),
       async (_directory, provision) => {
         setEnv("NOWHERE_FOR_TEST", undefined);
         const failure = await provision().catch((error: Error) => error);
 
         expect((failure as Error).message).toContain("NOWHERE_FOR_TEST");
-        expect((failure as Error).message).toContain("variant.steps.broken.run");
+        expect((failure as Error).message).toContain("variant.steps.broken.cmd");
       },
       files,
     ));
@@ -443,7 +451,14 @@ describe("interpolation in commands", () => {
 
 describe("variant storage", () => {
   const yaml = (storage: string[]) =>
-    lines("db:", "  dialect: sqlite", "variant:", ...storage, "  steps:", '    - { name: dump, run: "env > env.out" }');
+    lines(
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      ...storage,
+      "  steps:",
+      '    dump: { cmd: "env > env.out", runBefore: seed }',
+    );
 
   it("creates the default directory and passes STORAGE_ROOT", () =>
     withProject(

@@ -73,10 +73,10 @@ describe("interpolation in other settings", () => {
 
   it("leaves a regular expression as written", () => {
     const config = load(
-      "variant:\n  steps:\n    - name: build\n      run: make\n      filterLinesRegex: '^price: ${PRICE}$'\n",
+      "variant:\n  steps:\n    build:\n      cmd: make\n      filterLinesRegex: '^price: ${PRICE}$'\n      runBefore: seed\n",
     );
 
-    expect(config.variant.steps?.[0]?.filterLinesRegex).toBe("^price: ${PRICE}$");
+    expect(config.variant.steps.build?.filterLinesRegex).toBe("^price: ${PRICE}$");
   });
 
   it("exposes the environment provider to use sites, called at most once", () => {
