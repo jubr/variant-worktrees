@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
@@ -44,17 +45,77 @@ const ancestorDirectories = (startDir: string): string[] => {
   return directories;
 };
 
-export const findConfigFile = (startDir = process.cwd()): string | undefined => {
-  for (const directory of ancestorDirectories(startDir)) {
-    for (const filename of CONFIG_FILENAMES) {
-      const path = join(directory, filename);
-      if (existsSync(path)) {
-        return path;
-      }
+const isSymbolicLink = (path: string): boolean => {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+const isGitCheckout = (directory: string): boolean => {
+  try {
+    execFileSync("git", ["-C", directory, "rev-parse", "--is-inside-work-tree"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** The real `variants.yaml` in the checkout named by an `AGENTS.md` symlink in `directory`. */
+const configFromAgentsSymlink = (directory: string): string | undefined => {
+  const agents = join(directory, "AGENTS.md");
+  if (!isSymbolicLink(agents)) {
+    return undefined;
+  }
+  let checkout: string;
+  try {
+    checkout = dirname(realpathSync(agents));
+  } catch {
+    return undefined;
+  }
+  if (!isGitCheckout(checkout)) {
+    return undefined;
+  }
+  for (const filename of CONFIG_FILENAMES) {
+    const path = join(checkout, filename);
+    if (existsSync(path) && !isSymbolicLink(path)) {
+      return path;
     }
   }
   return undefined;
 };
+
+interface ConfigFileDiscovery {
+  path?: string;
+  warnings: string[];
+}
+
+const discoverConfigFile = (startDir: string): ConfigFileDiscovery => {
+  const warnings: string[] = [];
+  for (const directory of ancestorDirectories(startDir)) {
+    for (const filename of CONFIG_FILENAMES) {
+      const path = join(directory, filename);
+      if (!existsSync(path)) {
+        continue;
+      }
+      if (isSymbolicLink(path) && configFromAgentsSymlink(directory)) {
+        warnings.push(`${path}: a variants.yaml symlink in the variant root is an anti-pattern`);
+        continue;
+      }
+      return { path, warnings };
+    }
+  }
+  for (const directory of ancestorDirectories(startDir)) {
+    const linked = configFromAgentsSymlink(directory);
+    if (linked) {
+      return { path: linked, warnings };
+    }
+  }
+  return { warnings };
+};
+
+export const findConfigFile = (startDir = process.cwd()): string | undefined => discoverConfigFile(startDir).path;
 
 interface ReadConfig extends ParsedConfig<VariantsConfig> {
   /** The notices of names of an earlier version that were read under the current names. */
@@ -194,9 +255,10 @@ export interface LoadConfigOptions {
 
 export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const configPath = options.configPath
-    ? resolve(cwd, options.configPath)
-    : (findConfigFile(cwd) ?? join(cwd, "variants.yaml"));
+  const discovered = options.configPath
+    ? { path: resolve(cwd, options.configPath), warnings: [] }
+    : discoverConfigFile(cwd);
+  const configPath = discovered.path ?? join(cwd, "variants.yaml");
   const configExists = existsSync(configPath);
   const read: ReadConfig = configExists ? readConfigFile(configPath) : { data: {}, warnings: [], migrations: [] };
   const config = read.data;
@@ -213,7 +275,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     ...(runtime ? { runtime } : {}),
     configPath,
     configDir,
-    warnings: read.warnings,
+    warnings: [...discovered.warnings, ...read.warnings],
     migrations: [...read.migrations, ...migrations],
   };
   // The database and its source are read lazily: detecting them is what asks the environment provider.
