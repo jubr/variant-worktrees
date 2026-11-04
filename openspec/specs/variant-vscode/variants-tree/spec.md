@@ -47,12 +47,33 @@ The extension SHALL contribute a view titled `Variant Worktrees` to the Explorer
 
 ### Requirement: Inline actions
 
-Each item SHALL carry inline actions: play when the state is `down` or `up`, stop when it is `watching` or `up`, and implode for every item except `main`. The play control SHALL use the play icon and its tooltip SHALL be `variant watch`; the extension log SHALL name that activity `watch`. Play SHALL start a detached watch, stop SHALL bring the variant down, and implode SHALL first ask for confirmation in a modal dialog that names the variant and calls `implode` only when the person accepts. The implode control SHALL be the rightmost inline action and SHALL be offered whether or not implode would succeed. Its icon SHALL be a trash icon in the foreground colour when `implodeClean` is not false (dark on a light theme, light on a dark theme) and red when `implodeClean` is false, and that red SHALL stay readable on white and on a dark background. The context menu SHALL add show output (opens the record's `log` file in an editor, enabled when it has one), open URL (when the record has one), open the panel and open the web page. A failing action SHALL show its error message as an error notification and record that failure, with the message, in the extension log. Every action SHALL be recorded in that log when it starts and when it finishes, with the slug it applies to, and the lines the action itself reports SHALL be recorded there too. A cancelled implode SHALL be recorded as cancelled and SHALL NOT be recorded as finished. While an action runs, the item SHALL show a progress icon and offer no inline action.
+Each item SHALL carry inline actions: play when the state is `down` or `up`, stop when it is `watching` or `up`, and implode for every item except `main`. The play control SHALL use the play icon and its tooltip SHALL be `variant watch`; the extension log SHALL name that activity `watch`. Play SHALL start a detached watch, stop SHALL bring the variant down, and implode SHALL first ask for confirmation in a modal dialog that names the variant and calls `implode` only when the person accepts. Play, stop, and implode SHALL run with the item's slug and with the item's directory as the working directory: the variant's worktree, or the main checkout when the item is `main`. The panel's watch, down, and implode SHALL use that same slug and directory. When the workspace folder is the variant root, these actions SHALL NOT use that folder as the working directory. The implode control SHALL be the rightmost inline action and SHALL be offered whether or not implode would succeed. Its icon SHALL be a trash icon in the foreground colour when `implodeClean` is not false (dark on a light theme, light on a dark theme) and red when `implodeClean` is false, and that red SHALL stay readable on white and on a dark background. The context menu SHALL add show output (opens the record's `log` file in an editor, enabled when it has one), open URL (when the record has one), open the panel and open the web page. A failing action SHALL show its error message as an error notification and record that failure, with the message, in the extension log. Every action SHALL be recorded in that log when it starts and when it finishes, with the slug it applies to, and the lines the action itself reports SHALL be recorded there too. A cancelled implode SHALL be recorded as cancelled and SHALL NOT be recorded as finished. While an action runs, the item SHALL show a progress icon and offer no inline action.
 
 #### Scenario: Play
 
 - **WHEN** a person presses play on the `demo` item in state `down`
 - **THEN** a detached watch of `demo` starts and its item changes to `watching` without a manual refresh
+
+#### Scenario: Play from the variant root
+
+- **WHEN** the workspace folder is `/work`, `/work` is the variant root, and a person presses play on `foo` whose worktree is `/work/_v-foo`
+- **THEN** watch runs for slug `foo` with working directory `/work/_v-foo`
+- **AND** it does not run with working directory `/work`
+
+#### Scenario: Stop from the variant root
+
+- **WHEN** a person presses stop on that `foo`
+- **THEN** down runs for slug `foo` with working directory `/work/_v-foo`
+
+#### Scenario: Implode from the variant root
+
+- **WHEN** a person accepts implode on that `foo`
+- **THEN** implode runs for slug `foo` with working directory `/work/_v-foo`
+
+#### Scenario: Play on main
+
+- **WHEN** a person presses play on `main` and the main checkout is `/work/app`
+- **THEN** watch runs for slug `main` with working directory `/work/app`
 
 #### Scenario: Stop
 
