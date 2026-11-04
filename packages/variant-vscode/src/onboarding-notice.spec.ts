@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { getVariantsAdoption, type VariantsAdoption } from "variant-config";
+import { getVariantsAdoption } from "variant-config";
 import { createMiseGuard } from "./mise-guard.ts";
 import {
   BOOTSTRAP_BUTTON,
@@ -38,7 +38,7 @@ const memento = (store = new Map<string, unknown>()): Memento & { store: Map<str
 
 const setup = (
   environment: NodeJS.ProcessEnv | (() => NodeJS.ProcessEnv),
-  options: { state?: Memento & { store: Map<string, unknown> }; pressed?: string; hasConfig?: boolean } = {},
+  options: { state?: Memento & { store: Map<string, unknown> }; pressed?: string } = {},
 ) => {
   const state = options.state ?? memento();
   const infos: Array<{ message: string; buttons: string[] }> = [];
@@ -55,11 +55,8 @@ const setup = (
   const notice = createOnboardingNotice({
     root,
     state,
-    hasConfig: () => options.hasConfig ?? false,
-    detect: async () => {
-      const adoption = getVariantsAdoption(root, typeof environment === "function" ? environment : () => environment);
-      return detectionOf(adoption);
-    },
+    adoption: async () =>
+      getVariantsAdoption(root, typeof environment === "function" ? environment : () => environment),
     showInfo: async (message, ...buttons) => {
       infos.push({ message, buttons });
       return options.pressed;
@@ -70,16 +67,6 @@ const setup = (
     guard,
   });
   return { notice, state, infos, errors, commands };
-};
-
-const detectionOf = (adoption: VariantsAdoption): { label: string | undefined; error?: unknown } => {
-  if (adoption.status === "detected") {
-    return { label: adoption.label };
-  }
-  if (adoption.status === "none" && adoption.error !== undefined) {
-    return { label: undefined, error: adoption.error };
-  }
-  return { label: undefined };
 };
 
 const POSTGRES = { POSTGRES_HOST: "db" };
@@ -158,14 +145,20 @@ describe("onboarding notification", () => {
     expect(state.store.get(SHOWN_KEY)).toBe(true);
   });
 
-  it("shows nothing when a variants.yaml exists", async () => {
+  it("shows nothing when adoption is active and does not read the environment", async () => {
+    put("variants.yaml", "variant: {}\n");
     put("fe/vite.config.ts");
-    const { notice, infos, state } = setup(POSTGRES, { hasConfig: true });
+    let reads = 0;
+    const { notice, infos, state } = setup(() => {
+      reads += 1;
+      return POSTGRES;
+    });
 
     await notice.check();
 
     expect(infos).toEqual([]);
     expect(state.store.size).toBe(0);
+    expect(reads).toBe(0);
   });
 
   it("shows nothing and records nothing when no database is detected", async () => {
@@ -197,7 +190,8 @@ describe("onboarding notification", () => {
     const state = memento(new Map([[SHOWN_KEY, true]]));
 
     await setup(environment, { state }).notice.check();
-    await setup(environment, { hasConfig: true }).notice.check();
+    put("variants.yaml", "variant: {}\n");
+    await setup(environment).notice.check();
 
     expect(reads).toBe(0);
   });

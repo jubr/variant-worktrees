@@ -1,8 +1,8 @@
-import { findConfigFile, getVariantsAdoption, resolveMiseBinary } from "variant-config";
+import { findConfigFile, getVariantsAdoption, resolveMiseBinary, type VariantsAdoption } from "variant-config";
 import * as vscode from "vscode";
 import { createMiseGuard, type MiseGuard } from "./mise-guard.ts";
 import { type CommitWatcher, createCommitWatcher } from "./onboarding-commits.ts";
-import { createOnboardingNotice, type OnboardingDetection, type OnboardingNotice } from "./onboarding-notice.ts";
+import { createOnboardingNotice, type OnboardingNotice } from "./onboarding-notice.ts";
 import { type Onboarding, registerOnboarding } from "./onboarding-view.ts";
 import type { ActivityLog } from "./variants-actions.ts";
 import type { VariantsView } from "./variants-view.ts";
@@ -26,8 +26,8 @@ export interface OnboardingFlowDeps {
   log?: ActivityLog;
   /** Starts watching for commits; the `HEAD` reflog by default. */
   watchCommits?: (root: string, onCommit: () => void) => CommitWatcher;
-  /** What autodetection finds; reads the environment through Mise by default. */
-  detect?: () => Promise<OnboardingDetection>;
+  /** Adoption of the workspace; reads the environment through Mise by default. */
+  adoption?: () => Promise<VariantsAdoption>;
   /** Runs `mise trust --all` in a directory; the resolved Mise by default. */
   trust?: (directory: string) => Promise<void>;
   nonce?: () => string;
@@ -41,20 +41,13 @@ export interface OnboardingFlow {
 
 const NOT_FOUND = "Mise was not found. Set the setting variant.mise.binPath to its executable.";
 
-const detectThroughMise = async (root: string): Promise<OnboardingDetection> => {
+const adoptionThroughMise = async (root: string): Promise<VariantsAdoption> => {
   try {
     const { miseEnvironment } = await import("variant-api");
     const binary = resolveMiseBinary({ configured: miseBinPathSetting() });
-    const adoption = getVariantsAdoption(root, miseEnvironment({ directory: root, binary }));
-    if (adoption.status === "detected") {
-      return { label: adoption.label };
-    }
-    if (adoption.status === "none" && adoption.error !== undefined) {
-      return { label: undefined, error: adoption.error };
-    }
-    return { label: undefined };
+    return getVariantsAdoption(root, miseEnvironment({ directory: root, binary }));
   } catch (error) {
-    return { label: undefined, error };
+    return { status: "none", error };
   }
 };
 
@@ -90,8 +83,7 @@ export const registerOnboardingFlow = (context: vscode.ExtensionContext, deps: O
   const notice = createOnboardingNotice({
     root,
     state: context.workspaceState,
-    hasConfig,
-    detect: deps.detect ?? (() => detectThroughMise(root)),
+    adoption: deps.adoption ?? (() => adoptionThroughMise(root)),
     showInfo: (message, ...buttons) => vscode.window.showInformationMessage(message, ...buttons),
     runCommand: (id) => vscode.commands.executeCommand(id),
     guard,

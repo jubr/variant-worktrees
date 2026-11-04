@@ -1,3 +1,4 @@
+import type { VariantsAdoption } from "variant-config";
 import type { MiseGuard } from "./mise-guard.ts";
 import type { ActivityLog } from "./variants-actions.ts";
 
@@ -16,19 +17,11 @@ export interface Memento {
   update(key: string, value: unknown): PromiseLike<void>;
 }
 
-/** A detected label, or an environment failure. `active` adoption is represented by no label. */
-export interface OnboardingDetection {
-  label: string | undefined;
-  error?: unknown;
-}
-
 export interface NoticeDeps {
   root: string;
   state: Memento;
-  /** Whether a `variants.yaml` or `variants.yml` is found for the workspace root. */
-  hasConfig: () => boolean;
-  /** What autodetection finds for the workspace; a failure of the environment is in `error`. */
-  detect: () => Promise<OnboardingDetection>;
+  /** Adoption of the workspace. `active` skips the notification and does not read the environment. */
+  adoption: () => Promise<VariantsAdoption>;
   showInfo: (message: string, ...buttons: string[]) => PromiseLike<string | undefined>;
   runCommand: (id: string) => PromiseLike<unknown>;
   guard: MiseGuard;
@@ -41,31 +34,33 @@ export interface OnboardingNotice {
 }
 
 /**
- * Offers `variant init` once per workspace, after a local commit, when there is no `variants.yaml` and autodetection
- * finds both a database and an application. The gates run in the order that keeps the Mise process for last.
+ * Offers `variant init` once per workspace, after a local commit, when adoption is `detected`.
+ * The shown-record gate runs before adoption, so a recorded workspace does not read the environment.
  */
 export const createOnboardingNotice = (deps: NoticeDeps): OnboardingNotice => {
   let running = false;
 
   const check = async (): Promise<void> => {
-    if (running || deps.state.get(SHOWN_KEY) === true || deps.hasConfig()) {
+    if (running || deps.state.get(SHOWN_KEY) === true) {
       return;
     }
     running = true;
     try {
-      const detection = await deps.detect();
-      if (detection.error !== undefined) {
-        deps.guard.handle(detection.error, check);
+      const adoption = await deps.adoption();
+      if (adoption.status === "active") {
         return;
       }
-      if (detection.label === undefined) {
+      if (adoption.status === "none") {
+        if (adoption.error !== undefined) {
+          deps.guard.handle(adoption.error, check);
+        }
         return;
       }
       await deps.state.update(SHOWN_KEY, true);
-      deps.log?.info("onboarding notification", { detected: detection.label });
+      deps.log?.info("onboarding notification", { detected: adoption.label });
       running = false;
       const choice = await deps.showInfo(
-        `Detected ${detection.label}, want to bootstrap Variant in this repo?`,
+        `Detected ${adoption.label}, want to bootstrap Variant in this repo?`,
         BOOTSTRAP_BUTTON,
       );
       if (choice === BOOTSTRAP_BUTTON) {

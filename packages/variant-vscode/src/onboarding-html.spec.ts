@@ -37,7 +37,25 @@ describe("buildOnboardingHtml", () => {
     expect(html).toContain("Augment mise.toml with variant-cli");
     expect(html.match(/type="checkbox"[^>]* checked/g)).toHaveLength(3);
     expect(html).toContain(">Cancel</button>");
-    expect(html).toContain(">Init</button>");
+    expect(html).toContain(">Initialize</button>");
+    expect(html).not.toContain(">Init</button>");
+  });
+
+  it("keeps Prefix inside a collapsed Advanced disclosure immediately above the buttons", () => {
+    const html = page();
+    const details = html.indexOf("<details>");
+    const summary = html.indexOf("<summary>Advanced</summary>");
+    const prefix = html.indexOf('id="prefix"');
+    const problem = html.indexOf('id="problem"');
+    const buttons = html.indexOf('class="buttons"');
+
+    expect(html).not.toContain("<details open");
+    expect(summary).toBeGreaterThan(details);
+    expect(prefix).toBeGreaterThan(summary);
+    expect(html.indexOf("</details>")).toBeGreaterThan(prefix);
+    expect(html.indexOf("</details>")).toBeLessThan(buttons);
+    expect(problem).toBeGreaterThan(-1);
+    expect(problem).toBeLessThan(details);
   });
 
   it("puts the icon at the top right of a narrow single column", () => {
