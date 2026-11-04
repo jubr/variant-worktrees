@@ -28,6 +28,12 @@
 
 ### Changed
 
+- The Explorer section starts collapsed and expands when the workspace uses variants or looks ready for them.
+  Without a config file it offers **Onboard**. The dialog confirm button is **Initialize**, and **Prefix** sits
+  under **Advanced**. **Create variant** sits left of Sort. Sort labels are `Name (A→Z)`, `Name (Z→A)`,
+  `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. `main` stays pinned
+  first. Down is a hollow dot, watching a filled green dot, and up a different shape. The implode control is an
+  explosion, muted when implode would fail. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
 - **Breaking:** `instances` is now `watches` everywhere: `variant.watches`, `runtime.watches`, the fields of records,
   status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `${key.port}` and
   container names are unchanged. See the migration above.
