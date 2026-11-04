@@ -46,7 +46,7 @@ The app SHALL list every variant record, one row each with the slug, a state ico
 
 ### Requirement: Controls per state
 
-Each row SHALL always show its run control and its implode control. The run control SHALL be the play icon, with accessible name and tooltip `variant watch` plus the slug, when the state is `down`, and it SHALL start a watch. The run control SHALL be a square stop icon when the state is `watching` or `up`, and it SHALL bring the variant down. Exactly one of those two SHALL be shown. The implode control SHALL use an explosion icon, SHALL be shown for every row including `main`, and SHALL be the rightmost of these controls. It SHALL be enabled when the slug is not `main` and `implodeClean` is not false. It SHALL be dimmed and disabled when the slug is `main` or `implodeClean` is false, and its tooltip SHALL remain available while the pointer is over it. The enabled accessible name SHALL say implode would succeed. The disabled accessible name SHALL say implode would fail, or that `main` is never imploded, so the dimming is not the only signal. A disabled implode control SHALL NOT open the confirmation and SHALL NOT call `implode`. While an action of a row is pending, all controls of that row SHALL be disabled and the row SHALL show a busy indicator. Every control SHALL have an accessible name and be operable by keyboard.
+Each row SHALL always show its run control. Each row other than `main` SHALL always show its implode control. The run control SHALL be the play icon, with accessible name and tooltip `variant watch` plus the slug, when the state is `down`, and it SHALL start a watch. The run control SHALL be a square stop icon when the state is `watching` or `up`, and it SHALL bring the variant down. Exactly one of those two SHALL be shown. The implode control SHALL use an explosion icon and SHALL be the rightmost of these controls. The `main` row SHALL show no implode control. Every other row SHALL show the explosion. It SHALL be enabled when `implodeClean` is not false. It SHALL be muted and disabled when `implodeClean` is false, and its tooltip SHALL remain available while the pointer is over it. The enabled accessible name SHALL say implode would succeed. The muted accessible name SHALL say implode would fail, so the muting is not the only signal. A muted implode control SHALL NOT open the confirmation and SHALL NOT call `implode`. While an action of a row is pending, all controls of that row SHALL be disabled and the row SHALL show a busy indicator. Every control SHALL have an accessible name and be operable by keyboard.
 
 #### Scenario: Down variant
 
@@ -66,21 +66,21 @@ Each row SHALL always show its run control and its implode control. The run cont
 #### Scenario: Main has no implode
 
 - **WHEN** the row is `main`
-- **THEN** its explosion control is shown, dimmed, and disabled, and its accessible name says `main` is never imploded
+- **THEN** it shows no implode control
 
 #### Scenario: Dirty implode icon
 
 - **WHEN** `demo` has `implodeClean` false
-- **THEN** its explosion control is the rightmost control, dimmed and disabled, and its accessible name says implode would fail
+- **THEN** its explosion control is the rightmost control, muted and disabled, and its accessible name says implode would fail
 
 #### Scenario: Clean implode icon
 
 - **WHEN** `demo` has no `implodeClean` or `implodeClean` true
-- **THEN** its explosion control is enabled and not dimmed, and its accessible name says implode would succeed
+- **THEN** its explosion control is enabled and not muted, and its accessible name says implode would succeed
 
 #### Scenario: Disabled implode does nothing
 
-- **WHEN** the explosion control of `main` or of a row with `implodeClean` false is pressed
+- **WHEN** the muted explosion control of a row with `implodeClean` false is pressed
 - **THEN** no confirmation opens and `implode` is not called
 
 #### Scenario: Pending action

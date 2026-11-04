@@ -6,7 +6,7 @@ Reports whether a directory already uses Variant or only looks ready for it, so 
 
 ### Requirement: Adoption of a directory
 
-The configuration library SHALL report adoption of a directory as exactly one of `active`, `detected`, or `none`. `active` SHALL mean a `variants.yaml` or `variants.yml` is found by walking that directory and its parents, checking `variants.yaml` before `variants.yml` in each directory, the same lookup the other commands use to load configuration. When the result is `active`, the environment SHALL NOT be read. Otherwise the library SHALL use the onboarding detection of that directory. When that detection has a label, the result SHALL be `detected` and SHALL carry that label: the database and the distinct application kinds joined by `+`, kinds in the order `vite`, `nestjs`, `package-script-watch`. The database name SHALL be `postgres`, `mysql`, `mariadb`, or `sqlite`; a database detected through MariaDB SHALL be named `mariadb`. The SQLite fallback used when nothing is detected SHALL NOT count as a database. When there is no label, the result SHALL be `none`. When reading the environment fails, the result SHALL be `none` and SHALL carry that failure for the caller.
+The configuration library SHALL report adoption of a directory as exactly one of `active`, `detected`, or `none`. This operation SHALL be the only onboarding detection the package exports. `active` SHALL mean a `variants.yaml` or `variants.yml` is found by walking that directory and its parents, checking `variants.yaml` before `variants.yml` in each directory, the same lookup the other commands use to load configuration. When the result is `active`, the environment SHALL NOT be read. Otherwise the same operation SHALL detect a database and applications in that directory. When both are found, the result SHALL be `detected` and SHALL carry that label: the database and the distinct application kinds joined by `+`, kinds in the order `vite`, `nestjs`, `package-script-watch`. The database name SHALL be `postgres`, `mysql`, `mariadb`, or `sqlite`; a database detected through MariaDB SHALL be named `mariadb`. The SQLite fallback used when nothing is detected SHALL NOT count as a database. When there is no label, the result SHALL be `none`. When reading the environment fails, the result SHALL be `none` and SHALL carry that failure for the caller.
 
 #### Scenario: Config file in the directory
 
@@ -57,3 +57,8 @@ The configuration library SHALL report adoption of a directory as exactly one of
 
 - **WHEN** no config file is found and reading the environment fails
 - **THEN** adoption is `none` and the result carries that failure
+
+#### Scenario: One detection export
+
+- **WHEN** the configuration package's public exports are read
+- **THEN** they include `getVariantsAdoption` and do not include `detectOnboarding`

@@ -2,7 +2,7 @@
 
 ### Requirement: Variants view in the Explorer
 
-The extension SHALL contribute a view titled `Variant Worktrees` to the Explorer container. The contribution SHALL NOT start the section expanded. The section SHALL remain available with a workspace folder open so a person can expand it. On startup, the extension SHALL expand that section and then return focus to the editor only when a `variants.yaml` or `variants.yml` is found for the workspace folder and `variant.autoExpand` is not `false`. `variant.autoExpand` defaults to expanding when that file is found. When no such file is found, startup SHALL NOT expand the section, including when `variant.autoExpand` is `true`. The extension SHALL NOT collapse a section the person has expanded. It SHALL list every variant record of the project of the first workspace folder and SHALL always include a row titled `main`. When the library returns no `main` record, that row SHALL still appear, in state `down`, and SHALL NOT be implodable. The `main` row SHALL be the first variant row, after the UI server item when that item exists, and `variant.sort` SHALL NOT move it. Each other row SHALL use its slug as the label. A row SHALL show a state icon and, as description, the uptime when the record has one. The tooltip SHALL name the state in words, the mode, the URL, the worktree, and whether implode would succeed. The state SHALL follow the rules of `variant-ui/variants-view`: `watching`, `up`, or `down`. `down` SHALL use a hollow dot, `watching` SHALL use a filled green dot, and `up` SHALL use an icon of a different shape. The tooltip SHALL still name the state, so the green fill is not the only signal. With no config file the view SHALL show an introduction that variants are not initialized in this workspace, listing no variant rows, and that introduction SHALL include a button labelled `Onboard` that runs `variant.onboardingInit`.
+The extension SHALL contribute a view titled `Variant Worktrees` to the Explorer container. The contribution SHALL NOT start the section expanded. The section SHALL remain available with a workspace folder open so a person can expand it. On startup, the extension SHALL call `getVariantsAdoption` for the first workspace folder. It SHALL expand that section and then return focus to the editor when the result is `active` or `detected` and `variant.autoExpand` is not `false`. `variant.autoExpand` defaults to expanding in those two cases. When the result is `none`, startup SHALL NOT expand the section, including when `variant.autoExpand` is `true`. The extension SHALL NOT collapse a section the person has expanded. It SHALL list every variant record of the project of the first workspace folder and SHALL always include a row titled `main`. When the library returns no `main` record, that row SHALL still appear, in state `down`, and SHALL NOT be implodable. The `main` row SHALL be the first variant row, after the UI server item when that item exists, and `variant.sort` SHALL NOT move it. Each other row SHALL use its slug as the label. A row SHALL show a state icon and, as description, the uptime when the record has one. The tooltip SHALL name the state in words, the mode, the URL, the worktree, and whether implode would succeed. The state SHALL follow the rules of `variant-ui/variants-view`: `watching`, `up`, or `down`. `down` SHALL use a hollow dot, `watching` SHALL use a filled green dot, and `up` SHALL use an icon of a different shape. The tooltip SHALL still name the state, so the green fill is not the only signal. With no config file the view SHALL show an introduction that variants are not initialized in this workspace, listing no variant rows, and that introduction SHALL include a button labelled `Onboard` that runs `variant.onboardingInit`.
 
 #### Scenario: Default presentation
 
@@ -19,9 +19,14 @@ The extension SHALL contribute a view titled `Variant Worktrees` to the Explorer
 - **WHEN** the editor starts with `variant.autoExpand` set to `false`
 - **THEN** the extension leaves the section as it was
 
-#### Scenario: No config file does not auto-expand
+#### Scenario: Detected adoption expands
 
-- **WHEN** no `variants.yaml` or `variants.yml` is found and `variant.autoExpand` is `true`
+- **WHEN** no config file is found, adoption is `detected`, and `variant.autoExpand` is not `false`
+- **THEN** the section is expanded and the editor keeps focus
+
+#### Scenario: No adoption does not auto-expand
+
+- **WHEN** adoption is `none` and `variant.autoExpand` is `true`
 - **THEN** startup does not expand the section
 
 #### Scenario: Three states, three icons
@@ -61,7 +66,7 @@ The extension SHALL contribute a view titled `Variant Worktrees` to the Explorer
 
 ### Requirement: Inline actions
 
-Each variant row SHALL always show its run control and its implode control, not only while the pointer is over the row. The run control SHALL be the play icon with tooltip `variant watch` when the state is `down`, and SHALL start a detached watch. The extension log SHALL name that activity `watch`. The run control SHALL be a square stop icon when the state is `watching` or `up`, and SHALL bring the variant down. Exactly one of those two controls SHALL be shown. The implode control SHALL be an explosion icon, SHALL be the rightmost of these always-shown controls, and SHALL be shown on every variant row including `main`. It SHALL be enabled only when the slug is not `main` and `implodeClean` is not false. It SHALL be dimmed and disabled when the slug is `main` or `implodeClean` is false, and its tooltip SHALL still be shown while the pointer is over that disabled control. The enabled tooltip SHALL say implode would succeed. The disabled tooltip SHALL say implode would fail, or that `main` is never imploded. An enabled implode SHALL first ask for confirmation in a modal dialog that names the variant and SHALL call `implode` only when the person accepts. A disabled implode SHALL NOT open that dialog and SHALL NOT call `implode`. The context menu SHALL add show output (opens the record's `log` file in an editor, enabled when it has one), open URL (when the record has one), open the panel, and open the web page. A failing action SHALL show its error message as an error notification and record that failure, with the message, in the extension log. Every action SHALL be recorded in that log when it starts and when it finishes, with the slug it applies to, and the lines the action itself reports SHALL be recorded there too. A cancelled implode SHALL be recorded as cancelled and SHALL NOT be recorded as finished. While an action runs, the row SHALL show a progress indicator and its controls SHALL be disabled.
+Each variant row's run control SHALL be an inline action of the native tree, and so SHALL its implode control when the row is not `main`. The host shows an inline action while the pointer is over the row or the row is selected. The run control SHALL be the play icon with tooltip `variant watch` when the state is `down`, and SHALL start a detached watch. The extension log SHALL name that activity `watch`. The run control SHALL be a square stop icon when the state is `watching` or `up`, and SHALL bring the variant down. Exactly one of those two controls SHALL be shown. The implode control SHALL be an explosion icon and SHALL be the rightmost of these inline controls. The `main` row SHALL show no implode control. Every other row SHALL show the explosion. It SHALL be enabled when `implodeClean` is not false. When `implodeClean` is false, the control SHALL be a muted explosion whose tooltip is its title, because a disabled inline command is omitted. The enabled tooltip SHALL say implode would succeed. The muted tooltip SHALL say implode would fail. An enabled implode SHALL first ask for confirmation in a modal dialog that names the variant and SHALL call `implode` only when the person accepts. A muted implode SHALL NOT open that dialog and SHALL NOT call `implode`. The context menu SHALL add show output (opens the record's `log` file in an editor, enabled when it has one), open URL (when the record has one), open the panel, and open the web page. A failing action SHALL show its error message as an error notification and record that failure, with the message, in the extension log. Every action SHALL be recorded in that log when it starts and when it finishes, with the slug it applies to, and the lines the action itself reports SHALL be recorded there too. A cancelled implode SHALL be recorded as cancelled and SHALL NOT be recorded as finished. While an action runs, the row SHALL show a progress indicator and SHALL offer no inline action.
 
 #### Scenario: Play
 
@@ -91,7 +96,7 @@ Each variant row SHALL always show its run control and its implode control, not 
 #### Scenario: Main has no implode
 
 - **WHEN** the `main` row is shown
-- **THEN** its explosion control is visible, dimmed, and disabled, the pointer still shows a tooltip that `main` is never imploded, and pressing it does not open the modal
+- **THEN** it has no explosion control
 
 #### Scenario: Play tooltip
 
@@ -101,17 +106,12 @@ Each variant row SHALL always show its run control and its implode control, not 
 #### Scenario: Clean implode icon
 
 - **WHEN** `demo` has `implodeClean` true
-- **THEN** its explosion control is enabled, not dimmed, and its tooltip says implode would succeed
+- **THEN** its explosion control is enabled, not muted, and its tooltip says implode would succeed
 
 #### Scenario: Dirty implode icon
 
 - **WHEN** `demo` has `implodeClean` false
-- **THEN** its explosion control is visible, dimmed, and disabled, and its tooltip says implode would fail
-
-#### Scenario: Controls stay visible
-
-- **WHEN** the pointer is not over a row
-- **THEN** that row still shows its run control and its explosion control
+- **THEN** its explosion control is the muted explosion, and its tooltip says implode would fail
 
 #### Scenario: Error reported
 
@@ -172,3 +172,29 @@ The view title SHALL show a Sort menu immediately to the left of Open Variants P
 
 - **WHEN** the Sort menu is opened and `variant.sort` is `name-asc`
 - **THEN** `Name (A→Z)` has a check before it and the other five labels do not
+
+## ADDED Requirements
+
+### Requirement: Create variant
+
+The view title SHALL show a command titled `Create variant`, with the add icon, in the navigation group immediately to the left of Sort. Activating it SHALL open an input box created with `createInputBox` whose title is `Create variant`. Accepting a slug SHALL run `create` with that slug. When `create` finishes, the section SHALL reload its rows and SHALL list the new variant. An empty value SHALL be rejected in the input and SHALL NOT run `create`. Dismissing the input SHALL NOT run `create` and SHALL leave the list unchanged.
+
+#### Scenario: Button placement
+
+- **WHEN** the view title menu is read
+- **THEN** Create variant is in the navigation group immediately ahead of Sort
+
+#### Scenario: Accept creates and reloads
+
+- **WHEN** a person accepts `demo` in the Create variant input
+- **THEN** `create` runs for `demo` and the section lists `demo` without a manual refresh
+
+#### Scenario: Empty value
+
+- **WHEN** a person accepts an empty value in the Create variant input
+- **THEN** the input rejects it and `create` does not run
+
+#### Scenario: Dismiss
+
+- **WHEN** a person dismisses the Create variant input
+- **THEN** `create` does not run and the list is unchanged
