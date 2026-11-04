@@ -9,7 +9,7 @@ portable YAML state across supported database engines.
 
 ### Requirement: Create schema variant
 
-The system SHALL create an isolated database schema or database file for a slug.
+The system SHALL create an isolated database schema or database file for a slug. It SHALL write `variants.local.yaml` in the variant directory: the worktree `<prefix><slug>`, or the main checkout when the slug is `main`. That file SHALL contain `runtime.createdAt` set to the local time the create runs, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). When `runtime.createdAt` is already present, create SHALL leave it unchanged. Other top-level keys of an existing file SHALL be kept.
 
 #### Scenario: Create PostgreSQL schema variant
 - **WHEN** the client calls `create("test-feature")` with a PostgreSQL connection
@@ -23,11 +23,21 @@ The system SHALL create an isolated database schema or database file for a slug.
 - **WHEN** a variant already exists and `create()` is called
 - **THEN** the call succeeds without changing existing state
 
+#### Scenario: Local created time
+
+- **WHEN** `create("demo")` runs at 12:22:05 local time on 2026-11-04
+- **THEN** the variant directory's `variants.local.yaml` contains `runtime.createdAt: 2026-11-04_12:22:05`
+
+#### Scenario: Created time kept
+
+- **WHEN** `variants.local.yaml` already has `runtime.createdAt: 2026-01-02_03:04:05` and `create` runs again
+- **THEN** `runtime.createdAt` is still `2026-01-02_03:04:05`
+
 ### Requirement: List variants
 
 The system SHALL return an inventory of known variants from state files, the database, and the `runtime` sections of the `variants.local.yaml` files of the main checkout and of every `<prefix>*` worktree below the variant root, merged by slug. Each record SHALL carry, when known, the worktree directory, the runtime `mode`, the URL of the first watch that has one, the database target, and for every watch its `port`, `pid`, `url` and whether the pid is alive. A value from several sources SHALL be taken from state first, then runtime, then the database. A runtime file that cannot be read SHALL NOT fail the call.
 
-Each record that has a directory SHALL carry `createdMs` and `changedMs`, epoch milliseconds. `createdMs` SHALL be the earlier birth time of that directory and of its `variants.local.yaml`, skipping a path that does not exist. `changedMs` SHALL be the later modification time of those same paths. A record with no directory SHALL omit both.
+Each record that has a directory SHALL carry `changedMs`, epoch milliseconds: the later modification time of that directory and of its `variants.local.yaml`, skipping a path that does not exist. It SHALL carry `createdMs`, epoch milliseconds. When `runtime.createdAt` matches `YYYY-MM-DD_HH:MM:SS`, `createdMs` SHALL be that timestamp read as local time. When `createdAt` is missing or ill-formed, or the local file cannot be read, `createdMs` SHALL be that directory's creation time. A record with no directory SHALL omit both.
 
 Each record SHALL carry `implodeClean`. It SHALL be false for `main`. For every other variant it SHALL be true exactly when `implode` of that slug without `force` would succeed. Where that command would remove a git worktree, files it deletes before the removal SHALL NOT count as dirt: untracked files matching `variant.implode.untracked`, untracked files inside a `preRm` directory, and tracked modifications whose base name is in `variant.implode.restore`. A tracked file inside a `preRm` directory SHALL count as dirt unless `restore` would put it back. Ignored files SHALL NOT count as dirt. A variant whose worktree git would not remove SHALL be clean. Deciding this SHALL NOT delete or modify anything.
 
@@ -63,13 +73,18 @@ Each record SHALL carry `implodeClean`. It SHALL be false for `main`. For every 
 
 #### Scenario: Created and changed times
 
-- **WHEN** a variant directory was created before its `variants.local.yaml`, and the file was modified after the directory
-- **THEN** `createdMs` is the directory's birth time and `changedMs` is the file's modification time
+- **WHEN** `runtime.createdAt` is `2026-03-01_09:30:00` and `variants.local.yaml` is modified after that moment
+- **THEN** `createdMs` is 2026-03-01 09:30:00 local time as epoch milliseconds and `changedMs` is the file's modification time
 
 #### Scenario: No local file
 
 - **WHEN** a variant has a directory and no `variants.local.yaml`
-- **THEN** `createdMs` and `changedMs` are that directory's birth time and modification time
+- **THEN** `createdMs` is that directory's creation time and `changedMs` is its modification time
+
+#### Scenario: Ill-formed created time
+
+- **WHEN** `runtime.createdAt` is `yesterday` and the variant directory has a creation time
+- **THEN** the record is still listed and `createdMs` is that directory's creation time
 
 #### Scenario: Clean worktree
 
