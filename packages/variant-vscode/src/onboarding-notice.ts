@@ -1,4 +1,3 @@
-import type { OnboardingDetection } from "variant-config";
 import type { MiseGuard } from "./mise-guard.ts";
 import type { ActivityLog } from "./variants-actions.ts";
 
@@ -15,6 +14,12 @@ export const SHOWN_KEY = "variant.onboarding.shown";
 export interface Memento {
   get<T>(key: string): T | undefined;
   update(key: string, value: unknown): PromiseLike<void>;
+}
+
+/** A detected label, or an environment failure. `active` adoption is represented by no label. */
+export interface OnboardingDetection {
+  label: string | undefined;
+  error?: unknown;
 }
 
 export interface NoticeDeps {

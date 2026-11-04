@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { detectOnboarding } from "variant-config";
+import { getVariantsAdoption, type VariantsAdoption } from "variant-config";
 import { createMiseGuard } from "./mise-guard.ts";
 import {
   BOOTSTRAP_BUTTON,
@@ -56,7 +56,10 @@ const setup = (
     root,
     state,
     hasConfig: () => options.hasConfig ?? false,
-    detect: async () => detectOnboarding(root, typeof environment === "function" ? environment : () => environment),
+    detect: async () => {
+      const adoption = getVariantsAdoption(root, typeof environment === "function" ? environment : () => environment);
+      return detectionOf(adoption);
+    },
     showInfo: async (message, ...buttons) => {
       infos.push({ message, buttons });
       return options.pressed;
@@ -67,6 +70,16 @@ const setup = (
     guard,
   });
   return { notice, state, infos, errors, commands };
+};
+
+const detectionOf = (adoption: VariantsAdoption): { label: string | undefined; error?: unknown } => {
+  if (adoption.status === "detected") {
+    return { label: adoption.label };
+  }
+  if (adoption.status === "none" && adoption.error !== undefined) {
+    return { label: undefined, error: adoption.error };
+  }
+  return { label: undefined };
 };
 
 const POSTGRES = { POSTGRES_HOST: "db" };

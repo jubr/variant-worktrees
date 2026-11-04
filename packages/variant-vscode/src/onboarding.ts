@@ -1,8 +1,8 @@
-import { detectOnboarding, findConfigFile, type OnboardingDetection, resolveMiseBinary } from "variant-config";
+import { findConfigFile, getVariantsAdoption, resolveMiseBinary } from "variant-config";
 import * as vscode from "vscode";
 import { createMiseGuard, type MiseGuard } from "./mise-guard.ts";
 import { type CommitWatcher, createCommitWatcher } from "./onboarding-commits.ts";
-import { createOnboardingNotice, type OnboardingNotice } from "./onboarding-notice.ts";
+import { createOnboardingNotice, type OnboardingDetection, type OnboardingNotice } from "./onboarding-notice.ts";
 import { type Onboarding, registerOnboarding } from "./onboarding-view.ts";
 import type { ActivityLog } from "./variants-actions.ts";
 import type { VariantsView } from "./variants-view.ts";
@@ -45,9 +45,16 @@ const detectThroughMise = async (root: string): Promise<OnboardingDetection> => 
   try {
     const { miseEnvironment } = await import("variant-api");
     const binary = resolveMiseBinary({ configured: miseBinPathSetting() });
-    return detectOnboarding(root, miseEnvironment({ directory: root, binary }));
+    const adoption = getVariantsAdoption(root, miseEnvironment({ directory: root, binary }));
+    if (adoption.status === "detected") {
+      return { label: adoption.label };
+    }
+    if (adoption.status === "none" && adoption.error !== undefined) {
+      return { label: undefined, error: adoption.error };
+    }
+    return { label: undefined };
   } catch (error) {
-    return { database: undefined, applications: [], label: undefined, error };
+    return { label: undefined, error };
   }
 };
 

@@ -80,7 +80,7 @@ const flow = (options: { trust?: (directory: string) => Promise<void> } = {}) =>
     },
     detect: async () => {
       detected.push("run");
-      return { database: "postgres", applications: ["vite"], label: "postgres+vite" };
+      return { label: "postgres+vite" };
     },
     ...(options.trust ? { trust: options.trust } : {}),
   });
