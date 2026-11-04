@@ -22,7 +22,7 @@ const rememberCreatedAt = (context: OperationContext, directory: string): void =
 };
 
 export const createVariant = async (context: OperationContext, requestedSlug?: string): Promise<VariantRecord> => {
-  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes);
+  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
   const existing = readState(context.stateDir, slug);
   const worktree =
     context.useWorktree && slug !== "main"

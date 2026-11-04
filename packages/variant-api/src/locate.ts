@@ -4,6 +4,28 @@ import type { OperationContext } from "./operations/types.js";
 import { gitRoot, sanitizeSlug, worktreeEntries } from "./slug.js";
 import { primaryWorktree } from "./worktree.js";
 
+const realpathOrSelf = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+};
+
+/**
+ * The directory git should be asked in. The variant root is not a checkout, so an operation started there uses
+ * `variant.main`. A start inside a checkout keeps that directory, which is how a variant worktree names its own slug.
+ */
+export const repositoryDirectory = (context: OperationContext): string => {
+  const main = context.config.variant.main;
+  const root = context.config.variant.root;
+  const cwd = realpathOrSelf(context.cwd);
+  if (main && root && cwd === realpathOrSelf(root) && cwd !== realpathOrSelf(main)) {
+    return main;
+  }
+  return context.cwd;
+};
+
 /** The root of the git checkout that holds `cwd`, or `cwd` itself outside a git repository. */
 export const checkoutRoot = (cwd: string): string => {
   try {
@@ -19,18 +41,20 @@ export const checkoutRoot = (cwd: string): string => {
  */
 export const locateWorktree = (context: OperationContext, slug: string): string | undefined => {
   if (slug === "main") {
+    const directory = repositoryDirectory(context);
     try {
-      return primaryWorktree(context.cwd);
+      return primaryWorktree(directory);
     } catch {
-      return context.cwd;
+      return directory;
     }
   }
+  const directory = repositoryDirectory(context);
   if (!context.useWorktree) {
-    return checkoutRoot(context.cwd);
+    return checkoutRoot(directory);
   }
   const { branchPrefixes, prefix } = context.config.variant;
   try {
-    const found = worktreeEntries(context.cwd).find(
+    const found = worktreeEntries(directory).find(
       (entry) => entry.branch && sanitizeSlug(entry.branch, branchPrefixes) === slug,
     );
     if (found) {
