@@ -200,10 +200,57 @@ describe("MCP server", () => {
       const properties = (name: string) =>
         Object.keys(tools.find((tool) => tool.name === name)?.inputSchema.properties ?? {});
 
-      expect(properties("variant_watch")).toEqual(["slug", "reprovision", "verbose"]);
+      expect(properties("variant_create")).toEqual(["slug", "from", "verbose"]);
+      expect(properties("variant_provision")).toEqual(["slug", "from", "verbose"]);
+      expect(properties("variant_up")).toEqual(["slug", "from", "verbose"]);
+      expect(properties("variant_watch")).toEqual(["slug", "from", "reprovision", "verbose"]);
+      expect(properties("variant_down")).not.toContain("from");
+      expect(properties("variant_implode")).not.toContain("from");
       expect(properties("variant_implode")).toContain("force");
     } finally {
       rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("starts the new branch at from", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mcp-from-")));
+    const repo = join(parent, "repo");
+    const git = (...args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git("add", "README.md");
+      git("commit", "-q", "-m", "initial");
+      git("switch", "-q", "-c", "side");
+      writeFileSync(join(repo, "side.txt"), "side\n");
+      git("add", "side.txt");
+      git("commit", "-q", "-m", "side work");
+      const side = git("rev-parse", "HEAD");
+      git("switch", "-q", "main");
+
+      const result = await mcp(
+        [
+          ...initMessages(),
+          {
+            jsonrpc: "2.0",
+            id: 3,
+            method: "tools/call",
+            params: { name: "variant_create", arguments: { slug: "add-auth", from: side } },
+          },
+        ],
+        configFile(repo),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      const response = JSON.parse(result.lines.at(-1) ?? "{}");
+
+      expect(response.result.isError).not.toBe(true);
+      expect(
+        execFileSync("git", ["-C", join(repo, "_v-add-auth"), "rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+      ).toBe(side);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
     }
   });
 });
