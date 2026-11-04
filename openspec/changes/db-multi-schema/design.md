@@ -1,94 +1,98 @@
 ## Context
 
-- A PostgreSQL variant is one schema. `PostgresAdapter` maps a slug to `v_<slug>`, `create` and `destroy` act on that one name, and `list` returns every schema that starts with `v_`. `prepareRun` puts the target into `POSTGRES_SCHEMA`, `VARIANT_TARGET` and `{{schema}}`.
-- `create` always runs `CREATE SCHEMA`. Provisioning then runs one pipeline: installs, env copies, `up` commands, `variant.steps` in list order, then `variant.seed`, each once. Command text is not templated; `env` values are.
-- `down` stops processes and containers and keeps the database target. `implode` drops it and removes the worktree.
+- A PostgreSQL variant is one schema. `PostgresAdapter` maps a slug to `v_<slug>`. `create` runs `CREATE SCHEMA` and makes the worktree. `down` stops processes and keeps the schema. `implode` drops the schema and removes the worktree.
+- `variant.steps` is a list of `{ name, run }`. Provisioning runs installs, env copies, `up` commands, the steps in list order, then `variant.seed`, each once.
 - See proposal.md for motivation.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- The project owns provisioning and seeding. `variant` runs them, and falls back to `CREATE SCHEMA` only when the project has no provision script.
-- A variant can own one schema per value of a list, and deprovision removes the whole set.
-- The guide states the six phases in a fixed order. The README does not.
+
+- The project owns provisioning and seeding. Each script runs once and handles every schema. `variant` falls back to `CREATE SCHEMA` only when the project has no provision script.
+- The builtin steps have one order, and a later step implies the ones above it, with `down` only stopping watches.
+- A custom step names its place with `runBefore` or `runAfter`.
+- The Overview page states that flow. The README does not.
 
 **Non-Goals:**
-- MySQL and SQLite sets. A list that differs per variant. Per-value runs of steps other than `provision` and `seed`. Rewriting a dotenv file.
+
+- MySQL and SQLite sets. A list that differs per variant. Running a script once per value. Rewriting a dotenv file.
 
 ## Decisions
 
-### The step name selects the script
+### One run, and the script handles the list
 
-Provisioning is the schema plus any extra role that may connect to it. Seeding is tables and rows. Both are scripts in the target project, and the step name is the whole contract: `provision` and `seed`. No new flag. A step with any other name runs once, in the phase between those two. Rejected: a `multi: true` flag, which would be a second way to say the same thing, and running every step once per value, which repeats migrations and installs.
+The provision script and the seed script each run once, whether or not `db.multi` is set. The builtin, when there is no step named `provision`, creates every schema of the list itself: `schemaPrefix` with `${slug}` filled in, then the tenant. The script reads the list and the prefix from its own environment. The example sets `MULTI_TENANT_LIST: ${multi.tenants}` and `MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix}`, and a YAML anchor (`&prov-env`, `*prov-env`) shares that map between `provision`, `seed` and any later step. The script already knows how to walk its own list. Rejected: one process per value, which forces the project to accept a value it never asked to be called with, and which repeats work the script already loops over.
 
-The phases run in lifecycle order even when the steps are listed differently. `provision` runs in the provision phase, `seed` in the seed phase, and the rest keep their relative order in between. `variant.seed` stays what the current spec says: one command after the steps, not once per value. A project that seeds per value uses the step and leaves `variant.seed` unset. When `VARIANT_STEP_PROVISION=no`, the builtin does not create a schema either, because the project asked for no provisioning.
+`${multi.tenants}` is the joined list. It is filled lazily, the first time a step expands it or the builtin needs the names, and then reused. The builtin schema drop does not expand it. A step that does not expand it sees nothing. `${multi.schemaPrefix}` is `schemaPrefix` with its placeholders filled in, and it does not run the command. `schemaPrefix` is the project's string. It defaults to `v_${slug}-` and is not required to start with `v_`, to contain `${slug}`, or to end with a separator. There is no `roleSuffix`.
 
-### Naive creation is the absence of the script
+### The step name selects the script, and the map replaces the list
 
-With no step named `provision`, the builtin runs `CREATE SCHEMA` for the target, or once per value. It does not create roles. With the step present, the builtin creates nothing and the script does, seeing `POSTGRES_SCHEMA`, `VARIANT_MULTI` and `db.multi.env` for that value. The script is free to create the role; `variant` only learns the role's suffix so deprovision can drop it.
+`variant.steps` is a map keyed by name, with `cmd` instead of `run`. The builtin steps are an internal map, in flow order, and each internal command is `${builtin.step.create}`, `${builtin.step.provision}`, `${builtin.step.seed}`, `${builtin.step.watch}`, `${builtin.step.down}`, `${builtin.step.deprovision}` or `${builtin.step.implode}`. That token is the builtin implementation, not a shell command. `variant.steps` merges on top: a user `cmd` replaces the token, a missing `cmd` keeps it, and `env` merges with the user key winning. `variant config` prints the merged map as `variant.steps`. `provision`, `seed` and `deprovision` fill those phases. Every builtin step has a fixed position, so `runBefore` and `runAfter` on one of them fail validation. Every other name is a custom step and requires exactly one of `runBefore` and `runAfter`. `runAfter: seed` places it immediately after the seed phase. Neither key fails validation, and both keys fail validation. A name is `[A-Za-z0-9_-]{2,20}`, which is what the example comment already says.
 
-### `{{ }}` and the schema stem
+A `run` key with no `cmd` is read as `cmd` and warned about, so an old step keeps its command. A list is rejected: a silent reshape would hide a bad edit. This is breaking for a committed `steps` list, and the example file is updated in the same change.
 
-The configuration has one template syntax, so the new placeholders are `{{multi}}`, `{{multiSchema}}` and `{{dir}}`. The default pattern is `{{schema}}-{{multi}}`. `{{schema}}` is `v_<slug>` with `_` for hyphens, which gives `v_demo-east` and keeps the `v_` prefix that the drop guards and `list` rely on. A pattern built on `{{slug}}` would produce `demo-east`, which no guard can tell from a schema of the primary checkout.
+### Implication runs downward from the command
 
-### The list comes from the primary checkout
+The order is `create`, `provision`, `seed`, `watch`, `down`, `deprovision`, `implode`. Invoking one runs the builtin steps above it. `watch` therefore creates, provisions and seeds. `down` is the break in that chain: it only stops watches, and the schemas stay. `deprovision` implies `down` and then runs the deprovision phase. A `cmd` on the step named `deprovision` replaces the builtin drop. With no such command, the phase drops the schemas. `implode` implies `deprovision` and then removes the worktree. `up` implies `seed` and then starts containers.
 
-`schemasCmd` runs in the project directory of the primary checkout, and `{{dir}}` is that path. The values are needed before the variant worktree has its copy of a gitignored env file. Parsing splits on commas and whitespace, strips one pair of quotes, drops empties and repeats, and requires `^[A-Za-z0-9_-]+$`. An empty result is an error. A file that may lack the line puts the default in the command (`... | grep . || echo main`).
+`watch --reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again. Without the flag, `watch` does not drop.
 
 ### Deprovision matches the pattern, not the list
 
-`down`, `implode` and the vanished-checkout path drop by pattern: `{{schema}}` becomes the escaped target, literal parts are escaped (`\`, `%`, `_`), `{{multi}}` becomes `%`. The target ends where the next literal begins, so `v_foo-%` cannot match `v_foo_bar-east`, and escaped underscores keep `v_fooxbar-` out. `schemasCmd` is not run, so a missing env file still leaves a clean database, and a value removed from the list leaves no schema. `down` stops there. `implode` then deletes storage, clears state and removes the worktree, as it does today. Slug `main` is never dropped.
+The builtin drop matches the expanded `schemaPrefix` plus anything. For `v_${slug}-` and slug `demo` that is `v_demo-*`. `_` and `%` in the prefix are escaped, so the match is literal. `tenantsCmd` is not run for that drop, so a missing env file still leaves a clean database, and a value removed from the list leaves no schema. The builtin drops schemas only.
 
-This changes `down` for every dialect: a non-`main` variant loses its database target. Storage and the state file stay, so the next `watch` can provision again.
+A step named `deprovision` replaces the builtin drop, on the same terms as `provision`: one run, and the script handles every tenant. The script removes the schemas and anything else, such as a role. With no such step, the builtin drops schemas only and leaves roles. `VARIANT_STEP_DEPROVISION=no` skips that step and does not fall back to the builtin drop.
 
-Roles are derived from the schemas actually dropped, never from a pattern over role names: `<schema with - as _><roleSuffix>`, `DROP OWNED BY` then `DROP ROLE`, when the suffix is set and the role exists.
-
-### Where the code changes
-
-`DatabaseAdapter.create(slug, values?)` creates one schema per value when given values and no provision step, otherwise the one target as today. `destroy(slug)` on a `PostgresAdapter` built with `db.multi` drops by pattern. `list()` still returns raw names; `groupMultiSchemas(names, pattern)` groups them and is what `collectRecords` calls. `createVariant`, `prepareVariant` and `provisionVariant` call `resolveMultiValues` once. `down` calls `destroy` and does not resolve the list. The dialect check happens where the client builds the adapter.
-
-`runProvisioning` grows one helper, `runForValues`, used by the two named steps. `VariantRun` carries the resolved values. The environment order is the existing one with the per-value variables and `db.multi.env` inserted before the step's own `env`.
+`create` no longer touches the database. The schema appears at `provision`, which `watch` implies. Existing callers of `create` that expected a schema now need `provision`.
 
 ### Example
 
 ```yaml
 db:
   dialect: postgres
-  schema: app # the primary checkout: schema app, not a set
   multi:
-    schemasCmd: sed -nr 's/^TENANT_LIST=(.*)$/\1/p' {{dir}}/server/.env
-    roleSuffix: _app
-    env:
-      TENANT: '{{multi}}'
-      SCHEMA_PREFIX: '{{schema}}-'
+    schemaPrefix: v_${slug}-
+    #tenants: east,west
+    tenantsCmd: sed -rn ${worktree}/${dir}/.env -e 's/^WITCHES=(.*)$/\1/p' # lazy evaluation
+
 variant:
   steps:
-    - name: provision # creates the schema and the role; suppresses CREATE SCHEMA
-      run: bun run db:provision
+    provision: # one run; creates every schema and any users/roles it may need
+      cmd: bun run db:provision:witches
       dir: server
-    - name: report # runs once
-      run: bun run db:report
+      env: &prov-env
+        MULTI_TENANT_LIST: ${multi.tenants} # populated by multi.tenantsCmd
+        MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix} # cmd creates 'v_${slug}-east' + west
+    seed: # one run; the seeds every tenant schema
+      cmd: bun run db:seed:witches
       dir: server
-    - name: seed # tables and rows, once per value
-      run: bun run db:seed
+      env: *prov-env
+    migrations:
+      cmd: bun run migrate
       dir: server
+      env: *prov-env
+      runAfter: seed
+    deprovision: # one run; replaces the builtin schema drop
+      cmd: bun run db:deprovision:witches
+      dir: server
+      env: *prov-env
 ```
 
-With `TENANT_LIST=east,west`, provisioning runs `db:provision` for `east` then `west`, then `db:report` once, then `db:seed` for `east` then `west`. Each per-value run sees `TENANT=east` (or `west`) and `SCHEMA_PREFIX=v_demo-`. `down` then drops `v_demo-east`, `v_demo-west` and a leftover `v_demo-north`, plus the roles `v_demo_east_app`, `v_demo_west_app` and `v_demo_north_app`.
+So with `slug=demo` and `.env` containing `WITCHES=east,west`, `watch` runs `db:provision:witches` once with `MULTI_TENANT_LIST=east,west` and `MULTI_SCHEMA_PREFIX=v_demo-`, then `db:seed:witches` once with the same vars, then `migrations` once. `deprovision` runs `db:deprovision:witches` once with the same vars and drops nothing itself. The script removes `v_demo-east`, `v_demo-west`, a leftover `v_demo-north` and any role.
 
 ## Risks / Trade-offs
 
-- [A valid pattern matches schemas of another tool] → the pattern must start with the variant's own `v_<slug>` target, and the drop is a `LIKE` with escaped literals. Tests assert that `v_demo_two-*`, `v_demox-*` and `app-*` survive.
-- [The primary checkout's list differs from the copy in the worktree] → documented. Creation and the per-value runs use the primary list. Deprovision ignores lists.
-- [`down` now drops data] → called out as breaking. Storage and state survive, and `watch` provisions again. `main` is excluded.
-- [A project whose seed script already loops over every tenant] → the per-value environment carries the one value, and the script can limit itself to it. A script that has no such limit belongs in a step with another name, which runs once.
-- [`N` sequential runs] → sequential so a failure stops at a named value.
+- [A prefix matches schemas of another variant] → the project chooses `schemaPrefix`. The drop escapes `\`, `%` and `_`. A prefix that omits the slug can match more than one variant.
+- [The worktree's list differs from the primary checkout] → `tenantsCmd` names the file. `${worktree}` is the variant worktree, which exists before provision. Deprovision ignores lists.
+- [`create` no longer creates a schema] → `watch` and `provision` do. Callers of `create` alone get a worktree and no database.
+- [A `steps` list no longer loads] → the error names the key. `run` on a map entry still works, with a warning.
+- [A script that cannot walk the list itself] → it reads `MULTI_TENANT_LIST`, which the step sets to `${multi.tenants}`. A project that wants one process per value is out of scope.
 
 ## Migration Plan
 
-A configuration with no `db.multi` and no step named `provision` keeps today's schema creation. Adding the step opts out of `CREATE SCHEMA`. `down` drops the database target on the version that ships this change; projects that relied on `down` keeping data use `watch` to come back, which recreates and reseeds, or avoid `down`. Rollback is the previous release. Schemas named `v_<slug>-<value>` remain ordinary schemas.
+Configurations with no `steps` and no `db.multi` keep today's `CREATE SCHEMA`, now at `provision` rather than `create`. A `steps` list is edited into a map. `down` keeps its meaning. Rollback is the previous release.
 
 ## Open Questions
 
 - Whether a variant should name its own list (`variants.<slug>.multi`). It would add a key and change nothing else.
-- Whether `schemasCmd` should have an `env` of its own. Today it sees the process environment only.
+- Whether `tenantsCmd` should have an `env` of its own. Today it sees the process environment only.

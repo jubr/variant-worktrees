@@ -1,42 +1,42 @@
 ## Purpose
 
-Configuration of a variant that owns several database schemas, one per value of a list that a command prints: the `db.multi` settings and the placeholders that name the current value.
+Configuration of a variant that owns several database schemas, one per tenant: the `db.multi` settings and the placeholders a step passes to its script.
 
 ## ADDED Requirements
 
 ### Requirement: Multi-schema settings
 
-The system SHALL accept an optional `db.multi` with a required `schemasCmd` (a non-empty shell command) and the optional `schemaPattern`, `env` and `roleSuffix`. `schemaPattern` SHALL default to `{{schema}}-{{multi}}`. A pattern SHALL start with `{{schema}}`, hold `{{multi}}` exactly once, and otherwise hold only letters, digits, `_` and `-`, so that every name it produces is a plain quoted identifier that starts with the variant's own target. `env` SHALL be a map of environment variable names to templated values. `roleSuffix` SHALL hold only lowercase letters, digits and `_`. `db.multi` SHALL NOT be part of the database settings recorded in the runtime state of a variant.
+The system SHALL accept an optional `db.multi`. It SHALL require exactly one of `tenants` (a non-empty list written as text) and `tenantsCmd` (a non-empty shell command). `schemaPrefix` SHALL default to `v_${slug}-` and SHALL otherwise be whatever non-empty template the project writes. The loader SHALL NOT require it to start with `v_`, to contain `${slug}`, or to end with `-` or `_`. `db.multi` SHALL NOT be part of the database settings recorded in the runtime state of a variant. The loader SHALL resolve YAML anchors, so a step `env` that is an alias sees the anchored map.
 
 #### Scenario: Defaults
 
-- **WHEN** `db.multi` holds only `schemasCmd: echo east,west`
-- **THEN** loading succeeds and the resolved pattern is `{{schema}}-{{multi}}`
+- **WHEN** `db.multi` holds only `tenantsCmd: echo east,west`
+- **THEN** loading succeeds and `schemaPrefix` is `v_${slug}-`
 
-#### Scenario: Missing command
+#### Scenario: Literal list
 
-- **WHEN** `db.multi` has no `schemasCmd` or an empty one
-- **THEN** loading the configuration fails validation naming `db.multi.schemasCmd`
+- **WHEN** `db.multi` holds `tenants: east,west` and no `tenantsCmd`
+- **THEN** loading succeeds
 
-#### Scenario: Pattern without the value
+#### Scenario: Both list forms
 
-- **WHEN** `db.multi.schemaPattern` is `{{schema}}-all`
-- **THEN** loading the configuration fails validation naming `db.multi.schemaPattern`
+- **WHEN** `db.multi` holds both `tenants` and `tenantsCmd`
+- **THEN** loading the configuration fails validation naming `db.multi`
 
-#### Scenario: Pattern that does not start with the target
+#### Scenario: Neither list form
 
-- **WHEN** `db.multi.schemaPattern` is `{{multi}}-{{schema}}` or `tenant-{{multi}}`
-- **THEN** loading the configuration fails validation naming `db.multi.schemaPattern`
+- **WHEN** `db.multi` has no `tenants` and no `tenantsCmd`, or an empty one
+- **THEN** loading the configuration fails validation naming `db.multi.tenants`
 
-#### Scenario: Pattern with unsafe characters
+#### Scenario: Prefix is not shaped
 
-- **WHEN** `db.multi.schemaPattern` is `{{schema}}-{{multi}}"; drop`
-- **THEN** loading the configuration fails validation naming `db.multi.schemaPattern`
+- **WHEN** `db.multi.schemaPrefix` is `app_${slug}`, `v_${slug}` or `v_app-`
+- **THEN** loading succeeds
 
-#### Scenario: Role suffix
+#### Scenario: Shared env anchor
 
-- **WHEN** `db.multi.roleSuffix` is `_app`
-- **THEN** loading succeeds, and `App` or `_a-b` fail validation
+- **WHEN** a step `provision` sets `env: &prov-env` with `MULTI_TENANT_LIST: ${multi.tenants}` and a step `seed` sets `env: *prov-env`
+- **THEN** both steps have the same `MULTI_TENANT_LIST` value
 
 #### Scenario: Not in the runtime state
 
@@ -45,19 +45,24 @@ The system SHALL accept an optional `db.multi` with a required `schemasCmd` (a n
 
 ### Requirement: Multi placeholders
 
-The system SHALL replace `{{multi}}` (one value of the list) and `{{multiSchema}}` (the schema name of that value) in the values of `db.multi.env` and in the `env` of a step named `provision` or `seed`, in the same pass as the other variant placeholders. Outside such a run both SHALL render as an empty string. In `schemasCmd` the system SHALL replace `{{dir}}` with the absolute project directory of the primary checkout, and then `{{NAME}}` and `{{NAME:-default}}` from the environment as everywhere else.
+The system SHALL replace `${multi.tenants}` with the tenant values joined by commas, and `${multi.schemaPrefix}` with `schemaPrefix` after `${slug}` is filled in, in the `env` of a step, in the same pass as the other variant placeholders. `${multi.tenants}` SHALL be resolved the first time that operation expands it or the builtin needs the tenant names, and then reused. `${multi.schemaPrefix}` SHALL NOT run `tenantsCmd`. When `db.multi` is absent both placeholders SHALL render as an empty string. In `tenantsCmd` the system SHALL replace `${worktree}`, `${slug}` and `${schema}` before the command runs, and then `${NAME}` and `${NAME:-default}` from the environment as everywhere else.
 
-#### Scenario: Value placeholders
+#### Scenario: Prefix placeholder
 
-- **WHEN** `db.multi.env` has `TENANT: '{{multi}}'` and `SCHEMA: '{{multiSchema}}'`, the variant target is `v_demo` and the value is `west`
-- **THEN** the expanded values are `west` and `v_demo-west`
+- **WHEN** a step env has `MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix}`, `schemaPrefix` is `v_${slug}-` and the slug is `demo`
+- **THEN** the expanded value is `v_demo-` and `tenantsCmd` has not run
 
-#### Scenario: Empty outside a per-value run
+#### Scenario: List placeholder
 
-- **WHEN** a watch `env.overrides` value is `{{multi}}`
+- **WHEN** a step env has `MULTI_TENANT_LIST: ${multi.tenants}` and the values are `east` and `west`
+- **THEN** the expanded value is `east,west`
+
+#### Scenario: Empty without db.multi
+
+- **WHEN** `db.multi` is absent and a step env value is `${multi.tenants}`
 - **THEN** the expanded value is an empty string
 
-#### Scenario: Directory in the command
+#### Scenario: Worktree in the command
 
-- **WHEN** `schemasCmd` is `cat {{dir}}/tenants.txt` and the primary project directory is `/p`
-- **THEN** the command that runs is `cat /p/tenants.txt`
+- **WHEN** `tenantsCmd` is `cat ${worktree}/server/.env` and the worktree is `/w/demo`
+- **THEN** the command that runs is `cat /w/demo/server/.env`
