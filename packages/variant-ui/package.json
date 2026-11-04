@@ -1,6 +1,6 @@
 {
   "name": "variant-ui",
-  "version": "0.0.6",
+  "version": "0.0.5",
   "private": true,
   "description": "The variants React app: one UI for the editor webview and the browser",
   "type": "module",

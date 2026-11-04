@@ -1,6 +1,6 @@
 {
   "name": "variant-cli",
-  "version": "0.0.6",
+  "version": "0.0.5",
   "description": "The variant command: database variants for git worktrees",
   "type": "module",
   "bin": {
