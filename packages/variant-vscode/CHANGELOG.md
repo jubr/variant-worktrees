@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **Breaking:** the view and the panel use `watches` for what they called instances (the rows, the runtime state).
+- Play, stop and implode run in the item's directory: the variant worktree, or the main checkout for `main`. `create`
+  and `watch` of an explicit slug from the variant root succeed, and a `variants.yaml` symlink in that root is a warning.
 
 ## [0.0.5] - 2026-11-03
 

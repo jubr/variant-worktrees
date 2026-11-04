@@ -41,6 +41,11 @@
 - `kind` and `dir` of a watch are optional; `dir` defaults to the key of the watch.
 - The release changelog no longer keeps an empty `Unreleased` heading in the promoted section.
 - The GitHub Actions workflows use the Node 24 versions of their actions.
+- Play, stop and implode in the Variants view and the panel run in the item's directory (the variant worktree, or the
+  main checkout for `main`). `create`, `watch`, `down` and `implode` of an explicit slug started in the variant root use
+  the main checkout for git. A `variants.yaml` symlink in that root is skipped and warned about as an anti-pattern.
+- A title event for a chat that already existed at startup, and the decision that skips it (`before startup`), are
+  logged at Trace. A title event after startup stays at Debug.
 
 ## [0.0.5] - 2026-11-03
 
