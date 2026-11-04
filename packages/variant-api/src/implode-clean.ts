@@ -1,4 +1,4 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { findRemovable, isMerged } from "./cleanup.js";
 import { runGit } from "./git.js";
@@ -57,6 +57,9 @@ export const implodeWouldSucceed = (context: OperationContext, slug: string, wor
 const decide = (context: OperationContext, slug: string, worktree: string | undefined): boolean => {
   if (slug === "main") {
     return false;
+  }
+  if (worktree !== undefined && !existsSync(worktree)) {
+    return true;
   }
   const removable = removableWorktree(context, worktree);
   if (!removable) {

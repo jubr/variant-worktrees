@@ -106,6 +106,7 @@ describe("MCP server", () => {
         "variant_provision",
         "variant_up",
         "variant_down",
+        "variant_deprovision",
         "variant_watch",
         "variant_implode",
       ]);
@@ -199,7 +200,7 @@ describe("MCP server", () => {
       const properties = (name: string) =>
         Object.keys(tools.find((tool) => tool.name === name)?.inputSchema.properties ?? {});
 
-      expect(properties("variant_watch")).toEqual(["slug", "verbose"]);
+      expect(properties("variant_watch")).toEqual(["slug", "reprovision", "verbose"]);
       expect(properties("variant_implode")).toContain("force");
     } finally {
       rmSync(directory, { recursive: true, force: true });

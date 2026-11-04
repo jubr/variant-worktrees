@@ -56,6 +56,12 @@ const missingOptions = (schema: JsonSchema, value: unknown, path: string): strin
   return missing;
 };
 
+/** A key written as `# tenants:` is an alternative the schema will not accept beside the live key. */
+const commentedOption = (text: string, path: string): boolean => {
+  const key = path.slice(path.lastIndexOf(".") + 1);
+  return new RegExp(`#\\s*${key}\\s*:`).test(text);
+};
+
 describe("variants.example.yaml", () => {
   it("validates against the schema", () => {
     const result = VariantsConfigSchema.safeParse(example);
@@ -64,7 +70,11 @@ describe("variants.example.yaml", () => {
   });
 
   it("specifies every option of the schema", () => {
-    expect(missingOptions(variantsJsonSchema as JsonSchema, example, "")).toEqual([]);
+    expect(
+      missingOptions(variantsJsonSchema as JsonSchema, example, "").filter(
+        (path) => !commentedOption(exampleText, path),
+      ),
+    ).toEqual([]);
   });
 
   it("lists alternatives in end-of-line comments", () => {
@@ -72,6 +82,19 @@ describe("variants.example.yaml", () => {
     expect(exampleText).toMatch(/kind: vite +# .*nestjs/);
     expect(exampleText).toMatch(/trigger: titleEvent +# .*hook/);
     expect(exampleText).toMatch(/hookScope: workspace +# .*user/);
+  });
+
+  it("shows the multi-tenant provision, seed and deprovision steps", () => {
+    expect(exampleText).toContain("tenantsCmd: sed -rn ${worktree}/server/.env");
+    expect(exampleText).toContain("MULTI_TENANT_LIST: ${multi.tenants}");
+    expect(exampleText).toContain("MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix}");
+    expect(exampleText).toContain("&prov-env");
+    expect(exampleText.match(/env: \*prov-env/g)).toEqual(["env: *prov-env", "env: *prov-env"]);
+    expect(exampleText).toMatch(/^ {4}provision:/m);
+    expect(exampleText).toMatch(/^ {4}deprovision:/m);
+    expect(exampleText).toContain("cmd: bun run db:provision:witches");
+    expect(exampleText).toContain("cmd: bun run db:seed:witches");
+    expect(exampleText).toContain("cmd: bun run db:deprovision:witches");
   });
 
   it("is detected as incomplete when an option is missing", () => {

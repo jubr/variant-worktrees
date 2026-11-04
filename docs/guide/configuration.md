@@ -43,6 +43,8 @@ Every string setting is templated, `db` included, with one syntax. Values are ex
    `${abbr}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}`.
 2. Environment templates: `${NAME}` reads the environment (Mise, then the process) and fails when it is unset, `${NAME:-default}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `${JWT_SECRET:-variant-local-${slug}}` works.
 
+`${multi.tenants}` is the tenant list joined by commas, and `${multi.schemaPrefix}` is `db.multi.schemaPrefix` with `${slug}` filled in. Both are empty when `db.multi` is absent. `${multi.schemaPrefix}` does not run `tenantsCmd`. `${multi.tenants}` runs it the first time a step expands it.
+
 Write `$${` for a literal `${`, for example in a shell command that expands its own variable (`echo $${HOME}`). A `db` setting has no variant, so a variant placeholder there is an error; `db.port` may be `${POSTGRES_PORT}`. `variant init` writes secrets as `${NAME}` references. Files that still use `{{...}}` load as before, with a notice, and the CLI and the editor rewrite them to `${...}` like the other former names above. A `${` that was already in a value is not touched: write `$${` where a shell must see it, since `${NAME}` now reads the environment there.
 
 ## Environment variables
@@ -95,11 +97,25 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `ports` | `{ range }`: `LOW-HIGH` (1024 to 65535, default `42000-42999`) the free ports of watches and of `variant ui` are picked from. An explicit `VARIANT_<KEY>_PORT` or `runtime.watches.<key>.port` may lie anywhere |
 | `storage` | `{ dir, envVarName }`: a per-variant directory (default `.storage`) and the variable that carries it (default `STORAGE_ROOT`) |
 | `ui` | `{ port }`: the port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port of `variant.ports.range` |
-| `steps` | Named commands that run between the `up` commands and the seed command |
+| `steps` | A map keyed by step name, merged on top of the builtin steps. See below |
 | `supervise` | `startDelaySeconds` (2), `readyTimeoutSeconds` (180), `checkoutPollSeconds` (5; 0 turns the check off) |
 | `implode` | See below |
 
-A step has a unique `name` (letters, digits, `_` and `-`), a shell command `run`, an optional `dir` (relative to the worktree), `env` and `filterLinesRegex` (a regular expression: only matching output lines are printed; `--verbose` and failures print everything). Setting `VARIANT_STEP_<NAME>=no` skips the step and prints a `Skipping step` line.
+`variant.steps` is a map. A name matches `[A-Za-z0-9_-]{2,20}`. The builtin steps `create`, `provision`, `seed`, `watch`, `down`, `deprovision` and `implode` stay in that order; an entry of the same name overlays that step. A custom step has `cmd` and exactly one of `runBefore` and `runAfter`, naming a builtin step or another step. A builtin overlay may omit `cmd`. Either may set `dir` (relative to the worktree), `env` and `filterLinesRegex` (a regular expression: only matching output lines are printed; `--verbose` and failures print everything). A `run` key with no `cmd` is read as `cmd`, with a warning. A list, the former shape, fails validation. Setting `VARIANT_STEP_<NAME>=no` skips the step and prints a `Skipping step` line. The flow is in the [Overview](./overview).
+
+### `db.multi`
+
+One PostgreSQL schema per tenant. Exactly one of `tenants` (text such as `east,west`) and `tenantsCmd` (a shell command, evaluated lazily, whose output is that list). `schemaPrefix` defaults to `v_${slug}-` and is otherwise any non-empty template, so slug `demo` and tenant `east` is the schema `v_demo-east`. The reported target stays `v_<slug>`. A step passes the list and the prefix through its `env` as `${multi.tenants}` and `${multi.schemaPrefix}`. `db.multi` on `mysql` or `sqlite` is refused. The runtime copy of `db` omits `multi`.
+
+```yaml
+db:
+  dialect: postgres
+  host: 127.0.0.1
+  multi:
+    schemaPrefix: v_${slug}-
+    tenantsCmd: sed -rn ${worktree}/server/.env -e 's/^WITCHES=(.*)$/\1/p'
+    # tenants: east,west
+```
 
 Every command runs after a `+ <command>` line on standard error: the install, `up`, step and seed commands, and the container engine calls of `up`, `down` and the stop before `watch`. The values of the `-e NAME=value` arguments of the engine are printed as `***`. A skipped step prints no command line.
 

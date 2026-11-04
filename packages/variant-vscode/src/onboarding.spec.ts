@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { MiseFailure, VariantUpdate } from "variant-api";
+import { resolveMiseBinary } from "variant-config";
 import * as vscode from "vscode";
 import { miseBinPathSetting, registerOnboardingFlow } from "./onboarding.ts";
 import { loadVariantClient } from "./variants-client.ts";
@@ -114,7 +115,9 @@ describe("loadVariantClient with the Mise setting", () => {
 
     const first = await load();
     expect(await load()).toBe(first);
-    value = "/opt/tools/mise";
+    const mise = resolveMiseBinary();
+    expect(mise).toBeDefined();
+    value = mise;
     const second = await load();
 
     expect(second).not.toBe(first);

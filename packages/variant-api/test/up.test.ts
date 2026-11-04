@@ -106,6 +106,16 @@ const withProject = async (
         database.push(`create ${slug}`);
         return slug;
       },
+      createSchema: async (name) => {
+        database.push(`schema ${name}`);
+      },
+      matchingSchemas: async (prefix) => {
+        database.push(`match ${prefix}`);
+        return [];
+      },
+      dropSchema: async (name) => {
+        database.push(`drop ${name}`);
+      },
       destroy: async (slug) => {
         database.push(`destroy ${slug}`);
         return true;
@@ -152,11 +162,11 @@ const flagValues = (call: string[], flag: string): string[] =>
   call.flatMap((word, index) => (word === flag ? [call[index + 1] as string] : []));
 
 describe("up preparation", () => {
-  it("recreates the database target of a variant", () =>
+  it("creates the database target of a variant and does not drop it", () =>
     withProject(async ({ up, database }) => {
       await up();
 
-      expect(database.slice(0, 2)).toEqual(["destroy demo", "create demo"]);
+      expect(database).toEqual(["create demo"]);
     }));
 
   it("neither creates nor drops the target of main", () =>
@@ -213,7 +223,7 @@ describe("up preparation", () => {
       expect(result.containers.map(({ port }) => port).sort()).toEqual([...ports].sort());
     }));
 
-  it("recreates a real database file empty", () =>
+  it("keeps an existing database file", () =>
     withProject(async ({ directory }) => {
       const client = createClient({
         config: loadConfig({ cwd: directory, env: {} }),
@@ -229,7 +239,7 @@ describe("up preparation", () => {
       await client.up("demo", { opener: async () => {}, log: () => {} });
 
       const reopened = new Database(record.target);
-      expect(reopened.query("select name from sqlite_master").all()).toEqual([]);
+      expect(reopened.query("select name from sqlite_master").all()).toEqual([{ name: "keep" }]);
       reopened.close();
     }));
 });

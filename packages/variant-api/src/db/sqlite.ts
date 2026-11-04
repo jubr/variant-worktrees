@@ -67,6 +67,18 @@ export class SqliteAdapter implements DatabaseAdapter {
     return filename;
   }
 
+  async createSchema(): Promise<void> {
+    throw new Error("db.multi needs PostgreSQL, not sqlite");
+  }
+
+  async matchingSchemas(): Promise<string[]> {
+    return [];
+  }
+
+  async dropSchema(): Promise<void> {
+    throw new Error("db.multi needs PostgreSQL, not sqlite");
+  }
+
   async destroy(slug: string): Promise<boolean> {
     const filename = this.target(slug);
     if (!existsSync(filename)) {

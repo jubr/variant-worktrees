@@ -47,6 +47,28 @@
         },
         "ssl": {
           "type": "boolean"
+        },
+        "multi": {
+          "type": "object",
+          "properties": {
+            "schemaPrefix": {
+              "default": "v_${slug}-",
+              "type": "string",
+              "minLength": 1
+            },
+            "tenants": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tenantsCmd": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "schemaPrefix"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -118,15 +140,15 @@
           "additionalProperties": false
         },
         "steps": {
-          "type": "array",
-          "items": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{2,20}$"
+          },
+          "additionalProperties": {
             "type": "object",
             "properties": {
-              "name": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9_-]+$"
-              },
-              "run": {
+              "cmd": {
                 "type": "string",
                 "minLength": 1
               },
@@ -147,12 +169,16 @@
               "filterLinesRegex": {
                 "type": "string",
                 "minLength": 1
+              },
+              "runBefore": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{2,20}$"
+              },
+              "runAfter": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{2,20}$"
               }
             },
-            "required": [
-              "name",
-              "run"
-            ],
             "additionalProperties": false
           }
         },

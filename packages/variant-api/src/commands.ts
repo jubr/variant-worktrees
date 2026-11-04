@@ -103,7 +103,7 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "up",
-    description: "Run the watches of a variant as containers on a fresh database",
+    description: "Run the watches of a variant as containers",
     args: [slugArg, verboseArg],
     execute: (client, args) => client.up(slugString(args), verbose(args)),
   },
@@ -112,6 +112,12 @@ export const commands: CommandDefinition[] = [
     description: "Stop the processes and containers of a variant and keep its data",
     args: [slugArg, verboseArg],
     execute: (client, args) => client.down(slugString(args)),
+  },
+  {
+    name: "deprovision",
+    description: "Stop a variant and drop its schemas. A deprovision script replaces the drop",
+    args: [slugArg, verboseArg],
+    execute: (client, args) => client.deprovision(slugString(args), verbose(args)),
   },
   {
     name: "watch",
@@ -124,12 +130,19 @@ export const commands: CommandDefinition[] = [
         type: "boolean",
         required: false,
       },
+      {
+        name: "reprovision",
+        description: "Drop the schemas before provisioning again",
+        type: "boolean",
+        required: false,
+      },
       verboseArg,
     ],
     execute: (client, args) =>
       client.watch(slugString(args), {
         ...verbose(args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
+        ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
       }),
     mcpFixed: { detach: true },
   },

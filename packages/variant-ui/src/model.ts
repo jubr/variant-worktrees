@@ -21,4 +21,6 @@ export interface Variant {
   changedMs?: number;
   /** Whether implode without force would succeed. Absent means the host did not say. */
   implodeClean?: boolean;
+  /** Sorted schema names when the variant has `db.multi`. Absent otherwise. */
+  schemas?: string[];
 }

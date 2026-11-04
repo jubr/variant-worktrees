@@ -45,9 +45,9 @@ describe("provisioning command echo", () => {
       "  watches:",
       '    fe: { kind: vite, dir: fe, up: "echo up" }',
       "  steps:",
-      '    - { name: one, run: "echo one", filterLinesRegex: "^never$" }',
-      '    - { name: skipped, run: "echo skipped" }',
-      `    - { name: two, run: "echo two > ${d}/two.txt" }`,
+      '    one: { cmd: "echo one", filterLinesRegex: "^never$", runBefore: seed }',
+      '    skipped: { cmd: "echo skipped", runBefore: seed }',
+      `    two: { cmd: "echo two > ${d}/two.txt", runBefore: seed }`,
     );
 
   it("prints each command before it runs, in order, without verbose", () =>
@@ -81,7 +81,13 @@ describe("provisioning command echo", () => {
   it("prints the command of a step before it fails", () =>
     withProject(
       () =>
-        lines("db:", "  dialect: sqlite", "variant:", "  steps:", '    - { name: broken, run: "echo boom; exit 3" }'),
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          "  steps:",
+          '    broken: { cmd: "echo boom; exit 3", runBefore: seed }',
+        ),
       async ({ client }) => {
         const log: string[] = [];
 

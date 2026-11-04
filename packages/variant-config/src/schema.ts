@@ -9,6 +9,32 @@ export type DbDialect = z.infer<typeof DbDialectSchema>;
 /** A TCP port: shared by the database settings and the runtime state of watches. */
 export const PortSchema = z.number().int().positive();
 
+/** One schema per tenant. Exactly one of `tenants` and `tenantsCmd`. */
+export const DbMultiSchema = z
+  .strictObject({
+    /** Start of every tenant schema. `${slug}` is filled in later. Default `v_${slug}-`. */
+    schemaPrefix: z.string().min(1).default("v_${slug}-"),
+    /** Literal tenant list, commas or whitespace. Not together with `tenantsCmd`. */
+    tenants: z.string().min(1).optional(),
+    /** Shell command whose output is the tenant list. Not together with `tenants`. */
+    tenantsCmd: z.string().min(1).optional(),
+  })
+  .superRefine((multi, context) => {
+    const listed = multi.tenants !== undefined;
+    const commanded = multi.tenantsCmd !== undefined;
+    if (listed && commanded) {
+      context.addIssue({ code: "custom", message: "db.multi accepts tenants or tenantsCmd, not both" });
+    }
+    if (!listed && !commanded) {
+      context.addIssue({
+        code: "custom",
+        path: ["tenants"],
+        message: "db.multi.tenants or db.multi.tenantsCmd is required",
+      });
+    }
+  });
+export type DbMulti = z.infer<typeof DbMultiSchema>;
+
 export const DbConfigSchema = z.strictObject({
   dialect: DbDialectSchema.optional(),
   url: z.string().min(1).optional(),
@@ -20,6 +46,7 @@ export const DbConfigSchema = z.strictObject({
   schema: z.string().min(1).optional(),
   filename: z.string().min(1).optional(),
   ssl: z.boolean().optional(),
+  multi: DbMultiSchema.optional(),
 });
 export type DbConfig = z.infer<typeof DbConfigSchema>;
 
@@ -115,32 +142,128 @@ const prefixSchema = z
 
 const seconds = z.number().int().nonnegative();
 
-/** A step name: letters, digits, `-` and `_`, so that `VARIANT_STEP_<NAME>` can skip the step. */
-const STEP_NAME = /^[A-Za-z0-9_-]+$/;
+/** A step name: letters, digits, `-` and `_`, 2 to 20 characters, so `VARIANT_STEP_<NAME>` can skip the step. */
+export const STEP_NAME = /^[A-Za-z0-9_-]{2,20}$/;
+
+/** Builtin steps in flow order. A user step of the same name overlays that step. */
+export const BUILTIN_STEPS = ["create", "provision", "seed", "watch", "down", "deprovision", "implode"] as const;
+export type BuiltinStepName = (typeof BUILTIN_STEPS)[number];
+const BUILTIN_STEP_NAMES = new Set<string>(BUILTIN_STEPS);
+
+/** The command `variant config` prints for a builtin step the project did not replace. */
+export const builtinStepCommand = (name: string): string => `\${builtin.step.${name}}`;
 /** A project abbreviation: lowercase letters and digits, optionally separated by single hyphens. */
 export const ABBR_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-export const VariantStepSchema = z.strictObject({
-  name: z.string().regex(STEP_NAME, "must hold only letters, digits, - and _"),
-  run: z.string().min(1),
-  /** Relative to the worktree. */
-  dir: relativeDirectory.optional(),
-  env: envMapSchema.optional(),
-  /** Regular expression: only matching output lines are printed. */
-  filterLinesRegex: z
-    .string()
-    .min(1)
-    .refine((value) => {
-      try {
-        new RegExp(value);
-        return true;
-      } catch {
-        return false;
-      }
-    }, "must be a valid regular expression")
-    .optional(),
-});
+const filterLinesRegexSchema = z
+  .string()
+  .min(1)
+  .refine((value) => {
+    try {
+      new RegExp(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, "must be a valid regular expression");
+
+/** Copies a former `run` onto `cmd` when `cmd` is absent. `run` stays, so the loader warns and drops it. */
+const adoptRun = (value: unknown): unknown => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return value;
+  }
+  const step = value as Record<string, unknown>;
+  if (step.cmd === undefined && typeof step.run === "string") {
+    step.cmd = step.run;
+  }
+  return step;
+};
+
+export const VariantStepSchema = z.preprocess(
+  adoptRun,
+  z.strictObject({
+    cmd: z.string().min(1).optional(),
+    /** Relative to the worktree. */
+    dir: relativeDirectory.optional(),
+    env: envMapSchema.optional(),
+    /** Regular expression: only matching output lines are printed. */
+    filterLinesRegex: filterLinesRegexSchema.optional(),
+    runBefore: z.string().regex(STEP_NAME).optional(),
+    runAfter: z.string().regex(STEP_NAME).optional(),
+  }),
+);
 export type VariantStep = z.infer<typeof VariantStepSchema>;
+
+/** A step as `variant config` prints it: every builtin is present and custom steps sit at their placement. */
+export interface ResolvedStep {
+  cmd: string;
+  dir?: string;
+  env?: Record<string, string>;
+  filterLinesRegex?: string;
+  runBefore?: string;
+  runAfter?: string;
+}
+
+const stepFields = (step: VariantStep, cmd: string): ResolvedStep => ({
+  cmd,
+  ...(step.dir !== undefined ? { dir: step.dir } : {}),
+  ...(step.env !== undefined ? { env: step.env } : {}),
+  ...(step.filterLinesRegex !== undefined ? { filterLinesRegex: step.filterLinesRegex } : {}),
+  ...(step.runBefore !== undefined ? { runBefore: step.runBefore } : {}),
+  ...(step.runAfter !== undefined ? { runAfter: step.runAfter } : {}),
+});
+
+/**
+ * Merges `variant.steps` onto the builtin steps.
+ * AIDEV-NOTE: `runAfter` siblings keep file order, earliest closest to the anchor. `runBefore` siblings keep file
+ * order, latest closest to the anchor.
+ */
+export const resolveSteps = (steps: Record<string, VariantStep> | undefined): Record<string, ResolvedStep> => {
+  const user = steps ?? {};
+  const builtins: Record<string, ResolvedStep> = {};
+  for (const name of BUILTIN_STEPS) {
+    const overlay = user[name];
+    builtins[name] = overlay
+      ? stepFields(overlay, overlay.cmd ?? builtinStepCommand(name))
+      : { cmd: builtinStepCommand(name) };
+  }
+  const order: string[] = [...BUILTIN_STEPS];
+  const pending = Object.keys(user).filter((name) => !BUILTIN_STEP_NAMES.has(name));
+  const placed = new Set<string>(BUILTIN_STEPS);
+  let spins = pending.length * pending.length + 1;
+  while (pending.length > 0 && spins > 0) {
+    const name = pending[0] as string;
+    const step = user[name] as VariantStep;
+    const anchor = (step.runAfter ?? step.runBefore) as string;
+    if (!placed.has(anchor)) {
+      pending.push(pending.shift() as string);
+      spins -= 1;
+      continue;
+    }
+    pending.shift();
+    if (step.runAfter !== undefined) {
+      let index = order.indexOf(anchor);
+      while (index + 1 < order.length && user[order[index + 1] as string]?.runAfter === anchor) {
+        index += 1;
+      }
+      order.splice(index + 1, 0, name);
+    } else {
+      order.splice(order.indexOf(anchor), 0, name);
+    }
+    placed.add(name);
+  }
+  const resolved: Record<string, ResolvedStep> = {};
+  for (const name of order) {
+    const builtin = builtins[name];
+    const step = user[name];
+    resolved[name] = builtin ?? stepFields(step as VariantStep, (step as VariantStep).cmd ?? builtinStepCommand(name));
+  }
+  return resolved;
+};
+
+const stepNameSchema = z.string().regex(STEP_NAME, "must hold only letters, digits, - and _ and be 2 to 20 characters");
+
+const VariantStepsSchema = z.record(stepNameSchema, VariantStepSchema);
 
 export const DEFAULT_BASE_BRANCH = "main";
 export const DEFAULT_BRANCH_PREFIXES: readonly string[] = ["feat/", "fix/"];
@@ -240,7 +363,7 @@ export const VariantRuntimeSchema = z
     /** The range free ports are picked from; no port is reserved. */
     ports: VariantPortsSchema.optional(),
     storage: VariantStorageSchema.optional(),
-    steps: z.array(VariantStepSchema).optional(),
+    steps: VariantStepsSchema.optional(),
     supervise: VariantSuperviseSchema.optional(),
     implode: VariantImplodeSchema.optional(),
     ui: VariantUiSchema.optional(),
@@ -256,27 +379,62 @@ export const VariantRuntimeSchema = z
       .optional(),
   })
   .superRefine((variant, context) => {
-    const names = new Set<string>();
+    const steps = variant.steps ?? {};
     const stepSegments = new Map<string, string>();
-    for (const [index, step] of (variant.steps ?? []).entries()) {
-      if (names.has(step.name)) {
-        context.addIssue({
-          code: "custom",
-          path: ["steps", index, "name"],
-          message: `duplicate step name ${step.name}`,
-        });
-      }
-      names.add(step.name);
-      const segment = envSegment(step.name);
+    for (const [name, step] of Object.entries(steps)) {
+      const segment = envSegment(name);
       const other = stepSegments.get(segment);
-      if (other !== undefined && other !== step.name) {
+      if (other !== undefined && other !== name) {
         context.addIssue({
           code: "custom",
-          path: ["steps", index, "name"],
-          message: `steps ${other} and ${step.name} share the environment variable segment ${segment}`,
+          path: ["steps", name],
+          message: `steps ${other} and ${name} share the environment variable segment ${segment}`,
         });
       }
-      stepSegments.set(segment, step.name);
+      stepSegments.set(segment, name);
+      const builtin = BUILTIN_STEP_NAMES.has(name);
+      if (step.runBefore !== undefined && step.runAfter !== undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", name],
+          message: `step ${name} sets both runBefore and runAfter`,
+        });
+      }
+      if (builtin && (step.runBefore !== undefined || step.runAfter !== undefined)) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", name],
+          message: `builtin step ${name} cannot set runBefore or runAfter`,
+        });
+      }
+      if (!builtin && step.cmd === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", name, "cmd"],
+          message: `step ${name} requires cmd`,
+        });
+      }
+      if (!builtin && step.runBefore === undefined && step.runAfter === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", name],
+          message: `step ${name} requires runBefore or runAfter`,
+        });
+      }
+      const placement = step.runBefore ?? step.runAfter;
+      if (placement === name) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", name],
+          message: `step ${name} cannot place itself`,
+        });
+      } else if (placement !== undefined && !BUILTIN_STEP_NAMES.has(placement) && steps[placement] === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["steps", name],
+          message: placement,
+        });
+      }
     }
     const watches = variant.watches ?? {};
     if (UI_WATCH_KEY in watches) {
@@ -332,7 +490,9 @@ export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
 const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
 
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
-export const RuntimeDbSchema = DbConfigSchema.extend({ port: portOrTemplateSchema.optional() });
+export const RuntimeDbSchema = DbConfigSchema.omit({ multi: true }).extend({
+  port: portOrTemplateSchema.optional(),
+});
 
 /** Local wall time `YYYY-MM-DD_HH:MM:SS`, zero-padded, 24-hour, no timezone suffix. */
 const localStampSchema = z.string().refine((value): boolean => parseLocalStamp(value) !== undefined, {
@@ -385,6 +545,7 @@ export type ResolvedVariant = Omit<
   | "storage"
   | "supervise"
   | "implode"
+  | "steps"
 > & {
   main: string;
   root: string;
@@ -403,6 +564,7 @@ export type ResolvedVariant = Omit<
     requireMerged: boolean;
     maxDiffLines: number;
   };
+  steps: Record<string, ResolvedStep>;
 };
 
 export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {

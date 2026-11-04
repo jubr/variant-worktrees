@@ -101,6 +101,8 @@ Database settings are autodetected from the environment (Postgres, MySQL, MariaD
 
 Every string setting, `db` included, takes `${NAME}` (an environment variable, an error when unset), `${NAME:-default}` and the variant placeholders `${slug}`, `${abbr}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<key>.port}`. Write `$${` for a literal `${` that a shell must see.
 
+`db.multi` (PostgreSQL only) is one schema per tenant: `schemaPrefix` (default `v_${slug}-`), and exactly one of `tenants` (`east,west`) and `tenantsCmd` (a shell command, run lazily). `${multi.tenants}` and `${multi.schemaPrefix}` fill a step's `env`. `variant.steps` is a map keyed by step name. A step has `cmd`, and a custom step has exactly one of `runBefore` and `runAfter`. A step named `provision`, `seed` or `deprovision` fills that phase. The flow is in the [overview](https://jubr.github.io/variant-worktrees/guide/overview), not repeated here.
+
 ### Bootstrap with `variant init`
 
 `variant init` writes a `variants.yaml` that holds every value autodetection finds (the database, `variant.abbr`, `variant.prefix` and one watch per Vite or NestJS app, plus a watch for a package with a `watch` script), adds `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration. The other accepted values of a setting follow `#` on the same line. A password or a connection URL with credentials is never written: it becomes a reference such as `password: ${POSTGRES_PASSWORD} # from ../mise.local.toml`.
@@ -162,7 +164,9 @@ variant status preview-one             # everything known about one variant
 variant provision -s preview-one
 variant up -s preview-one              # watches as containers on a fresh database
 variant watch -s preview-one --detach  # watches as host processes
+variant watch --reprovision            # drop the schemas, then provision again
 variant down -s preview-one            # stop them, keep the data
+variant deprovision -s preview-one     # stop the watches and drop the schemas
 variant implode -s preview-one         # tear down and remove the worktree
 variant ui --detach                    # the variants web page: print its URL with the token, keep serving
 variant ui --stop                      # end the UI server of the project

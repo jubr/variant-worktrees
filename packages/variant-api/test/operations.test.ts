@@ -27,6 +27,7 @@ describe("variant client operations", () => {
       expect(created.slug).toBe("test-feature");
       expect(created.implodeClean).toBe(true);
       expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
+      expect(existsSync(created.target)).toBe(false);
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);
 
       expect(await client.implode("test-feature")).toMatchObject({

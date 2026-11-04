@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import {
   amendDotenv,
   envSegment,
+  multiSchemaName,
   type ResolvedConfig,
   runtimeCommandFor,
   seedCommandFor,
@@ -18,6 +19,8 @@ export interface ProvisionOptions {
   verbose?: boolean;
   /** Receives progress lines, such as the command about to run; the default writes to stderr. */
   log?: ProgressLog;
+  /** `watch` only: drop the schemas before the provision phase creates them again. */
+  reprovision?: boolean;
 }
 
 export interface ProvisionResult {
@@ -88,11 +91,11 @@ const prepareEnvFile = (config: ResolvedConfig, run: VariantRun, key: string, wa
  * dependency installs, env file copies, the `up` commands, the steps of `variant.steps` and the seed command. The first
  * failure stops the pipeline and names the command.
  */
-export const runProvisioning = (
+export const runProvisioning = async (
   context: OperationContext,
   run: VariantRun,
   options: ProvisionOptions = {},
-): ProvisionResult => {
+): Promise<ProvisionResult> => {
   const { config } = context;
   const commands: string[] = [];
   let output = "";
@@ -144,13 +147,32 @@ export const runProvisioning = (
     command(up.text, up.cwd, up.env, "Command");
   }
 
-  for (const step of config.variant.steps ?? []) {
-    const skipVariable = `VARIANT_STEP_${envSegment(step.name)}`;
-    if (process.env[skipVariable] === "no") {
-      output += `Skipping step ${step.name}: ${skipVariable}=no\n`;
+  for (const [name, step] of Object.entries(config.variant.steps)) {
+    // AIDEV-NOTE: ${builtin.step.<name>} is the builtin implementation, not a shell command.
+    if (/^\$\{builtin\.step\.[A-Za-z0-9_-]+\}$/.test(step.cmd)) {
+      const skipVariable = `VARIANT_STEP_${envSegment(name)}`;
+      if (process.env[skipVariable] === "no") {
+        output += `Skipping step ${name}: ${skipVariable}=no\n`;
+        continue;
+      }
+      if (name === "provision" && run.slug !== "main") {
+        // AIDEV-NOTE: a provision cmd replaces this. Otherwise one schema per tenant, or the single target.
+        if (run.multi) {
+          for (const tenant of run.multi.tenants()) {
+            await context.adapter.createSchema(multiSchemaName(run.multi.prefix, run.slug, tenant));
+          }
+        } else {
+          await context.adapter.create(run.slug);
+        }
+      }
       continue;
     }
-    const stepCommand = expandSetting(config, run, step.run, `variant.steps.${step.name}.run`);
+    const skipVariable = `VARIANT_STEP_${envSegment(name)}`;
+    if (process.env[skipVariable] === "no") {
+      output += `Skipping step ${name}: ${skipVariable}=no\n`;
+      continue;
+    }
+    const stepCommand = expandSetting(config, run, step.cmd, `variant.steps.${name}.cmd`);
     commands.push(stepCommand);
     echoCommand(stepCommand, options.log);
     const result = execute(
@@ -159,7 +181,7 @@ export const runProvisioning = (
       commandEnvironment(config, run, step.env),
     );
     if (!result.ok) {
-      throw new Error(`Step ${step.name} failed (${result.status}): ${stepCommand}\n${result.output}`);
+      throw new Error(`Step ${name} failed (${result.status}): ${stepCommand}\n${result.output}`);
     }
     if (step.filterLinesRegex !== undefined && !options.verbose) {
       const pattern = new RegExp(step.filterLinesRegex);

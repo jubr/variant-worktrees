@@ -66,6 +66,7 @@ export default defineConfig({
       {
         text: "Variant Worktrees",
         items: [
+          { text: "Overview", link: "/guide/overview" },
           { text: "Core", link: "/guide/core" },
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },

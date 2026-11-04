@@ -1,13 +1,16 @@
 import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
-import { locateWorktree, repositoryDirectory } from "../locate.js";
+import { git } from "../git.js";
+import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
 import { logToStderr } from "../ready.js";
+import { prepareRun } from "../run-context.js";
 import { clearVariantRuntime, variantConfigDir } from "../runtime-state.js";
 import { resolveSlug, worktreeEntries } from "../slug.js";
 import { readState, removeState } from "../state.js";
 import type { ImplodeOptions, ImplodeResult } from "../types.js";
 import { primaryWorktree } from "../worktree.js";
+import { deprovisionPhase } from "./deprovision.js";
 import { stopContainers, stopHostProcesses } from "./down.js";
 import type { OperationContext } from "./types.js";
 
@@ -34,7 +37,9 @@ const teardownVariant = async (
   }
   stopContainers(context, slug, log);
   const state = readState(context.stateDir, slug);
-  const removed = await context.adapter.destroy(slug);
+  const run = await prepareRun(context, slug, worktree ?? checkoutRoot(repositoryDirectory(context)));
+  const phase = await deprovisionPhase(context, run, log);
+  const removed = phase.dropped.length > 0;
   const storage = context.config.variant.storage;
   if (worktree && storage) {
     const directory = join(worktree, storage.dir);
@@ -82,7 +87,8 @@ export const implodeVariant = async (
     throw new Error("Refusing to implode main: it is the primary checkout");
   }
   const located = locateWorktree(context, slug);
-  const removable = removableWorktree(context, located);
+  const present = located !== undefined && existsSync(located);
+  const removable = present ? removableWorktree(context, located) : undefined;
   const { requireMerged, preRm, discard, maxDiffLines } = config.variant.implode;
 
   if (removable && requireMerged && !options.force) {
@@ -94,8 +100,11 @@ export const implodeVariant = async (
     }
   }
 
-  const removed = await teardownVariant(context, slug, located, options.log);
+  const removed = await teardownVariant(context, slug, present ? located : undefined, options.log);
   if (!removable) {
+    if (located !== undefined && !present) {
+      git(primaryWorktree(repositoryDirectory(context)), ["worktree", "prune"]);
+    }
     return { slug, removed, worktreeRemoved: false };
   }
 

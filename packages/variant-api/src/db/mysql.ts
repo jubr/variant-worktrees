@@ -37,6 +37,18 @@ export class MysqlAdapter implements DatabaseAdapter {
     return database;
   }
 
+  async createSchema(): Promise<void> {
+    throw new Error("db.multi needs PostgreSQL, not mysql");
+  }
+
+  async matchingSchemas(): Promise<string[]> {
+    return [];
+  }
+
+  async dropSchema(): Promise<void> {
+    throw new Error("db.multi needs PostgreSQL, not mysql");
+  }
+
   async destroy(slug: string): Promise<boolean> {
     const database = this.target(slug);
     await this.db.execute(sql.raw(`DROP DATABASE IF EXISTS ${quoteIdentifier(database)}`));

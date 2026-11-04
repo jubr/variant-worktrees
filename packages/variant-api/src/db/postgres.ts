@@ -1,10 +1,21 @@
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import type { DbConfig } from "variant-config";
+import { type DbConfig, multiLikePattern } from "variant-config";
 import type { DatabaseAdapter } from "../types.js";
 
 const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
+
+/** `CREATE SCHEMA IF NOT EXISTS`, so a schema that already holds data is left as it is. */
+export const createSchemaSql = (name: string): string => `CREATE SCHEMA IF NOT EXISTS ${quoteIdentifier(name)}`;
+
+/** Schemas whose names start with `prefix`. `_` and `%` in the prefix match literally. */
+export const matchingSchemasSql = (prefix: string): string => {
+  const pattern = multiLikePattern(prefix).replaceAll("'", "''");
+  return `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '${pattern}' ESCAPE '\\'`;
+};
+
+const dropSchemaSql = (name: string): string => `DROP SCHEMA IF EXISTS ${quoteIdentifier(name)} CASCADE`;
 
 const schemaFor = (slug: string): string => `v_${slug.replaceAll("-", "_")}`;
 
@@ -40,13 +51,25 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async create(slug: string): Promise<string> {
     const schema = this.target(slug);
-    await this.db.execute(sql.raw(`CREATE SCHEMA IF NOT EXISTS ${quoteIdentifier(schema)}`));
+    await this.createSchema(schema);
     return schema;
   }
 
+  async createSchema(name: string): Promise<void> {
+    await this.db.execute(sql.raw(createSchemaSql(name)));
+  }
+
+  async matchingSchemas(prefix: string): Promise<string[]> {
+    const rows = await this.db.execute<{ schema_name: string }>(sql.raw(matchingSchemasSql(prefix)));
+    return rows.map((row) => row.schema_name);
+  }
+
+  async dropSchema(name: string): Promise<void> {
+    await this.db.execute(sql.raw(dropSchemaSql(name)));
+  }
+
   async destroy(slug: string): Promise<boolean> {
-    const schema = this.target(slug);
-    await this.db.execute(sql.raw(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schema)} CASCADE`));
+    await this.dropSchema(this.target(slug));
     return true;
   }
 

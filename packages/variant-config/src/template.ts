@@ -18,11 +18,15 @@ export interface TemplateContext {
   setting?: string;
   /** `false` for a setting that belongs to no variant (`db`): a variant placeholder then fails. */
   variant?: boolean;
+  /** Joined tenants, or a function called only when `${multi.tenants}` is expanded. */
+  multiTenants?: string | (() => string);
+  /** `schemaPrefix` with `${slug}` already filled in. `${multi.schemaPrefix}` does not read `multiTenants`. */
+  multiSchemaPrefix?: string;
 }
 
 const ESCAPE = "\u0000";
 const VARIANT_PLACEHOLDER =
-  /\$\{(slug|abbr|schema|storage|worktree|url|port|port\.[A-Za-z][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_-]*\.port)\}/g;
+  /\$\{(slug|abbr|schema|storage|worktree|url|port|port\.[A-Za-z][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_-]*\.port|multi\.tenants|multi\.schemaPrefix)\}/g;
 const ENV_TEMPLATE = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^{}]*))?\}/g;
 
 const where = (context: TemplateContext): string => (context.setting ? ` in ${context.setting}` : "");
@@ -52,6 +56,13 @@ export const renderTemplate = (value: string, context: TemplateContext = {}): st
       throw new Error(
         `Template \${${name}}${where(context)} is the former form: write \${${name.slice("port.".length)}.port}`,
       );
+    }
+    if (name === "multi.tenants") {
+      const tenants = context.multiTenants;
+      return typeof tenants === "function" ? tenants() : (tenants ?? "");
+    }
+    if (name === "multi.schemaPrefix") {
+      return context.multiSchemaPrefix ?? "";
     }
     return String(context[name as "slug" | "abbr" | "schema" | "storage" | "worktree" | "url" | "port"] ?? "");
   });

@@ -50,6 +50,12 @@ describe("variant rows", () => {
     expect(iconOf(row("demo"))).toContain("codicon-arrow-up");
   });
 
+  it("shows the schemas of a multi variant on its row", () => {
+    renderList([{ slug: "demo", schemas: ["v_demo-east", "v_demo-west"] }]);
+
+    expect(within(row("demo")).getByText("v_demo-east, v_demo-west")).toBeTruthy();
+  });
+
   it("shows a down row without a URL", () => {
     renderList([{ slug: "demo" }]);
 

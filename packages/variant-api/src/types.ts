@@ -56,6 +56,10 @@ export interface VariantRecord extends VariantState {
   changedMs?: number;
   /** Whether `implode` of this slug without `force` would succeed. Always false for `main`. */
   implodeClean: boolean;
+  /** Sorted schema names of a variant that has `db.multi`. Absent without it. */
+  schemas?: string[];
+  /** The database names this variant and no worktree directory exists. */
+  dbOnly?: boolean;
 }
 
 export interface VariantClientOptions {
@@ -121,8 +125,19 @@ export interface UpOptions {
 export interface WatchOptions extends UpOptions {
   /** Start the processes detached from the console and return without waiting. */
   detach?: boolean;
+  /** Drop the schemas and create them again before the watches start. */
+  reprovision?: boolean;
   /** Ends an attached watch as an interrupt (exit code 130), like SIGINT. */
   signal?: AbortSignal;
+}
+
+/** What `deprovision` dropped or ran. */
+export interface DeprovisionResult {
+  slug: string;
+  commands: string[];
+  output: string;
+  /** Schema names the builtin drop removed. Empty when a script replaced the drop, or the step was skipped. */
+  dropped: string[];
 }
 
 /** What is known about one watch of a started variant. */
@@ -246,6 +261,8 @@ export interface VariantClient {
   up(slug?: string, options?: UpOptions): Promise<UpResult>;
   watch(slug?: string, options?: WatchOptions): Promise<WatchResult>;
   down(slug?: string, options?: DownOptions): Promise<DownResult>;
+  /** Stops the watches, then drops the schemas. A `deprovision` script replaces the drop. */
+  deprovision(slug?: string, options?: UpOptions): Promise<DeprovisionResult>;
   /** One variant: its record with all runtime meta information. Fails when the slug is unknown. */
   status(slug?: string): Promise<VariantRecord>;
   list(options?: ListOptions): Promise<VariantRecord[]>;
@@ -264,6 +281,12 @@ export interface VariantClient {
 export interface DatabaseAdapter {
   readonly dialect: string;
   create(slug: string): Promise<string>;
+  /** Creates one named schema. PostgreSQL only; `db.multi` uses it for each tenant. */
+  createSchema(name: string): Promise<void>;
+  /** Schema names that start with `prefix`. The match is literal, including `_`. */
+  matchingSchemas(prefix: string): Promise<string[]>;
+  /** Drops one named schema. PostgreSQL only. */
+  dropSchema(name: string): Promise<void>;
   destroy(slug: string): Promise<boolean>;
   list(): Promise<string[]>;
   target(slug: string): string;

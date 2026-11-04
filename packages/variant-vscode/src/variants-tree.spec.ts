@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as vscode from "vscode";
 import { createVariantsStore } from "./variants-store.ts";
 import { fakeClient, record } from "./variants-test-support.ts";
-import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
+import { dbOnlySuffix, type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
 
 const started = async (records = [record("demo")], hasConfig = true) => {
   const fake = fakeClient(records);
@@ -22,6 +22,17 @@ const watching = { mode: "watch" as const, watches: { fe: { alive: true } } };
 const up = { mode: "up" as const, watches: { fe: { alive: true } } };
 
 describe("variants tree", () => {
+  it("marks a database-only variant with a space and a superscript d", async () => {
+    const { provider } = await started([record("demo", { dbOnly: true }), record("kept", { worktree: "/work/kept" })]);
+
+    expect(items(provider).map(({ item }) => item.label)).toEqual(["main", `demo${dbOnlySuffix()}`, "kept"]);
+  });
+
+  it("uses a superscript 2 when a superscript d cannot be shown", () => {
+    expect(dbOnlySuffix(() => false)).toBe(" \u00b2");
+    expect(dbOnlySuffix()).toBe(" \u1d48");
+  });
+
   it("lists variants by slug ascending by default, with the slug as label", async () => {
     const { provider } = await started([record("zeta"), record("main"), record("alpha")]);
 

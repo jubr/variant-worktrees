@@ -101,7 +101,8 @@ body {
 }
 
 .stale,
-.uptime {
+.uptime,
+.schemas {
   color: var(--vv-muted);
 }
 

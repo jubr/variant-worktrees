@@ -112,6 +112,7 @@ describe("implode merge gate", () => {
     withProject(async ({ implode, commit, worktree, database }) => {
       commit("src/b.ts", "export const b = 2;\n");
       writeFileSync(join(worktree, "variants.local.yaml"), "runtime:\n  slug: demo\n");
+      writeFileSync(database, "");
 
       await expect(implode()).rejects.toThrow(/force/);
 

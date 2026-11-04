@@ -68,15 +68,18 @@ describe("variant-api on Node and Bun", () => {
            const { createClient } = await import(${JSON.stringify(entries.index)});
            const client = createClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: false });
            const file = ${JSON.stringify(join(directory, ".cache/variants/test-feature.db"))};
+           const state = ${JSON.stringify(join(directory, ".cache/variants/test-feature.yaml"))};
            await client.create("test-feature");
-           const created = existsSync(file);
+           const database = existsSync(file);
+           const stateWritten = existsSync(state);
            const listed = (await client.list()).map((record) => record.slug);
            await client.implode("test-feature");
-           console.log(JSON.stringify({ created, listed, removed: !existsSync(file), after: (await client.list()).map((record) => record.slug) }));`,
+           console.log(JSON.stringify({ database, stateWritten, listed, removed: !existsSync(state), after: (await client.list()).map((record) => record.slug) }));`,
         );
         expect(result.stderr).toBe("");
         expect(JSON.parse(result.stdout)).toEqual({
-          created: true,
+          database: false,
+          stateWritten: true,
           listed: ["test-feature"],
           removed: true,
           after: [],

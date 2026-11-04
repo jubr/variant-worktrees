@@ -9,17 +9,20 @@ portable YAML state across supported database engines.
 
 ### Requirement: Create schema variant
 
-The system SHALL create an isolated database schema or database file for a slug. It SHALL write `variants.local.yaml` in the variant directory: the worktree `<prefix><slug>`, or the main checkout when the slug is `main`. That file SHALL contain `runtime.createdAt` set to the local time the create runs, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). When `runtime.createdAt` is already present, create SHALL leave it unchanged. Other top-level keys of an existing file SHALL be kept.
+The system SHALL create the git worktree and the state for a slug. It SHALL NOT create a database schema or database file. That is the `provision` step. It SHALL write `variants.local.yaml` in the variant directory: the worktree `<prefix><slug>`, or the main checkout when the slug is `main`. That file SHALL contain `runtime.createdAt` set to the local time the create runs, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). When `runtime.createdAt` is already present, create SHALL leave it unchanged. Other top-level keys of an existing file SHALL be kept.
 
 #### Scenario: Create PostgreSQL schema variant
+
 - **WHEN** the client calls `create("test-feature")` with a PostgreSQL connection
-- **THEN** schema `v_test_feature` is created and state is written to `.cache/variants/test-feature.yaml`
+- **THEN** no schema is created, the worktree exists, and state is written to `.cache/variants/test-feature.yaml`
 
 #### Scenario: Create SQLite variant
+
 - **WHEN** the client calls `create("test-feature")` with a SQLite connection string
-- **THEN** file `.cache/variants/test-feature.db` is created and state is persisted
+- **THEN** no database file is created and the state is persisted
 
 #### Scenario: Idempotent create
+
 - **WHEN** a variant already exists and `create()` is called
 - **THEN** the call succeeds without changing existing state
 
