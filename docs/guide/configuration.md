@@ -110,6 +110,7 @@ One PostgreSQL schema per tenant. Exactly one of `tenants` (text such as `east,w
 ```yaml
 db:
   dialect: postgres
+  host: 127.0.0.1
   multi:
     schemaPrefix: v_${slug}-
     tenantsCmd: sed -rn ${worktree}/server/.env -e 's/^WITCHES=(.*)$/\1/p'
