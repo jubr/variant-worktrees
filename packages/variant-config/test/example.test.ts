@@ -84,6 +84,19 @@ describe("variants.example.yaml", () => {
     expect(exampleText).toMatch(/hookScope: workspace +# .*user/);
   });
 
+  it("shows the multi-tenant provision, seed and deprovision steps", () => {
+    expect(exampleText).toContain("tenantsCmd: sed -rn ${worktree}/server/.env");
+    expect(exampleText).toContain("MULTI_TENANT_LIST: ${multi.tenants}");
+    expect(exampleText).toContain("MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix}");
+    expect(exampleText).toContain("&prov-env");
+    expect(exampleText.match(/env: \*prov-env/g)).toEqual(["env: *prov-env", "env: *prov-env"]);
+    expect(exampleText).toMatch(/^ {4}provision:/m);
+    expect(exampleText).toMatch(/^ {4}deprovision:/m);
+    expect(exampleText).toContain("cmd: bun run db:provision:witches");
+    expect(exampleText).toContain("cmd: bun run db:seed:witches");
+    expect(exampleText).toContain("cmd: bun run db:deprovision:witches");
+  });
+
   it("is detected as incomplete when an option is missing", () => {
     const { chatRenamer: _omitted, ...withoutSection } = example as Record<string, unknown>;
 
