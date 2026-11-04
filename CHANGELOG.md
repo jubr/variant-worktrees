@@ -28,6 +28,10 @@
 
 ### Changed
 
+- **Breaking:** the implode report is a dark-yellow `+ <command>` trace around plain `git status --porcelain`,
+  `git diff --stat`, and one filtered `git diff -U1` per file. `maxDiffLines` counts those kept patch lines.
+  Over the limit the patches are omitted and the status and the stat stay. The text summary after the command
+  returns does not repeat the report.
 - **Breaking:** `instances` is now `watches` everywhere: `variant.watches`, `runtime.watches`, the fields of records,
   status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `${key.port}` and
   container names are unchanged. See the migration above.

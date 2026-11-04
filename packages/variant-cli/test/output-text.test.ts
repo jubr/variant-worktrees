@@ -85,7 +85,7 @@ describe("text output of each command", () => {
     expect(out).toContain("v-net-demo");
   });
 
-  it("shows an implode with the removed worktree and the report", () => {
+  it("shows an implode with the removed worktree and does not repeat the report", () => {
     const out = text("implode", {
       slug: "demo",
       removed: true,
@@ -96,7 +96,7 @@ describe("text output of each command", () => {
 
     expect(out.split("\n")[0]).toBe("Imploded demo");
     expect(out).toContain("removed worktree /work/_v-demo");
-    expect(out).toContain("nothing to commit");
+    expect(out).not.toContain("nothing to commit");
   });
 
   it("says when an implode found nothing", () => {
