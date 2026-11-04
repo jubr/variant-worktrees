@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
 import { createVariant } from "../src/operations/create.js";
+import { listVariants } from "../src/operations/list.js";
 import { prepareVariant } from "../src/operations/prepare.js";
 import { provisionVariant } from "../src/operations/provision.js";
 import type { OperationContext } from "../src/operations/types.js";
@@ -341,4 +342,126 @@ describe("multi schema", () => {
         expect(schemas).toEqual([]);
       },
     ));
+});
+
+/** Schemas the database already holds, listed under the variant the worktree names. */
+const withSchemas = async (
+  names: readonly string[],
+  yaml: string,
+  run: (tools: { directory: string; list: () => ReturnType<typeof listVariants> }) => Promise<void>,
+): Promise<void> => {
+  const directory = mkdtempSync(join(tmpdir(), "variant-multi-list-"));
+  const adapter: DatabaseAdapter = {
+    dialect: "postgres",
+    create: async (slug) => `v_${slug}`,
+    createSchema: async () => {},
+    matchingSchemas: async (prefix) => names.filter((name) => name.startsWith(prefix)),
+    dropSchema: async () => {},
+    destroy: async () => true,
+    list: async () => names.filter((name) => name.startsWith("v_")),
+    target: (slug) => `v_${slug.replaceAll("-", "_")}`,
+    close: async () => {},
+  };
+  try {
+    writeFileSync(join(directory, "variants.yaml"), yaml);
+    const config = loadConfig({ cwd: directory, env: {} });
+    const context: OperationContext = {
+      config,
+      variantRoot: config.variant.root,
+      stateDir: join(directory, ".cache", "variants"),
+      cwd: directory,
+      useWorktree: false,
+      adapter,
+    };
+    await run({ directory: config.variant.root, list: () => listVariants(context) });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
+describe("one record per variant", () => {
+  it("groups every schema of the worktree under one record", () =>
+    withSchemas(
+      ["v_demo-east", "v_demo-west", "v_demo-north"],
+      postgres("    tenants: east,west,north\n"),
+      async ({ directory, list }) => {
+        mkdirSync(join(directory, "_v-demo"));
+
+        const records = await list();
+
+        expect(records).toHaveLength(1);
+        expect(records[0]).toMatchObject({
+          slug: "demo",
+          target: "v_demo",
+          schemas: ["v_demo-east", "v_demo-north", "v_demo-west"],
+        });
+      },
+    ));
+
+  it("keeps a hyphen in the slug and reports the variant target", () =>
+    withSchemas(["v_add-auth-east"], postgres("    tenants: east\n"), async ({ directory, list }) => {
+      mkdirSync(join(directory, "_v-add-auth"));
+
+      const [record] = await list();
+
+      expect(record).toMatchObject({
+        slug: "add-auth",
+        target: "v_add_auth",
+        schemas: ["v_add-auth-east"],
+      });
+    }));
+
+  it("omits schemas when db.multi is absent", () =>
+    withSchemas(["v_demo"], "db:\n  dialect: postgres\n  host: 127.0.0.1\nvariant: {}\n", async ({ list }) => {
+      const [record] = await list();
+
+      expect(record?.slug).toBe("demo");
+      expect(record).not.toHaveProperty("schemas");
+    }));
+
+  it("keeps a schema whose tenant has left the list", () =>
+    withSchemas(["v_demo-east", "v_demo-north"], postgres("    tenants: east\n"), async ({ directory, list }) => {
+      mkdirSync(join(directory, "_v-demo"));
+
+      const [record] = await list();
+
+      expect(record?.schemas).toEqual(["v_demo-east", "v_demo-north"]);
+    }));
+
+  it("groups schemas of a variant known only from its state file", () =>
+    withSchemas(["v_demo-east"], postgres("    tenants: east\n"), async ({ directory, list }) => {
+      const stateDir = join(directory, ".cache", "variants");
+      mkdirSync(stateDir, { recursive: true });
+      writeFileSync(
+        join(stateDir, "demo.yaml"),
+        'slug: demo\ntarget: v_demo\ndialect: postgres\nstatePath: ""\ncreatedAt: now\n',
+      );
+
+      const records = await list();
+
+      expect(records).toHaveLength(1);
+      expect(records[0]).toMatchObject({ slug: "demo", target: "v_demo", schemas: ["v_demo-east"] });
+    }));
+
+  it("groups a schema under a prefix that does not start with v_", () =>
+    withSchemas(
+      ["app_demo_east"],
+      postgres("    schemaPrefix: app_${slug}_\n    tenants: east\n"),
+      async ({ directory, list }) => {
+        mkdirSync(join(directory, "_v-demo"));
+
+        const [record] = await list();
+
+        expect(record).toMatchObject({ slug: "demo", target: "v_demo", schemas: ["app_demo_east"] });
+      },
+    ));
+
+  it("does not run tenantsCmd while grouping schemas", () =>
+    withSchemas(["v_demo-east"], postgres("    tenantsCmd: exit 9\n"), async ({ directory, list }) => {
+      mkdirSync(join(directory, "_v-demo"));
+
+      const [record] = await list();
+
+      expect(record?.schemas).toEqual(["v_demo-east"]);
+    }));
 });

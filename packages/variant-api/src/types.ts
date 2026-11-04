@@ -56,6 +56,8 @@ export interface VariantRecord extends VariantState {
   changedMs?: number;
   /** Whether `implode` of this slug without `force` would succeed. Always false for `main`. */
   implodeClean: boolean;
+  /** Sorted schema names of a variant that has `db.multi`. Absent without it. */
+  schemas?: string[];
 }
 
 export interface VariantClientOptions {

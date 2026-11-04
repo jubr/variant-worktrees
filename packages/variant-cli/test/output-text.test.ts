@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { parse as parseYaml } from "yaml";
 import { formatDuration } from "../src/duration.js";
 import { renderOutput } from "../src/output.js";
 
@@ -184,6 +185,22 @@ describe("status text", () => {
     expect(out).not.toContain("hunter2");
   });
 
+  it("prints the schemas of a multi variant", () => {
+    const out = text("status", {
+      slug: "demo",
+      target: "v_demo",
+      dialect: "postgres",
+      statePath: "",
+      createdAt: "",
+      exists: true,
+      schemas: ["v_demo-east", "v_demo-west"],
+    });
+
+    expect(out).toContain("schemas:");
+    expect(out).toContain("v_demo-east");
+    expect(out).toContain("v_demo-west");
+  });
+
   it("leaves out what a variant without a runtime state does not have", () => {
     const out = text("status", {
       slug: "orphan",
@@ -197,5 +214,43 @@ describe("status text", () => {
     expect(out).toContain("orphan");
     expect(out).not.toContain("runtime:");
     expect(out).not.toContain("uptime");
+    expect(out).not.toContain("schemas:");
+  });
+});
+
+describe("list text", () => {
+  const records = [
+    {
+      slug: "demo",
+      target: "v_demo",
+      dialect: "postgres",
+      statePath: "",
+      createdAt: "",
+      exists: true,
+      implodeClean: true,
+      schemas: ["v_demo-east", "v_demo-west", "v_demo-north"],
+    },
+  ];
+
+  it("keeps one row per variant", () => {
+    const table = renderOutput("list", records, { format: "text", variantRoot: "/work" });
+
+    expect(table.split("\n")).toHaveLength(2);
+    expect(table).not.toContain("v_demo-east");
+  });
+
+  it("prints the schemas when verbose", () => {
+    const verbose = renderOutput("list", records, { format: "text", variantRoot: "/work", verbose: true });
+
+    expect(verbose).toContain("v_demo-east");
+    expect(verbose).toContain("v_demo-north");
+  });
+
+  it("carries schemas in JSON and YAML", () => {
+    const json = renderOutput("list", records, { format: "json", variantRoot: "/work" });
+    const yaml = renderOutput("list", records, { format: "yaml", variantRoot: "/work" });
+
+    expect(JSON.parse(json)[0].schemas).toEqual(["v_demo-east", "v_demo-west", "v_demo-north"]);
+    expect(parseYaml(yaml)[0].schemas).toEqual(["v_demo-east", "v_demo-west", "v_demo-north"]);
   });
 });

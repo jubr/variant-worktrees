@@ -47,6 +47,9 @@ export const VariantRow = ({ variant }: { variant: Variant }) => {
       {variant.uptimeSeconds !== undefined ? (
         <span className="uptime">{formatUptime(variant.uptimeSeconds)}</span>
       ) : null}
+      {variant.schemas !== undefined && variant.schemas.length > 0 ? (
+        <span className="schemas">{variant.schemas.join(", ")}</span>
+      ) : null}
       <span className="controls">
         {pending ? <Busy /> : null}
         {state === "down" ? (

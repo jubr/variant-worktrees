@@ -111,6 +111,7 @@ const recordPairs = (record: VariantRecord): string[] => [
     ["url", record.url],
     ["log", record.log],
   ]),
+  ...(record.schemas !== undefined && record.schemas.length > 0 ? section("schemas", record.schemas) : []),
   ...watches(record.watches ?? {}),
 ];
 

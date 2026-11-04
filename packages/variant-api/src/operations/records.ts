@@ -2,10 +2,12 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
   type DiscoveredRuntime,
+  groupMultiSchemas,
   LOCAL_FILENAME,
   parseLocalStamp,
   type ResolvedConfig,
   readRuntimes,
+  renderTemplate,
   UI_WATCH_KEY,
 } from "variant-config";
 import { implodeWouldSucceed } from "../implode-clean.js";
@@ -32,6 +34,33 @@ export const runtimeDirectories = (config: ResolvedConfig): { root: string; pref
         .map((entry) => join(root, entry.name))
     : [];
   return { root, prefix, directories: [...new Set([...worktrees, main])] };
+};
+
+/** Slugs named by a `<prefix><slug>` directory. The main checkout is not one of them. */
+const worktreeSlugs = (context: OperationContext): string[] => {
+  const { prefix, directories } = runtimeDirectories(context.config);
+  const main = context.config.variant.main;
+  return directories
+    .filter((dir) => dir !== main && basename(dir).startsWith(prefix))
+    .map((dir) => basename(dir).slice(prefix.length))
+    .filter((slug) => slug !== "");
+};
+
+/** `schemaPrefix` with `${slug}` filled in. Does not run `tenantsCmd`. */
+const expandedPrefix = (context: OperationContext, slug: string, worktree: string | undefined): string => {
+  const multi = context.config.db.multi;
+  if (multi === undefined) {
+    return "";
+  }
+  return renderTemplate(multi.schemaPrefix, {
+    slug,
+    schema: context.adapter.target(slug),
+    worktree: worktree ?? "",
+    abbr: context.config.variant.abbr,
+    variant: true,
+    env: context.config.environment,
+    setting: "db.multi.schemaPrefix",
+  });
 };
 
 /** The runtime state of every variant: `<root>/<prefix>*` worktrees and the main checkout, keyed by slug. */
@@ -137,6 +166,7 @@ export interface CollectOptions {
 
 /**
  * The records of the known variants, sorted by slug: those with a state file, a database target or a runtime state.
+ * With `db.multi`, a worktree directory is enough, and schemas under its prefix share that one record.
  * `list` and `status` both build their records here, so a record of `list` with `verbose` equals the one of `status`.
  */
 export const collectRecords = async (
@@ -144,11 +174,35 @@ export const collectRecords = async (
   options: CollectOptions = {},
 ): Promise<VariantRecord[]> => {
   const { dialect } = context.adapter;
-  const databaseSlugs = new Map(
-    (await context.adapter.list()).map((target) => [slugFromTarget(target, dialect), target] as const),
-  );
+  const multi = context.config.db.multi;
+  const listed = await context.adapter.list();
   const runtimes = runtimeBySlug(context);
-  const known = new Set([...stateSlugs(context.stateDir), ...databaseSlugs.keys(), ...runtimes.keys()]);
+  const fromState = stateSlugs(context.stateDir);
+  const fromWorktrees = multi === undefined ? [] : worktreeSlugs(context);
+  const schemasOf = new Map<string, string[]>();
+  const consumed = new Set<string>();
+  if (multi !== undefined) {
+    const owners = new Set([...fromState, ...runtimes.keys(), ...fromWorktrees]);
+    for (const slug of owners) {
+      const state = readState(context.stateDir, slug);
+      const prefixed = join(context.config.variant.root, `${context.config.variant.prefix}${slug}`);
+      const directory = [state?.worktree, runtimes.get(slug)?.dir, prefixed].find(
+        (path) => path !== undefined && existsSync(path),
+      );
+      const prefix = expandedPrefix(context, slug, directory);
+      const matched = prefix === "" ? [] : groupMultiSchemas(await context.adapter.matchingSchemas(prefix), prefix);
+      schemasOf.set(slug, matched);
+      for (const name of matched) {
+        consumed.add(name);
+      }
+    }
+  }
+  const databaseSlugs = new Map(
+    listed
+      .filter((target) => !consumed.has(target))
+      .map((target) => [slugFromTarget(target, dialect), target] as const),
+  );
+  const known = new Set([...fromState, ...databaseSlugs.keys(), ...runtimes.keys(), ...fromWorktrees]);
   const slugs = [...known].filter((slug) => options.slug === undefined || slug === options.slug).sort();
   return slugs.map((slug) => {
     const state = readState(context.stateDir, slug);
@@ -157,17 +211,21 @@ export const collectRecords = async (
     const url = ownWatches(watches ?? {}).find((watch) => watch.url !== undefined)?.url;
     const uptimeSeconds = watches ? longestUptime(watches) : undefined;
     const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
-    const directory = [state?.worktree, found?.dir].find((path) => path !== undefined && existsSync(path));
+    const prefixed = join(context.config.variant.root, `${context.config.variant.prefix}${slug}`);
+    const located = existsSync(prefixed) ? prefixed : undefined;
+    const directory = [state?.worktree, found?.dir, located].find((path) => path !== undefined && existsSync(path));
     const yaml = found ? join(found.dir, LOCAL_FILENAME) : directory ? join(directory, LOCAL_FILENAME) : undefined;
+    const worktree = state?.worktree ?? found?.runtime.dir ?? found?.dir ?? located;
+    const knownTarget = multi !== undefined || databaseSlugs.has(slug);
     return {
       slug,
-      target: state?.target ?? runtimeTarget ?? (databaseSlugs.has(slug) ? context.adapter.target(slug) : ""),
+      target: state?.target ?? runtimeTarget ?? (knownTarget ? context.adapter.target(slug) : ""),
       dialect: state?.dialect ?? context.adapter.dialect,
       statePath: state?.statePath ?? "",
-      worktree: state?.worktree ?? found?.runtime.dir ?? found?.dir,
+      worktree,
       createdAt: state?.createdAt ?? "",
       ...timesOf(directory, yaml, found?.runtime.createdAt),
-      implodeClean: implodeWouldSucceed(context, slug, state?.worktree ?? found?.dir),
+      implodeClean: implodeWouldSucceed(context, slug, worktree),
       exists: true,
       ...(found?.runtime.mode ? { mode: found.runtime.mode } : {}),
       ...(url ? { url } : {}),
@@ -175,6 +233,7 @@ export const collectRecords = async (
       ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }),
       ...(found?.runtime.log ? { log: found.runtime.log } : {}),
       ...(options.verbose && found ? { runtime: runtimeStatus(found, watches ?? {}) } : {}),
+      ...(multi !== undefined ? { schemas: schemasOf.get(slug) ?? [] } : {}),
     };
   });
 };
