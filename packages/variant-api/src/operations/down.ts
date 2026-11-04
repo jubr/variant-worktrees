@@ -62,7 +62,7 @@ export const downVariant = async (
   requestedSlug?: string,
   options: DownOptions = {},
 ): Promise<DownResult> => {
-  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes);
+  const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
   const worktree = locateWorktree(context, slug);
   const processes = worktree ? await stopHostProcesses(context, worktree) : [];
   const containers = stopContainers(context, slug, options.log);

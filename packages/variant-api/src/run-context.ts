@@ -8,6 +8,7 @@ import {
   type TemplateContext,
   type VariantWatch,
 } from "variant-config";
+import { repositoryDirectory } from "./locate.js";
 import type { OperationContext } from "./operations/types.js";
 import { readVariantRuntime, variantConfigDir } from "./runtime-state.js";
 import { primaryWorktree } from "./worktree.js";
@@ -90,7 +91,7 @@ export const prepareRun = async (
       (await pickFreePort(config.variant.ports, { exclude: Object.values(ports) }));
   }
   const storage = config.variant.storage ? join(worktree, config.variant.storage.dir) : undefined;
-  const primary = primaryOf(context.cwd, worktree);
+  const primary = primaryOf(repositoryDirectory(context), worktree);
   const run: VariantRun = {
     slug,
     abbr: config.variant.abbr,

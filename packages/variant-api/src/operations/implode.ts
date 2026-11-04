@@ -1,7 +1,7 @@
 import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
-import { locateWorktree } from "../locate.js";
+import { locateWorktree, repositoryDirectory } from "../locate.js";
 import { logToStderr } from "../ready.js";
 import { clearVariantRuntime, variantConfigDir } from "../runtime-state.js";
 import { resolveSlug, worktreeEntries } from "../slug.js";
@@ -55,7 +55,9 @@ const removableWorktree = (context: OperationContext, worktree: string | undefin
     return undefined;
   }
   try {
-    const [primary, ...others] = worktreeEntries(context.cwd).map((entry) => realpathOrSelf(entry.path));
+    const [primary, ...others] = worktreeEntries(repositoryDirectory(context)).map((entry) =>
+      realpathOrSelf(entry.path),
+    );
     const target = realpathOrSelf(worktree);
     return target !== primary && others.includes(target) ? worktree : undefined;
   } catch {
@@ -75,7 +77,7 @@ export const implodeVariant = async (
 ): Promise<ImplodeResult> => {
   const { config } = context;
   const log = options.log ?? logToStderr;
-  const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
+  const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes, config.variant);
   if (slug === "main") {
     throw new Error("Refusing to implode main: it is the primary checkout");
   }
@@ -108,6 +110,6 @@ export const implodeVariant = async (
   const report = worktreeReport(removable, maxDiffLines);
   log(report);
   restoreTracked(removable, discard);
-  removeWorktree(primaryWorktree(context.cwd), removable, options.force === true);
+  removeWorktree(primaryWorktree(repositoryDirectory(context)), removable, options.force === true);
   return { slug, removed, worktreeRemoved: true, worktree: removable, report };
 };

@@ -62,13 +62,40 @@ export const worktreeEntries = (cwd = process.cwd()): WorktreeEntry[] => {
 
 export const gitRoot = (cwd = process.cwd()): string => resolve(git(cwd, ["rev-parse", "--show-toplevel"]));
 
+/** The checkout and the variant root, when an operation knows them. Both come from the loaded config. */
+export interface SlugPlace {
+  main?: string;
+  root?: string;
+}
+
+const realpathOrSelf = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+};
+
+/** The variant root names no checkout of its own, so a slug there has to be given. */
+const isVariantRoot = (cwd: string, place?: SlugPlace): boolean => {
+  if (!place?.main || !place.root) {
+    return false;
+  }
+  const here = realpathOrSelf(cwd);
+  return here === realpathOrSelf(place.root) && here !== realpathOrSelf(place.main);
+};
+
 export const resolveSlug = (
   explicitSlug?: string,
   cwd = process.cwd(),
   branchPrefixes: readonly string[] = DEFAULT_BRANCH_PREFIXES,
+  place?: SlugPlace,
 ): string => {
   if (explicitSlug !== undefined) {
     return sanitizeSlug(explicitSlug, branchPrefixes);
+  }
+  if (isVariantRoot(cwd, place)) {
+    throw new Error("Unable to derive variant slug from the variant root; pass -s/--slug");
   }
 
   const root = realpathSync(gitRoot(cwd));

@@ -118,7 +118,7 @@ export const watchVariant = async (
 ): Promise<WatchResult> => {
   const { config } = context;
   const log = options.log ?? logToStderr;
-  const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
+  const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes, config.variant);
   const { run, provisioned } = await prepareVariant(context, slug, "watch", options);
 
   const delay = config.variant.supervise.startDelaySeconds * 1000;
