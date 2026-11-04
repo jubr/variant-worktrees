@@ -56,6 +56,12 @@ const missingOptions = (schema: JsonSchema, value: unknown, path: string): strin
   return missing;
 };
 
+/** A key written as `# tenants:` is an alternative the schema will not accept beside the live key. */
+const commentedOption = (text: string, path: string): boolean => {
+  const key = path.slice(path.lastIndexOf(".") + 1);
+  return new RegExp(`#\\s*${key}\\s*:`).test(text);
+};
+
 describe("variants.example.yaml", () => {
   it("validates against the schema", () => {
     const result = VariantsConfigSchema.safeParse(example);
@@ -64,7 +70,11 @@ describe("variants.example.yaml", () => {
   });
 
   it("specifies every option of the schema", () => {
-    expect(missingOptions(variantsJsonSchema as JsonSchema, example, "")).toEqual([]);
+    expect(
+      missingOptions(variantsJsonSchema as JsonSchema, example, "").filter(
+        (path) => !commentedOption(exampleText, path),
+      ),
+    ).toEqual([]);
   });
 
   it("lists alternatives in end-of-line comments", () => {

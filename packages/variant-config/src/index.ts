@@ -399,6 +399,7 @@ export type { DiscoveredRuntime, LocalState, ReadRuntimesOptions, RuntimeReadErr
 export { clearRuntime, readRuntime, readRuntimeState, readRuntimes, writeRuntime } from "./local.js";
 export { type MigrationResult, migrateFile } from "./migrate-file.js";
 export { miseSearchPlaces, type ResolveMiseOptions, resolveMiseBinary } from "./mise-binary.js";
+export { groupMultiSchemas, multiLikePattern, multiSchemaName, parseMultiList } from "./multi.js";
 export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {

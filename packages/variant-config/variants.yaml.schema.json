@@ -47,6 +47,28 @@
         },
         "ssl": {
           "type": "boolean"
+        },
+        "multi": {
+          "type": "object",
+          "properties": {
+            "schemaPrefix": {
+              "default": "v_${slug}-",
+              "type": "string",
+              "minLength": 1
+            },
+            "tenants": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tenantsCmd": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "schemaPrefix"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -9,6 +9,32 @@ export type DbDialect = z.infer<typeof DbDialectSchema>;
 /** A TCP port: shared by the database settings and the runtime state of watches. */
 export const PortSchema = z.number().int().positive();
 
+/** One schema per tenant. Exactly one of `tenants` and `tenantsCmd`. */
+export const DbMultiSchema = z
+  .strictObject({
+    /** Start of every tenant schema. `${slug}` is filled in later. Default `v_${slug}-`. */
+    schemaPrefix: z.string().min(1).default("v_${slug}-"),
+    /** Literal tenant list, commas or whitespace. Not together with `tenantsCmd`. */
+    tenants: z.string().min(1).optional(),
+    /** Shell command whose output is the tenant list. Not together with `tenants`. */
+    tenantsCmd: z.string().min(1).optional(),
+  })
+  .superRefine((multi, context) => {
+    const listed = multi.tenants !== undefined;
+    const commanded = multi.tenantsCmd !== undefined;
+    if (listed && commanded) {
+      context.addIssue({ code: "custom", message: "db.multi accepts tenants or tenantsCmd, not both" });
+    }
+    if (!listed && !commanded) {
+      context.addIssue({
+        code: "custom",
+        path: ["tenants"],
+        message: "db.multi.tenants or db.multi.tenantsCmd is required",
+      });
+    }
+  });
+export type DbMulti = z.infer<typeof DbMultiSchema>;
+
 export const DbConfigSchema = z.strictObject({
   dialect: DbDialectSchema.optional(),
   url: z.string().min(1).optional(),
@@ -20,6 +46,7 @@ export const DbConfigSchema = z.strictObject({
   schema: z.string().min(1).optional(),
   filename: z.string().min(1).optional(),
   ssl: z.boolean().optional(),
+  multi: DbMultiSchema.optional(),
 });
 export type DbConfig = z.infer<typeof DbConfigSchema>;
 
@@ -463,7 +490,9 @@ export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
 const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
 
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
-export const RuntimeDbSchema = DbConfigSchema.extend({ port: portOrTemplateSchema.optional() });
+export const RuntimeDbSchema = DbConfigSchema.omit({ multi: true }).extend({
+  port: portOrTemplateSchema.optional(),
+});
 
 /** Local wall time `YYYY-MM-DD_HH:MM:SS`, zero-padded, 24-hour, no timezone suffix. */
 const localStampSchema = z.string().refine((value): boolean => parseLocalStamp(value) !== undefined, {
