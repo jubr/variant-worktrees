@@ -14,6 +14,7 @@ import {
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
+import { chooseActiveChat, selectionType } from "./active-chat";
 import { resolveChatRenameDeps } from "./cursor-host";
 import type { ExistingChatsRunner } from "./existing-chats";
 import { readSettings } from "./settings";
@@ -107,15 +108,33 @@ export const registerRenameChatCommands = (
         if (disabled()) {
           return false;
         }
+        const active = log.child("active-chat");
         const selected = await vscode.commands.executeCommand<unknown>("composer.getOrderedSelectedComposerIds");
-        const id = Array.isArray(selected) && typeof selected[0] === "string" ? selected[0] : "";
-        if (id.length === 0) {
-          void vscode.window.showWarningMessage("No chat is selected.");
-          return false;
-        }
         const deps = resolveChatRenameDeps(context);
-        const sessions = await listChatCatalog(deps);
-        const title = sessions?.find((session) => session.sessionId === id)?.title;
+        const sessions = await listChatCatalog(deps).then(
+          (listed) => listed ?? [],
+          (error: unknown) => {
+            active.warn(`catalog unreadable: ${error instanceof Error ? error.message : String(error)}`);
+            return [];
+          },
+        );
+        const choice = chooseActiveChat(selected, sessions);
+        active.trace("selection", { type: selectionType(selected), count: choice.ids.length, ids: choice.ids });
+        active.trace("catalog", {
+          count: sessions.length,
+          chats: choice.chats.map((chat) => ({ id: chat.sessionId, title: chat.title, updatedAt: chat.updatedAt })),
+        });
+        active.trace("chosen", { session: choice.id, rule: choice.rule });
+        const notRenamed = (reason: string, notice: string): false => {
+          active.warn("not renamed", { reason });
+          void vscode.window.showWarningMessage(notice);
+          return false;
+        };
+        const id = choice.id ?? "";
+        if (id.length === 0) {
+          return notRenamed("no chat found", "No chat found: none is selected and Cursor lists no chats.");
+        }
+        const title = sessions.find((session) => session.sessionId === id)?.title;
         let decision: TitleDecision;
         try {
           decision = await catalogTitleDecision(
@@ -126,6 +145,8 @@ export const registerRenameChatCommands = (
               readFirstPrompt: readPrompt,
               notBeforeMs: Number.NEGATIVE_INFINITY,
               maxAgeMs: Number.POSITIVE_INFINITY,
+              maxLines: Number.POSITIVE_INFINITY,
+              decisionLog: active,
             },
           );
         } catch (error) {
@@ -134,13 +155,13 @@ export const registerRenameChatCommands = (
           );
           throw error;
         }
+        const why = decision.detail ? `${decision.reason}: ${decision.detail}` : decision.reason;
         if (decision.outcome === "same-base") {
+          active.warn("not renamed", { reason: why });
           return false;
         }
         if (decision.outcome !== "renamed") {
-          const why = decision.detail ? `${decision.reason}: ${decision.detail}` : decision.reason;
-          void vscode.window.showWarningMessage(`This chat was not renamed: ${why}`);
-          return false;
+          return notRenamed(why, `This chat was not renamed: ${why}`);
         }
         return true;
       }),
