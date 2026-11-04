@@ -153,7 +153,7 @@ The system SHALL allow only one runtime per slug. `watch` SHALL stop the variant
 
 ### Requirement: Runtime state recording
 
-The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after watches start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every watch by key, `port`, the rendered `url` when it has a `url` template and, for host processes, `pid`. Other top-level keys of the file SHALL be kept.
+The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after watches start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every watch by key, `port`, the rendered `url` when it has a `url` template, `startedAt`, and, for host processes, `pid`. `startedAt` SHALL be the local time that watch started, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). An existing `runtime.createdAt` SHALL be kept. Other top-level keys of the file SHALL be kept.
 
 #### Scenario: Written after up
 
@@ -164,6 +164,16 @@ The system SHALL write the `runtime` section of the variant's `variants.local.ya
 
 - **WHEN** `watch` starts host processes
 - **THEN** each watch entry holds the `pid` of its process
+
+#### Scenario: Start time written
+
+- **WHEN** `watch` starts `fe` at 12:30:00 local time on 2026-11-04
+- **THEN** `runtime.watches.fe.startedAt` is `2026-11-04_12:30:00`
+
+#### Scenario: Created time kept
+
+- **WHEN** `runtime.createdAt` is `2026-01-02_03:04:05` and `watch` rewrites the runtime section
+- **THEN** `runtime.createdAt` is still `2026-01-02_03:04:05`
 
 #### Scenario: Other keys kept
 

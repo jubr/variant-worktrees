@@ -219,7 +219,9 @@ The renamer SHALL read settings `trigger` (`titleEvent` or `hook`), `hookScope` 
 
 ### Requirement: Rename the active chat on command
 
-The standalone extension SHALL contribute command `chat-renamer.renameActiveChat` with palette title `Chat Renamer: Rename active chat`. When embedded in Variant, the command SHALL be `variant.renameActiveChat` with palette title `Variant: Rename active chat`. Running it SHALL rename the chat the user currently has selected, using that chat's first prompt and the same request, numbering, and same-base rules as a title event. It SHALL NOT apply the limit that a chat must have been created while the editor runs, it SHALL NOT apply the 30-second age limit, and it SHALL NOT apply `titleEventPromptLines`. It SHALL run when `renameExistingDays` is 0. When no chat is selected, or the first prompt holds no rename request, the command SHALL NOT rename and SHALL tell the user, naming the reason as the requirement "Rename failures tell the user why" says. The command SHALL stay registered while the instance is idle.
+The standalone extension SHALL contribute command `chat-renamer.renameActiveChat` with palette title `Chat Renamer: Rename active chat`. When embedded in Variant, the command SHALL be `variant.renameActiveChat` with palette title `Variant: Rename active chat`. Running it SHALL rename the active chat, using that chat's first prompt and the same request, numbering, and same-base rules as a title event. It SHALL NOT apply the limit that a chat must have been created while the editor runs, it SHALL NOT apply the 30-second age limit, and it SHALL NOT apply `titleEventPromptLines`. It SHALL run when `renameExistingDays` is 0. When no chat can be found, or the first prompt holds no rename request, the command SHALL NOT rename and SHALL tell the user, naming the reason as the requirement "Rename failures tell the user why" says. The command SHALL stay registered while the instance is idle.
+
+The active chat SHALL be chosen from the chats Cursor reports as selected. Ids that are plain strings, and objects that carry the id in a `composerId`, `sessionId` or `id` field, SHALL count; anything else SHALL be ignored. When several chats are selected, the one that Cursor's session catalog lists with the newest `updatedAt` SHALL be the active chat; the first selected id SHALL win a tie and SHALL be used when the catalog lists none of them. When Cursor reports no selected chat, the chat the catalog lists with the newest `updatedAt` SHALL be the active chat. Only when there is no selected chat and the catalog lists no chats SHALL the command report that no chat was found.
 
 #### Scenario: Active chat with an old pattern prompt
 
@@ -236,9 +238,29 @@ The standalone extension SHALL contribute command `chat-renamer.renameActiveChat
 - **WHEN** the selected chat's first prompt is `fix the build`
 - **THEN** the chat is not renamed and the user is told, with the reason `no rename request`
 
+#### Scenario: Several selected chats
+
+- **WHEN** Cursor reports selected chats `pane-chat` and `editor-chat`, and the catalog lists `editor-chat` as updated more recently than `pane-chat`
+- **THEN** `editor-chat` is the active chat and is examined for a rename request
+
+#### Scenario: Selected chat the catalog does not list
+
+- **WHEN** Cursor reports selected chats `first` and `second`, and the catalog lists neither
+- **THEN** `first` is the active chat
+
+#### Scenario: Selected ids as objects
+
+- **WHEN** Cursor reports a selected chat as an object `{ composerId: "chat-1" }`
+- **THEN** `chat-1` is the active chat
+
+#### Scenario: No selected chat falls back to the newest chat
+
+- **WHEN** Cursor reports no selected chat and the catalog lists `old` updated earlier than `recent`
+- **THEN** `recent` is the active chat and is examined for a rename request
+
 #### Scenario: No selected chat
 
-- **WHEN** no chat is selected
+- **WHEN** no chat is selected and the catalog lists no chats
 - **THEN** no chat is renamed and the user is told
 
 #### Scenario: Palette titles

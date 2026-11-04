@@ -21,7 +21,7 @@ Renames Cursor chats from their first prompt. Single purpose: it does nothing el
 
 ## Commands
 
-- **Chat Renamer: Rename active chat** (`chat-renamer.renameActiveChat`): renames the selected chat from its first prompt, including a prompt older than 30 seconds, even when `renameExistingDays` is `0`. No selected chat, or a first prompt with no rename request, leaves the chat alone and tells you why (`no rename request`, `malformed request` with what is wrong, or the error of a failing rename).
+- **Chat Renamer: Rename active chat** (`chat-renamer.renameActiveChat`): renames the active chat from its first prompt, including a prompt older than 30 seconds, even when `renameExistingDays` is `0`. Cursor reports every selected chat, not the focused one, so the command takes the selected chat that Cursor's catalog lists as most recently updated (the first selected one when the catalog says nothing), and the most recently updated chat of all when none is selected. No chat at all, or a first prompt with no rename request, leaves the chat alone and tells you why (`no chat found`, `no rename request`, `malformed request` with what is wrong, or the error of a failing rename). At Trace level the log channel shows how the chat was found in `[active-chat]` entries (`selection`, `catalog`, `chosen`), and each run that renames nothing writes an `[active-chat] not renamed` warning with the reason.
 - **Chat Renamer: Rename Existing Chats** (`chat-renamer.renameExistingChats`): runs the existing-chats rename now. With `renameExistingDays` at `0` it does nothing and names the setting.
 
 Not shown in the palette; meant for other extensions and scripts:

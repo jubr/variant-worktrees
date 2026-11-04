@@ -119,7 +119,13 @@ export const startChatRenameTrigger = (
 
   options.peerTitles = async (sessionId) => {
     const openIds = await vscode.commands.executeCommand<string[]>("composer.getOrderedSelectedComposerIds");
-    return listPeerTitles(resolveChatRenameDeps(context), Array.isArray(openIds) ? openIds : [], sessionId);
+    try {
+      return await listPeerTitles(resolveChatRenameDeps(context), Array.isArray(openIds) ? openIds : [], sessionId);
+    } catch (error) {
+      // AIDEV-NOTE: an unreadable catalog only costs the numbering of the title; it must not stop a rename.
+      log.warn(`peer titles unreadable, not numbering: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
   };
 
   // Counts for the whole lifetime of the extension, so a setting change does not reset them.
