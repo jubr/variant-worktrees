@@ -24,6 +24,9 @@
   source. A package with a `watch` script becomes a watch without `kind`.
 - VS Code: the command **Variant: Initialize in this Repo** shows an initialization dialog in the Variant Worktrees section, and a
   notification offers it once after a local commit when a database and an application are detected.
+- In the Variants tree, a row with a URL has **Open url** immediately left of play or stop. It opens the URL in the
+  external browser, or in a Cursor browser tab while Alt is held. The muted explosion asks whether to pass `--force`.
+  A failed watch, down, or implode shows the error in a notification.
 - MariaDB (`MARIADB_*`, `mariadb://`) is detected as the `mysql` dialect.
 - `variant.mise.binPath` (the editor setting and the key of `variants.yaml`) names a Mise executable that is not on `PATH`.
   The extension offers **Trust** when Mise reports an untrusted configuration.

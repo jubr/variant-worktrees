@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The same rewrite adds the `yaml-language-server` schema header to a configuration file that has none.
 - A configuration that uses `instances` or `reservedPorts` is rewritten to `watches` and `ports.range` when
   `variants.yaml` is tracked by git and clean; a warning with the actions **Open file** and **Undo** names the change.
+- A variant row with a URL has **Open url** immediately left of the run control. It opens the URL in the external
+  browser, or in a Cursor browser tab while Alt is held. The muted explosion asks whether to pass `--force` instead of
+  doing nothing. A failed watch, down, or implode shows the error in a notification.
 
 ### Changed
 
