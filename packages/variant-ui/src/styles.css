@@ -10,6 +10,7 @@
   --vv-hover: var(--vscode-list-hoverBackground, #f3f4f6);
   --vv-error: var(--vscode-errorForeground, #b42318);
   --vv-accent: var(--vscode-textLink-foreground, #0550ae);
+  --vv-green: var(--vscode-charts-green, #1a7f37);
   --vv-button-bg: var(--vscode-button-background, #0550ae);
   --vv-button-fg: var(--vscode-button-foreground, #ffffff);
   --vv-font: var(--vscode-font-family, system-ui, sans-serif);
@@ -88,7 +89,7 @@ body {
 }
 
 .state-watching {
-  color: var(--vv-accent);
+  color: var(--vv-green);
 }
 
 .state-up {
@@ -121,11 +122,7 @@ body {
 
 .implode-dirty {
   margin-left: auto;
-  color: var(--vv-error);
-}
-
-.icon-button.implode-dirty:disabled {
-  opacity: 1;
+  color: currentColor;
 }
 
 .icon-button {
@@ -153,6 +150,12 @@ body {
 .icon-button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.explode-icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .busy {

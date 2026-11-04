@@ -11,16 +11,23 @@ const rows = [
 const slugs = (sort: VariantSort): string[] => sortVariants(rows, sort).map((row) => row.slug);
 
 describe("variant sort", () => {
-  it("orders by slug, with a missing sort meaning ascending", () => {
-    expect(slugs("name-asc")).toEqual(["alpha", "main", "none", "zeta"]);
-    expect(slugs("name-desc")).toEqual(["zeta", "none", "main", "alpha"]);
+  it("orders by slug, with a missing sort meaning ascending, and pins main first", () => {
+    expect(slugs("name-asc")).toEqual(["main", "alpha", "none", "zeta"]);
+    expect(slugs("name-desc")).toEqual(["main", "zeta", "none", "alpha"]);
   });
 
-  it("treats a missing time as older than every known time", () => {
-    expect(slugs("created-asc")).toEqual(["none", "alpha", "main", "zeta"]);
-    expect(slugs("created-desc")).toEqual(["zeta", "main", "alpha", "none"]);
-    expect(slugs("changed-asc")).toEqual(["none", "zeta", "alpha", "main"]);
+  it("treats a missing time as older than every known time and still pins main", () => {
+    expect(slugs("created-asc")).toEqual(["main", "none", "alpha", "zeta"]);
+    expect(slugs("created-desc")).toEqual(["main", "zeta", "alpha", "none"]);
+    expect(slugs("changed-asc")).toEqual(["main", "none", "zeta", "alpha"]);
     expect(slugs("changed-desc")).toEqual(["main", "alpha", "zeta", "none"]);
+  });
+
+  it("does not invent a main row", () => {
+    expect(sortVariants([{ slug: "zeta" }, { slug: "alpha" }], "name-asc").map((row) => row.slug)).toEqual([
+      "alpha",
+      "zeta",
+    ]);
   });
 
   it("breaks a tie by slug ascending", () => {

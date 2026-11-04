@@ -7,8 +7,8 @@ import { useConnectionState, useTransport } from "./transport-context.js";
 import { useAction } from "./use-action.js";
 
 const STATE_ICON: Record<VariantState, string> = {
-  watching: "codicon-eye",
-  up: "codicon-play-circle",
+  watching: "codicon-circle-filled",
+  up: "codicon-arrow-up",
   down: "codicon-circle-outline",
 };
 
@@ -49,18 +49,21 @@ export const VariantRow = ({ variant }: { variant: Variant }) => {
       ) : null}
       <span className="controls">
         {pending ? <Busy /> : null}
-        <IconButton
-          icon="play"
-          label={`variant watch ${slug}`}
-          disabled={!idle || state === "watching"}
-          onClick={() => void run(() => transport.watch(slug))}
-        />
-        <IconButton
-          icon="debug-stop"
-          label={`Stop ${slug}`}
-          disabled={!idle || state === "down"}
-          onClick={() => void run(() => transport.down(slug))}
-        />
+        {state === "down" ? (
+          <IconButton
+            icon="play"
+            label={`variant watch ${slug}`}
+            disabled={!idle}
+            onClick={() => void run(() => transport.watch(slug))}
+          />
+        ) : (
+          <IconButton
+            icon="debug-stop"
+            label={`Stop ${slug}`}
+            disabled={!idle}
+            onClick={() => void run(() => transport.down(slug))}
+          />
+        )}
         <IconButton
           icon="output"
           label={`Show output of ${slug}`}
@@ -71,10 +74,14 @@ export const VariantRow = ({ variant }: { variant: Variant }) => {
       {slug === "main" ? null : (
         <IconButton
           className={dirty ? "implode-dirty" : "implode-clean"}
-          icon="trash"
-          label={dirty ? `Implode ${slug}, implode would fail` : `Implode ${slug}`}
-          disabled={!idle}
-          onClick={() => setConfirming(true)}
+          icon="explode"
+          label={dirty ? `Implode ${slug}, implode would fail` : `Implode ${slug}, implode would succeed`}
+          disabled={!idle || dirty}
+          onClick={() => {
+            if (!dirty) {
+              setConfirming(true);
+            }
+          }}
         />
       )}
       {error === undefined ? null : <RowError>{error}</RowError>}

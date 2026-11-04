@@ -26,15 +26,16 @@ const timeOf = (record: SortableVariant, field: "created" | "changed"): number =
   return time ?? Number.NEGATIVE_INFINITY;
 };
 
-/** Smaller first when ascending. A missing time is older than every known time. Ties break by slug, ascending. */
+/** Smaller first when ascending. A missing time is older than every known time. Ties break by slug, ascending. `main` stays first. */
 export const sortVariants = <T extends SortableVariant>(records: readonly T[], sort: VariantSort): T[] => {
   const [field, direction] = sort.split("-") as ["name" | "created" | "changed", "asc" | "desc"];
   const sign = direction === "asc" ? 1 : -1;
-  return [...records].sort((left, right) => {
+  const ordered = [...records].sort((left, right) => {
     const primary = field === "name" ? left.slug.localeCompare(right.slug) : timeOf(left, field) - timeOf(right, field);
     if (primary !== 0) {
       return primary * sign;
     }
     return left.slug.localeCompare(right.slug);
   });
+  return [...ordered.filter((record) => record.slug === "main"), ...ordered.filter((record) => record.slug !== "main")];
 };

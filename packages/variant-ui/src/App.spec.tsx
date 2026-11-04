@@ -25,57 +25,76 @@ const watching: Variant = { slug: "demo", mode: "watch", watches: { fe: { alive:
 const up: Variant = { slug: "demo", mode: "up", watches: { fe: { alive: true } } };
 const down: Variant = { slug: "demo" };
 
+const implode = (slug: string, outcome: "succeed" | "fail"): HTMLButtonElement =>
+  within(row(slug)).getByRole("button", {
+    name: `Implode ${slug}, implode would ${outcome}`,
+  }) as HTMLButtonElement;
+
 describe("controls per state", () => {
-  it("enables play and implode, and disables stop, for a down variant", () => {
+  it("shows play and an enabled explosion, and no stop, for a down variant", () => {
     renderApp([down]);
 
     expect(control("demo", "variant watch").disabled).toBe(false);
-    expect(control("demo", "Implode").disabled).toBe(false);
-    expect(control("demo", "Stop").disabled).toBe(true);
+    expect(control("demo", "variant watch").tagName).toBe("BUTTON");
+    expect(implode("demo", "succeed").disabled).toBe(false);
+    expect(within(row("demo")).queryByRole("button", { name: "Stop demo" })).toBeNull();
   });
 
-  it("enables stop and implode, and disables play, for a watching variant", () => {
+  it("shows the square stop and an enabled explosion, and no play, for a watching variant", () => {
     renderApp([watching]);
 
     expect(control("demo", "Stop").disabled).toBe(false);
-    expect(control("demo", "Implode").disabled).toBe(false);
-    expect(control("demo", "variant watch").disabled).toBe(true);
+    expect(implode("demo", "succeed").disabled).toBe(false);
+    expect(within(row("demo")).queryByRole("button", { name: "variant watch demo" })).toBeNull();
   });
 
-  it("enables play, stop and implode for an up variant", () => {
+  it("shows the square stop and an enabled explosion, and no play, for an up variant", () => {
     renderApp([up]);
 
-    for (const name of ["variant watch", "Stop", "Implode"]) {
-      expect(control("demo", name).disabled).toBe(false);
-    }
+    expect(control("demo", "Stop").disabled).toBe(false);
+    expect(implode("demo", "succeed").disabled).toBe(false);
+    expect(within(row("demo")).queryByRole("button", { name: "variant watch demo" })).toBeNull();
   });
 
-  it("keeps implode rightmost, foreground when clean and red when implode would fail", () => {
+  it("keeps the explosion rightmost, and mutes it when implode would fail", () => {
     renderApp([
       { slug: "clean", implodeClean: true },
       { slug: "dirty", implodeClean: false },
     ]);
 
-    const clean = control("clean", "Implode");
-    const dirty = within(row("dirty")).getByRole("button", { name: "Implode dirty, implode would fail" });
+    const clean = implode("clean", "succeed");
+    const dirty = implode("dirty", "fail");
     expect(clean.className).toContain("implode-clean");
+    expect(clean.disabled).toBe(false);
     expect(dirty.className).toContain("implode-dirty");
+    expect(dirty.disabled).toBe(true);
+    expect(dirty.title).toContain("implode would fail");
     expect(within(row("clean")).getAllByRole("button").at(-1)).toBe(clean);
     expect(within(row("dirty")).getAllByRole("button").at(-1)).toBe(dirty);
+  });
+
+  it("does not confirm or implode when the muted explosion is pressed", () => {
+    const transport = renderApp([{ slug: "demo", implodeClean: false }]);
+
+    fireEvent.click(implode("demo", "fail"));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(transport.host.received).toEqual([]);
   });
 
   it("gives main no implode control", () => {
     renderApp([{ slug: "main" }]);
 
-    expect(within(row("main")).queryByRole("button", { name: "Implode main" })).toBeNull();
+    expect(within(row("main")).queryByRole("button", { name: /implode/i })).toBeNull();
     expect(control("main", "variant watch")).toBeTruthy();
   });
 
   it("starts a watch when play is pressed and brings the variant down when stop is pressed", async () => {
-    const transport = renderApp([up]);
+    const transport = renderApp([down]);
 
     fireEvent.click(control("demo", "variant watch"));
-    await waitFor(() => expect(control("demo", "Stop").disabled).toBe(false));
+    await waitFor(() => expect(transport.host.received).toEqual([{ action: "watch", slug: "demo" }]));
+    act(() => transport.host.publish([watching]));
     fireEvent.click(control("demo", "Stop"));
 
     await waitFor(() =>
@@ -95,9 +114,9 @@ describe("pending action", () => {
     fireEvent.click(control("demo", "variant watch"));
 
     await waitFor(() => expect(control("demo", "variant watch").disabled).toBe(true));
-    for (const name of ["variant watch", "Stop", "Implode"]) {
-      expect(control("demo", name).disabled).toBe(true);
-    }
+    expect(implode("demo", "succeed").disabled).toBe(true);
+    expect(control("demo", "Show output of").disabled).toBe(true);
+    expect(within(row("demo")).queryByRole("button", { name: "Stop demo" })).toBeNull();
     expect(within(row("demo")).getByRole("status", { name: "Working" })).toBeTruthy();
     expect(control("other", "variant watch").disabled).toBe(false);
     expect(within(row("other")).queryByRole("status")).toBeNull();
@@ -114,7 +133,7 @@ describe("failing action", () => {
     const transport = renderApp([watching]);
     transport.host.failNext("Variant demo is not merged into main");
 
-    fireEvent.click(control("demo", "Implode"));
+    fireEvent.click(implode("demo", "succeed"));
     fireEvent.click(screen.getByRole("button", { name: "Implode demo permanently" }));
 
     const alert = await within(row("demo")).findByRole("alert");
@@ -128,7 +147,7 @@ describe("implode confirmation", () => {
   it("names the variant and what is removed, and implodes with confirm only after acceptance", async () => {
     const transport = renderApp([down]);
 
-    fireEvent.click(control("demo", "Implode"));
+    fireEvent.click(implode("demo", "succeed"));
 
     const dialog = screen.getByRole("dialog");
     expect(dialog.textContent).toContain("demo");
@@ -145,7 +164,7 @@ describe("implode confirmation", () => {
   it("does nothing when the person cancels", () => {
     const transport = renderApp([down]);
 
-    fireEvent.click(control("demo", "Implode"));
+    fireEvent.click(implode("demo", "succeed"));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -155,7 +174,7 @@ describe("implode confirmation", () => {
   it("does nothing when the dialog is dismissed with Escape", () => {
     const transport = renderApp([down]);
 
-    fireEvent.click(control("demo", "Implode"));
+    fireEvent.click(implode("demo", "succeed"));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
 
     expect(screen.queryByRole("dialog")).toBeNull();
