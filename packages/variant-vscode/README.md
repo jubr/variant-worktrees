@@ -78,7 +78,7 @@ A **Variant Worktrees** section in the Explorer lists every variant of the first
 
 **Create variant** sits immediately left of **Sort**, which is immediately left of Open Variants Panel. Sort labels are `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. The same choice is the setting `variant.sort` (default `name-asc`). Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`), read as local time, or the directory creation time when that stamp is missing. Changed is the later modification time of the variant directory and `variants.local.yaml`. A missing time sorts as older.
 
-Each item has a state icon (a hollow dot when down, a filled green dot when watching, a different shape when up), the uptime as description and a tooltip with its state, mode, URL, worktree and whether implode would succeed.
+Each item has a state icon (a hollow dot when down, a filled green dot when watching, a different shape when up), the uptime as description and a tooltip with its state, mode, URL, worktree and whether implode would succeed. A variant that exists only in the database has a space and a superscript d after the slug (a superscript 2 when that glyph cannot be shown).
 
 - Inline: the play icon is **variant watch** and starts a detached `watch` when the variant is down. A square **Stop** brings a watching or up variant down. The explosion control sits at the right of every row except `main` and removes the variant after a confirmation. It is muted when implode would fail, and that muted control does not implode. While an action runs the item shows a progress icon.
 - Context menu: show the watch output (the `variants.watch.log` file), open the URL, open the panel, open the web page.

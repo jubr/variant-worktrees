@@ -58,6 +58,8 @@ export interface VariantRecord extends VariantState {
   implodeClean: boolean;
   /** Sorted schema names of a variant that has `db.multi`. Absent without it. */
   schemas?: string[];
+  /** The database names this variant and no worktree directory exists. */
+  dbOnly?: boolean;
 }
 
 export interface VariantClientOptions {

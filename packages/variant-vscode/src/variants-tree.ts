@@ -18,6 +18,13 @@ export type VariantNode =
 /** The label of the UI server item, and the slug under which the app stops it. */
 export const UI_SERVER_LABEL = "UI server";
 
+const SUPERSCRIPT_D = "\u1d48";
+const SUPERSCRIPT_2 = "\u00b2";
+
+/** A space and a superscript d. A superscript 2 when `d` cannot be shown. */
+export const dbOnlySuffix = (hasGlyph: (char: string) => boolean = () => true): string =>
+  ` ${hasGlyph(SUPERSCRIPT_D) ? SUPERSCRIPT_D : SUPERSCRIPT_2}`;
+
 const ICONS: Record<VariantState, string> = {
   watching: "circle-filled",
   up: "arrow-up",
@@ -38,7 +45,8 @@ export const uiServerOf = (records: readonly VariantRecord[]): { url?: string; p
 
 const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
   const { state, stale } = stateOf(record);
-  const item = new vscode.TreeItem(record.slug, vscode.TreeItemCollapsibleState.None);
+  const label = record.dbOnly ? `${record.slug}${dbOnlySuffix()}` : record.slug;
+  const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
   item.id = `variant:${record.slug}`;
   if (record.uptimeSeconds !== undefined) {
     item.description = formatUptime(record.uptimeSeconds);
@@ -49,6 +57,7 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
     `Mode: ${record.mode ?? "none"}`,
     `URL: ${record.url ?? "none"}`,
     `Worktree: ${record.worktree ?? "none"}`,
+    ...(record.dbOnly ? ["Database only: the worktree is gone"] : []),
     `Implode would ${record.implodeClean === false ? "fail" : "succeed"}`,
   ].join("\n");
   if (busy) {

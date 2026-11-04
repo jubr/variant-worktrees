@@ -3,7 +3,9 @@ import { basename, join } from "node:path";
 import {
   type DiscoveredRuntime,
   groupMultiSchemas,
+  groupOrphanSchemas,
   LOCAL_FILENAME,
+  multiSchemaHead,
   parseLocalStamp,
   type ResolvedConfig,
   readRuntimes,
@@ -176,6 +178,9 @@ export const collectRecords = async (
   const { dialect } = context.adapter;
   const multi = context.config.db.multi;
   const listed = await context.adapter.list();
+  const head = multi === undefined ? undefined : multiSchemaHead(multi.schemaPrefix);
+  const catalog =
+    head === undefined ? listed : [...new Set([...listed, ...(await context.adapter.matchingSchemas(head))])];
   const runtimes = runtimeBySlug(context);
   const fromState = stateSlugs(context.stateDir);
   const fromWorktrees = multi === undefined ? [] : worktreeSlugs(context);
@@ -196,13 +201,30 @@ export const collectRecords = async (
         consumed.add(name);
       }
     }
+    // AIDEV-NOTE: A schema left after the known worktrees is grouped by the last separator of schemaPrefix, so one slug owns every tenant even when the worktree is gone.
+    for (const group of groupOrphanSchemas(
+      catalog.filter((target) => !consumed.has(target)),
+      multi.schemaPrefix,
+    )) {
+      const prior = schemasOf.get(group.slug) ?? [];
+      schemasOf.set(group.slug, [...prior, ...group.schemas].sort());
+      for (const name of group.schemas) {
+        consumed.add(name);
+      }
+    }
   }
   const databaseSlugs = new Map(
-    listed
+    catalog
       .filter((target) => !consumed.has(target))
       .map((target) => [slugFromTarget(target, dialect), target] as const),
   );
-  const known = new Set([...fromState, ...databaseSlugs.keys(), ...runtimes.keys(), ...fromWorktrees]);
+  const known = new Set([
+    ...fromState,
+    ...databaseSlugs.keys(),
+    ...runtimes.keys(),
+    ...fromWorktrees,
+    ...schemasOf.keys(),
+  ]);
   const slugs = [...known].filter((slug) => options.slug === undefined || slug === options.slug).sort();
   return slugs.map((slug) => {
     const state = readState(context.stateDir, slug);
@@ -234,6 +256,7 @@ export const collectRecords = async (
       ...(found?.runtime.log ? { log: found.runtime.log } : {}),
       ...(options.verbose && found ? { runtime: runtimeStatus(found, watches ?? {}) } : {}),
       ...(multi !== undefined ? { schemas: schemasOf.get(slug) ?? [] } : {}),
+      ...(directory === undefined && slug !== "main" ? { dbOnly: true } : {}),
     };
   });
 };

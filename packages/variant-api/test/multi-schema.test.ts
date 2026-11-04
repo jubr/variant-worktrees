@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
 import { createVariant } from "../src/operations/create.js";
+import { implodeVariant } from "../src/operations/implode.js";
 import { listVariants } from "../src/operations/list.js";
 import { prepareVariant } from "../src/operations/prepare.js";
 import { provisionVariant } from "../src/operations/provision.js";
@@ -395,6 +397,7 @@ describe("one record per variant", () => {
           target: "v_demo",
           schemas: ["v_demo-east", "v_demo-north", "v_demo-west"],
         });
+        expect(records[0]).not.toHaveProperty("dbOnly");
       },
     ));
 
@@ -428,6 +431,54 @@ describe("one record per variant", () => {
       expect(record?.schemas).toEqual(["v_demo-east", "v_demo-north"]);
     }));
 
+  it("groups database schemas that share a prefix when no worktree exists", () =>
+    withSchemas(
+      ["v_demo-east", "v_demo-west", "v_other-east"],
+      postgres("    tenantsCmd: exit 9\n"),
+      async ({ list }) => {
+        const records = await list();
+
+        expect(records.map((record) => record.slug).sort()).toEqual(["demo", "other"]);
+        expect(records.find((record) => record.slug === "demo")).toMatchObject({
+          target: "v_demo",
+          schemas: ["v_demo-east", "v_demo-west"],
+          worktree: undefined,
+          dbOnly: true,
+        });
+        expect(records.find((record) => record.slug === "other")?.schemas).toEqual(["v_other-east"]);
+      },
+    ));
+
+  it("keeps a hyphenated slug and takes the tenant after the last separator", () =>
+    withSchemas(
+      ["v_fix-entra-vbu-login-de99", "v_fix-entra-vbu-login-fr15", "v_plain"],
+      postgres("    tenantsCmd: exit 9\n"),
+      async ({ list }) => {
+        const records = await list();
+
+        expect(records.find((record) => record.slug === "fix-entra-vbu-login")?.schemas).toEqual([
+          "v_fix-entra-vbu-login-de99",
+          "v_fix-entra-vbu-login-fr15",
+        ]);
+        expect(records.find((record) => record.slug === "plain")?.schemas).toEqual([]);
+        expect(records.some((record) => record.slug === "fix")).toBe(false);
+      },
+    ));
+
+  it("groups schemas whose prefix is not v_ when no worktree exists", () =>
+    withSchemas(
+      ["app_demo_east", "app_demo_west"],
+      postgres("    schemaPrefix: app_${slug}_\n    tenantsCmd: exit 9\n"),
+      async ({ list }) => {
+        const [record] = await list();
+
+        expect(record).toMatchObject({
+          slug: "demo",
+          schemas: ["app_demo_east", "app_demo_west"],
+        });
+      },
+    ));
+
   it("groups schemas of a variant known only from its state file", () =>
     withSchemas(["v_demo-east"], postgres("    tenants: east\n"), async ({ directory, list }) => {
       const stateDir = join(directory, ".cache", "variants");
@@ -455,6 +506,67 @@ describe("one record per variant", () => {
         expect(record).toMatchObject({ slug: "demo", target: "v_demo", schemas: ["app_demo_east"] });
       },
     ));
+
+  it("drops the schemas on a later implode after the worktree directory is gone", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-implode-gone-")));
+    const repo = join(parent, "repo");
+    const dropped: string[] = [];
+    const names = ["v_demo-east", "v_demo-west"];
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      execFileSync("git", ["-C", repo, "config", "user.email", "variant@example.test"]);
+      execFileSync("git", ["-C", repo, "config", "user.name", "Variant Tests"]);
+      writeFileSync(join(repo, "variants.yaml"), postgres("    tenantsCmd: exit 9\n"));
+      execFileSync("git", ["-C", repo, "add", "."]);
+      execFileSync("git", ["-C", repo, "commit", "-q", "-m", "initial"]);
+      const worktree = join(parent, "_v-demo");
+      execFileSync("git", ["-C", repo, "worktree", "add", "-q", "-b", "feat/demo", worktree]);
+      rmSync(worktree, { recursive: true, force: true });
+      const config = loadConfig({ cwd: repo, env: {} });
+      mkdirSync(join(repo, ".cache", "variants"), { recursive: true });
+      writeFileSync(
+        join(repo, ".cache", "variants", "demo.yaml"),
+        `slug: demo\ntarget: v_demo\ndialect: postgres\nstatePath: ""\ncreatedAt: now\nworktree: ${worktree}\n`,
+      );
+      const context: OperationContext = {
+        config,
+        variantRoot: config.variant.root,
+        stateDir: join(repo, ".cache", "variants"),
+        cwd: repo,
+        useWorktree: true,
+        adapter: {
+          dialect: "postgres",
+          create: async (slug) => `v_${slug}`,
+          createSchema: async () => {},
+          matchingSchemas: async (prefix) => names.filter((name) => name.startsWith(prefix)),
+          dropSchema: async (name) => {
+            dropped.push(name);
+            const index = names.indexOf(name);
+            if (index >= 0) {
+              names.splice(index, 1);
+            }
+          },
+          destroy: async () => false,
+          list: async () => [...names],
+          target: (slug) => `v_${slug.replaceAll("-", "_")}`,
+          close: async () => {},
+        },
+      };
+
+      const [before] = await listVariants(context);
+      expect(before?.implodeClean).toBe(true);
+
+      const first = await implodeVariant(context, "demo", { log: () => {} });
+      const second = await implodeVariant(context, "demo", { log: () => {} });
+
+      expect(first).toMatchObject({ slug: "demo" });
+      expect(dropped).toEqual(["v_demo-east", "v_demo-west"]);
+      expect(second).toMatchObject({ slug: "demo" });
+      expect(names).toEqual([]);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
 
   it("does not run tenantsCmd while grouping schemas", () =>
     withSchemas(["v_demo-east"], postgres("    tenantsCmd: exit 9\n"), async ({ directory, list }) => {
