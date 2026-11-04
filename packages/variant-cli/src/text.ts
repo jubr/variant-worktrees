@@ -192,7 +192,6 @@ const layouts: Record<string, (result: never, options: TextOptions) => string[] 
       : [
           `Imploded ${result.slug}`,
           ...(result.worktreeRemoved && result.worktree ? [`removed worktree ${result.worktree}`] : []),
-          ...(result.report ? ["", ...result.report.split("\n")] : []),
         ],
 };
 
