@@ -28,6 +28,12 @@
 
 ### Changed
 
+- The Explorer section starts collapsed and expands when the workspace uses variants or looks ready for them.
+  Without a config file it offers **Onboard**. The dialog confirm button is **Initialize**, and **Prefix** sits
+  under **Advanced**. **Create variant** sits left of Sort. Sort labels are `Name (A→Z)`, `Name (Z→A)`,
+  `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. `main` stays pinned
+  first. Down is a hollow dot, watching a filled green dot, and up a different shape. The implode control is an
+  explosion, muted when implode would fail. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
 - **Breaking:** the implode report is a dark-yellow `+ <command>` trace around plain `git status --porcelain`,
   `git diff --stat`, and one filtered `git diff -U1` per file. `maxDiffLines` counts those kept patch lines.
   Over the limit the patches are omitted and the status and the stat stay. The text summary after the command

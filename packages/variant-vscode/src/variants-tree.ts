@@ -19,8 +19,8 @@ export type VariantNode =
 export const UI_SERVER_LABEL = "UI server";
 
 const ICONS: Record<VariantState, string> = {
-  watching: "eye",
-  up: "vm-running",
+  watching: "circle-filled",
+  up: "arrow-up",
   down: "circle-outline",
 };
 
@@ -56,7 +56,10 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
     item.contextValue = "variant pending";
     return item;
   }
-  item.iconPath = new vscode.ThemeIcon(ICONS[state]);
+  item.iconPath =
+    state === "watching"
+      ? new vscode.ThemeIcon(ICONS.watching, new vscode.ThemeColor("charts.green"))
+      : new vscode.ThemeIcon(ICONS[state]);
   item.contextValue = [
     "variant",
     state,

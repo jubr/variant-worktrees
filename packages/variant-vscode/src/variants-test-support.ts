@@ -37,6 +37,18 @@ export const fakeClient = (initial: VariantRecord[] = []) => {
     watch: act("watch"),
     down: act("down"),
     implode: act("implode"),
+    create: async (slug?: string) => {
+      calls.push({ name: "create", slug: slug ?? "" });
+      if (failure !== undefined) {
+        const message = failure;
+        failure = undefined;
+        throw new Error(message);
+      }
+      if (slug !== undefined && slug !== "") {
+        records = [...records, record(slug)];
+      }
+      return {} as never;
+    },
   } as unknown as ViewClient;
   return {
     client,

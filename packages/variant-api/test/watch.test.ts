@@ -74,16 +74,18 @@ interface Project {
   directory: string;
   engine: EngineStub;
   database: string[];
+  context: OperationContext;
   messages: string[];
   opened: string[];
   watch: (options?: WatchOptions, slug?: string) => Promise<WatchResult>;
   /** An attached watch that ends when `stop()` is called. */
   attach: (options?: WatchOptions) => { done: Promise<WatchResult>; stop: () => void };
   localFile: string;
-  runtime: () => { watches: Record<string, { port?: number; pid?: number; url?: string }>; log?: string } & Record<
-    string,
-    unknown
-  >;
+  runtime: () => {
+    createdAt?: string;
+    watches: Record<string, { port?: number; pid?: number; url?: string; startedAt?: string }>;
+    log?: string;
+  } & Record<string, unknown>;
   /** The pid of a started watch, once it has written its marker. */
   started: (who: string) => Promise<number>;
 }
@@ -149,6 +151,7 @@ const withProject = async (
       directory,
       engine,
       database,
+      context,
       messages,
       opened,
       watch,
@@ -208,6 +211,7 @@ describe("watch starts host processes", () => {
         expect(runtime().mode).toBe("watch");
         expect(runtime().watches.be?.pid).toBe(result.processes[0]?.pid);
         expect(runtime().watches.fe?.pid).toBe(result.processes[1]?.pid);
+        expect(runtime().watches.fe?.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/);
         expect(isProcessAlive(be) && isProcessAlive(fe)).toBe(true);
         const [first, second] = orderLog(directory);
         expect([first?.who, second?.who]).toEqual(["be", "fe"]);
@@ -215,6 +219,21 @@ describe("watch starts host processes", () => {
         expect(messages).toContain(`[be] ${process.execPath} ../watch.js`);
       },
       BASE.replace("startDelaySeconds: 0", "startDelaySeconds: 1"),
+    ));
+
+  it("writes the start time and keeps createdAt", () =>
+    withProject(
+      async ({ watch, runtime, context, started }) => {
+        context.now = () => new Date(2026, 10, 4, 12, 30, 0);
+
+        await watch({ detach: true });
+        await started("fe");
+
+        expect(runtime().createdAt).toBe("2026-01-02_03:04:05");
+        expect(runtime().watches.fe?.startedAt).toBe("2026-11-04_12:30:00");
+      },
+      undefined,
+      { "variants.local.yaml": "runtime:\n  createdAt: 2026-01-02_03:04:05\n" },
     ));
 
   it("does not start a watch without a watch command", () =>

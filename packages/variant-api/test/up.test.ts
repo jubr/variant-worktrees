@@ -435,13 +435,33 @@ describe("up mode switch and runtime state", () => {
           dir: directory,
           db: { dialect: "sqlite", filename: "v_demo" },
           watches: {
-            be: { port: expect.any(Number) },
-            fe: { port: 62060, url: "http://demo.vw.localhost:62060" },
+            be: { port: expect.any(Number), startedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/) },
+            fe: {
+              port: 62060,
+              url: "http://demo.vw.localhost:62060",
+              startedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/),
+            },
           },
         });
       },
       FE_BE,
       { "variants.local.yaml": "runtime:\n  watches:\n    fe: { port: 62060 }\n" },
+    ));
+
+  it("writes startedAt when the watches start and keeps createdAt", () =>
+    withProject(
+      async ({ up, runtime, context }) => {
+        context.now = () => new Date(2026, 10, 4, 12, 30, 0);
+
+        await up();
+
+        expect(runtime().createdAt).toBe("2026-01-02_03:04:05");
+        expect((runtime().watches as Record<string, { startedAt?: string }>).fe?.startedAt).toBe("2026-11-04_12:30:00");
+      },
+      FE_BE,
+      {
+        "variants.local.yaml": "runtime:\n  createdAt: 2026-01-02_03:04:05\n  watches:\n    fe: { port: 62060 }\n",
+      },
     ));
 
   it("keeps other top-level keys of variants.local.yaml", () =>

@@ -24,6 +24,9 @@
           "type": "string",
           "minLength": 1
         },
+        "createdAt": {
+          "type": "string"
+        },
         "db": {
           "type": "object",
           "properties": {
@@ -103,6 +106,9 @@
               "url": {
                 "type": "string",
                 "minLength": 1
+              },
+              "startedAt": {
+                "type": "string"
               }
             },
             "additionalProperties": false

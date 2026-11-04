@@ -1,7 +1,7 @@
 import type { VariantClient, VariantRecord } from "variant-api";
 
 /** What the view, the panel and the onboarding dialog need of the library: the state subscription, the three actions and `init`. */
-export type ViewClient = Pick<VariantClient, "subscribe" | "watch" | "down" | "implode" | "init">;
+export type ViewClient = Pick<VariantClient, "subscribe" | "watch" | "down" | "implode" | "init" | "create">;
 
 /** Loads the library. `cwd` is the directory an action runs in; omitted, it is the workspace folder the view lists. */
 export type LoadClient = (cwd?: string) => Promise<ViewClient>;

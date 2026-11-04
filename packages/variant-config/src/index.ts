@@ -6,6 +6,7 @@ import { parse as parseYaml } from "yaml";
 import {
   abbreviate,
   detectConnection,
+  detectOnboarding,
   detectVariantMain,
   detectVariantRoot,
   detectWatches,
@@ -116,6 +117,35 @@ const discoverConfigFile = (startDir: string): ConfigFileDiscovery => {
 };
 
 export const findConfigFile = (startDir = process.cwd()): string | undefined => discoverConfigFile(startDir).path;
+
+/** Whether a directory already uses Variant, only looks ready for it, or does not. */
+export type VariantsAdoption =
+  | { status: "active" }
+  | { status: "detected"; label: string }
+  | { status: "none"; error?: unknown };
+
+/**
+ * Adoption of `dir`. A config file is `active` and does not read the environment. Otherwise the onboarding detection
+ * runs: a database plus an application is `detected`, and anything else, including an environment failure, is `none`.
+ *
+ * Specification: openspec/specs/variant-config/adoption/spec.md
+ */
+export const getVariantsAdoption = (
+  dir: string,
+  environment: EnvironmentProvider = () => process.env,
+): VariantsAdoption => {
+  if (findConfigFile(dir) !== undefined) {
+    return { status: "active" };
+  }
+  const detected = detectOnboarding(dir, environment);
+  if (detected.label !== undefined) {
+    return { status: "detected", label: detected.label };
+  }
+  if (detected.error !== undefined) {
+    return { status: "none", error: detected.error };
+  }
+  return { status: "none" };
+};
 
 interface ReadConfig extends ParsedConfig<VariantsConfig> {
   /** The notices of names of an earlier version that were read under the current names. */
@@ -340,7 +370,6 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 export {
   abbreviate,
   detectConnection,
-  detectOnboarding,
   detectScriptWatches,
   detectVariantMain,
   detectVariantRoot,
@@ -348,7 +377,6 @@ export {
   detectWatchesForInit,
   type EnvironmentProvider,
   type OnboardingApplication,
-  type OnboardingDetection,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor, parseDotenv } from "./dotenv.js";
 export {
@@ -394,6 +422,7 @@ export {
   variantsJsonSchema,
   variantsLocalJsonSchema,
 } from "./schema.js";
+export { formatLocalStamp, parseLocalStamp } from "./stamp.js";
 export { renderTemplate, type TemplateContext } from "./template.js";
 export { resolveMainVscodeDir } from "./vscode-dir.js";
 export type { ChatRenamerConfig };

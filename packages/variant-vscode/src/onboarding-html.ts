@@ -148,19 +148,22 @@ export const buildOnboardingHtml = (options: OnboardingHtmlOptions): string => {
       <img class="icon" src="${escapeHtml(options.iconUri)}" alt="" />
     </header>
     <p>Variant gives every git worktree its own database and ports. This sets up this workspace from what it detects.</p>
-    <label class="field">Prefix
-      <input id="prefix" type="text" value="${DEFAULT_PREFIX}" spellcheck="false" autocomplete="off" />
-    </label>
-    <p id="problem" class="problem" role="alert" hidden></p>
     <label><input id="file" type="checkbox"${hasConfig ? " disabled" : " checked"} /><span>Write variants.yaml with autodetected values</span></label>
     <p id="file-note" class="note"${hasConfig ? "" : " hidden"}>This workspace already has a variants.yaml, which is left as it is.</p>
     <label><input id="gitignore" type="checkbox" checked /><span>Add <span id="pattern">${DEFAULT_PREFIX}*</span> to .gitignore</span></label>
     <label><input id="mise" type="checkbox" checked /><span>Augment mise.toml with variant-cli</span></label>
     <p id="error" class="error" role="alert" hidden></p>
+    <p id="problem" class="problem" role="alert" hidden></p>
+    <details>
+      <summary>Advanced</summary>
+      <label class="field">Prefix
+        <input id="prefix" type="text" value="${DEFAULT_PREFIX}" spellcheck="false" autocomplete="off" />
+      </label>
+    </details>
     <div class="buttons">
       <button id="trust" hidden>Trust</button>
       <button id="cancel" class="secondary">Cancel</button>
-      <button id="init">Init</button>
+      <button id="init">Initialize</button>
     </div>
   </main>
   <script nonce="${nonce}">${SCRIPT}</script>

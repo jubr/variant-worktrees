@@ -74,14 +74,15 @@ The tools are `variant_init`, `variant_config`, `variant_list`, `variant_create`
 
 ## See your variants
 
-A **Variant Worktrees** section in the Explorer lists every variant of the first workspace folder. It expands when the editor starts; `variant.autoExpand` set to `false` leaves it collapsed. **Sort**, immediately left of Open Variants Panel, orders the list by name, created or changed, ascending or descending. The same choice is the setting `variant.sort` (default `name-asc`). Created is the earlier birth time of the variant directory and `variants.local.yaml`; changed is the later modification time of those two. A missing time sorts as older. The UI server item stays above the list.
+A **Variant Worktrees** section in the Explorer lists every variant of the first workspace folder. It starts collapsed. When the workspace already uses variants or looks ready for them, and `variant.autoExpand` is not `false`, the section expands and focus returns to the editor. Without a config file the section says variants are not initialized and offers **Onboard**. `main` stays pinned first, above the other variants and under the UI server item.
 
-Each item has a watching, up or down icon, the uptime as description and a tooltip with its state, mode, URL, worktree and whether implode would succeed.
+**Create variant** sits immediately left of **Sort**, which is immediately left of Open Variants Panel. Sort labels are `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. The same choice is the setting `variant.sort` (default `name-asc`). Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`), read as local time, or the directory creation time when that stamp is missing. Changed is the later modification time of the variant directory and `variants.local.yaml`. A missing time sorts as older.
 
-- Inline: the play icon is **variant watch** and starts a detached `watch`. **Stop** brings the variant down. **Implode** sits at the right of every row except `main` and removes the variant after a confirmation. The trash icon uses the theme foreground when implode would succeed and red when it would fail (readable on white and on a dark background). While an action runs the item shows a progress icon.
+Each item has a state icon (a hollow dot when down, a filled green dot when watching, a different shape when up), the uptime as description and a tooltip with its state, mode, URL, worktree and whether implode would succeed.
+
+- Inline: the play icon is **variant watch** and starts a detached `watch` when the variant is down. A square **Stop** brings a watching or up variant down. The explosion control sits at the right of every row except `main` and removes the variant after a confirmation. It is muted when implode would fail, and that muted control does not implode. While an action runs the item shows a progress icon.
 - Context menu: show the watch output (the `variants.watch.log` file), open the URL, open the panel, open the web page.
 - A `UI server` item above the variants appears while `variant ui` runs, with open and stop actions.
-- Without a `variants.yaml` the view says so; without variants it names `variant create`.
 
 **Variant: Open Variants Panel** opens the same app in an editor panel and follows `variant.sort`. **Variant: Open Variants in Browser** opens the page of a running `variant ui` server with its token; start one with `variant ui --detach`. That page stays in name order.
 
@@ -89,7 +90,7 @@ The view and the panel call `variant-api` inside the extension host. The extensi
 
 ## Set up a project
 
-**Variant: Initialize in this Repo** shows a dialog in place of the variants tree: a `Prefix` field (default `_v-`), three checkboxes (write `variants.yaml` with autodetected values, add `<prefix>*` to `.gitignore`, augment `mise.toml` with variant-cli), and `Cancel` and `Init`. `Init` runs `variant init` inside the extension host, opens the written `variants.yaml` and confirms each step; a step that fails keeps the dialog open with its message. In a workspace that already has a `variants.yaml` the first checkbox is off.
+**Variant: Initialize in this Repo** shows a dialog in place of the variants tree: three checkboxes (write `variants.yaml` with autodetected values, add `<prefix>*` to `.gitignore`, augment `mise.toml` with variant-cli), a collapsed **Advanced** disclosure with the `Prefix` field (default `_v-`), and `Cancel` and **Initialize**. **Initialize** runs `variant init` inside the extension host, opens the written `variants.yaml` and confirms each step; a step that fails keeps the dialog open with its message. An empty prefix or one with a path separator disables **Initialize** and shows the reason even while **Advanced** is collapsed. In a workspace that already has a `variants.yaml` the first checkbox is off. **Onboard** in the section opens the same dialog.
 
 After a local commit in a workspace without `variants.yaml` where a database and an application (Vite, NestJS or a package with a `watch` script) are detected, a notification such as `Detected postgres+vite, want to bootstrap Variant in this repo?` offers `Bootstrap Variant` once per workspace.
 

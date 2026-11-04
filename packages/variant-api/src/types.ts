@@ -14,6 +14,8 @@ export interface WatchFacts {
   port?: number;
   pid?: number;
   url?: string;
+  /** Local time this watch started, `YYYY-MM-DD_HH:MM:SS`. */
+  startedAt?: string;
   alive?: boolean;
   /** How long the process of the recorded pid has been running; set only when it is alive. */
   uptimeSeconds?: number;
@@ -28,6 +30,8 @@ export interface RuntimeStatus {
   dir?: string;
   /** The log file of a detached watch. */
   log?: string;
+  /** Local time the variant was created, `YYYY-MM-DD_HH:MM:SS`. */
+  createdAt?: string;
   /** The database settings, with the password redacted. */
   db?: ResolvedRuntime["db"];
   watches?: Record<string, WatchFacts>;
@@ -46,7 +50,7 @@ export interface VariantRecord extends VariantState {
   log?: string;
   /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
   runtime?: RuntimeStatus;
-  /** Earlier birth time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
+  /** Epoch milliseconds of `runtime.createdAt` read as local time, or the directory creation time when that stamp is missing or ill-formed. */
   createdMs?: number;
   /** Later modification time, in epoch milliseconds, of the variant directory and its `variants.local.yaml`. */
   changedMs?: number;
@@ -62,6 +66,8 @@ export interface VariantClientOptions {
   cwd?: string;
   stateDir?: string;
   worktree?: boolean;
+  /** Clock for `runtime.createdAt` and watch `startedAt`. Defaults to the current time. */
+  now?: () => Date;
   /** Timing of `subscribe`; the defaults are 200 ms and 5 s. */
   subscription?: {
     /** Changes that follow each other within this time produce one delivery. */

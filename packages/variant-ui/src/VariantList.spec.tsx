@@ -36,7 +36,7 @@ describe("variant rows", () => {
 
     const demo = row("demo");
     expect(within(demo).getByText("watching")).toBeTruthy();
-    expect(iconOf(demo)).toContain("codicon-eye");
+    expect(iconOf(demo)).toContain("codicon-circle-filled");
     expect(within(demo).getByRole("link", { name: "http://demo.vw.localhost:62060" }).getAttribute("href")).toBe(
       "http://demo.vw.localhost:62060",
     );
@@ -47,7 +47,7 @@ describe("variant rows", () => {
     renderList([{ slug: "demo", mode: "up", watches: { fe: { alive: true } } }]);
 
     expect(within(row("demo")).getByText("up")).toBeTruthy();
-    expect(iconOf(row("demo"))).toContain("codicon-play-circle");
+    expect(iconOf(row("demo"))).toContain("codicon-arrow-up");
   });
 
   it("shows a down row without a URL", () => {
@@ -85,8 +85,8 @@ describe("variant rows", () => {
     renderList([{ slug: "zeta" }, { slug: "main" }, { slug: "alpha" }]);
 
     expect(screen.getAllByRole("listitem").map((item) => item.getAttribute("data-slug"))).toEqual([
-      "alpha",
       "main",
+      "alpha",
       "zeta",
     ]);
   });
@@ -106,10 +106,17 @@ describe("variant rows", () => {
 
     expect(screen.getAllByRole("listitem").map((item) => item.getAttribute("data-slug") ?? "ui-server")).toEqual([
       "ui-server",
-      "new",
       "main",
+      "new",
       "old",
     ]);
+  });
+
+  it("does not invent a main row", () => {
+    renderList([{ slug: "zeta" }, { slug: "alpha" }]);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.getAttribute("data-slug"))).toEqual(["alpha", "zeta"]);
+    expect(screen.queryByRole("listitem", { name: "main" })).toBeNull();
   });
 
   it("shows an empty state naming variant create when there are no records", () => {
