@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import {
   amendDotenv,
   envSegment,
+  multiSchemaName,
   type ResolvedConfig,
   runtimeCommandFor,
   seedCommandFor,
@@ -153,7 +154,14 @@ export const runProvisioning = async (
         continue;
       }
       if (name === "provision" && run.slug !== "main") {
-        await context.adapter.create(run.slug);
+        // AIDEV-NOTE: a provision cmd replaces this. Otherwise one schema per tenant, or the single target.
+        if (run.multi) {
+          for (const tenant of run.multi.tenants()) {
+            await context.adapter.createSchema(multiSchemaName(run.multi.prefix, run.slug, tenant));
+          }
+        } else {
+          await context.adapter.create(run.slug);
+        }
       }
       continue;
     }

@@ -264,6 +264,8 @@ export interface VariantClient {
 export interface DatabaseAdapter {
   readonly dialect: string;
   create(slug: string): Promise<string>;
+  /** Creates one named schema. PostgreSQL only; `db.multi` uses it for each tenant. */
+  createSchema(name: string): Promise<void>;
   destroy(slug: string): Promise<boolean>;
   list(): Promise<string[]>;
   target(slug: string): string;

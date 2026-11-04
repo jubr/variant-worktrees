@@ -115,6 +115,9 @@ const withProject = async (
         database.push(`create ${slug}`);
         return slug;
       },
+      createSchema: async (name) => {
+        database.push(`schema ${name}`);
+      },
       destroy: async (slug) => {
         database.push(`destroy ${slug}`);
         return true;

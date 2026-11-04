@@ -9,6 +9,7 @@ import {
   type VariantWatch,
 } from "variant-config";
 import { repositoryDirectory } from "./locate.js";
+import { type ResolvedMulti, resolveMulti } from "./multi.js";
 import type { OperationContext } from "./operations/types.js";
 import { readVariantRuntime, variantConfigDir } from "./runtime-state.js";
 import { primaryWorktree } from "./worktree.js";
@@ -37,6 +38,8 @@ export interface VariantRun {
   urls: Record<string, string>;
   /** The absolute storage directory, when `variant.storage` is configured. */
   storage?: string;
+  /** Set when `db.multi` is configured. The tenant list stays unread until a step or the builtin asks for it. */
+  multi?: ResolvedMulti;
 }
 
 const realpathOrSelf = (path: string): string => {
@@ -105,6 +108,10 @@ export const prepareRun = async (
     urls: {},
     ...(storage ? { storage } : {}),
   };
+  const multi = resolveMulti(context, run);
+  if (multi) {
+    run.multi = multi;
+  }
   for (const [key, watch] of Object.entries(config.variant.watches)) {
     if (watch.url !== undefined) {
       run.urls[key] = renderTemplate(watch.url, {
@@ -127,6 +134,8 @@ export const templateContext = (run: VariantRun, key?: string): TemplateContext 
   url: key === undefined ? "" : (run.urls[key] ?? ""),
   port: key === undefined ? "" : (run.ports[key] ?? ""),
   ports: run.ports,
+  multiTenants: run.multi ? () => run.multi?.joined() ?? "" : "",
+  multiSchemaPrefix: run.multi?.prefix ?? "",
 });
 
 /**

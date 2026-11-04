@@ -27,6 +27,9 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
       configPath: options.configPath ?? process.env.VARIANT_CONFIG,
       miseBinPath: options.miseBinPath,
     });
+  if (config.db.multi !== undefined && config.db.dialect !== "postgres") {
+    throw new Error(`db.multi needs PostgreSQL, not ${config.db.dialect}`);
+  }
   const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));
   /** The state directory is made when a command needs it, so `init` leaves nothing behind. */

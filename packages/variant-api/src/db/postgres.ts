@@ -6,6 +6,9 @@ import type { DatabaseAdapter } from "../types.js";
 
 const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
+/** `CREATE SCHEMA IF NOT EXISTS`, so a schema that already holds data is left as it is. */
+export const createSchemaSql = (name: string): string => `CREATE SCHEMA IF NOT EXISTS ${quoteIdentifier(name)}`;
+
 const schemaFor = (slug: string): string => `v_${slug.replaceAll("-", "_")}`;
 
 const connectionUrl = (config: DbConfig): string => {
@@ -40,8 +43,12 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async create(slug: string): Promise<string> {
     const schema = this.target(slug);
-    await this.db.execute(sql.raw(`CREATE SCHEMA IF NOT EXISTS ${quoteIdentifier(schema)}`));
+    await this.createSchema(schema);
     return schema;
+  }
+
+  async createSchema(name: string): Promise<void> {
+    await this.db.execute(sql.raw(createSchemaSql(name)));
   }
 
   async destroy(slug: string): Promise<boolean> {
