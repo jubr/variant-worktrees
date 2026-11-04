@@ -1,6 +1,7 @@
 import { createExtensionLog, registerChatRenamer } from "chat-renamer";
 import * as vscode from "vscode";
 import { formatProbeReport } from "./cursor-command-probe.ts";
+import { miseBinPathSetting, registerOnboardingFlow } from "./onboarding.ts";
 import { chatRenamerConfigFor } from "./renamer-config.ts";
 import { bindSockets, stopSockets } from "./socket.ts";
 import { registerVariantsView } from "./variants-view.ts";
@@ -32,7 +33,8 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
     log,
   });
   if (workspaceRoot !== undefined) {
-    registerVariantsView(context, { root: workspaceRoot, log });
+    const view = registerVariantsView(context, { root: workspaceRoot, log, miseBinPath: miseBinPathSetting });
+    registerOnboardingFlow(context, { root: workspaceRoot, view, log });
   }
   context.subscriptions.push({
     dispose: () => {

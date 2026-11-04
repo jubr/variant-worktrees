@@ -6,9 +6,25 @@ Commands print text for people. [Global flags](#global-flags) switch to JSON or 
 
 What `provision`, `up`, and `watch` actually run is set in [Configuration](./configuration).
 
+## init
+
+Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
+
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), `variant.abbr`, `variant.prefix`, and one watch per Vite or NestJS app and per package with a `watch` script. Other accepted values of a setting follow `#` on the same line. Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
+- `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
+- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none. Nothing is installed. A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and `variant.mise.binPath`). A failing Mise step stops no other step.
+
+```bash
+variant init
+variant init --prefix wt- --mise=false
+variant init --force
+```
+
+`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`, and the VS Code extension has the command **Variant: Initialize in this Repo**.
+
 ## config
 
-Print the detected configuration: `variants.yaml`, then `mise.local.toml`, then environment variables.
+Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment.
 
 ```bash
 variant config

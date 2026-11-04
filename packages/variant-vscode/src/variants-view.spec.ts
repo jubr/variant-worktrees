@@ -333,7 +333,7 @@ describe("manifest contributions", () => {
     const view = views.explorer?.find((entry) => entry.id === "variant.variants");
 
     expect(view?.name).toBe("Variant Worktrees");
-    expect(view?.when).toBe("workspaceFolderCount > 0");
+    expect(view?.when).toBe("workspaceFolderCount > 0 && !variant.onboardingOpen");
     expect(view?.visibility).toBe("visible");
     const settings = (
       JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {

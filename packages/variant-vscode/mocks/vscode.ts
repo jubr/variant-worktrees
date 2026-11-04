@@ -4239,6 +4239,48 @@ export interface WebviewPanelStub {
   dispose: () => void;
 }
 
+/** What the host hands to `resolveWebviewView`: the page of a view and its message channel. */
+export interface WebviewViewStub {
+  viewType: string;
+  webview: WebviewPanelStub["webview"];
+  onDidDispose: (listener: () => void) => Disposable;
+}
+
+/** A webview view whose messages a test can send and read. */
+export const createWebviewViewStub = (viewType: string) => {
+  const received: unknown[] = [];
+  const messageListeners = new Set<(message: unknown) => unknown>();
+  const view: WebviewViewStub = {
+    viewType,
+    webview: {
+      html: "",
+      options: undefined,
+      cspSource: "vscode-webview-resource:",
+      asWebviewUri: (uri: Uri) => uri,
+      postMessage: async (message: unknown) => {
+        received.push(message);
+        return true;
+      },
+      onDidReceiveMessage: (listener) => {
+        messageListeners.add(listener);
+        return { dispose: () => messageListeners.delete(listener) };
+      },
+    },
+    onDidDispose: () => ({ dispose: () => {} }),
+  };
+  return {
+    view,
+    /** The messages the extension posted to the page. */
+    received,
+    /** Sends a message from the page to the extension. */
+    send: async (message: unknown): Promise<void> => {
+      for (const listener of [...messageListeners]) {
+        await listener(message);
+      }
+    },
+  };
+};
+
 export const window = {
   showInformationMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showWarningMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
@@ -4246,6 +4288,11 @@ export const window = {
   showTextDocument: async (..._args: unknown[]): Promise<unknown> => undefined,
   registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
   createTreeView: (_viewId: string, _options: unknown): Disposable & { message?: string } => ({ dispose: () => {} }),
+  registerWebviewViewProvider: (
+    _viewType: string,
+    _provider: { resolveWebviewView: (view: WebviewViewStub) => unknown },
+    _options?: unknown,
+  ): Disposable => ({ dispose: () => {} }),
   createWebviewPanel: (
     viewType: string,
     title: string,

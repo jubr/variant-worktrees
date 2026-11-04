@@ -51,7 +51,7 @@ The system SHALL run every provisioning, step, seed and watch command with the p
 
 #### Scenario: Watch overrides win
 
-- **WHEN** a watch sets `env: { overrides: { PORT: "{{port}}" } }` with port 62061 and its `watch` command runs
+- **WHEN** a watch sets `env: { overrides: { PORT: "${port}" } }` with port 62061 and its `watch` command runs
 - **THEN** the command sees `PORT=62061`
 
 ### Requirement: Skippable and quiet steps
@@ -108,7 +108,7 @@ The system SHALL write the env file of a watch that sets `env.sourceFile` for a 
 
 #### Scenario: Copy from the primary worktree
 
-- **WHEN** the worktree has no `be/.env`, the primary worktree has `be/.env` with `PORT=3000`, and `env.overrides` is `{ PORT: "{{port}}" }` with port 62061
+- **WHEN** the worktree has no `be/.env`, the primary worktree has `be/.env` with `PORT=3000`, and `env.overrides` is `{ PORT: "${port}" }` with port 62061
 - **THEN** the worktree gets `be/.env` with `PORT=62061`
 
 #### Scenario: Existing file kept
@@ -118,7 +118,7 @@ The system SHALL write the env file of a watch that sets `env.sourceFile` for a 
 
 #### Scenario: Always-applied values
 
-- **WHEN** the worktree already has `be/.env` and `env.overrides` is `{ PUBLIC_BASE_URL: "{{url}}" }`
+- **WHEN** the worktree already has `be/.env` and `env.overrides` is `{ PUBLIC_BASE_URL: "${url}" }`
 - **THEN** the file is unchanged after provisioning, because overrides are written only when the copy is created
 
 #### Scenario: Storage variable written
@@ -181,7 +181,7 @@ The system SHALL print the line `+ <command>` to the progress log before it runs
 
 ### Requirement: Project directory
 
-The system SHALL resolve every relative path of the configuration against the project directory: the directory of `variants.yaml` re-based onto the worktree of the variant. This covers watch `dir`, step `dir`, `env.sourceFile`, the `container.dockerfile`, the image build context, `preRm` patterns, and the working directory of the seed command and of the steps that have no `dir`. When `variants.yaml` is in the root of the checkout, the project directory SHALL be the worktree itself. When it is in a subdirectory, the project directory SHALL be the same subdirectory of the worktree. A variant for `main` or without a worktree SHALL use the root of the git checkout that holds the current directory as its worktree, or the current directory outside a git repository, so running from any directory of the project gives the same result. The `{{worktree}}` placeholder and the storage directory SHALL stay relative to the worktree.
+The system SHALL resolve every relative path of the configuration against the project directory: the directory of `variants.yaml` re-based onto the worktree of the variant. This covers watch `dir`, step `dir`, `env.sourceFile`, the `container.dockerfile`, the image build context, `preRm` patterns, and the working directory of the seed command and of the steps that have no `dir`. When `variants.yaml` is in the root of the checkout, the project directory SHALL be the worktree itself. When it is in a subdirectory, the project directory SHALL be the same subdirectory of the worktree. A variant for `main` or without a worktree SHALL use the root of the git checkout that holds the current directory as its worktree, or the current directory outside a git repository, so running from any directory of the project gives the same result. The `${worktree}` placeholder and the storage directory SHALL stay relative to the worktree.
 
 #### Scenario: Configuration in a subdirectory
 

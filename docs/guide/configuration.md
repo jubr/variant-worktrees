@@ -1,6 +1,6 @@
 # Configuration
 
-`variants.yaml` at the workspace root holds runtime options. Database settings load from `mise.local.toml` first, then environment variables. Explicit `db` values override those.
+`variants.yaml` at the workspace root holds runtime options. Database settings are autodetected from the environment (see [Environment through Mise](#environment-through-mise)): Postgres, MySQL, MariaDB (`MARIADB_*` or a `mariadb://` URL, dialect `mysql`) and SQLite. Explicit `db` values override those. `variant init` writes the autodetected values into a first `variants.yaml`.
 
 ::: v-pre
 
@@ -14,7 +14,7 @@ The same migration puts the schema header on top of a `variants.yaml` or `varian
 
 ## Watches are a record
 
-`variant.watches` is keyed by watch name. The key is the name in runtime state, in templates (`{{be.port}}`), in container names (`v-<key>-<slug>`) and in environment variables.
+`variant.watches` is keyed by watch name. The key is the name in runtime state, in templates (`${be.port}`), in container names (`v-<key>-<slug>`) and in environment variables.
 
 ```yaml
 variant:
@@ -29,13 +29,21 @@ variant:
 
 The environment segment of a key is uppercase with every non-alphanumeric character replaced by `_`, so `VARIANT_BE_PORT=62099` pins the port of `be`. Two keys with the same segment are rejected. The key `variant-ui` is reserved for the server of `variant ui`, and so is every key whose segment is `UI` (such as `ui`), because `VARIANT_UI_PORT` is the server's port variable; defining a watch with one fails validation. Watches start in the listed order. List a container that another one reaches by name first: an nginx in a Dockerfile resolves the name of its proxy target when it starts.
 
+## Environment through Mise
+
+The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over the process environment (a value from Mise wins). It is read once per loaded configuration, and only when a database setting or a `${NAME}` reference is first needed, so a command that needs neither (such as `variant list` of a configuration with an explicit `db.dialect: sqlite`) starts no Mise process. Mise files are not parsed. A Mise that fails stops the command with its message; without any Mise executable the process environment is used alone.
+
+The executable is the first of: the editor setting `variant.mise.binPath`, the key `variant.mise.binPath` of `variants.yaml` (relative to that file), `mise` on `PATH`, then `/opt/homebrew/bin/mise`, `/usr/local/bin/mise`, `/usr/bin/mise`, `/home/linuxbrew/.linuxbrew/bin/mise`, `~/.local/bin/mise`, `~/.local/share/mise/bin/mise` and `~/.cargo/bin/mise`. A configured path that is not an executable file is an error that names where it came from. In the editor, a Mise failure shows one notification per directory and kind of failure; for an untrusted configuration it has a **Trust** button that runs `mise -C <dir> trust --all` and repeats the action.
+
 ## Templates
 
-Values of `env.overrides` and `url` are rendered in two passes.
+Every string setting is templated, `db` included, with one syntax. Values are expanded in two passes.
 
-1. Variant placeholders: `{{slug}}`, `{{schema}}` (the database schema or file), `{{storage}}`, `{{worktree}}`, `{{url}}`, `{{port}}` and `{{<watch>.port}}`.
-   `{{abbr}}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite watch is `http://{{slug}}.{{abbr}}.localhost:{{port}}`.
-2. Environment templates: `{{NAME}}` reads the environment and fails when it is unset, `{{NAME:-default}}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `{{JWT_SECRET:-variant-local-{{slug}}}}` works.
+1. Variant placeholders: `${slug}`, `${schema}` (the database schema or file), `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<watch>.port}`.
+   `${abbr}` is the project abbreviation (see `abbr` below); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}`.
+2. Environment templates: `${NAME}` reads the environment (Mise, then the process) and fails when it is unset, `${NAME:-default}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `${JWT_SECRET:-variant-local-${slug}}` works.
+
+Write `$${` for a literal `${`, for example in a shell command that expands its own variable (`echo $${HOME}`). A `db` setting has no variant, so a variant placeholder there is an error; `db.port` may be `${POSTGRES_PORT}`. `variant init` writes secrets as `${NAME}` references. Files that still use `{{...}}` load as before, with a notice, and the CLI and the editor rewrite them to `${...}` like the other former names above. A `${` that was already in a value is not touched: write `$${` where a shell must see it, since `${NAME}` now reads the environment there.
 
 ## Environment variables
 
@@ -43,10 +51,10 @@ Every command also sees the variables below. Some are only set for commands, som
 
 | Variable | Direction | Setting or placeholder |
 | --- | --- | --- |
-| `VARIANT_SLUG` | set for commands | `{{slug}}` |
-| `VARIANT_TARGET` | set for commands | `{{schema}}`: the database schema, or the SQLite file |
+| `VARIANT_SLUG` | set for commands | `${slug}` |
+| `VARIANT_TARGET` | set for commands | `${schema}`: the database schema, or the SQLite file |
 | `VARIANT_CONFIG` | set for commands | the path of the loaded `variants.yaml` |
-| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `{{<key>.port}}` and `runtime.watches.<key>.port` |
+| `VARIANT_<KEY>_PORT` | set for commands, and read as an override | `${<key>.port}` and `runtime.watches.<key>.port` |
 | `VARIANT_<KEY>_URL` | set for commands, and read as an override | the rendered `url` and `runtime.watches.<key>.url` |
 | `VARIANT_<KEY>_PID` | read as an override | `runtime.watches.<key>.pid` |
 | `VARIANT_OPEN` | read as an override | `variant.open`; `0` turns opening off and wins |
@@ -79,6 +87,7 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `baseBranch` | New variant branches start here; a variant must be merged here before `implode` (default `main`) |
 | `branchPrefixes` | The first prefixes a new branch; all are dropped to derive a slug (default `feat/`, `fix/`) |
 | `containerEngine` | `docker` or `podman`; `CONTAINER_ENGINE` wins; absent: `docker` if installed, else `podman` |
+| `mise` | `{ binPath }`: the Mise executable, when `mise` is not on `PATH`; the editor setting `variant.mise.binPath` wins |
 | `main` | The main checkout the worktrees are made from, relative to `variants.yaml`. Default: the directory a parent `AGENTS.md` symlink points into, else the git checkout |
 | `open` | `false` prints URLs without opening a browser; `VARIANT_OPEN=0` wins |
 | `prefix` | Starts every name derived from a slug, such as worktree directories (default `_v-`) |
@@ -98,7 +107,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 | Option | Meaning |
 | --- | --- |
-| `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each watch directory; `{{slug}}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
+| `preRm` | Glob patterns of files and directories to delete, matched from the project directory and from each watch directory; `${slug}` is replaced. A match that is, or contains, a tracked file stays. Symlinks are not followed. Removed before the report |
 | `discard` | Base names of tracked files whose local changes are discarded, after the report |
 | `requireMerged` | `false` skips the merge gate (default `true`) |
 | `maxDiffLines` | The report holds the full `git diff` up to this many lines (default 200) |

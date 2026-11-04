@@ -193,3 +193,76 @@ describe("migrateText", () => {
       expect(readFileSync(join(directory, CONFIG), "utf8")).toBe("variant:\n  instances: {}\n");
     }));
 });
+
+/** Specification: openspec/specs/variant-config/core/spec.md (Legacy template syntax) */
+describe("legacy template syntax", () => {
+  it("reads former placeholders as ${...} with one notice that names the file", () =>
+    withProject(
+      {
+        [CONFIG]:
+          "variant:\n  watches:\n    fe:\n      kind: vite\n      url: http://{{slug}}.{{abbr}}.localhost:{{port}}\n",
+      },
+      (directory) => {
+        const config = loadConfig({ cwd: directory });
+
+        expect(config.variant.watches.fe?.url).toBe("http://${slug}.${abbr}.localhost:${port}");
+        expect(config.warnings).toEqual([]);
+        expect(config.migrations).toHaveLength(1);
+        expect(config.migrations[0]).toContain(join(directory, CONFIG));
+      },
+    ));
+
+  it("reads a former nested default", () => {
+    const { data } = migrateLegacy({ variant: { seed: "echo {{SECRET:-local-{{slug}}}}" } }, "f.yaml");
+
+    expect(data).toEqual({ variant: { seed: "echo ${SECRET:-local-${slug}}" } });
+  });
+
+  it("leaves text without a placeholder shape alone", () => {
+    const input = { variant: { seed: "echo {{ not a placeholder }} {{}} {{a b}}" } };
+
+    expect(migrateLegacy(input, "f.yaml")).toEqual({ data: input, notices: [] });
+  });
+
+  it("leaves regular expressions alone", () => {
+    const input = {
+      variant: { steps: [{ name: "build", run: "make", filterLinesRegex: "^{{PRICE}}$" }] },
+      chatRenamer: { activationPatterns: ["{{x}}"] },
+    };
+
+    expect(migrateLegacy(input, "f.yaml")).toEqual({ data: input, notices: [] });
+  });
+
+  it("reads the former port template of variants.local.yaml", () =>
+    withProject(
+      { [LOCAL]: "runtime:\n  slug: demo\n  db:\n    dialect: postgres\n    port: '{{POSTGRES_PORT}}'\n" },
+      (directory) => {
+        expect(readRuntime(directory, { POSTGRES_PORT: "5433" })?.db?.port).toBe(5433);
+      },
+    ));
+
+  it("rewrites the text of a file and changes no other character", () => {
+    const text =
+      "variant:\n  watches:\n    fe:\n      env:\n        overrides:\n          PORT: '{{port}}' # the port\n";
+
+    expect(migrateText(text)).toBe(text.replace("'{{port}}'", "'${port}'"));
+  });
+
+  it("rewrites a nested default in the text", () => {
+    expect(migrateText('variant:\n  seed: "echo {{SECRET:-local-{{slug}}}}"\n')).toBe(
+      'variant:\n  seed: "echo ${SECRET:-local-${slug}}"\n',
+    );
+  });
+
+  it("rewrites templates together with renamed keys", () => {
+    expect(migrateText("variant:\n  instances:\n    fe: { url: 'http://{{slug}}.test' }\n")).toBe(
+      "variant:\n  watches:\n    fe: { url: 'http://${slug}.test' }\n",
+    );
+  });
+
+  it("does not rewrite regular expressions or comments", () => {
+    const text = "# {{slug}}\nvariant:\n  steps:\n    - { name: a, run: x, filterLinesRegex: '^{{PRICE}}$' }\n";
+
+    expect(migrateText(text)).toBeUndefined();
+  });
+});

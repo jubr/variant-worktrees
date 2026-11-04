@@ -56,6 +56,38 @@ function initMessages(): object[] {
 }
 
 describe("MCP server", () => {
+  it("variant_init writes into the working directory and offers its steps as inputs", async () => {
+    const directory = tempDirectory();
+    try {
+      const { lines } = await mcp(
+        [
+          ...initMessages(),
+          { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+          {
+            jsonrpc: "2.0",
+            id: 3,
+            method: "tools/call",
+            params: { name: "variant_init", arguments: { prefix: "wt-", mise: false } },
+          },
+        ],
+        join(directory, "none.yaml"),
+        { cwd: directory },
+      );
+      const tools = JSON.parse(lines[1] ?? "{}").result.tools as {
+        name: string;
+        inputSchema: { properties: object };
+      }[];
+      const init = tools.find((tool) => tool.name === "variant_init");
+      expect(Object.keys(init?.inputSchema.properties ?? {})).toEqual(["prefix", "file", "gitignore", "mise", "force"]);
+      const result = JSON.parse(JSON.parse(lines[2] ?? "{}").result.content[0].text);
+      expect(result).toMatchObject({ directory: realpathSync(directory), prefix: "wt-", mise: { status: "skipped" } });
+      expect(readFileSync(join(directory, "variants.yaml"), "utf8")).toContain("prefix: wt-");
+      expect(readFileSync(join(directory, ".gitignore"), "utf8")).toBe("wt-*\n");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("lists lifecycle tools without variant_free", async () => {
     const directory = tempDirectory();
     try {
@@ -66,6 +98,7 @@ describe("MCP server", () => {
       const response = JSON.parse(lines.at(-1) ?? "{}");
       const names = response.result.tools.map((tool: { name: string }) => tool.name);
       expect(names).toEqual([
+        "variant_init",
         "variant_config",
         "variant_create",
         "variant_list",
@@ -210,7 +243,7 @@ describe("MCP runtime tools", () => {
           "    be:",
           "      kind: nestjs",
           "      dir: be",
-          "      url: http://{{slug}}.vw.localhost:{{port}}",
+          "      url: http://${slug}.vw.localhost:${port}",
           "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           "",
         ].join("\n"),

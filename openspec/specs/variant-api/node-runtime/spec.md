@@ -60,7 +60,7 @@ The patterns of `variant.implode.preRm` SHALL match the same paths under Node an
 
 #### Scenario: Wildcard match
 
-- **WHEN** `preRm` is `["openspec/changes/{{slug}}/pr*-demo.webm"]`, an untracked `openspec/changes/demo/pr7-demo.webm` exists and `implode` runs for `demo` under Node
+- **WHEN** `preRm` is `["openspec/changes/${slug}/pr*-demo.webm"]`, an untracked `openspec/changes/demo/pr7-demo.webm` exists and `implode` runs for `demo` under Node
 - **THEN** that file is removed
 
 #### Scenario: Alternatives and dotfiles

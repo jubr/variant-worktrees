@@ -1,7 +1,7 @@
 import type { VariantClient, VariantRecord } from "variant-api";
 
-/** What the view and the panel need of the library: the state subscription and the three actions. */
-export type ViewClient = Pick<VariantClient, "subscribe" | "watch" | "down" | "implode">;
+/** What the view, the panel and the onboarding dialog need of the library: the state subscription, the three actions and `init`. */
+export type ViewClient = Pick<VariantClient, "subscribe" | "watch" | "down" | "implode" | "init">;
 
 export type LoadClient = () => Promise<ViewClient>;
 
@@ -15,11 +15,18 @@ export const messageOf = (error: unknown): string => (error instanceof Error ? e
  * `engines.vscode` asks for, or a remote host), the import fails here and the view shows why, instead of the whole
  * extension failing to activate. A failed load is not remembered, so the next use tries again.
  */
-export const loadVariantClient = (cwd: string): LoadClient => {
+export const loadVariantClient = (cwd: string, miseBinPath: () => string | undefined = () => undefined): LoadClient => {
   let loading: Promise<ViewClient> | undefined;
+  let loadedWith: string | undefined;
   return () => {
+    // The setting `variant.mise.binPath` applies to the next call: a client made with another value is made anew.
+    const configured = miseBinPath();
+    if (loading !== undefined && configured !== loadedWith) {
+      loading = undefined;
+    }
+    loadedWith = configured;
     loading ??= import("variant-api")
-      .then(({ createClient }) => createClient({ cwd }))
+      .then(({ createClient }) => createClient({ cwd, ...(configured ? { miseBinPath: configured } : {}) }))
       .catch((error: unknown) => {
         loading = undefined;
         throw new Error(`The variant library could not be loaded: ${messageOf(error)}`);

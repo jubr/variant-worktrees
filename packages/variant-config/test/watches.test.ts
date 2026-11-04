@@ -9,7 +9,7 @@ const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-watches-")
 
 describe("runtime watch discovery", () => {
   it("gives a detected Vite watch the default template with the abbreviation placeholder", () => {
-    expect(DEFAULT_URL).toBe("http://{{slug}}.{{abbr}}.localhost:{{port}}");
+    expect(DEFAULT_URL).toBe("http://${slug}.${abbr}.localhost:${port}");
   });
 
   it("detects Vite and NestJS applications below the config directory", () => {

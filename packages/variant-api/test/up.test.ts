@@ -67,7 +67,7 @@ const FE_BE = lines(
   "    fe:",
   "      kind: vite",
   "      dir: fe",
-  "      url: http://{{slug}}.vw.localhost:{{port}}",
+  "      url: http://${slug}.vw.localhost:${port}",
   "      container: { dockerfile: fe/Dockerfile }",
   "  supervise: { startDelaySeconds: 0 }",
 );
@@ -322,7 +322,7 @@ describe("up containers", () => {
         .replace(
           "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           [
-            "      env: { overrides: { ONLY_WATCH: 'slug-{{slug}}', PORT: '{{port}}' } }",
+            "      env: { overrides: { ONLY_WATCH: 'slug-${slug}', PORT: '${port}' } }",
             "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
           ].join("\n"),
         ),

@@ -103,7 +103,7 @@ describe("variant-api on Node and Bun", () => {
            execFileSync("git", ["init", "-q", "-b", "main", repo]);
            git("config", "user.email", "variant@example.test");
            git("config", "user.name", "Variant Tests");
-           put(repo, "variants.yaml", "db:\\n  dialect: sqlite\\nvariant:\\n  implode:\\n    preRm: ['{out,dist}/**', '.cache/*', 'rec/{{slug}}/pr*-demo.webm', 'tracked/*.js']\\n");
+           put(repo, "variants.yaml", "db:\\n  dialect: sqlite\\nvariant:\\n  implode:\\n    preRm: ['{out,dist}/**', '.cache/*', 'rec/\${slug}/pr*-demo.webm', 'tracked/*.js']\\n");
            put(repo, "tracked/keep.js");
            git("add", ".");
            git("commit", "-q", "-m", "initial");

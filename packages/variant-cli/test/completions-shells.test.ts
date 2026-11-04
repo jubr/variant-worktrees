@@ -122,7 +122,6 @@ const once = (run: Run, scenario: string, extra?: Record<string, string>): (() =
 };
 
 const bashVersion = (binary: string): [number, number] => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: shell syntax
   const script = 'echo "${BASH_VERSINFO[0]} ${BASH_VERSINFO[1]}"';
   const out = Bun.spawnSync([binary, "-c", script]).stdout.toString().trim();
   const [major, minor] = out.split(" ").map(Number);

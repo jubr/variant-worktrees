@@ -114,9 +114,9 @@ describe("VARIANT_* environment variables", () => {
     test(`${path} ties each variable to its setting or placeholder`, () => {
       const text = read(path);
       for (const setting of [
-        "{{slug}}",
-        "{{schema}}",
-        "{{<key>.port}}",
+        "${slug}",
+        "${schema}",
+        "${<key>.port}",
         "runtime.watches.<key>.port",
         "variant.open",
         "env.sourceFile",

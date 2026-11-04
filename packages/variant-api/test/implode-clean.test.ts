@@ -129,7 +129,7 @@ describe("implode cleanliness", () => {
 
       writeFileSync(join(worktree, "rec", "demo", "notes.txt"), "x");
       expect((await list()).find((variant) => variant.slug === "demo")?.implodeClean).toBe(false);
-    }, `${CONFIG}  implode: { preRm: ['rec/{{slug}}/pr*-demo.webm'] }\n`));
+    }, `${CONFIG}  implode: { preRm: ['rec/\${slug}/pr*-demo.webm'] }\n`));
 
   it("reports main as not clean", () =>
     withProject(async ({ list, repo }) => {

@@ -106,7 +106,11 @@ export const prepareRun = async (
   };
   for (const [key, watch] of Object.entries(config.variant.watches)) {
     if (watch.url !== undefined) {
-      run.urls[key] = renderTemplate(watch.url, templateContext(run, key));
+      run.urls[key] = renderTemplate(watch.url, {
+        ...templateContext(run, key),
+        env: config.environment,
+        setting: `variant.watches.${key}.url`,
+      });
     }
   }
   return run;
@@ -124,14 +128,31 @@ export const templateContext = (run: VariantRun, key?: string): TemplateContext 
   ports: run.ports,
 });
 
+/**
+ * A setting of a variant with its `${...}` references expanded: the variant placeholders of `run` (the port and URL of
+ * the watch `key` when given) and the environment of `config`. `setting` names the setting in a failure.
+ */
+export const expandSetting = (
+  config: ResolvedConfig,
+  run: VariantRun,
+  value: string,
+  setting: string,
+  key?: string,
+): string => renderTemplate(value, { ...templateContext(run, key), env: config.environment, setting });
+
 /** `env` of a step or watch with its templates expanded. */
 export const expandEnv = (
+  config: ResolvedConfig,
   values: Readonly<Record<string, string>> | undefined,
   run: VariantRun,
   key?: string,
+  setting = "env",
 ): Record<string, string> =>
   Object.fromEntries(
-    Object.entries(values ?? {}).map(([name, value]) => [name, renderTemplate(value, templateContext(run, key))]),
+    Object.entries(values ?? {}).map(([name, value]) => [
+      name,
+      expandSetting(config, run, value, `${setting}.${name}`, key),
+    ]),
   );
 
 interface DatabaseSettings {
@@ -207,7 +228,7 @@ export const commandEnvironment = (
 ): NodeJS.ProcessEnv => ({
   ...process.env,
   ...variantVariables(config, run),
-  ...expandEnv(env, run, watchKey),
+  ...expandEnv(config, env, run, watchKey),
 });
 
 export type { VariantWatch };
