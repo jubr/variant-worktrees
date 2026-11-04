@@ -425,19 +425,25 @@ describe("trigger", () => {
       expect(warnings).toEqual([]);
     });
 
-    it("logs a chat that existed before startup at debug level only", async () => {
+    it("logs a chat that existed before startup as one trace event and one trace decision", async () => {
       await start("/vw-spec-start abc", STARTED - 5_000);
       await titleEvent("old");
 
-      expect(decisions().map((entry) => entry.level)).toEqual(["debug"]);
-      expect(decisions()[0]?.message).toContain('reason="before startup"');
+      const lines = captured.entries.filter((entry) => entry.message.includes('session="old"'));
+      expect(lines.map((entry) => entry.level)).toEqual(["trace", "trace"]);
+      expect(lines[0]?.message).toContain("[title-event] event");
+      expect(lines[1]?.message).toContain('reason="before startup"');
+      expect(captured.entries.some((entry) => entry.level === "debug" && entry.message.includes('session="old"'))).toBe(
+        false,
+      );
     });
 
-    it("logs every title event at debug level as it arrives, including later ones of the same chat", async () => {
+    it("logs a title event at debug once the prompt time is known, and a later one at debug on arrival", async () => {
       await start("/vw-spec-start abc");
       await titleEvent("fresh");
       listeners[0]?.({ sessionId: "fresh", title: "Renamed by hand" });
       listeners[0]?.({ sessionId: "other" });
+      await new Promise((resolve) => setTimeout(resolve, 5));
 
       const events = captured.entries.filter((entry) => entry.message.startsWith("[title-event] event"));
       expect(events).toEqual([
