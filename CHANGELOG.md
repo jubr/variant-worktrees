@@ -4,6 +4,7 @@
 
 ### Added
 
+- `--from` on `create`, `provision`, `up`, and `watch` (the same option on the library and the MCP tools) starts a new variant branch at that commit, tag, or branch. Omit it and the branch starts at `variant.baseBranch`. An existing branch or worktree is left in place. `implode` still merges against `variant.baseBranch`.
 - `db.multi` (PostgreSQL): `schemaPrefix` (default `v_${slug}-`) and exactly one of `tenants` and `tenantsCmd`. A variant owns one schema per tenant. `${multi.tenants}` and `${multi.schemaPrefix}` pass the list and the prefix to a step. `list` stays one row; `status`, `list --verbose`, JSON, YAML and MCP carry `schemas`. Schemas left behind with no worktree are grouped by the prefix. The same grouping applies without `db.multi` to PostgreSQL names `v_<slug>-<tenant>` (slug hyphens stored as underscores, tenant after the last hyphen), so `v_fix_entra_vbu_login-de99` and its siblings are one row. `implode` drops those real names, including when the worktree directory is already gone. The VS Code tree marks such a row with a superscript d (a superscript 2 when that glyph cannot be shown).
 - `variant deprovision` drops the schema, or every schema under the prefix. A step named `deprovision` replaces that drop. `watch --reprovision` runs it before provisioning again. `down` does not drop.
 - A key that `variants.yaml` or `variants.local.yaml` does not know is a warning (`<file>: unknown key <path>` on
