@@ -7,8 +7,10 @@
 !dist/*
 !dist/webview/*
 !media/icon-256.png
-!media/trash-dirty-light.svg
-!media/trash-dirty-dark.svg
+!media/explode-light.svg
+!media/explode-dark.svg
+!media/explode-muted-light.svg
+!media/explode-muted-dark.svg
 !CHANGELOG.md
 !LICENSE.txt
 !README.md
