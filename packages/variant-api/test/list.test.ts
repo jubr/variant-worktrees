@@ -133,21 +133,56 @@ describe("list with runtime facts", () => {
       expect((await list()).map((variant) => variant.slug)).toEqual(["demo"]);
     }));
 
-  it("reports created as the earlier birth time and changed as the later modification time", () =>
+  it("reads createdMs from runtime.createdAt and changedMs from the later modification time", () =>
+    withProject(async (directory, put, list) => {
+      const variantDir = join(directory, "_v-demo");
+      put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n  createdAt: 2026-03-01_09:30:00\n");
+      const yaml = join(variantDir, "variants.local.yaml");
+      const later = statSync(variantDir).mtimeMs + 60_000;
+      utimesSync(yaml, later / 1000, later / 1000);
+
+      const record = (await list()).find((variant) => variant.slug === "demo");
+
+      expect(record?.createdMs).toBe(new Date(2026, 2, 1, 9, 30, 0).getTime());
+      expect(record?.changedMs).toBe(statSync(yaml).mtimeMs);
+      expect(record?.changedMs).toBeGreaterThan(statSync(variantDir).mtimeMs);
+    }));
+
+  it("does not invent a main record when the library has none", () =>
+    withProject(async (_directory, put, list) => {
+      put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
+
+      expect((await list()).map((variant) => variant.slug)).toEqual(["demo"]);
+    }));
+
+  it("uses the directory creation time when createdAt is missing", () =>
     withProject(async (directory, put, list) => {
       const variantDir = join(directory, "_v-demo");
       put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
       const yaml = join(variantDir, "variants.local.yaml");
       const later = statSync(variantDir).mtimeMs + 60_000;
       utimesSync(yaml, later / 1000, later / 1000);
-      const dirStat = statSync(variantDir);
-      const fileStat = statSync(yaml);
 
       const record = (await list()).find((variant) => variant.slug === "demo");
 
-      expect(record?.createdMs).toBe(Math.min(dirStat.birthtimeMs, fileStat.birthtimeMs));
-      expect(record?.changedMs).toBe(fileStat.mtimeMs);
-      expect(record?.changedMs).toBeGreaterThan(dirStat.mtimeMs);
+      expect(record?.createdMs).toBe(statSync(variantDir).birthtimeMs);
+      expect(record?.changedMs).toBe(statSync(yaml).mtimeMs);
+    }));
+
+  it("uses the directory creation time when createdAt is ill-formed", () =>
+    withProject(async (directory, put, list) => {
+      const variantDir = join(directory, "_v-demo");
+      mkdirSync(variantDir);
+      put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n  createdAt: yesterday\n");
+      put(
+        ".cache/variants/demo.yaml",
+        `slug: demo\ntarget: ${join(directory, ".cache", "variants", "demo.db")}\ndialect: sqlite\nstatePath: ""\nworktree: ${variantDir}\ncreatedAt: now\n`,
+      );
+
+      const record = (await list()).find((variant) => variant.slug === "demo");
+
+      expect(record).toBeDefined();
+      expect(record?.createdMs).toBe(statSync(variantDir).birthtimeMs);
     }));
 
   it("reports changed as the directory modification time when that is the later of the two", () =>

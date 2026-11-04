@@ -8,4 +8,6 @@ export interface OperationContext {
   cwd: string;
   useWorktree: boolean;
   adapter: DatabaseAdapter;
+  /** Clock for `runtime.createdAt` and `runtime.watches.*.startedAt`. Defaults to the current time. */
+  now?: () => Date;
 }

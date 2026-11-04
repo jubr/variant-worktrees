@@ -118,7 +118,7 @@ export const watchVariant = async (
 ): Promise<WatchResult> => {
   const { config } = context;
   const log = options.log ?? logToStderr;
-  const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes);
+  const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes, config.variant);
   const { run, provisioned } = await prepareVariant(context, slug, "watch", options);
 
   const delay = config.variant.supervise.startDelaySeconds * 1000;
@@ -159,7 +159,11 @@ export const watchVariant = async (
     }
   }
   const pids = Object.fromEntries(started.map(({ key, pid }) => [key, pid]));
-  writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "watch", pids, logFile));
+  writeVariantRuntime(
+    config,
+    run.worktree,
+    runtimeOf(config, run, "watch", pids, logFile, context.now?.() ?? new Date()),
+  );
 
   const result: WatchResult = {
     slug,
@@ -191,7 +195,11 @@ export const watchVariant = async (
     }
     clearVariantRuntime(config, run.worktree);
   } else if (existsSync(run.worktree)) {
-    writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "watch"));
+    writeVariantRuntime(
+      config,
+      run.worktree,
+      runtimeOf(config, run, "watch", {}, undefined, context.now?.() ?? new Date()),
+    );
   }
   return { ...result, exitCode: outcome === "interrupted" ? 130 : 1 };
 };

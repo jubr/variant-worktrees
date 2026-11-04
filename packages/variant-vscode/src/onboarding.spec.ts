@@ -78,9 +78,9 @@ const flow = (options: { trust?: (directory: string) => Promise<void> } = {}) =>
       commits.push(onCommit);
       return { check: () => {}, dispose: () => {} };
     },
-    detect: async () => {
+    adoption: async () => {
       detected.push("run");
-      return { database: "postgres", applications: ["vite"], label: "postgres+vite" };
+      return { status: "detected", label: "postgres+vite" };
     },
     ...(options.trust ? { trust: options.trust } : {}),
   });

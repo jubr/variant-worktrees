@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import {
   type DiscoveredRuntime,
   LOCAL_FILENAME,
+  parseLocalStamp,
   type ResolvedConfig,
   readRuntimes,
   UI_WATCH_KEY,
@@ -79,12 +80,14 @@ const momentOf = (path: string): { birth: number; mtime: number } | undefined =>
 };
 
 /**
- * `createdMs` is the earlier birth time of the variant directory and its `variants.local.yaml`.
- * `changedMs` is the later modification time of those paths. A missing path is skipped.
+ * `createdMs` is `runtime.createdAt` read as local time. A missing or ill-formed stamp, or a local file that did not
+ * load, uses the directory's creation time. `changedMs` is the later modification time of the directory and the local
+ * file. A record with no directory omits both.
  */
 const timesOf = (
   directory: string | undefined,
   yaml: string | undefined,
+  createdAt: string | undefined,
 ): { createdMs?: number; changedMs?: number } => {
   const moments = [directory, yaml].flatMap((path) => {
     if (path === undefined || !existsSync(path)) {
@@ -93,12 +96,15 @@ const timesOf = (
     const moment = momentOf(path);
     return moment === undefined ? [] : [moment];
   });
-  if (moments.length === 0) {
+  const parsed = createdAt === undefined ? undefined : parseLocalStamp(createdAt);
+  const createdMs =
+    parsed ?? (directory !== undefined && existsSync(directory) ? momentOf(directory)?.birth : undefined);
+  if (createdMs === undefined && moments.length === 0) {
     return {};
   }
   return {
-    createdMs: Math.min(...moments.map((moment) => moment.birth)),
-    changedMs: Math.max(...moments.map((moment) => moment.mtime)),
+    ...(createdMs === undefined ? {} : { createdMs }),
+    ...(moments.length === 0 ? {} : { changedMs: Math.max(...moments.map((moment) => moment.mtime)) }),
   };
 };
 
@@ -109,13 +115,14 @@ const longestUptime = (watches: Record<string, WatchFacts>): number | undefined 
 };
 
 const runtimeStatus = (found: DiscoveredRuntime, watches: Record<string, WatchFacts>): RuntimeStatus => {
-  const { slug, mode, dir, log, db, watches: _recorded } = found.runtime;
+  const { slug, mode, dir, log, createdAt, db, watches: _recorded } = found.runtime;
   return {
     file: join(found.dir, LOCAL_FILENAME),
     ...(slug ? { slug } : {}),
     ...(mode ? { mode } : {}),
     ...(dir ? { dir } : {}),
     ...(log ? { log } : {}),
+    ...(createdAt ? { createdAt } : {}),
     ...(db ? { db: redacted(db) as RuntimeStatus["db"] } : {}),
     ...(Object.keys(watches).length > 0 ? { watches } : {}),
   };
@@ -159,7 +166,7 @@ export const collectRecords = async (
       statePath: state?.statePath ?? "",
       worktree: state?.worktree ?? found?.runtime.dir ?? found?.dir,
       createdAt: state?.createdAt ?? "",
-      ...timesOf(directory, yaml),
+      ...timesOf(directory, yaml, found?.runtime.createdAt),
       implodeClean: implodeWouldSucceed(context, slug, state?.worktree ?? found?.dir),
       exists: true,
       ...(found?.runtime.mode ? { mode: found.runtime.mode } : {}),

@@ -150,6 +150,24 @@ describe("status runtime meta information", () => {
       });
     }));
 
+  it("returns createdAt and a watch startedAt", () =>
+    withProject(async ({ put, client }) => {
+      put(
+        "_v-demo/variants.local.yaml",
+        runtimeFile(
+          "slug: demo",
+          "createdAt: 2026-11-04_12:22:05",
+          "watches:",
+          "  fe: { startedAt: 2026-11-04_12:30:00 }",
+        ),
+      );
+
+      const { runtime } = await client().status("demo");
+
+      expect(runtime?.createdAt).toBe("2026-11-04_12:22:05");
+      expect(runtime?.watches?.fe?.startedAt).toBe("2026-11-04_12:30:00");
+    }));
+
   it("reports the log file of a detached watch on the record and in the runtime", () =>
     withProject(async ({ put, client }) => {
       put(

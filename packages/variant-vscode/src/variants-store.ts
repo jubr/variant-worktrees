@@ -1,6 +1,20 @@
 import type { MiseFailure, VariantRecord } from "variant-api";
 import { type LoadClient, messageOf } from "./variants-client.ts";
 
+/** A down `main` the library did not return. The CLI list never receives this row. */
+const syntheticMain = (): VariantRecord => ({
+  slug: "main",
+  target: "",
+  dialect: "sqlite",
+  statePath: "",
+  createdAt: "",
+  exists: true,
+  implodeClean: false,
+});
+
+const withMain = (incoming: readonly VariantRecord[]): readonly VariantRecord[] =>
+  incoming.some((entry) => entry.slug === "main") ? incoming : [syntheticMain(), ...incoming];
+
 export type StoreStatus = "loading" | "no-config" | "error" | "empty" | "ready";
 
 export interface VariantsStoreDeps {
@@ -56,7 +70,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
     try {
       const client = await deps.loadClient();
       stop = client.subscribe((update) => {
-        records = update.records;
+        records = update.error === undefined ? withMain(update.records) : update.records;
         error = update.error;
         mise = update.mise;
         status = records.length === 0 ? "empty" : "ready";

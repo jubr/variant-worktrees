@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type * as vscode from "vscode";
+import * as vscode from "vscode";
 import { createVariantsStore } from "./variants-store.ts";
 import { fakeClient, record } from "./variants-test-support.ts";
 import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
@@ -25,7 +25,16 @@ describe("variants tree", () => {
   it("lists variants by slug ascending by default, with the slug as label", async () => {
     const { provider } = await started([record("zeta"), record("main"), record("alpha")]);
 
-    expect(items(provider).map(({ item }) => item.label)).toEqual(["alpha", "main", "zeta"]);
+    expect(items(provider).map(({ item }) => item.label)).toEqual(["main", "alpha", "zeta"]);
+  });
+
+  it("keeps main first when the sort is name descending", async () => {
+    const fake = fakeClient([record("zeta"), record("main"), record("alpha")]);
+    const store = createVariantsStore({ loadClient: async () => fake.client, hasConfig: () => true });
+    const provider = new VariantsTreeProvider(store, () => "name-desc");
+    await store.start();
+
+    expect(items(provider).map(({ item }) => item.label)).toEqual(["main", "zeta", "alpha"]);
   });
 
   it("orders by the given sort and keeps the UI server above the variants", async () => {
@@ -41,15 +50,18 @@ describe("variants tree", () => {
     const provider = new VariantsTreeProvider(store, () => "changed-desc");
     await store.start();
 
-    expect(items(provider).map(({ item }) => item.label)).toEqual(["UI server", "new", "main", "old"]);
+    expect(items(provider).map(({ item }) => item.label)).toEqual(["UI server", "main", "new", "old"]);
   });
 
-  it("uses three different icons for watching, up and down", async () => {
+  it("uses a filled green dot, a hollow dot, and a different up icon", async () => {
     const { provider } = await started([record("a-watching", watching), record("b-up", up), record("c-down")]);
+    const icon = (label: string): vscode.ThemeIcon =>
+      items(provider).find((entry) => entry.item.label === label)?.item.iconPath as vscode.ThemeIcon;
 
-    const icons = items(provider).map(({ item }) => (item.iconPath as vscode.ThemeIcon).id);
-
-    expect(new Set(icons).size).toBe(3);
+    expect(icon("a-watching").id).toBe("circle-filled");
+    expect(icon("a-watching").color).toEqual(new vscode.ThemeColor("charts.green"));
+    expect(icon("c-down").id).toBe("circle-outline");
+    expect(icon("b-up").id).toBe("arrow-up");
   });
 
   it("names the state in words in the tooltip, with mode, URL and worktree", async () => {
@@ -60,28 +72,31 @@ describe("variants tree", () => {
       record("d-dirty", { implodeClean: false }),
     ]);
 
-    const tips = items(provider).map(({ item }) => String(item.tooltip));
+    const tip = (label: string): string =>
+      String(items(provider).find((entry) => entry.item.label === label)?.item.tooltip);
 
-    expect(tips[0]).toContain("watching");
-    expect(tips[0]).toContain("Mode: watch");
-    expect(tips[0]).toContain("URL: http://a.vw.localhost:62100");
-    expect(tips[0]).toContain("Worktree: /work/_v-a-watching");
-    expect(tips[0]).toContain("Implode would succeed");
-    expect(tips[1]).toContain("up");
-    expect(tips[2]).toContain("down");
-    expect(tips[3]).toContain("Implode would fail");
+    expect(tip("a-watching")).toContain("watching");
+    expect(tip("a-watching")).toContain("Mode: watch");
+    expect(tip("a-watching")).toContain("URL: http://a.vw.localhost:62100");
+    expect(tip("a-watching")).toContain("Worktree: /work/_v-a-watching");
+    expect(tip("a-watching")).toContain("Implode would succeed");
+    expect(tip("b-up")).toContain("up");
+    expect(tip("c-down")).toContain("down");
+    expect(tip("d-dirty")).toContain("Implode would fail");
   });
 
   it("notes a stale record in the tooltip of a down variant", async () => {
     const { provider } = await started([record("demo", { mode: "watch", watches: { fe: { alive: false } } })]);
 
-    expect(String(items(provider)[0]?.item.tooltip)).toContain("stale");
+    expect(String(items(provider).find((entry) => entry.item.label === "demo")?.item.tooltip)).toContain("stale");
   });
 
   it("shows the uptime as description", async () => {
     const { provider } = await started([record("demo", { ...watching, uptimeSeconds: 3700 }), record("idle")]);
 
-    const [demo, idle] = items(provider);
+    const rows = items(provider);
+    const demo = rows.find((entry) => entry.item.label === "demo");
+    const idle = rows.find((entry) => entry.item.label === "idle");
 
     expect(demo?.item.description).toBe("1h 1m");
     expect(idle?.item.description).toBeUndefined();
@@ -93,13 +108,13 @@ describe("variants tree", () => {
       record("demo"),
     ]);
 
-    const [server, demo, main] = items(provider);
+    const [server, main, demo] = items(provider);
 
     expect(server?.item.label).toBe("UI server");
     expect(server?.item.description).toBe("http://ui.vw.localhost:62100");
     expect(server?.item.contextValue).toBe("ui-server");
-    expect(demo?.item.label).toBe("demo");
     expect(main?.item.label).toBe("main");
+    expect(demo?.item.label).toBe("demo");
   });
 
   it("shows no UI server item without a live watch", async () => {
@@ -127,11 +142,16 @@ describe("variants tree", () => {
     expect(store.status()).toBe("no-config");
   });
 
-  it("lists nothing, and says so, when there are no variants", async () => {
-    const { provider, store } = await started([]);
+  it("shows a down main that cannot be imploded when the library returns no main", async () => {
+    const { provider, store } = await started([record("demo")]);
+    const labels = items(provider).map(({ item }) => item.label);
+    const main = items(provider).find((entry) => entry.item.label === "main");
 
-    expect(items(provider)).toEqual([]);
-    expect(store.status()).toBe("empty");
+    expect(labels).toEqual(["main", "demo"]);
+    expect(store.status()).toBe("ready");
+    expect(String(main?.item.tooltip)).toContain("down");
+    expect(String(main?.item.contextValue)).toContain("main");
+    expect(String(main?.item.contextValue)).not.toContain("removable");
   });
 
   it("shows why the library failed to load, as the only item", async () => {
@@ -160,7 +180,7 @@ describe("variants tree", () => {
     fake.publish([record("demo", watching)]);
 
     expect(fired).toBe(1);
-    expect(String(items(provider)[0]?.item.tooltip)).toContain("watching");
+    expect(String(items(provider).find((entry) => entry.item.label === "demo")?.item.tooltip)).toContain("watching");
   });
 
   it("ends its subscription when disposed", async () => {
@@ -177,10 +197,11 @@ describe("variants tree", () => {
     let release: () => void = () => {};
     const running = store.run("demo", () => new Promise<void>((resolve) => (release = resolve)));
 
-    const during = items(provider)[0]?.item;
+    const row = (): vscode.TreeItem | undefined => items(provider).find((entry) => entry.item.label === "demo")?.item;
+    const during = row();
     release();
     await running;
-    const after = items(provider)[0]?.item;
+    const after = row();
 
     expect((during?.iconPath as vscode.ThemeIcon).id).toBe("loading~spin");
     expect(during?.contextValue).toBe("variant pending");
@@ -193,7 +214,9 @@ describe("variants tree", () => {
       record("demo", { ...up, log: "/work/_v-demo/variants.watch.log", url: "http://demo" }),
     ]);
 
-    const [demo, main] = items(provider);
+    const rows = items(provider);
+    const demo = rows.find((entry) => entry.item.label === "demo");
+    const main = rows.find((entry) => entry.item.label === "main");
 
     expect(demo?.item.contextValue).toBe("variant up removable clean has-log has-url");
     expect(main?.item.contextValue).toBe("variant down main dirty");

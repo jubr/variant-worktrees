@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
@@ -82,6 +82,44 @@ describe("variant client operations", () => {
       expect(created.worktree).toContain("_v-add-auth");
       expect(existsSync(created.worktree as string)).toBe(true);
       expect(process.cwd()).toBe(originalDirectory);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("writes runtime.createdAt in the variant directory and leaves an existing value", async () => {
+    const parent = tempDirectory();
+    const repo = join(parent, "repo");
+    try {
+      const git = (...args: string[]): void => {
+        execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" });
+      };
+      execFileSync("git", ["init", "-q", "-b", "main", repo], { encoding: "utf8" });
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git("add", "README.md");
+      git("commit", "-q", "-m", "initial");
+
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
+      const client = createClient({
+        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        now: () => new Date(2026, 10, 4, 12, 22, 5),
+      });
+      const created = await client.create("demo");
+      const localFile = join(created.worktree as string, "variants.local.yaml");
+
+      expect(readFileSync(localFile, "utf8")).toContain("createdAt: 2026-11-04_12:22:05");
+
+      writeFileSync(localFile, "custom: kept\nruntime:\n  createdAt: 2026-01-02_03:04:05\n");
+      await client.create("demo");
+
+      const kept = readFileSync(localFile, "utf8");
+      expect(kept).toContain("createdAt: 2026-01-02_03:04:05");
+      expect(kept).toContain("custom: kept");
+      expect(kept).not.toContain("2026-11-04_12:22:05");
     } finally {
       rmSync(parent, { recursive: true, force: true });
     }

@@ -201,6 +201,11 @@ export type TitleChangeOptions = RenameOptions & {
   maxLines?: number;
   /** Receives the lines read, at trace level. Pass a logger with its category, such as `log.child("title-event")`. */
   decisionLog?: Logger;
+  /**
+   * Called once, before the decision is logged and before a rename, when the prompt time is known.
+   * `trace` is only the chat that already existed when listening started.
+   */
+  onTitleEvent?: (level: "trace" | "debug") => void;
   /** A first prompt older than this is ignored: the title event of a new chat follows its first prompt within seconds. */
   maxAgeMs?: number;
 };
@@ -232,9 +237,9 @@ export type TitleDecision = {
 };
 
 const logDecision = (log: Logger | undefined, session: string, result: TitleDecision): void => {
-  const early =
-    result.reason === "no first prompt" || result.reason === "before startup" || result.reason === "too old";
-  const write = early ? log?.debug.bind(log) : log?.info.bind(log);
+  const early = result.reason === "no first prompt" || result.reason === "too old";
+  const write =
+    result.reason === "before startup" ? log?.trace.bind(log) : early ? log?.debug.bind(log) : log?.info.bind(log);
   write?.("decision", {
     session,
     matched: result.matched,
@@ -258,7 +263,17 @@ export const catalogTitleDecision = async (
   change: CatalogTitleChange,
   options: TitleChangeOptions = {},
 ): Promise<TitleDecision> => {
+  let announced = false;
+  /** The arrival line waits until the prompt time is known, so a before-startup chat is not also logged at debug. */
+  const announceEvent = (reason: TitleDecision["reason"]): void => {
+    if (announced) {
+      return;
+    }
+    announced = true;
+    options.onTitleEvent?.(reason === "before startup" ? "trace" : "debug");
+  };
   const decide = (result: TitleDecision): TitleDecision => {
+    announceEvent(result.reason);
     logDecision(options.decisionLog, change.sessionId, result);
     return result;
   };
@@ -303,6 +318,7 @@ export const catalogTitleDecision = async (
       title: request.title,
     });
   }
+  announceEvent("rename request");
   const title = await applyRequest(deps, change.sessionId, request, options);
   return decide({
     outcome: "renamed",

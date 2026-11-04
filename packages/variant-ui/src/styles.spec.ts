@@ -64,9 +64,12 @@ describe("styles", () => {
     }
   });
 
-  it("paints a clean implode in the foreground and a dirty one in the error colour", () => {
+  it("paints a watching dot green and mutes a dirty implode by disabling it", () => {
+    expect(declarations(css, ":root")["--vv-green"]).toBe("var(--vscode-charts-green, #1a7f37)");
+    expect(declarations(css, ".state-watching").color).toBe("var(--vv-green)");
     expect(declarations(css, ".implode-clean").color).toBe("var(--vv-fg)");
-    expect(declarations(css, ".implode-dirty").color).toBe("var(--vv-error)");
+    expect(declarations(css, ".implode-dirty").color).toBe("currentColor");
+    expect(declarations(css, ".icon-button:disabled").opacity).toBe("0.4");
     expect(declarations(css, ".implode-clean")["margin-left"]).toBe("auto");
     expect(declarations(css, ".implode-dirty")["margin-left"]).toBe("auto");
   });

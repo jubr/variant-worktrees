@@ -4111,10 +4111,14 @@ export class EventEmitter<T> {
   }
 }
 
+export class ThemeColor {
+  constructor(readonly id: string) {}
+}
+
 export class ThemeIcon {
   constructor(
     readonly id: string,
-    readonly color?: unknown,
+    readonly color?: ThemeColor,
   ) {}
 }
 
@@ -4282,6 +4286,54 @@ export const createWebviewViewStub = (viewType: string) => {
 };
 
 export const window = {
+  createInputBox: (): {
+    title: string;
+    value: string;
+    placeholder: string;
+    validationMessage: string | undefined;
+    show: () => void;
+    hide: () => void;
+    dispose: () => void;
+    onDidAccept: (listener: () => unknown) => Disposable;
+    onDidHide: (listener: () => unknown) => Disposable;
+    accept: () => Promise<void>;
+    dismiss: () => void;
+  } => {
+    const acceptors = new Set<() => unknown>();
+    const hiders = new Set<() => unknown>();
+    const box = {
+      title: "",
+      value: "",
+      placeholder: "",
+      validationMessage: undefined as string | undefined,
+      show: () => {},
+      hide: () => {
+        for (const listener of hiders) {
+          void listener();
+        }
+      },
+      dispose: () => {},
+      onDidAccept: (listener: () => unknown) => {
+        acceptors.add(listener);
+        return { dispose: () => acceptors.delete(listener) };
+      },
+      onDidHide: (listener: () => unknown) => {
+        hiders.add(listener);
+        return { dispose: () => hiders.delete(listener) };
+      },
+      accept: async () => {
+        for (const listener of acceptors) {
+          await listener();
+        }
+      },
+      dismiss: () => {
+        for (const listener of hiders) {
+          void listener();
+        }
+      },
+    };
+    return box;
+  },
   showInformationMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showWarningMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showErrorMessage: async (..._args: unknown[]): Promise<unknown> => undefined,

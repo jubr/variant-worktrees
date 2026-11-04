@@ -50,6 +50,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
         cwd,
         useWorktree: options.worktree ?? true,
         adapter,
+        ...(options.now ? { now: options.now } : {}),
       });
     } finally {
       await adapter.close();

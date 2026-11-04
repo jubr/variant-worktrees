@@ -265,10 +265,10 @@ export const startChatRenameTrigger = (
       const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
       const checked = new Set<string>();
       eventSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), (change) => {
-        // Every event is logged as it arrives, also the later ones (renames) that are skipped below.
-        log.child("title-event").debug("event", { session: change.sessionId, title: change.title });
-        // The first title event of a chat is the AI name for its first prompt. Later events are renames; skip them.
+        const decisionLog = log.child("title-event");
+        // A later event is a rename of a chat already handled. It is logged at debug and makes no decision.
         if (checked.has(change.sessionId)) {
+          decisionLog.debug("event", { session: change.sessionId, title: change.title });
           return;
         }
         checked.add(change.sessionId);
@@ -278,7 +278,6 @@ export const startChatRenameTrigger = (
             host.firstPromptRetry?.attempts,
             host.firstPromptRetry?.delayMs,
           );
-        const decisionLog = log.child("title-event");
         void catalogTitleDecision(resolveChatRenameDeps(context), change, {
           ...options,
           readFirstPrompt: readPrompt,
@@ -286,6 +285,9 @@ export const startChatRenameTrigger = (
           notBeforeMs: startedAtMs,
           maxLines: settings.titleEventPromptLines,
           decisionLog,
+          onTitleEvent: (level) => {
+            decisionLog[level]("event", { session: change.sessionId, title: change.title });
+          },
         })
           .then((decision) =>
             decision.reason === "no first prompt" ? reportUnreadable(change.sessionId, dbPath, decisionLog) : undefined,

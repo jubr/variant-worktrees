@@ -28,6 +28,16 @@
 
 ### Changed
 
+- The Explorer section starts collapsed and expands when the workspace uses variants or looks ready for them.
+  Without a config file it offers **Onboard**. The dialog confirm button is **Initialize**, and **Prefix** sits
+  under **Advanced**. **Create variant** sits left of Sort. Sort labels are `Name (A→Z)`, `Name (Z→A)`,
+  `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. `main` stays pinned
+  first. Down is a hollow dot, watching a filled green dot, and up a different shape. The implode control is an
+  explosion, muted when implode would fail. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
+- **Breaking:** the implode report is a dark-yellow `+ <command>` trace around plain `git status --porcelain`,
+  `git diff --stat`, and one filtered `git diff -U1` per file. `maxDiffLines` counts those kept patch lines.
+  Over the limit the patches are omitted and the status and the stat stay. The text summary after the command
+  returns does not repeat the report.
 - **Breaking:** `instances` is now `watches` everywhere: `variant.watches`, `runtime.watches`, the fields of records,
   status, list and reports, the MCP tools, the HTTP API and the UI. Environment variables, `${key.port}` and
   container names are unchanged. See the migration above.
@@ -41,6 +51,11 @@
 - `kind` and `dir` of a watch are optional; `dir` defaults to the key of the watch.
 - The release changelog no longer keeps an empty `Unreleased` heading in the promoted section.
 - The GitHub Actions workflows use the Node 24 versions of their actions.
+- Play, stop and implode in the Variants view and the panel run in the item's directory (the variant worktree, or the
+  main checkout for `main`). `create`, `watch`, `down` and `implode` of an explicit slug started in the variant root use
+  the main checkout for git. A `variants.yaml` symlink in that root is skipped and warned about as an anti-pattern.
+- A title event for a chat that already existed at startup, and the decision that skips it (`before startup`), are
+  logged at Trace. A title event after startup stays at Debug.
 
 ## [0.0.5] - 2026-11-03
 

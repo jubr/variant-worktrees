@@ -20,7 +20,7 @@ variant init --prefix wt- --mise=false
 variant init --force
 ```
 
-`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`, and the VS Code extension has the command **Variant: Initialize in this Repo**.
+`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`. The VS Code extension command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure. Without a config file the Explorer section offers **Onboard**, which opens that dialog.
 
 ## config
 
@@ -109,7 +109,7 @@ variant implode -s feature-forty-two --force
 
 ## ui
 
-Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension. It lists every variant with its state (watching, up, down) in name order and offers variant watch (the play icon), stop and implode. In the editor, **Sort** (also the setting `variant.sort`) orders the Explorer view and the panel by name, created or changed. The trash icon is at the right of every row except `main`: theme foreground when implode would succeed, red when it would fail.
+Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension. It lists every variant with its state (watching, up, down). `main` stays pinned first. The run control is the play icon **variant watch** when the variant is down, and a square stop when it is watching or up. The implode control is an explosion, muted when implode would fail, and `main` has none. In the editor, **Sort** (also the setting `variant.sort`) uses the labels `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
 
 ```bash
 variant ui
