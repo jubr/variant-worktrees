@@ -32,7 +32,7 @@ variant config
 
 ## create
 
-Create or refresh a database variant and its worktree. Creating the same isolated variant again is safe.
+Create the git worktree and the state for a slug. This does not create a database schema or file; that is `provision`. Creating the same variant again is safe.
 
 ```bash
 variant create -s feature-forty-two
@@ -40,7 +40,7 @@ variant create -s feature-forty-two
 
 ## list
 
-List the known database variants as a table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of the log file of its detached watch, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
+List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of the log file of its detached watch, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log. A variant with `db.multi` is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record.
 
 ```bash
 variant list
@@ -65,7 +65,7 @@ variant status -s feature-forty-two --json
 
 ## provision
 
-Run the configured install, env file, `up`, step, and seed commands. This prepares the variant without leaving a supervised `watch` in the foreground.
+Create the schema, or every schema of `db.multi`, and run the configured install, env file, `up`, step, and seed commands. A step named `provision` replaces the builtin schema creation and runs once. This prepares the variant without leaving a supervised `watch` in the foreground.
 
 ```bash
 variant provision -s feature-forty-two
@@ -73,7 +73,7 @@ variant provision -s feature-forty-two
 
 ## up
 
-Recreate the database and run the watches as containers. One runtime exists per slug, so this stops recorded `watch` processes for that variant first.
+Run the watches as containers. This implies `seed`, so the worktree, the schemas and the seed exist first. It does not drop an existing schema. One runtime exists per slug, so this stops recorded `watch` processes for that variant first.
 
 ```bash
 variant up -s feature-forty-two
@@ -94,13 +94,24 @@ Run the watches as supervised host processes. This removes the variant's contain
 ```bash
 variant watch -s feature-forty-two
 variant watch -s feature-forty-two --detach
+variant watch -s feature-forty-two --reprovision
 ```
+
+`--reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again. Without it, `watch` does not drop a schema.
 
 Without `--detach`, the command stays attached. It exits 130 on interrupt, 1 when a watch ends or the worktree disappears, and 0 only when detached. `--detach` starts the processes in the background and returns. Detached, the output of all its processes goes to one log file, `variants.watch.log` in the worktree next to `variants.local.yaml`: the file is emptied when the watch starts, each process gets a `[key] command` line, and the output arrives while the processes run, so `tail -f` follows it in real time. `list` and `status` show its path; `down` keeps the file. An attached watch writes no log file, its output stays on the console.
 
+## deprovision
+
+Stop the watches, then drop the schema `v_<slug>`. With `db.multi`, drop every schema under the expanded `schemaPrefix`. A step named `deprovision` replaces that drop and runs once. `VARIANT_STEP_DEPROVISION=no` skips the step and does not fall back to the builtin drop. The worktree, the storage directory and the state stay. It refuses `main`.
+
+```bash
+variant deprovision -s feature-forty-two
+```
+
 ## implode
 
-Stop the variant, drop its database and storage, clear its state, and remove its worktree. This includes `down`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays.
+Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays.
 
 ```bash
 variant implode -s feature-forty-two

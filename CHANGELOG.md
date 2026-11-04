@@ -4,6 +4,8 @@
 
 ### Added
 
+- `db.multi` (PostgreSQL): `schemaPrefix` (default `v_${slug}-`) and exactly one of `tenants` and `tenantsCmd`. A variant owns one schema per tenant. `${multi.tenants}` and `${multi.schemaPrefix}` pass the list and the prefix to a step. `list` stays one row; `status`, `list --verbose`, JSON, YAML and MCP carry `schemas`.
+- `variant deprovision` drops the schema, or every schema under the prefix. A step named `deprovision` replaces that drop. `watch --reprovision` runs it before provisioning again. `down` does not drop.
 - A key that `variants.yaml` or `variants.local.yaml` does not know is a warning (`<file>: unknown key <path>` on
   standard error) instead of an error; a value of the wrong type is still an error.
 - `variant.ports.range` (`LOW-HIGH`, default `42000-42999`): free ports of watches and of `variant ui` are picked from
@@ -28,6 +30,8 @@
 
 ### Changed
 
+- **Breaking:** `variant.steps` is a map keyed by step name, with `cmd` instead of `run`. A custom step sets exactly one of `runBefore` and `runAfter`. A list no longer loads. `run` without `cmd` is still read as the command, with a warning.
+- `create` records the worktree and the state and does not create a schema. `provision` does, unless a step named `provision` replaces it. `up` no longer drops the database first. `implode` implies `deprovision`.
 - The Explorer section starts collapsed and expands when the workspace uses variants or looks ready for them.
   Without a config file it offers **Onboard**. The dialog confirm button is **Initialize**, and **Prefix** sits
   under **Advanced**. **Create variant** sits left of Sort. Sort labels are `Name (A→Z)`, `Name (Z→A)`,

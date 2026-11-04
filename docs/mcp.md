@@ -33,11 +33,12 @@ MCP client configuration:
   port, pid, URL, liveness and uptime). An unknown slug is an error.
 - `variant_create({ slug })` — create an isolated variant.
 - `variant_provision({ slug, verbose })` — run configured install, env file, `up`, step and seed commands.
-- `variant_up({ slug, verbose })` — recreate the database and run the watches as containers; returns the
+- `variant_up({ slug, verbose })` — run the watches as containers after provision and seed; returns the
   mode, worktree, database target, and the port, URL and container name of each watch.
 - `variant_down({ slug })` — stop the processes and containers of a variant and keep its data.
-- `variant_watch({ slug, verbose })` — start the watch processes detached and return their pids, ports and
-  URLs; their output goes to `variants.watch.log` in the worktree (see `log` of `variant_status`). A tool call cannot stay attached to a console, so `detach` is always set.
+- `variant_deprovision({ slug, verbose })` — stop the watches and drop the schemas. A `deprovision` script replaces the drop. It refuses `main` and leaves the worktree.
+- `variant_watch({ slug, verbose, reprovision })` — start the watch processes detached and return their pids, ports and
+  URLs; their output goes to `variants.watch.log` in the worktree (see `log` of `variant_status`). `reprovision` drops the schemas before provisioning again. A tool call cannot stay attached to a console, so `detach` is always set. `variant_list` and `variant_status` carry `schemas` when `db.multi` is set.
 - `variant_implode({ slug, force })` — stop the variant, drop its database and storage, clear its state and
   remove its worktree. It refuses `main` and work that is not merged into the base branch; the error names
   `force`, which overrides the gate.
