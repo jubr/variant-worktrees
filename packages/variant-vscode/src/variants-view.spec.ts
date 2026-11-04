@@ -105,6 +105,79 @@ describe("Variants view registration", () => {
 });
 
 describe("inline actions", () => {
+  it("play from the variant root watches in the variant worktree", async () => {
+    const foo = record("foo", { worktree: "/work/_v-foo" });
+    const fake = fakeClient([foo]);
+    const directories: Array<string | undefined> = [];
+    const { command, node } = await open([foo], {
+      root: "/work",
+      loadClient: async (cwd?: string) => {
+        directories.push(cwd);
+        return fake.client;
+      },
+    });
+
+    await command("variant.play")(node("foo"));
+
+    expect(fake.calls).toEqual([{ name: "watch", slug: "foo", options: expect.objectContaining({ detach: true }) }]);
+    expect(directories.filter((cwd) => cwd !== undefined)).toEqual(["/work/_v-foo"]);
+  });
+
+  it("stop from the variant root brings the variant down in its worktree", async () => {
+    const foo = record("foo", { worktree: "/work/_v-foo", mode: "watch", watches: { fe: { alive: true } } });
+    const fake = fakeClient([foo]);
+    const directories: Array<string | undefined> = [];
+    const { command, node } = await open([foo], {
+      root: "/work",
+      loadClient: async (cwd?: string) => {
+        directories.push(cwd);
+        return fake.client;
+      },
+    });
+
+    await command("variant.stop")(node("foo"));
+
+    expect(fake.calls.map((call) => [call.name, call.slug])).toEqual([["down", "foo"]]);
+    expect(directories.filter((cwd) => cwd !== undefined)).toEqual(["/work/_v-foo"]);
+  });
+
+  it("implode from the variant root removes the variant in its worktree", async () => {
+    showWarningMessage.mockImplementation((async () => "Implode") as never);
+    const foo = record("foo", { worktree: "/work/_v-foo" });
+    const fake = fakeClient([foo]);
+    const directories: Array<string | undefined> = [];
+    const { command, node } = await open([foo], {
+      root: "/work",
+      loadClient: async (cwd?: string) => {
+        directories.push(cwd);
+        return fake.client;
+      },
+    });
+
+    await command("variant.implode")(node("foo"));
+
+    expect(fake.calls.map((call) => [call.name, call.slug])).toEqual([["implode", "foo"]]);
+    expect(directories.filter((cwd) => cwd !== undefined)).toEqual(["/work/_v-foo"]);
+  });
+
+  it("play on main watches in the main checkout", async () => {
+    const main = record("main", { worktree: "/work/app", implodeClean: false });
+    const fake = fakeClient([main]);
+    const directories: Array<string | undefined> = [];
+    const { command, node } = await open([main], {
+      root: "/work",
+      loadClient: async (cwd?: string) => {
+        directories.push(cwd);
+        return fake.client;
+      },
+    });
+
+    await command("variant.play")(node("main"));
+
+    expect(fake.calls).toEqual([{ name: "watch", slug: "main", options: expect.objectContaining({ detach: true }) }]);
+    expect(directories.filter((cwd) => cwd !== undefined)).toEqual(["/work/app"]);
+  });
+
   it("play starts a detached watch of the variant", async () => {
     const { command, node, fake } = await open();
 

@@ -41,6 +41,11 @@ export interface VariantActions {
 export const createActions = (deps: ActionDeps): VariantActions => {
   const report = { log: (line: string) => deps.log?.info(line) };
   const find = (slug: string): VariantRecord | undefined => deps.records().find((entry) => entry.slug === slug);
+  /** The item directory: its worktree, which for `main` is the main checkout. Absent in a fixture that never set one. */
+  const directoryOf = (slug: string): string | undefined => {
+    const worktree = find(slug)?.worktree;
+    return worktree ? worktree : undefined;
+  };
   const stopUiServer = async (): Promise<void> => {
     const pid = find("main")?.watches?.[UI_WATCH_KEY]?.pid;
     if (pid === undefined) {
@@ -50,19 +55,19 @@ export const createActions = (deps: ActionDeps): VariantActions => {
   };
   return {
     watch: async (slug) => {
-      await (await deps.loadClient()).watch(slug, { ...report, detach: true });
+      await (await deps.loadClient(directoryOf(slug))).watch(slug, { ...report, detach: true });
     },
     down: async (slug) => {
       if (slug === UI_WATCH_KEY) {
         return stopUiServer();
       }
-      await (await deps.loadClient()).down(slug, report);
+      await (await deps.loadClient(directoryOf(slug))).down(slug, report);
     },
     implode: async (slug) => {
       if (slug === "main") {
         throw new Error("main cannot be imploded");
       }
-      await (await deps.loadClient()).implode(slug, report);
+      await (await deps.loadClient(directoryOf(slug))).implode(slug, report);
     },
     showOutput: async (slug) => {
       const log = find(slug)?.log;
