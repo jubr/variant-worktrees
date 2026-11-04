@@ -360,6 +360,7 @@ export {
   variantsJsonSchema,
   variantsLocalJsonSchema,
 } from "./schema.js";
+export { formatLocalStamp, parseLocalStamp } from "./stamp.js";
 export { renderTemplate, type TemplateContext } from "./template.js";
 export { resolveMainVscodeDir } from "./vscode-dir.js";
 export type { ChatRenamerConfig };

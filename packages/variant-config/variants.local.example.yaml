@@ -11,6 +11,7 @@ runtime:
   mode: watch # up
   dir: /Users/me/work/_v-demo-embody-assume-user # the variant's worktree
   log: /Users/me/work/_v-demo-embody-assume-user/variants.watch.log # output of a detached watch; follow it with tail -f
+  createdAt: 2026-11-04_12:22:05 # local time the variant was created, YYYY-MM-DD_HH:MM:SS
   db: # the same settings as `db` in variants.yaml; only `port` may also be a ${NAME} template
     dialect: postgres # sqlite | mysql
     url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set
@@ -27,6 +28,7 @@ runtime:
       port: 62060
       pid: 123
       url: http://demo-embody-assume-user.vw.localhost:62060/
+      startedAt: 2026-11-04_12:30:00 # local time this watch started, YYYY-MM-DD_HH:MM:SS
     be:
       port: 62061
       pid: 456

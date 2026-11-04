@@ -54,6 +54,26 @@ describe("VariantsLocalSchema", () => {
     expect(parse({ mode: "dev" }).success).toBe(false);
     expect(parse({ unknown: true }).success).toBe(false);
   });
+
+  it("accepts createdAt and a watch startedAt in local stamp form", () => {
+    const result = parse({
+      createdAt: "2026-11-04_12:22:05",
+      watches: { fe: { startedAt: "2026-11-04_12:30:00", pid: 123, url: "http://demo.vw.localhost:62060" } },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.runtime?.createdAt).toBe("2026-11-04_12:22:05");
+      expect(result.data.runtime?.watches?.fe?.startedAt).toBe("2026-11-04_12:30:00");
+    }
+  });
+
+  it("rejects a createdAt or startedAt that is not YYYY-MM-DD_HH:MM:SS", () => {
+    expect(parse({ createdAt: "yesterday" }).success).toBe(false);
+    expect(parse({ createdAt: "2026-11-04T12:22:05" }).success).toBe(false);
+    expect(parse({ createdAt: "2026-02-31_00:00:00" }).success).toBe(false);
+    expect(parse({ watches: { fe: { startedAt: "noon" } } }).success).toBe(false);
+  });
 });
 
 describe("readRuntime and loadConfig", () => {
@@ -79,8 +99,24 @@ describe("readRuntime and loadConfig", () => {
       expect(readRuntime(directory, {})).toEqual({ db: { schema: "v_demo" } });
     }));
 
+  it("carries createdAt and a watch startedAt", () =>
+    withProject(
+      "runtime:\n  createdAt: 2026-11-04_12:22:05\n  watches:\n    fe:\n      startedAt: 2026-11-04_12:30:00\n      pid: 123\n      url: http://demo.vw.localhost:62060\n",
+      (directory) => {
+        expect(loadConfig({ cwd: directory }).runtime).toEqual({
+          createdAt: "2026-11-04_12:22:05",
+          watches: { fe: { startedAt: "2026-11-04_12:30:00", pid: 123, url: "http://demo.vw.localhost:62060" } },
+        });
+      },
+    ));
+
   it("fails validation on an invalid local file", () =>
     withProject("runtime:\n  watches:\n    fe:\n      pid: 0\n", (directory) => {
+      expect(() => loadConfig({ cwd: directory })).toThrow();
+    }));
+
+  it("fails validation when createdAt is not a local stamp", () =>
+    withProject("runtime:\n  createdAt: yesterday\n", (directory) => {
       expect(() => loadConfig({ cwd: directory })).toThrow();
     }));
 });

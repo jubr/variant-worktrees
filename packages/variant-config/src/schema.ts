@@ -1,6 +1,7 @@
 import { isAbsolute } from "node:path";
 import { ChatRenamerConfigSchema } from "chat-renamer-config/schema";
 import { z } from "zod/v4";
+import { parseLocalStamp } from "./stamp.js";
 
 export const DbDialectSchema = z.enum(["postgres", "mysql", "sqlite"]);
 export type DbDialect = z.infer<typeof DbDialectSchema>;
@@ -333,11 +334,17 @@ const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
 export const RuntimeDbSchema = DbConfigSchema.extend({ port: portOrTemplateSchema.optional() });
 
+/** Local wall time `YYYY-MM-DD_HH:MM:SS`, zero-padded, 24-hour, no timezone suffix. */
+const localStampSchema = z.string().refine((value): boolean => parseLocalStamp(value) !== undefined, {
+  message: "expected YYYY-MM-DD_HH:MM:SS",
+});
+
 /** What is known about one running watch of a variant. */
 export const RuntimeWatchSchema = z.strictObject({
   port: PortSchema.optional(),
   pid: z.number().int().positive().optional(),
   url: z.string().min(1).optional(),
+  startedAt: localStampSchema.optional(),
 });
 export type RuntimeWatch = z.infer<typeof RuntimeWatchSchema>;
 
@@ -348,6 +355,7 @@ export const RuntimeSchema = z.strictObject({
   dir: z.string().min(1).optional(),
   /** The log file of a detached `watch`: the output of all its processes. */
   log: z.string().min(1).optional(),
+  createdAt: localStampSchema.optional(),
   db: RuntimeDbSchema.optional(),
   /** Keyed by the key of the entry in `variant.watches`. */
   watches: z.record(z.string().min(1), RuntimeWatchSchema).optional(),

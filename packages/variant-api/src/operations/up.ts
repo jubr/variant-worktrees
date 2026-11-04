@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
-import type { ResolvedConfig, Runtime, WatchContainer } from "variant-config";
+import { formatLocalStamp, type ResolvedConfig, type Runtime, readRuntime, type WatchContainer } from "variant-config";
 import { containerName, engineHas, networkName, resolveContainerEngine, runEngine } from "../containers.js";
 import { announce, logToStderr } from "../ready.js";
 import { type VariantRun, variantVariables } from "../run-context.js";
-import { writeVariantRuntime } from "../runtime-state.js";
+import { variantConfigDir, writeVariantRuntime } from "../runtime-state.js";
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
 import type { UpOptions, UpResult, WatchReport } from "../types.js";
@@ -17,26 +17,41 @@ export const runtimeOf = (
   mode: "up" | "watch",
   pids: Readonly<Record<string, number>> = {},
   log?: string,
+  now: Date = new Date(),
 ): Runtime => {
+  let previous: Runtime | undefined;
+  try {
+    previous = readRuntime(variantConfigDir(config, run.worktree), {});
+  } catch {
+    previous = undefined;
+  }
+  const startedAt = formatLocalStamp(now);
   const db = config.db;
   return {
     slug: run.slug,
     mode,
     dir: run.worktree,
     ...(log ? { log } : {}),
+    ...(previous?.createdAt ? { createdAt: previous.createdAt } : {}),
     db: {
       ...(db.dialect ? { dialect: db.dialect } : {}),
       ...(db.dialect === "sqlite" ? { filename: run.target } : { schema: run.target }),
     },
     watches: Object.fromEntries(
-      [...new Set([...Object.keys(config.variant.watches), ...Object.keys(pids)])].map((key) => [
-        key,
-        {
-          ...(run.ports[key] !== undefined ? { port: run.ports[key] } : {}),
-          ...(run.urls[key] ? { url: run.urls[key] } : {}),
-          ...(pids[key] !== undefined ? { pid: pids[key] } : {}),
-        },
-      ]),
+      [...new Set([...Object.keys(config.variant.watches), ...Object.keys(pids)])].map((key) => {
+        const starting = mode === "up" || pids[key] !== undefined;
+        const kept = previous?.watches?.[key]?.startedAt;
+        const stamp = starting ? startedAt : kept;
+        return [
+          key,
+          {
+            ...(run.ports[key] !== undefined ? { port: run.ports[key] } : {}),
+            ...(run.urls[key] ? { url: run.urls[key] } : {}),
+            ...(pids[key] !== undefined ? { pid: pids[key] } : {}),
+            ...(stamp ? { startedAt: stamp } : {}),
+          },
+        ];
+      }),
     ),
   };
 };
@@ -140,7 +155,7 @@ export const upVariant = async (
   const engine = resolveContainerEngine(config);
   const { run, provisioned } = await prepareVariant(context, slug, "up", options);
   const { started } = await startContainers(context, run, engine, options.log ?? logToStderr);
-  writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "up"));
+  writeVariantRuntime(config, run.worktree, runtimeOf(config, run, "up", {}, undefined, context.now?.() ?? new Date()));
   await announce(context, run, options);
   return {
     slug,
