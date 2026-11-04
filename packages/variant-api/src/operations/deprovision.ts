@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { groupDatabaseSchemas } from "variant-config";
 import { echoCommand, type ProgressLog } from "../echo.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
 import { execute } from "../provisioning.js";
@@ -19,8 +20,8 @@ export interface DeprovisionPhase {
 
 /**
  * The deprovision phase alone: a `deprovision` command runs once and replaces the builtin drop.
- * With no such command, the builtin drops the target, or every schema under the expanded prefix.
- * It does not run `tenantsCmd` and it does not drop roles. `VARIANT_STEP_DEPROVISION=no` skips both.
+ * With no such command, the builtin drops the target, every schema under the expanded prefix, and every
+ * `v_<slug>-<tenant>` schema grouped under that slug. It does not run `tenantsCmd` and it does not drop roles. `VARIANT_STEP_DEPROVISION=no` skips both.
  */
 export const deprovisionPhase = async (
   context: OperationContext,
@@ -51,15 +52,21 @@ export const deprovisionPhase = async (
   if (run.slug === "main") {
     return { commands: [], output: "", dropped: [] };
   }
+  const grouped = groupDatabaseSchemas(await context.adapter.list())
+    .filter((group) => group.slug === run.slug)
+    .flatMap((group) => group.schemas);
   if (run.multi) {
-    const names = (await context.adapter.matchingSchemas(run.multi.prefix)).slice().sort();
+    const names = [...new Set([...(await context.adapter.matchingSchemas(run.multi.prefix)), ...grouped])].sort();
     for (const name of names) {
       await context.adapter.dropSchema(name);
     }
     return { commands: [], output: "", dropped: names };
   }
+  for (const name of grouped) {
+    await context.adapter.dropSchema(name);
+  }
   const removed = await context.adapter.destroy(run.slug);
-  return { commands: [], output: "", dropped: removed ? [run.target] : [] };
+  return { commands: [], output: "", dropped: removed ? [...grouped, run.target] : grouped };
 };
 
 /** Stops the watches, then runs the deprovision phase. `main` is refused. */

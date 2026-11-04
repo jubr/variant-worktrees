@@ -99,3 +99,31 @@ export const groupOrphanSchemas = (
   }
   return [...groups.entries()].map(([slug, schemas]) => ({ slug, schemas: [...schemas].sort() }));
 };
+
+const TENANT_TAIL = /^v_(.+)-([A-Za-z0-9_]+)$/;
+
+/**
+ * Groups `v_<slug>-<tenant>` schemas. Hyphens in the slug are stored as underscores, and the tenant
+ * stays after the last hyphen, so `v_fix_entra_vbu_login-de99` is slug `fix-entra-vbu-login`.
+ */
+export const groupDatabaseSchemas = (names: readonly string[]): Array<{ slug: string; schemas: string[] }> => {
+  const groups = new Map<string, string[]>();
+  for (const name of names) {
+    const match = TENANT_TAIL.exec(name);
+    if (match === null) {
+      continue;
+    }
+    const slug = match[1].replaceAll("_", "-");
+    const tenant = match[2];
+    if (!MULTI_PART.test(slug) || slug === "" || !MULTI_PART.test(tenant)) {
+      continue;
+    }
+    const found = groups.get(slug);
+    if (found) {
+      found.push(name);
+    } else {
+      groups.set(slug, [name]);
+    }
+  }
+  return [...groups.entries()].map(([slug, schemas]) => ({ slug, schemas: [...schemas].sort() }));
+};

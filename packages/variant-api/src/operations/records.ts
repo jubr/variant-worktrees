@@ -2,6 +2,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
   type DiscoveredRuntime,
+  groupDatabaseSchemas,
   groupMultiSchemas,
   groupOrphanSchemas,
   LOCAL_FILENAME,
@@ -201,16 +202,23 @@ export const collectRecords = async (
         consumed.add(name);
       }
     }
-    // AIDEV-NOTE: A schema left after the known worktrees is grouped by the last separator of schemaPrefix, so one slug owns every tenant even when the worktree is gone.
+  }
+  const claim = (group: { slug: string; schemas: string[] }): void => {
+    const prior = schemasOf.get(group.slug) ?? [];
+    schemasOf.set(group.slug, [...new Set([...prior, ...group.schemas])].sort());
+    for (const name of group.schemas) {
+      consumed.add(name);
+    }
+  };
+  for (const group of groupDatabaseSchemas(catalog.filter((target) => !consumed.has(target)))) {
+    claim(group);
+  }
+  if (multi !== undefined) {
     for (const group of groupOrphanSchemas(
       catalog.filter((target) => !consumed.has(target)),
       multi.schemaPrefix,
     )) {
-      const prior = schemasOf.get(group.slug) ?? [];
-      schemasOf.set(group.slug, [...prior, ...group.schemas].sort());
-      for (const name of group.schemas) {
-        consumed.add(name);
-      }
+      claim(group);
     }
   }
   const databaseSlugs = new Map(

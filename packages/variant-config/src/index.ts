@@ -400,6 +400,7 @@ export { clearRuntime, readRuntime, readRuntimeState, readRuntimes, writeRuntime
 export { type MigrationResult, migrateFile } from "./migrate-file.js";
 export { miseSearchPlaces, type ResolveMiseOptions, resolveMiseBinary } from "./mise-binary.js";
 export {
+  groupDatabaseSchemas,
   groupMultiSchemas,
   groupOrphanSchemas,
   multiLikePattern,

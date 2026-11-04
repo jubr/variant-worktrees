@@ -422,6 +422,74 @@ describe("one record per variant", () => {
       expect(record).not.toHaveProperty("schemas");
     }));
 
+  it("groups underscore slug schemas that share a hyphen tenant when db.multi is absent", () =>
+    withSchemas(
+      [
+        "v_fix_entra_vbu_login-de99",
+        "v_fix_entra_vbu_login-fr15",
+        "v_fix_entra_vbu_login-it17",
+        "v_fix_entra_vbu_login-nl21",
+        "v_email_transport_mailjet",
+        "v_sso_user_agent_from_user-de99",
+        "v_sso_user_agent_from_user-nl21",
+      ],
+      "db:\n  dialect: postgres\n  host: 127.0.0.1\nvariant: {}\n",
+      async ({ list }) => {
+        const records = await list();
+
+        expect(records.map((record) => record.slug).sort()).toEqual([
+          "email-transport-mailjet",
+          "fix-entra-vbu-login",
+          "sso-user-agent-from-user",
+        ]);
+        expect(records.find((record) => record.slug === "fix-entra-vbu-login")?.dbOnly).toBe(true);
+        expect(records.some((record) => record.slug === "fix-entra-vbu-login-de99")).toBe(false);
+      },
+    ));
+
+  it("drops those schemas when the grouped slug is imploded", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "variant-implode-grouped-"));
+    const names = [
+      "v_fix_entra_vbu_login-de99",
+      "v_fix_entra_vbu_login-fr15",
+      "v_fix_entra_vbu_login-it17",
+      "v_fix_entra_vbu_login-nl21",
+    ];
+    const dropped: string[] = [];
+    try {
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: postgres\n  host: 127.0.0.1\nvariant: {}\n");
+      const context: OperationContext = {
+        config: loadConfig({ cwd: directory, env: {} }),
+        variantRoot: directory,
+        stateDir: join(directory, ".cache", "variants"),
+        cwd: directory,
+        useWorktree: true,
+        adapter: {
+          dialect: "postgres",
+          create: async (slug) => `v_${slug}`,
+          createSchema: async () => {},
+          matchingSchemas: async (prefix) => names.filter((name) => name.startsWith(prefix)),
+          dropSchema: async (name) => {
+            dropped.push(name);
+          },
+          destroy: async (slug) => {
+            dropped.push(`destroy ${slug}`);
+            return true;
+          },
+          list: async () => [...names],
+          target: (slug) => `v_${slug.replaceAll("-", "_")}`,
+          close: async () => {},
+        },
+      };
+
+      await implodeVariant(context, "fix-entra-vbu-login", { log: () => {} });
+
+      expect(dropped.filter((name) => name.startsWith("v_")).sort()).toEqual([...names].sort());
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("keeps a schema whose tenant has left the list", () =>
     withSchemas(["v_demo-east", "v_demo-north"], postgres("    tenants: east\n"), async ({ directory, list }) => {
       mkdirSync(join(directory, "_v-demo"));

@@ -40,7 +40,7 @@ variant create -s feature-forty-two
 
 ## list
 
-List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of the log file of its detached watch, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log. A variant with `db.multi` is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record. Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment.
+List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of the log file of its detached watch, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log. A variant with `db.multi` is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record. Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment. PostgreSQL schemas named `v_<slug>-<tenant>` group the same way when `db.multi` is absent: hyphens in the slug are stored as underscores, and the tenant is the text after the last hyphen, so `v_fix_entra_vbu_login-de99` and its siblings are one row, `fix-entra-vbu-login`.
 
 ```bash
 variant list
@@ -111,7 +111,7 @@ variant deprovision -s feature-forty-two
 
 ## implode
 
-Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds.
+Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers.
 
 ```bash
 variant implode -s feature-forty-two

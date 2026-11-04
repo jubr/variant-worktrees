@@ -2,7 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../src/index.js";
-import { groupMultiSchemas, multiLikePattern, multiSchemaName, parseMultiList } from "../src/multi.js";
+import {
+  groupDatabaseSchemas,
+  groupMultiSchemas,
+  multiLikePattern,
+  multiSchemaName,
+  parseMultiList,
+} from "../src/multi.js";
 import { RuntimeSchema, VariantsConfigSchema } from "../src/schema.js";
 import { renderTemplate } from "../src/template.js";
 
@@ -133,5 +139,21 @@ describe("multi names", () => {
 
   it("groups names that start with the prefix", () => {
     expect(groupMultiSchemas(["v_foo_x_east", "v_fooxx_east", "app"], "v_foo_x_")).toEqual(["v_foo_x_east"]);
+  });
+
+  it("turns an underscored slug and a hyphen tenant into one slug", () => {
+    expect(
+      groupDatabaseSchemas([
+        "v_fix_entra_vbu_login-de99",
+        "v_fix_entra_vbu_login-nl21",
+        "v_email_transport_mailjet",
+        "v_plain",
+      ]),
+    ).toEqual([
+      {
+        slug: "fix-entra-vbu-login",
+        schemas: ["v_fix_entra_vbu_login-de99", "v_fix_entra_vbu_login-nl21"],
+      },
+    ]);
   });
 });
