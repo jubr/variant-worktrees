@@ -13,4 +13,4 @@
 
 - [x] 3.1 Update `packages/chat-renamer-vscode/README.md`, `docs/chat-renamer/index.md` and, where it names the command, `packages/variant-vscode/README.md` to say how the active chat is chosen and that the `active-chat` trace entries show the choice. Verify with `rg "active chat" docs packages/*/README.md` that the wording is consistent.
 - [x] 3.2 Run `task lint`, `task test`, `task build`, `openspec validate --all --strict --no-interactive`, and `task check:full`. Verify each passes.
-- [x] 3.3 Run `task version:incr:patch`, then `task package:vsix`, and verify `out/` holds non-empty `variant-worktrees-<version>.vsix` and `chat-renamer-<version>.vsix` with the bumped version, and `task release:version` passes.
+- [ ] 3.3 Run `task version:incr:patch`, then `task package:vsix`, and verify `out/` holds non-empty `variant-worktrees-<version>.vsix` and `chat-renamer-<version>.vsix` with the bumped version, and `task release:version` passes. Dropped: the version stays 0.0.5.
