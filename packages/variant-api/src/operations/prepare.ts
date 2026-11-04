@@ -34,7 +34,9 @@ export const prepareVariant = async (
   if (slug === "main") {
     worktree = earlier ?? repositoryDirectory(context);
   } else {
-    worktree = (await createVariant(context, slug)).worktree ?? checkoutRoot(repositoryDirectory(context));
+    worktree =
+      (await createVariant(context, slug, { from: options.from })).worktree ??
+      checkoutRoot(repositoryDirectory(context));
   }
 
   const run = await prepareRun(context, slug, worktree);

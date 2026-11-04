@@ -15,6 +15,8 @@ import type { OperationContext } from "./operations/types.js";
 import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from "./run-context.js";
 
 export interface ProvisionOptions {
+  /** Git commit-ish a newly created variant branch starts at. Omitted, the branch starts at `variant.baseBranch`. */
+  from?: string;
   /** Print the full output of steps that set `filterLinesRegex`. */
   verbose?: boolean;
   /** Receives progress lines, such as the command about to run; the default writes to stderr. */

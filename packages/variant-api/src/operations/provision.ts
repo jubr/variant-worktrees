@@ -21,6 +21,7 @@ export const provisionVariant = async (
           config.variant.prefix,
           config.variant,
           config.variant.main,
+          options.from,
         )
       : (locateWorktree(context, slug) ?? checkoutRoot(repositoryDirectory(context)));
   const run = await prepareRun(context, slug, worktree);
