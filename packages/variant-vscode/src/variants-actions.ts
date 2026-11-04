@@ -30,8 +30,8 @@ export interface VariantActions {
   watch(slug: string): Promise<void>;
   /** Brings the variant down; for the `variant-ui` row it stops the UI server instead. */
   down(slug: string): Promise<void>;
-  /** Removes the variant. The caller has asked for confirmation. */
-  implode(slug: string): Promise<void>;
+  /** Removes the variant. The caller has asked for confirmation. `force` discards unmerged work. */
+  implode(slug: string, options?: { force?: boolean }): Promise<void>;
   /** Opens the log of the variant's detached watch in an editor. */
   showOutput(slug: string): Promise<void>;
   openUrl(slug: string): Promise<void>;
@@ -63,11 +63,14 @@ export const createActions = (deps: ActionDeps): VariantActions => {
       }
       await (await deps.loadClient(directoryOf(slug))).down(slug, report);
     },
-    implode: async (slug) => {
+    implode: async (slug, options) => {
       if (slug === "main") {
         throw new Error("main cannot be imploded");
       }
-      await (await deps.loadClient(directoryOf(slug))).implode(slug, report);
+      await (await deps.loadClient(directoryOf(slug))).implode(slug, {
+        ...report,
+        ...(options?.force === true ? { force: true } : {}),
+      });
     },
     showOutput: async (slug) => {
       const log = find(slug)?.log;

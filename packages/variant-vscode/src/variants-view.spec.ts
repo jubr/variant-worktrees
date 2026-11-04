@@ -232,14 +232,80 @@ describe("inline actions", () => {
     expect(entries).toEqual(['implode cancelled {"slug":"demo"}']);
   });
 
-  it("does not implode when the muted explosion is activated", async () => {
+  it("shows a non-modal force warning and does not implode before a choice", async () => {
+    let choose: (value: string | undefined) => void = () => {};
+    showWarningMessage.mockImplementation(
+      (() =>
+        new Promise((resolve) => {
+          choose = resolve;
+        })) as never,
+    );
+    const dirty = record("demo", { implodeClean: false });
+    const { command, node, fake } = await open([dirty]);
+
+    const pending = command("variant.implodeDirty")(node("demo"));
+
+    expect(showWarningMessage.mock.calls).toEqual([
+      ["Clean implode failed, do you want to `--force`?", "Cancel", "Force"],
+    ]);
+    expect(fake.calls).toEqual([]);
+
+    choose(undefined);
+    await pending;
+  });
+
+  it("leaves the variant and logs implode cancelled when Force is cancelled", async () => {
+    showWarningMessage.mockImplementation((async () => "Cancel") as never);
+    const entries: string[] = [];
+    const dirty = record("demo", { implodeClean: false });
+    const { command, node, fake, view } = await open([dirty], {
+      log: {
+        info: (message, fields) => entries.push(`${message} ${JSON.stringify(fields ?? {})}`),
+        error: () => entries.push("error"),
+      },
+    });
+
+    await command("variant.implodeDirty")(node("demo"));
+
+    expect(showWarningMessage.mock.calls).toEqual([
+      ["Clean implode failed, do you want to `--force`?", "Cancel", "Force"],
+    ]);
+    expect(fake.calls).toEqual([]);
+    expect(view.store.records().map((entry) => entry.slug)).toContain("demo");
+    expect(entries).toEqual(['implode cancelled {"slug":"demo"}']);
+  });
+
+  it("leaves the variant and logs implode cancelled when the force warning is dismissed", async () => {
+    const entries: string[] = [];
+    const dirty = record("demo", { implodeClean: false });
+    const { command, node, fake, view } = await open([dirty], {
+      log: {
+        info: (message, fields) => entries.push(`${message} ${JSON.stringify(fields ?? {})}`),
+        error: () => entries.push("error"),
+      },
+    });
+
+    await command("variant.implodeDirty")(node("demo"));
+
+    expect(showWarningMessage.mock.calls).toEqual([
+      ["Clean implode failed, do you want to `--force`?", "Cancel", "Force"],
+    ]);
+    expect(fake.calls).toEqual([]);
+    expect(view.store.records().map((entry) => entry.slug)).toContain("demo");
+    expect(entries).toEqual(['implode cancelled {"slug":"demo"}']);
+  });
+
+  it("implodes with force and skips the clean modal when Force is chosen", async () => {
+    showWarningMessage.mockImplementation((async () => "Force") as never);
     const dirty = record("demo", { implodeClean: false });
     const { command, node, fake } = await open([dirty]);
 
     await command("variant.implodeDirty")(node("demo"));
 
-    expect(showWarningMessage).not.toHaveBeenCalled();
-    expect(fake.calls).toEqual([]);
+    expect(showWarningMessage.mock.calls).toEqual([
+      ["Clean implode failed, do you want to `--force`?", "Cancel", "Force"],
+    ]);
+    expect(fake.calls).toEqual([{ name: "implode", slug: "demo", options: expect.objectContaining({ force: true }) }]);
   });
 
   it("records play in the extension log, including a line the watch reports", async () => {

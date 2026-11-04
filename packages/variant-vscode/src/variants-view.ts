@@ -163,7 +163,22 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
         : attempt("stop", () => store.run(slug, () => actions.down(slug)), { slug });
     }),
     register("variant.implode", implode),
-    register("variant.implodeDirty", () => Promise.resolve()),
+    register("variant.implodeDirty", async (node) => {
+      const slug = slugOf(node);
+      if (slug === undefined) {
+        return;
+      }
+      const choice = await vscode.window.showWarningMessage(
+        "Clean implode failed, do you want to `--force`?",
+        "Cancel",
+        "Force",
+      );
+      if (choice !== "Force") {
+        log?.info("implode cancelled", { slug });
+        return;
+      }
+      return attempt("implode", () => store.run(slug, () => actions.implode(slug, { force: true })), { slug });
+    }),
     register("variant.create", async () => {
       const box = vscode.window.createInputBox();
       box.title = "Create variant";
