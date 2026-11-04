@@ -21,7 +21,11 @@ const rememberCreatedAt = (context: OperationContext, directory: string): void =
   writeRuntime(directory, { ...existing, createdAt: formatLocalStamp(context.now?.() ?? new Date()) });
 };
 
-export const createVariant = async (context: OperationContext, requestedSlug?: string): Promise<VariantRecord> => {
+export const createVariant = async (
+  context: OperationContext,
+  requestedSlug?: string,
+  options?: { from?: string },
+): Promise<VariantRecord> => {
   const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
   const existing = readState(context.stateDir, slug);
   const worktree =
@@ -33,6 +37,7 @@ export const createVariant = async (context: OperationContext, requestedSlug?: s
           context.config.variant.prefix,
           context.config.variant,
           context.config.variant.main,
+          options?.from,
         )
       : undefined;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);

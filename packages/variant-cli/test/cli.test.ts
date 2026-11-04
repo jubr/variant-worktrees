@@ -45,6 +45,25 @@ describe("variant CLI", () => {
     }
   });
 
+  it("lists --from with no short flag on the commands that create a worktree", async () => {
+    for (const name of ["create", "provision", "up", "watch"]) {
+      const help = (await runCli([name, "--help"])).stdout;
+      expect(help).toContain("--from");
+      expect(help).not.toContain("-f, --from");
+    }
+    const short = await runCli(["create", "-f", "feat/other"]);
+    expect(short.exitCode).not.toBe(0);
+    expect(short.stderr).toContain("Unknown flag");
+  });
+
+  it("rejects --from on down and implode", async () => {
+    for (const name of ["down", "implode"]) {
+      const result = await runCli([name, "--from", "abc123"]);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("Unknown flag: --from");
+    }
+  });
+
   it("takes --detach, --force and --verbose", async () => {
     expect((await runCli(["watch", "--help"])).stdout).toContain("--detach");
     expect((await runCli(["watch", "--help"])).stdout).toContain("--reprovision");

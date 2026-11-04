@@ -34,8 +34,11 @@ variant config
 
 Create the git worktree and the state for a slug. This does not create a database schema or file; that is `provision`. Creating the same variant again is safe.
 
+`--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there. Omit it and the branch starts at `variant.baseBranch`. An existing worktree for the slug, or a branch that already uses any configured prefix, is checked out as it is; `--from` does not move it. `implode` still requires a merge into `variant.baseBranch`. `provision`, `up`, and `watch` take the same flag, because each of them creates the worktree when it is missing.
+
 ```bash
 variant create -s feature-forty-two
+variant create -s feature-forty-two --from feat/other
 ```
 
 ## list
@@ -69,7 +72,10 @@ Create the schema, or every schema of `db.multi`, and run the configured install
 
 ```bash
 variant provision -s feature-forty-two
+variant provision -s feature-forty-two --from feat/other
 ```
+
+`--from` starts a new branch at that commit. See [create](#create).
 
 ## up
 
@@ -77,7 +83,10 @@ Run the watches as containers. This implies `seed`, so the worktree, the schemas
 
 ```bash
 variant up -s feature-forty-two
+variant up -s feature-forty-two --from feat/other
 ```
+
+`--from` starts a new branch at that commit. See [create](#create).
 
 ## down
 
@@ -95,7 +104,10 @@ Run the watches as supervised host processes. This removes the variant's contain
 variant watch -s feature-forty-two
 variant watch -s feature-forty-two --detach
 variant watch -s feature-forty-two --reprovision
+variant watch -s feature-forty-two --from feat/other
 ```
+
+`--from` starts a new branch at that commit. See [create](#create).
 
 `--reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again. Without it, `watch` does not drop a schema.
 
