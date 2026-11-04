@@ -50,6 +50,7 @@ A step named `deprovision` replaces the builtin drop, on the same terms as `prov
 ```yaml
 db:
   dialect: postgres
+  host: 127.0.0.1
   multi:
     schemaPrefix: v_${slug}-
     #tenants: east,west
