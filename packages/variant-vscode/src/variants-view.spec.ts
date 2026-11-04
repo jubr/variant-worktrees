@@ -378,6 +378,25 @@ describe("inline actions", () => {
     expect(String(openExternal.mock.calls[0]?.[0])).toBe("http://demo.vw.localhost:62100");
   });
 
+  it("opens the row URL in the external browser and does not open a Cursor browser tab", async () => {
+    const { command, node } = await open([record("demo", { url: "http://demo.vw.localhost:62100" })]);
+
+    await command("variant.openUrlExternal")(node("demo"));
+
+    expect(String(openExternal.mock.calls[0]?.[0])).toBe("http://demo.vw.localhost:62100");
+    expect(executeCommand.mock.calls.some((call) => call[0] === "simpleBrowser.api.open")).toBe(false);
+  });
+
+  it("opens the row URL in a Cursor browser tab and does not open the external browser", async () => {
+    const { command, node } = await open([record("demo", { url: "http://demo.vw.localhost:62100" })]);
+
+    await command("variant.openUrlCursor")(node("demo"));
+
+    const opened = executeCommand.mock.calls.find((call) => call[0] === "simpleBrowser.api.open");
+    expect(String(opened?.[1])).toBe("http://demo.vw.localhost:62100");
+    expect(openExternal).not.toHaveBeenCalled();
+  });
+
   it("refuses to implode main", async () => {
     showWarningMessage.mockImplementation((async () => "Implode") as never);
     const { command, node, fake } = await open([record("main")]);
@@ -454,7 +473,7 @@ describe("view actions and the extension socket", () => {
 });
 
 describe("manifest contributions", () => {
-  type Menu = { command: string; when?: string; group?: string };
+  type Menu = { command: string; when?: string; group?: string; alt?: string };
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
     contributes: {
       commands: Array<{ command: string; title: string; icon?: string | { light: string; dark: string } }>;
@@ -582,6 +601,8 @@ describe("manifest contributions", () => {
       "variant.implodeDirty",
       "variant.showOutput",
       "variant.openUrl",
+      "variant.openUrlExternal",
+      "variant.openUrlCursor",
       "variant.openPanel",
       "variant.openInBrowser",
       "variant.stopUiServer",
@@ -637,6 +658,28 @@ describe("manifest contributions", () => {
     expect(matches(context("variant.openUrl")?.when, "variant up removable")).toBe(false);
   });
 
+  it("offers Open url inline left of the run control when the row has a URL", () => {
+    const item = inline("variant.openUrlExternal");
+    const external = commands.find((entry) => entry.command === "variant.openUrlExternal");
+    const cursor = commands.find((entry) => entry.command === "variant.openUrlCursor");
+
+    expect(item?.group).toBe("inline@0");
+    expect(item?.alt).toBe("variant.openUrlCursor");
+    expect(matches(item?.when, "variant down removable has-url")).toBe(true);
+    expect(matches(item?.when, "variant watching removable has-url")).toBe(true);
+    expect(matches(item?.when, "variant up removable has-url")).toBe(true);
+    expect(matches(item?.when, "variant down removable")).toBe(false);
+    expect(matches(item?.when, "variant pending")).toBe(false);
+    expect(external?.title).toBe("Open url in external browser");
+    expect(external?.icon).toBe("$(link-external)");
+    expect(cursor?.title).toBe("Open url in Cursor browser");
+    expect(commands.find((entry) => entry.command === "variant.openUrl")?.title).toBe("Variant: Open URL");
+    expect(commands.find((entry) => entry.command === "variant.openInBrowser")?.title).toBe(
+      "Variant: Open Variants in Browser",
+    );
+    expect(menus["view/title"]?.find((entry) => entry.command === "variant.openInBrowser")?.group).toBe("navigation@3");
+  });
+
   it("adds the panel and the web page to the context menu of a variant", () => {
     expect(matches(context("variant.openPanel")?.when, "variant down removable")).toBe(true);
     expect(matches(context("variant.openInBrowser")?.when, "variant down removable")).toBe(true);
@@ -659,6 +702,8 @@ describe("manifest contributions", () => {
         "variant.implodeDirty",
         "variant.showOutput",
         "variant.openUrl",
+        "variant.openUrlExternal",
+        "variant.openUrlCursor",
         "variant.stopUiServer",
       ]),
     );

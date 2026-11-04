@@ -35,6 +35,8 @@ export interface VariantActions {
   /** Opens the log of the variant's detached watch in an editor. */
   showOutput(slug: string): Promise<void>;
   openUrl(slug: string): Promise<void>;
+  /** Opens the row URL in a Simple Browser editor tab. */
+  openUrlInEditor(slug: string): Promise<void>;
   stopUiServer(): Promise<void>;
 }
 
@@ -52,6 +54,13 @@ export const createActions = (deps: ActionDeps): VariantActions => {
       throw new Error("No UI server is running");
     }
     (deps.kill ?? process.kill)(pid, "SIGTERM");
+  };
+  const requireUrl = (slug: string): string => {
+    const url = find(slug)?.url;
+    if (url === undefined) {
+      throw new Error(`${slug} has no URL`);
+    }
+    return url;
   };
   return {
     watch: async (slug) => {
@@ -81,11 +90,10 @@ export const createActions = (deps: ActionDeps): VariantActions => {
       await vscode.window.showTextDocument(document, { preview: true });
     },
     openUrl: async (slug) => {
-      const url = find(slug)?.url;
-      if (url === undefined) {
-        throw new Error(`${slug} has no URL`);
-      }
-      await vscode.env.openExternal(vscode.Uri.parse(url));
+      await vscode.env.openExternal(vscode.Uri.parse(requireUrl(slug)));
+    },
+    openUrlInEditor: async (slug) => {
+      await vscode.commands.executeCommand("simpleBrowser.api.open", vscode.Uri.parse(requireUrl(slug)));
     },
     stopUiServer,
   };

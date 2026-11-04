@@ -97,6 +97,16 @@
         "title": "Variant: Open URL"
       },
       {
+        "command": "variant.openUrlExternal",
+        "title": "Open url in external browser",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "variant.openUrlCursor",
+        "title": "Open url in Cursor browser",
+        "icon": "$(link-external)"
+      },
+      {
         "command": "variant.openPanel",
         "title": "Variant: Open Variants Panel",
         "icon": "$(layout-panel)"
@@ -344,6 +354,14 @@
           "when": "false"
         },
         {
+          "command": "variant.openUrlExternal",
+          "when": "false"
+        },
+        {
+          "command": "variant.openUrlCursor",
+          "when": "false"
+        },
+        {
           "command": "variant.stopUiServer",
           "when": "false"
         },
@@ -436,6 +454,12 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "variant.openUrlExternal",
+          "alt": "variant.openUrlCursor",
+          "when": "view == variant.variants && viewItem =~ /^variant (down|up|watching) .*has-url/",
+          "group": "inline@0"
+        },
         {
           "command": "variant.play",
           "when": "view == variant.variants && viewItem =~ /^variant down( |$)/",

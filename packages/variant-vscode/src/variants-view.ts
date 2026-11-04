@@ -146,6 +146,13 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   const register = (id: string, callback: (node?: VariantNode) => Promise<void>): vscode.Disposable =>
     vscode.commands.registerCommand(id, callback);
 
+  const openRow =
+    (run: (slug: string) => Promise<void>) =>
+    (node?: VariantNode): Promise<void> => {
+      const slug = slugOf(node);
+      return slug === undefined ? Promise.resolve() : attempt("open url", () => run(slug), { slug });
+    };
+
   context.subscriptions.push(
     vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider }),
     provider,
@@ -204,10 +211,18 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
       const slug = slugOf(node);
       return slug === undefined ? Promise.resolve() : attempt("show output", () => actions.showOutput(slug), { slug });
     }),
-    register("variant.openUrl", (node) => {
-      const slug = slugOf(node);
-      return slug === undefined ? Promise.resolve() : attempt("open url", () => actions.openUrl(slug), { slug });
-    }),
+    register(
+      "variant.openUrl",
+      openRow((slug) => actions.openUrl(slug)),
+    ),
+    register(
+      "variant.openUrlExternal",
+      openRow((slug) => actions.openUrl(slug)),
+    ),
+    register(
+      "variant.openUrlCursor",
+      openRow((slug) => actions.openUrlInEditor(slug)),
+    ),
     register("variant.stopUiServer", () => attempt("stop ui server", () => actions.stopUiServer())),
     register("variant.openPanel", () => attempt("open panel", () => panel.open())),
     register("variant.openInBrowser", () =>
