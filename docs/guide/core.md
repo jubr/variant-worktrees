@@ -32,7 +32,7 @@ variant config
 
 ## create
 
-Create the git worktree and the state for a slug. This does not create a database schema or file; that is `provision`. Creating the same variant again is safe.
+Create the git worktree and the state for a slug. This does not create a database schema or file; that is `provision`. Creating the same variant again is safe. If PostgreSQL or MySQL cannot be contacted, `create` fails with the contact warning and does not create the worktree.
 
 `--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there. Omit it and the branch starts at `variant.baseBranch`. An existing worktree for the slug, or a branch that already uses any configured prefix, is checked out as it is; `--from` does not move it. `implode` still requires a merge into `variant.baseBranch`. `provision`, `up`, and `watch` take the same flag, because each of them creates the worktree when it is missing.
 
@@ -49,7 +49,9 @@ List the known database variants as a table, one row per variant, with the colum
 variant list
 ```
 
-With `-v`/`--verbose` every variant is printed as `variant status` prints it, with all its meta information, instead of the table.
+When PostgreSQL or MySQL cannot be contacted, `list` still prints variants known from state files and worktrees and writes one contact warning. Variants that exist only as schemas are left out. A missing SQLite file is not this case. `status` of a slug known that way succeeds; a slug known only from the database fails with the same warning.
+
+With `-v`/`--verbose` every variant is printed as `variant status` prints it, with all its meta information, instead of the table. `-v` is not a log level.
 
 ```bash
 variant list -v
@@ -186,6 +188,7 @@ These flags work on every command, before or after the command name. `variant --
 | --- | --- |
 | `--json` | Print the result as JSON, exactly what the command returned |
 | `--yaml` | Print the same result as YAML |
+| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` is `warn`. Default `warn`. Prefixes are `trace:`, `debug:`, `info:`, `warning:`, and `error:` |
 | `--help`, `-h` | Show help |
 | `--version` | Show the version (top level only) |
 

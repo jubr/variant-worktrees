@@ -197,10 +197,13 @@ flags in `variant --help` and `variant <command> --help`.
 | --- | --- |
 | `--json` | Print the result as JSON |
 | `--yaml` | Print the result as YAML |
+| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` is `warn`. Default `warn` |
 | `--help`, `-h` | Show help |
 | `--version` | Show the version (top level only) |
 
-Give at most one of `--json` and `--yaml`.
+Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line is prefixed `trace:`, `debug:`, `info:`, `warning:`, or `error:`. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level.
+
+When PostgreSQL or MySQL cannot be contacted, `list` and `status` of a known variant still print the variants recorded in state files and worktrees, and one `warning:` names the database and host. `create` and other changes fail with that sentence, run no SQL, and `create` does not add a worktree. A missing SQLite file is not this case. The editor trees keep their rows, list `Database unreachable` first, and show one warning per outage.
 
 ### Shell completion
 
