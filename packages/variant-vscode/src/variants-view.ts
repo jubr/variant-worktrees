@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
+import { type ResolvedConfig, type VariantRecord, worktreeReport } from "variant-api";
 import { findConfigFile, getVariantsAdoption } from "variant-config";
+import { DEFAULT_MAX_DIFF_LINES } from "variant-config/schema";
 import { type VariantSort, variantSort } from "variant-ui/state";
 import * as vscode from "vscode";
 import { createConfigMigration } from "./config-migration.ts";
@@ -92,6 +94,59 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     ...(deps.readIndex ? { readIndex: deps.readIndex } : {}),
   });
   const provider = new VariantsTreeProvider(store, readSort);
+  /** Slugs whose URL this view already opened after a start. Cleared when play starts that slug again. */
+  const opened = new Set<string>();
+
+  const confirmStarted = async (slug: string): Promise<void> => {
+    const stop = store.onDidChange(() => {
+      const current = store.records().find((entry) => entry.slug === slug);
+      const currentPid = current === undefined ? undefined : ownerPid(current);
+      if (currentPid !== undefined && !pidAlive(currentPid)) {
+        provider.release(slug);
+      }
+    });
+    try {
+      while (provider.holding(slug)) {
+        const record = store.records().find((entry) => entry.slug === slug);
+        const url = record?.url;
+        const ready = record === undefined ? undefined : await readyPath(loadClient, record);
+        const pid = record === undefined ? undefined : ownerPid(record);
+        if (!provider.holding(slug)) {
+          return;
+        }
+        if (url === undefined || ready === undefined || (pid !== undefined && !pidAlive(pid))) {
+          provider.release(slug);
+          return;
+        }
+        if (pid === undefined) {
+          await sleep(READY_POLL_MS);
+          continue;
+        }
+        let status = 0;
+        try {
+          status = (await fetch(joinReady(url, ready))).status;
+        } catch {
+          await sleep(READY_POLL_MS);
+          continue;
+        }
+        if (!provider.holding(slug) || !pidAlive(pid)) {
+          provider.release(slug);
+          return;
+        }
+        if (status === 200) {
+          provider.release(slug);
+          if (!opened.has(slug)) {
+            opened.add(slug);
+            await vscode.env.openExternal(vscode.Uri.parse(url));
+          }
+          return;
+        }
+        await sleep(READY_POLL_MS);
+      }
+    } finally {
+      stop();
+    }
+  };
   const syncContexts = (): void => {
     setContext("variant.noConfig", store.status() === "no-config");
     setContext("variant.noVariants", store.status() === "empty");
@@ -159,9 +214,20 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     { dispose: () => store.dispose() },
     register("variant.play", (node) => {
       const slug = slugOf(node);
-      return slug === undefined
-        ? Promise.resolve()
-        : attempt("watch", () => store.run(slug, () => actions.watch(slug)), { slug });
+      if (slug === undefined) {
+        return Promise.resolve();
+      }
+      return attempt(
+        "watch",
+        async () => {
+          await store.run(slug, () => actions.watch(slug));
+          opened.delete(slug);
+          provider.hold(slug);
+          // AIDEV-NOTE: the ready GET must not run inside getChildren or before play returns.
+          void confirmStarted(slug);
+        },
+        { slug },
+      );
     }),
     register("variant.stop", (node) => {
       const slug = slugOf(node);
@@ -174,6 +240,13 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
       const slug = slugOf(node);
       if (slug === undefined) {
         return;
+      }
+      const worktree = store.records().find((entry) => entry.slug === slug)?.worktree;
+      if (worktree !== undefined) {
+        const report = await implodeReport(slug, loadClient, store.records());
+        if (report.length > 0) {
+          log?.info(report);
+        }
       }
       const choice = await vscode.window.showWarningMessage(
         "Clean implode failed, do you want to `--force`?",
@@ -259,4 +332,50 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   syncContexts();
   void store.start();
   return { store, actions, loadClient };
+};
+
+/** The implode report for `slug`, without removing the worktree. Empty when the row has no worktree. */
+const implodeReport = async (
+  slug: string,
+  loadClient: LoadClient,
+  records: readonly VariantRecord[],
+): Promise<string> => {
+  const worktree = records.find((entry) => entry.slug === slug)?.worktree;
+  if (worktree === undefined) {
+    return "";
+  }
+  const client = (await loadClient(worktree)) as { config?: () => ResolvedConfig };
+  const maxDiffLines = client.config?.().variant.implode.maxDiffLines ?? DEFAULT_MAX_DIFF_LINES;
+  return worktreeReport(worktree, maxDiffLines);
+};
+
+/** The pid of the watch whose url is the row url. */
+const ownerPid = (record: VariantRecord): number | undefined =>
+  Object.values(record.watches ?? {}).find((watch) => watch.url === record.url)?.pid;
+
+/** `ready` of that watch, from the variant's own configuration. Absent when the file names none. */
+const readyPath = async (loadClient: LoadClient, record: VariantRecord): Promise<string | undefined> => {
+  const key = Object.entries(record.watches ?? {}).find(([, watch]) => watch.url === record.url)?.[0];
+  if (key === undefined) {
+    return undefined;
+  }
+  const client = (await loadClient(record.worktree)) as { config?: () => ResolvedConfig };
+  return client.config?.().variant.watches[key]?.ready;
+};
+
+/** How long a ready GET that is not 200 waits before the next try. Same pace as the library's ready poll. */
+const READY_POLL_MS = 1000;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** `http://host:port` and `/index.html` become `http://host:port/index.html`, with one slash. */
+const joinReady = (url: string, ready: string): string => `${url.endsWith("/") ? url.slice(0, -1) : url}${ready}`;
+
+const pidAlive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 };

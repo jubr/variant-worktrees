@@ -114,6 +114,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 };
 
 export { loadConfig } from "variant-config";
+export { worktreeReport } from "./cleanup.js";
 export { listSlugs } from "./list-slugs.js";
 export {
   type LoadVariantConfigOptions,

@@ -43,7 +43,7 @@ export const uiServerOf = (records: readonly VariantRecord[]): { url?: string; p
   };
 };
 
-const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
+const variantItem = (record: VariantRecord, busy: boolean, confirming: boolean): vscode.TreeItem => {
   const { state, stale } = stateOf(record);
   const label = record.dbOnly ? `${record.slug}${dbOnlySuffix()}` : record.slug;
   const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
@@ -65,10 +65,13 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
     item.contextValue = "variant pending";
     return item;
   }
-  item.iconPath =
-    state === "watching"
-      ? new vscode.ThemeIcon(ICONS.watching, new vscode.ThemeColor("charts.green"))
-      : new vscode.ThemeIcon(ICONS[state]);
+  if (confirming) {
+    item.iconPath = new vscode.ThemeIcon("loading~spin");
+  } else if (state === "watching") {
+    item.iconPath = new vscode.ThemeIcon(ICONS.watching, new vscode.ThemeColor("charts.green"));
+  } else {
+    item.iconPath = new vscode.ThemeIcon(ICONS[state]);
+  }
   item.contextValue = [
     "variant",
     state,
@@ -84,6 +87,7 @@ const variantItem = (record: VariantRecord, busy: boolean): vscode.TreeItem => {
 export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode> {
   private readonly changed = new vscode.EventEmitter<VariantNode | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
+  private readonly confirming = new Set<string>();
   private readonly stopListening: () => void;
 
   constructor(
@@ -96,6 +100,24 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
   /** Asks the view to read the records again, for example after `variant.sort` changes. */
   refresh(): void {
     this.changed.fire(undefined);
+  }
+
+  /** The row stays on the loading icon until the watch this view started is confirmed up. */
+  hold(slug: string): void {
+    this.confirming.add(slug);
+    this.changed.fire(undefined);
+  }
+
+  /** The health check finished or no longer applies. The row uses its state icon again. */
+  release(slug: string): void {
+    if (this.confirming.delete(slug)) {
+      this.changed.fire(undefined);
+    }
+  }
+
+  /** Whether play is still waiting on this slug's ready check. */
+  holding(slug: string): boolean {
+    return this.confirming.has(slug);
   }
 
   getChildren(): VariantNode[] {
@@ -112,7 +134,11 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
 
   getTreeItem(node: VariantNode): vscode.TreeItem {
     if (node.kind === "variant") {
-      return variantItem(node.record, this.store.pending().has(node.record.slug));
+      return variantItem(
+        node.record,
+        this.store.pending().has(node.record.slug),
+        this.confirming.has(node.record.slug),
+      );
     }
     if (node.kind === "error") {
       const item = new vscode.TreeItem(node.message, vscode.TreeItemCollapsibleState.None);
