@@ -346,11 +346,27 @@ describe("implode report", () => {
       expect(first).toContain("+++");
       expect(first).toContain("src/a.ts");
       expect(patch).toContain("@@");
-      expect(patch).not.toContain("\x1b");
+      expect(first).not.toContain("\x1b");
+      expect(report.slice(statusAt + status.length, statAt)).not.toContain("\x1b");
+      expect(report.slice(statAt + stat.length, diffAt)).not.toContain("\x1b");
       expect(report).not.toContain("diff --git");
       expect(report.split("\n").some((line) => /^index [0-9a-f]+\.\.[0-9a-f]+ /.test(line))).toBe(false);
       expect(report.split("\n").some((line) => line.startsWith("--- "))).toBe(false);
       expect(messages).toContain(report);
+    }));
+
+  it("colors an added hunk line green and a removed hunk line red, and leaves +++ plain", () =>
+    withProject(async ({ implode, worktree }) => {
+      writeFileSync(join(worktree, "src/a.ts"), "export const a = 2;\n");
+
+      const report = (await implode({ force: true })).report as string;
+      const added = report.split("\n").find((line) => line.includes("export const a = 2"));
+      const removed = report.split("\n").find((line) => line.includes("export const a = 1"));
+      const header = report.split("\n").find((line) => line.startsWith("+++"));
+
+      expect(added).toBe("\x1b[32m+export const a = 2;\x1b[0m");
+      expect(removed).toBe("\x1b[31m-export const a = 1;\x1b[0m");
+      expect(header).not.toContain("\x1b");
     }));
 
   it("traces src/a.ts before src/b.ts and drops both files' headers", () =>

@@ -96,6 +96,28 @@ const tracePath = (path: string): string =>
 const traced = (command: string, output: string): string =>
   output === "" ? "" : `\n${TRACE_YELLOW}+ ${command}${TRACE_RESET}\n${output}`;
 
+/** Added hunk lines are green and removed hunk lines are red. `+++` and context stay plain. */
+const colorHunk = (text: string): string => {
+  const trailingNewline = text.endsWith("\n");
+  const body = trailingNewline ? text.slice(0, -1) : text;
+  const colored = body
+    .split("\n")
+    .map((line) => {
+      if (line.startsWith("+++") || line.startsWith("---")) {
+        return line;
+      }
+      if (line.startsWith("+")) {
+        return `\x1b[32m${line}\x1b[0m`;
+      }
+      if (line.startsWith("-")) {
+        return `\x1b[31m${line}\x1b[0m`;
+      }
+      return line;
+    })
+    .join("\n");
+  return trailingNewline ? `${colored}\n` : colored;
+};
+
 /**
  * What would be lost with the worktree: a dark-yellow trace of `git status --porcelain`, `git diff --stat`, and, when
  * the kept patch lines fit in `maxDiffLines`, one filtered `git diff -U1` per path.
@@ -117,7 +139,7 @@ export const worktreeReport = (worktree: string, maxDiffLines: number): string =
   return [
     traced("git status --porcelain", status),
     traced("git diff --stat", stat),
-    ...shown.map((patch) => traced(patch.command, patch.text)),
+    ...shown.map((patch) => traced(patch.command, colorHunk(patch.text))),
   ].join("");
 };
 
