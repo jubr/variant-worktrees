@@ -527,6 +527,27 @@ export type Runtime = z.infer<typeof RuntimeSchema>;
 /** The runtime state as resolved: environment templates replaced, so the database port is a number. */
 export type ResolvedRuntime = Omit<Runtime, "db"> & { db?: DbConfig };
 
+/**
+ * `<variant>/.cache/variant/state.yaml`. Identity and watch facts only: no password and no watch command.
+ * Specification: openspec/specs/variant-config/core/spec.md
+ */
+export const StateFileSchema = z.strictObject({
+  slug: z.string().min(1).optional(),
+  createdAt: localStampSchema.optional(),
+  dir: z.string().min(1).optional(),
+  dialect: DbDialectSchema.optional(),
+  target: z.string().min(1).optional(),
+  mode: z.enum(["up", "watch"]).optional(),
+  log: z.string().min(1).optional(),
+  watches: z.record(z.string().min(1), RuntimeWatchSchema).optional(),
+});
+export type StateFile = z.infer<typeof StateFileSchema>;
+
+/** Relative path of the operational state file inside a variant directory. */
+export const STATE_FILE = ".cache/variant/state.yaml";
+/** Relative path of the detection dump inside a variant directory. */
+export const RUNTIME_FILE = ".cache/variant/runtime.yaml";
+
 export const LOCAL_FILENAME = "variants.local.yaml";
 
 /** `variants.local.yaml`, git-ignored, next to variants.yaml in each variant's worktree. Other top-level keys are kept. */

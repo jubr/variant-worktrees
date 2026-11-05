@@ -6,7 +6,6 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   addSchemaHeader,
-  clearRuntime,
   findSchemaHeader,
   isSchemaHeaderNotice,
   schemaHeaderFor,
@@ -83,47 +82,17 @@ describe("addSchemaHeader", () => {
   });
 });
 
-describe("variants.local.yaml written by the tool", () => {
-  it("starts a new file with the local schema header", () => {
+describe("cache files written by the tool", () => {
+  it("writes state.yaml without a schema modeline and does not touch variants.local.yaml", () => {
     const directory = temp();
-
-    writeRuntime(directory, { slug: "demo" });
-
-    const text = readFileSync(join(directory, "variants.local.yaml"), "utf8");
-    expect(text.startsWith(`${LOCAL}\n\nruntime:`)).toBe(true);
-  });
-
-  it("keeps the schema line of an existing file when it writes again", () => {
-    const directory = temp();
+    const legacy = join(directory, "variants.local.yaml");
     const own = "# yaml-language-server: $schema=./mine.json";
-    writeFileSync(join(directory, "variants.local.yaml"), `${own}\n\nruntime:\n  slug: old\n`);
+    writeFileSync(legacy, `${own}\n\nruntime:\n  slug: old\n`);
 
     writeRuntime(directory, { slug: "demo" });
 
-    const text = readFileSync(join(directory, "variants.local.yaml"), "utf8");
-    expect(text.startsWith(`${own}\n\nruntime:`)).toBe(true);
-    expect(text).not.toContain("raw/refs/heads/main");
-  });
-
-  it("adds the header when it writes a file that had none", () => {
-    const directory = temp();
-    writeFileSync(join(directory, "variants.local.yaml"), "runtime:\n  slug: old\n");
-
-    writeRuntime(directory, { slug: "demo" });
-
-    expect(readFileSync(join(directory, "variants.local.yaml"), "utf8").startsWith(`${LOCAL}\n\n`)).toBe(true);
-  });
-
-  it("keeps the header when clearRuntime leaves other keys, and removes the file when none are left", () => {
-    const directory = temp();
-    const path = join(directory, "variants.local.yaml");
-    writeFileSync(path, `${LOCAL}\n\nruntime:\n  slug: demo\nother: 1\n`);
-
-    clearRuntime(directory);
-    expect(readFileSync(path, "utf8").startsWith(`${LOCAL}\n\nother: 1`)).toBe(true);
-
-    writeFileSync(path, `${LOCAL}\n\nruntime:\n  slug: demo\n`);
-    clearRuntime(directory);
-    expect(() => readFileSync(path, "utf8")).toThrow();
+    const state = readFileSync(join(directory, ".cache", "variant", "state.yaml"), "utf8");
+    expect(state.startsWith("# yaml-language-server:")).toBe(false);
+    expect(readFileSync(legacy, "utf8")).toBe(`${own}\n\nruntime:\n  slug: old\n`);
   });
 });

@@ -69,7 +69,7 @@ describe("runtime state of a variant", () => {
   it("is written into the worktree, read back and cleared, keeping the rest of the file", () =>
     withRepo("", (repo, worktree) => {
       const config = loadConfig({ cwd: repo });
-      const file = join(worktree, "variants.local.yaml");
+      const file = join(worktree, ".cache", "variant", "state.yaml");
 
       writeVariantRuntime(config, worktree, {
         slug: "demo",
@@ -78,13 +78,15 @@ describe("runtime state of a variant", () => {
       });
 
       expect(parseYaml(readFileSync(file, "utf8"))).toEqual({
-        runtime: { slug: "demo", mode: "watch", watches: { fe: { port: 62060, pid: 7 } } },
+        slug: "demo",
+        mode: "watch",
+        watches: { fe: { port: 62060, pid: 7 } },
       });
       expect(readVariantRuntime(config, worktree)?.watches?.fe).toEqual({ port: 62060, pid: 7 });
 
       clearVariantRuntime(config, worktree);
 
-      expect(readVariantRuntime(config, worktree)).toBeUndefined();
+      expect(readVariantRuntime(config, worktree)).toEqual({ slug: "demo" });
     }));
 
   it("keeps the reserved variant-ui entry when the runtime of main is rewritten or cleared", () =>
@@ -96,13 +98,17 @@ describe("runtime state of a variant", () => {
 
       writeVariantRuntime(config, repo, { slug: "main", mode: "watch", watches: { fe: { port: 62060, pid: 7 } } });
 
-      expect(parseYaml(readFileSync(file, "utf8"))).toEqual({
-        runtime: { slug: "main", mode: "watch", watches: { fe: { port: 62060, pid: 7 }, "variant-ui": ui } },
+      const state = join(repo, ".cache", "variant", "state.yaml");
+      expect(parseYaml(readFileSync(state, "utf8"))).toEqual({
+        slug: "main",
+        mode: "watch",
+        watches: { fe: { port: 62060, pid: 7 }, "variant-ui": ui },
       });
+      expect(readFileSync(file, "utf8")).toBe(stringifyYaml({ runtime: { watches: { "variant-ui": ui } } }));
 
       clearVariantRuntime(config, repo);
 
-      expect(parseYaml(readFileSync(file, "utf8"))).toEqual({ runtime: { watches: { "variant-ui": ui } } });
+      expect(parseYaml(readFileSync(state, "utf8"))).toEqual({ watches: { "variant-ui": ui } });
     }));
 
   it("reads nothing for a worktree without a file", () =>

@@ -120,7 +120,25 @@ const sameDirectory = (left: string, right: string): boolean => {
  * The git toplevel when `startDir` is inside a linked worktree, not the primary checkout.
  * Specification: openspec/specs/variant-config/core/spec.md
  */
+/** A checkout has a `.git` entry at or above `startDir`. A variant root has none, so git is not asked. */
+const insideCheckout = (startDir: string): boolean => {
+  let directory = resolve(startDir);
+  for (;;) {
+    if (existsSync(join(directory, ".git"))) {
+      return true;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) {
+      return false;
+    }
+    directory = parent;
+  }
+};
+
 const linkedWorktreeRoot = (startDir: string): string | undefined => {
+  if (!insideCheckout(startDir)) {
+    return undefined;
+  }
   const toplevel = gitOutput(resolve(startDir), ["rev-parse", "--show-toplevel"]);
   if (!toplevel) {
     return undefined;
@@ -523,6 +541,8 @@ export {
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
+  RUNTIME_FILE,
+  STATE_FILE,
   UI_PORT_ENV,
   UI_WATCH_KEY,
   VariantsConfigSchema,

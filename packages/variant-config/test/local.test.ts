@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { clearRuntime, loadConfig, readRuntime, writeRuntime } from "../src/index.js";
@@ -121,23 +121,54 @@ describe("readRuntime and loadConfig", () => {
     }));
 });
 
+const statePath = (directory: string): string => join(directory, ".cache", "variant", "state.yaml");
+
 describe("writeRuntime", () => {
-  it("writes the runtime section and keeps other top-level keys", () =>
+  it("writes state.yaml and does not create or rewrite variants.local.yaml", () =>
     withProject("other: kept\nruntime:\n  slug: old\n", (directory) => {
+      const before = readFileSync(join(directory, "variants.local.yaml"), "utf8");
+
       writeRuntime(directory, { slug: "demo", watches: { fe: { port: 62060, pid: 123 } } });
 
-      const written = parseYaml(readFileSync(join(directory, "variants.local.yaml"), "utf8"));
-      expect(written).toEqual({
-        other: "kept",
-        runtime: { slug: "demo", watches: { fe: { port: 62060, pid: 123 } } },
+      expect(parseYaml(readFileSync(statePath(directory), "utf8"))).toEqual({
+        slug: "demo",
+        watches: { fe: { port: 62060, pid: 123 } },
       });
+      expect(readFileSync(join(directory, "variants.local.yaml"), "utf8")).toBe(before);
+      expect(readFileSync(statePath(directory), "utf8").startsWith("# yaml-language-server:")).toBe(false);
     }));
 
-  it("creates the file when none exists", () =>
+  it("creates the cache files when none exist", () =>
+    withProject(undefined, (directory) => {
+      writeRuntime(directory, {
+        slug: "demo",
+        db: { dialect: "postgres", schema: "v_demo", password: "secret" },
+      });
+
+      expect(readRuntime(directory)).toEqual({
+        slug: "demo",
+        db: { dialect: "postgres", schema: "v_demo", password: "secret" },
+      });
+      expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
+      expect(parseYaml(readFileSync(statePath(directory), "utf8"))).toEqual({
+        slug: "demo",
+        dialect: "postgres",
+        target: "v_demo",
+      });
+      const dump = parseYaml(readFileSync(join(directory, ".cache", "variant", "runtime.yaml"), "utf8")) as {
+        db: { password?: string };
+      };
+      expect(dump.db.password).toBe("secret");
+    }));
+
+  it("leaves the modification time alone when the text is unchanged", () =>
     withProject(undefined, (directory) => {
       writeRuntime(directory, { slug: "demo" });
+      const first = statSync(statePath(directory)).mtimeMs;
 
-      expect(readRuntime(directory)).toEqual({ slug: "demo" });
+      writeRuntime(directory, { slug: "demo" });
+
+      expect(statSync(statePath(directory)).mtimeMs).toBe(first);
     }));
 
   it("refuses an invalid runtime section", () =>
@@ -147,17 +178,23 @@ describe("writeRuntime", () => {
 });
 
 describe("clearRuntime", () => {
-  it("removes the runtime section and keeps other top-level keys", () =>
-    withProject("other: kept\nruntime:\n  slug: demo\n", (directory) => {
+  it("drops mode and watches from state.yaml and leaves a legacy file unchanged", () =>
+    withProject("other: kept\nruntime:\n  slug: demo\n  mode: watch\n", (directory) => {
+      const before = readFileSync(join(directory, "variants.local.yaml"), "utf8");
+
       clearRuntime(directory);
 
-      expect(parseYaml(readFileSync(join(directory, "variants.local.yaml"), "utf8"))).toEqual({ other: "kept" });
+      expect(readFileSync(join(directory, "variants.local.yaml"), "utf8")).toBe(before);
+      expect(readRuntime(directory)).toEqual({ slug: "demo" });
     }));
 
-  it("removes a file that held only the runtime section", () =>
-    withProject("runtime:\n  slug: demo\n", (directory) => {
+  it("keeps identity fields that were written to state.yaml", () =>
+    withProject(undefined, (directory) => {
+      writeRuntime(directory, { slug: "demo", mode: "watch", watches: { fe: { port: 1 } } });
+
       clearRuntime(directory);
 
+      expect(readRuntime(directory)).toEqual({ slug: "demo" });
       expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
     }));
 
@@ -166,5 +203,6 @@ describe("clearRuntime", () => {
       clearRuntime(directory);
 
       expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
+      expect(existsSync(statePath(directory))).toBe(false);
     }));
 });

@@ -190,10 +190,9 @@ describe("implode teardown and worktree", () => {
       const watcher = spawn("sleep", ["300"], { cwd: join(worktree, "fe"), detached: true, stdio: "ignore" });
       spawned.push(watcher);
       const pid = watcher.pid as number;
-      writeFileSync(
-        join(worktree, "variants.local.yaml"),
-        `runtime:\n  slug: demo\n  mode: watch\n  watches:\n    fe: { pid: ${pid} }\n`,
-      );
+      const stateDir = join(worktree, ".cache", "variant");
+      mkdirSync(stateDir, { recursive: true });
+      writeFileSync(join(stateDir, "state.yaml"), `slug: demo\nmode: watch\nwatches:\n  fe: { pid: ${pid} }\n`);
       await sleep(50);
 
       await implode();
@@ -218,7 +217,7 @@ describe("implode teardown and worktree", () => {
 
       const result = await implode({}, "orphan");
 
-      expect(result).toMatchObject({ slug: "orphan", removed: true, worktreeRemoved: false });
+      expect(result).toMatchObject({ slug: "orphan", removed: false, worktreeRemoved: false });
       expect(result.worktree).toBeUndefined();
       expect(existsSync(record.target)).toBe(false);
     }));

@@ -1,11 +1,12 @@
 import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
 import { git } from "../git.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
 import { logToStderr } from "../ready.js";
 import { prepareRun } from "../run-context.js";
-import { clearVariantRuntime, variantConfigDir } from "../runtime-state.js";
+import { removeVariantRuntime, variantConfigDir } from "../runtime-state.js";
 import { resolveSlug, worktreeEntries } from "../slug.js";
 import { readState, removeState } from "../state.js";
 import type { ImplodeOptions, ImplodeResult } from "../types.js";
@@ -47,11 +48,15 @@ const teardownVariant = async (
       rmSync(directory, { recursive: true, force: true });
     }
   }
+  const runtimeDir = worktree ? variantConfigDir(context.config, worktree) : undefined;
+  const hadRuntime =
+    runtimeDir !== undefined &&
+    (existsSync(join(runtimeDir, STATE_FILE)) || existsSync(join(runtimeDir, LOCAL_FILENAME)));
   if (worktree) {
-    clearVariantRuntime(context.config, worktree);
+    removeVariantRuntime(context.config, worktree);
   }
   removeState(context.stateDir, slug);
-  return removed || state !== undefined;
+  return removed || state !== undefined || hadRuntime;
 };
 
 /** The git worktree of a variant that may be removed: registered with git and not the primary checkout. */
