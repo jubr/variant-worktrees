@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { readFileSync } from "node:fs";
+import { log, setLogSink } from "variant-api";
 import * as vscode from "vscode";
-
 import { activate } from "./extension.ts";
 
 const registerCommand = spyOn(vscode.commands, "registerCommand");
@@ -143,6 +143,37 @@ describe("extension", () => {
       }
 
       expect(createOutputChannel.mock.calls).toEqual([["Variant Worktrees", { log: true }]]);
+    });
+
+    it("writes a contact warning to the Variant Worktrees channel and opens no second channel", () => {
+      const warnings: string[] = [];
+      const noop = () => {};
+      createOutputChannel.mockImplementation(((name: string) => ({
+        name,
+        trace: noop,
+        debug: noop,
+        info: noop,
+        warn: (message: string) => warnings.push(`${name}:${message}`),
+        error: noop,
+        dispose: noop,
+      })) as unknown as typeof vscode.window.createOutputChannel);
+      vscode.env.appName = "Cursor";
+      const message = "Cannot contact postgres database app at 127.0.0.1:5432";
+      try {
+        activate({
+          subscriptions: [],
+          globalState: { get: () => undefined, update: async () => {} },
+          extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
+          globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+        } as unknown as vscode.ExtensionContext);
+        log("warn", message);
+      } finally {
+        vscode.env.appName = undefined;
+        setLogSink(undefined);
+      }
+
+      expect(warnings).toEqual([`Variant Worktrees:${message}`]);
+      expect(createOutputChannel.mock.calls.map((call) => call[0])).toEqual(["Variant Worktrees"]);
     });
 
     it("activates on startup so the log channel is listed without running a command", () => {
