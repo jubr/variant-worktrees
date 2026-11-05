@@ -8,6 +8,14 @@ import type { VariantRecord } from "../types.js";
 import { ensureWorktree } from "../worktree.js";
 import type { OperationContext } from "./types.js";
 
+/** The adapter reports a dialect name. `state.yaml` stores the three known ones. */
+const recordedDialect = (dialect: string): "postgres" | "mysql" | "sqlite" => {
+  if (dialect === "postgres" || dialect === "mysql" || dialect === "sqlite") {
+    return dialect;
+  }
+  throw new Error(`unknown dialect ${dialect}`);
+};
+
 /** Writes identity into `state.yaml` once `createdAt` is missing. An existing stamp stays. */
 const rememberCreated = (context: OperationContext, directory: string, slug: string, target: string): void => {
   let existing: Runtime | undefined;
@@ -19,7 +27,7 @@ const rememberCreated = (context: OperationContext, directory: string, slug: str
   if (existing?.createdAt) {
     return;
   }
-  const dialect = context.adapter.dialect;
+  const dialect = recordedDialect(context.adapter.dialect);
   writeRuntime(directory, {
     ...existing,
     slug: existing?.slug ?? slug,

@@ -8,6 +8,21 @@ const quoteIdentifier = (value: string): string => `\`${value.replaceAll("`", "`
 
 const databaseFor = (slug: string): string => `v_${slug.replaceAll("-", "_")}`;
 
+/** mysql2 wants a number. A resolved `db.port` is already an integer; a digit string is accepted at the boundary. */
+const tcpPort = (port: DbConfig["port"], fallback: number): number => {
+  if (typeof port === "number") {
+    return port;
+  }
+  if (port === undefined) {
+    return fallback;
+  }
+  const numeric = Number(port);
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error(`db.port must be a positive integer, got ${port}`);
+  }
+  return numeric;
+};
+
 export class MysqlAdapter implements DatabaseAdapter {
   readonly dialect = "mysql";
   private readonly pool;
@@ -18,7 +33,7 @@ export class MysqlAdapter implements DatabaseAdapter {
       ? createPool(config.url)
       : createPool({
           host: config.host ?? "127.0.0.1",
-          port: config.port ?? 3306,
+          port: tcpPort(config.port, 3306),
           user: config.user ?? "root",
           password: config.password,
           database: config.database,
