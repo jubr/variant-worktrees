@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.0.6] - 2026-11-05
 
 ### Added
 
@@ -20,6 +20,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Breaking:** the view and the panel use `watches` for what they called instances (the rows, the runtime state).
 - Play, stop and implode run in the item's directory: the variant worktree, or the main checkout for `main`. `create`
   and `watch` of an explicit slug from the variant root succeed, and a `variants.yaml` symlink in that root is a warning.
+
+### Release notes
+
+- feat: schema warnings, port range, instances to watches, config migration by @jubr in https://github.com/jubr/variant-worktrees/pull/25
+- feat: variant init, Mise environment, and editor onboarding by @jubr in https://github.com/jubr/variant-worktrees/pull/26
+- feat(api)!: trace dirty worktrees in the implode report by @jubr in https://github.com/jubr/variant-worktrees/pull/27
+- fix: watch from the variant root and quiet startup title events by @jubr in https://github.com/jubr/variant-worktrees/pull/28
+- feat: make the explorer section easier to use by @jubr in https://github.com/jubr/variant-worktrees/pull/29
+- fix(chat-renamer): rename the chat the user is working in by @jubr in https://github.com/jubr/variant-worktrees/pull/30
+- feat: postgres multi-schema variants by @jubr in https://github.com/jubr/variant-worktrees/pull/31
+- feat: start new variant worktrees at --from by @jubr in https://github.com/jubr/variant-worktrees/pull/32
+- feat(variant-vscode): force dirty implode and open row URL by @jubr in https://github.com/jubr/variant-worktrees/pull/33
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.5...v0.0.6
 
 ## [0.0.5] - 2026-11-03
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.6] - 2026-11-05
 
 ### Added
 
@@ -64,6 +64,20 @@
   the main checkout for git. A `variants.yaml` symlink in that root is skipped and warned about as an anti-pattern.
 - A title event for a chat that already existed at startup, and the decision that skips it (`before startup`), are
   logged at Trace. A title event after startup stays at Debug.
+
+### Release notes
+
+- feat: schema warnings, port range, instances to watches, config migration by @jubr in https://github.com/jubr/variant-worktrees/pull/25
+- feat: variant init, Mise environment, and editor onboarding by @jubr in https://github.com/jubr/variant-worktrees/pull/26
+- feat(api)!: trace dirty worktrees in the implode report by @jubr in https://github.com/jubr/variant-worktrees/pull/27
+- fix: watch from the variant root and quiet startup title events by @jubr in https://github.com/jubr/variant-worktrees/pull/28
+- feat: make the explorer section easier to use by @jubr in https://github.com/jubr/variant-worktrees/pull/29
+- fix(chat-renamer): rename the chat the user is working in by @jubr in https://github.com/jubr/variant-worktrees/pull/30
+- feat: postgres multi-schema variants by @jubr in https://github.com/jubr/variant-worktrees/pull/31
+- feat: start new variant worktrees at --from by @jubr in https://github.com/jubr/variant-worktrees/pull/32
+- feat(variant-vscode): force dirty implode and open row URL by @jubr in https://github.com/jubr/variant-worktrees/pull/33
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.5...v0.0.6
 
 ## [0.0.5] - 2026-11-03
 
