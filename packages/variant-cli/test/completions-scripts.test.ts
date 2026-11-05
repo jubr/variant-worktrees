@@ -65,20 +65,36 @@ describe("describeCli", () => {
     const from = byName("create").flags.find((flag) => flag.long === "from");
     expect(from).toMatchObject({ long: "from", takesValue: true });
     expect(from?.short).toBeUndefined();
-    expect(byName("create").flags.map((flag) => flag.long)).toEqual(["slug", "from", "verbose", "json", "yaml"]);
+    expect(byName("create").flags.map((flag) => flag.long)).toEqual([
+      "slug",
+      "from",
+      "verbose",
+      "json",
+      "yaml",
+      "log-level",
+    ]);
   });
 
   it("describes the flags of watch, implode and list, with the output flags last", () => {
     expect(byName("watch").flags.map((flag) => flag.long)).toContain("detach");
     expect(byName("implode").flags.map((flag) => flag.long)).toContain("force");
-    expect(byName("list").flags.map((flag) => flag.long)).toEqual(["verbose", "json", "yaml"]);
+    expect(byName("list").flags.map((flag) => flag.long)).toEqual(["verbose", "json", "yaml", "log-level"]);
     expect(byName("list").flags.find((flag) => flag.long === "json")?.takesValue).toBe(false);
   });
 
   it("describes the flags of init: prefix takes a value, the steps and force are switches", () => {
     const flags = byName("init").flags;
 
-    expect(flags.map((flag) => flag.long)).toEqual(["prefix", "file", "gitignore", "mise", "force", "json", "yaml"]);
+    expect(flags.map((flag) => flag.long)).toEqual([
+      "prefix",
+      "file",
+      "gitignore",
+      "mise",
+      "force",
+      "json",
+      "yaml",
+      "log-level",
+    ]);
     expect(flags.find((flag) => flag.long === "prefix")?.takesValue).toBe(true);
     expect(flags.find((flag) => flag.long === "gitignore")?.takesValue).toBe(false);
     expect(byName("init").takesSlug).toBe(false);
