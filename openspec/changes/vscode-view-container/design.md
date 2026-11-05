@@ -9,7 +9,7 @@ A contributed view id belongs to one container. An activity-bar container requir
 **Goals:**
 
 - Add the activity-bar container and a second view id with contribution JSON and one extra `createTreeView` on the provider that already exists.
-- Ship `media/variant-worktrees-view-icon.svg` as that container's icon. No copy under `assets/brand`.
+- Ship `media/vw-mini-icon.svg` as that container's icon. No copy under `assets/brand`.
 
 **Non-Goals:**
 
@@ -28,11 +28,11 @@ A contributed view id belongs to one container. An activity-bar container requir
 {
   "id": "variantWorktrees",
   "title": "Variant Worktrees",
-  "icon": "media/variant-worktrees-view-icon.svg"
+  "icon": "media/vw-mini-icon.svg"
 }
 ```
 
-The icon file is `packages/variant-vscode/media/variant-worktrees-view-icon.svg`. It is not stored under `assets/brand`. The host resolves `icon` inside the extension, and `.vscodeignore` drops anything not whitelisted, so the whitelist gains `!media/variant-worktrees-view-icon.svg`.
+The icon file is `packages/variant-vscode/media/vw-mini-icon.svg`. It is not stored under `assets/brand`. The host resolves `icon` inside the extension, and `.vscodeignore` drops anything not whitelisted, so the whitelist gains `!media/vw-mini-icon.svg`.
 
 `views.variantWorktrees` gets one view, id `variant.worktrees`, name `Variant Worktrees`, `when` `workspaceFolderCount > 0`, `visibility` `visible`.
 
@@ -59,7 +59,7 @@ Extend the manifest tests for the activity-bar container, the media svg, the whi
 ## Risks / Trade-offs
 
 - [Bare `||` in a menu `when`] → Parentheses around the view check, asserted by the manifest test.
-- [Svg missing from the vsix] → Whitelist `media/variant-worktrees-view-icon.svg` and assert that line.
+- [Svg missing from the vsix] → Whitelist `media/vw-mini-icon.svg` and assert that line.
 - [Opening the activity-bar view and the Explorer tree doubles `getChildren`] → The provider reads one store. No second list or watch.
 - [The activity-bar icon is visible once the extension is installed] → Startup still does not call `variant.worktrees.focus`, so the Explorer stays the active sidebar.
 

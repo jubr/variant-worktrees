@@ -4,7 +4,7 @@ The variants tree is only an Explorer section. Someone who keeps the sidebar on 
 
 ## What Changes
 
-- Contribute an activity-bar view container titled `Variant Worktrees`, with icon `variant-worktrees-view-icon.svg`.
+- Contribute an activity-bar view container titled `Variant Worktrees`, with icon `vw-mini-icon.svg`.
 - Put a second native tree view in that container. It lists the same rows and offers the same welcome text, title actions, and item actions as the Explorer section.
 - When `variant.noVariants` is set, that welcome says `Variants are not initialized, but no variants created yet.` and **Onboard** runs `variant.create`.
 - One tree provider feeds both views. A refresh or an action updates both.
@@ -28,7 +28,7 @@ None.
 
 ### Modified Capabilities
 
-- `variant-vscode/variants-tree`: the same native tree is also a view in an activity-bar view container titled `Variant Worktrees`, using `variant-worktrees-view-icon.svg`.
+- `variant-vscode/variants-tree`: the same native tree is also a view in an activity-bar view container titled `Variant Worktrees`, using `vw-mini-icon.svg`.
 
 ## Impact
 
