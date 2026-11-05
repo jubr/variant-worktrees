@@ -1,5 +1,5 @@
 # toml-language-server: $schema=https://mise.jdx.dev/schema/mise.json
 
 [tools]
-bun = "1.4.2"
-#"github:jubr/variant-worktrees" = "latest" # the `variant` CLI
+bun = "1.4.4"
+"github:jubr/variant-worktrees" = "latest" # the `variant` CLI
