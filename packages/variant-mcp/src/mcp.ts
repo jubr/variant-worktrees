@@ -3,7 +3,8 @@ import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createClient, loadVariantConfig } from "variant-api";
+import { SetLevelRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { createClient, type LogLevel, loadVariantConfig, setLogSink } from "variant-api";
 import { commands } from "variant-api/commands";
 import { z } from "zod/v4";
 
@@ -26,7 +27,51 @@ const client = createClient({
   config,
   worktree: process.env.VARIANT_WORKTREE !== "0",
 });
-const server = new McpServer({ name: "variant", version });
+const server = new McpServer({ name: "variant", version }, { capabilities: { logging: {} } });
+
+const MCP_LEVELS = ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"] as const;
+type McpLevel = (typeof MCP_LEVELS)[number];
+let clientLevel: McpLevel | undefined;
+
+const libraryAsMcp = (level: LogLevel): McpLevel => {
+  if (level === "trace" || level === "debug") {
+    return "debug";
+  }
+  if (level === "info") {
+    return "info";
+  }
+  if (level === "warn") {
+    return "warning";
+  }
+  return "error";
+};
+
+/** Trace is delivered only at client `debug`. Other library levels follow the MCP ordering. */
+const levelAllows = (level: LogLevel): boolean => {
+  const selected = clientLevel ?? "warning";
+  if (level === "trace") {
+    return selected === "debug";
+  }
+  return MCP_LEVELS.indexOf(libraryAsMcp(level)) >= MCP_LEVELS.indexOf(selected);
+};
+
+server.server.setRequestHandler(SetLevelRequestSchema, async (request) => {
+  const level = request.params.level;
+  if ((MCP_LEVELS as readonly string[]).includes(level)) {
+    clientLevel = level as McpLevel;
+  }
+  return {};
+});
+
+setLogSink((event) => {
+  if (!levelAllows(event.level)) {
+    return;
+  }
+  void server.sendLoggingMessage({
+    level: libraryAsMcp(event.level),
+    data: event.level === "trace" ? { level: "trace", message: event.message } : event.message,
+  });
+});
 
 for (const command of commands) {
   const shape: Record<string, z.ZodType> = {};
