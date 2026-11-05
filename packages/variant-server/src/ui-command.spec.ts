@@ -73,8 +73,7 @@ const withProject = async (
       put,
       options,
       run: (overrides = {}) => runUi({ ...options(), ...overrides }),
-      runtime: () =>
-        (parseYaml(readFileSync(join(directory, "variants.local.yaml"), "utf8")) as { runtime: never }).runtime,
+      runtime: () => parseYaml(readFileSync(join(directory, ".cache/variant/state.yaml"), "utf8")),
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });
