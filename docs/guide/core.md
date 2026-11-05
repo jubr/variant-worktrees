@@ -20,7 +20,7 @@ variant init --prefix wt- --mise=false
 variant init --force
 ```
 
-`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`. The VS Code extension command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure. Without a config file the Explorer section offers **Onboard**, which opens that dialog.
+`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`. The VS Code extension command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure. Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
 
 ## config
 
