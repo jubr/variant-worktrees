@@ -1,11 +1,4 @@
-import { join } from "node:path";
-import {
-  isSchemaHeaderNotice,
-  LOCAL_FILENAME,
-  type MigrationResult,
-  migrateFile,
-  type ResolvedConfig,
-} from "variant-config";
+import { isSchemaHeaderNotice, type MigrationResult, migrateFile, type ResolvedConfig } from "variant-config";
 
 /**
  * Specification: openspec/specs/variant-cli/config-migration/spec.md
@@ -26,9 +19,6 @@ const describeResult = (result: MigrationResult): string[] => {
       "  Rename them by hand; until then the file is read under the current names.",
     ];
   }
-  if (result.file.endsWith(LOCAL_FILENAME)) {
-    return [`migrated ${result.file}: updated to the current names and format.`, ...notices];
-  }
   if (result.backup !== undefined) {
     return [
       `migrated ${result.file}: updated to the current names and format.`,
@@ -44,16 +34,17 @@ const describeResult = (result: MigrationResult): string[] => {
 };
 
 /**
- * Best-effort rewrite of the configuration files that use names of an earlier version (`variant.instances`,
- * `runtime.instances`, `variant.reservedPorts`) or lack the schema header, and a report on standard error, once per process and file. The command
- * that called it runs on whatever the outcome. Only this CLI writes: the library, the MCP server and `variant ui` do not.
+ * Best-effort rewrite of a `variants.yaml` that uses names of an earlier version (`variant.instances`,
+ * `variant.reservedPorts`) or lacks the schema header, and a report on standard error, once per process and file.
+ * Does not rewrite `variants.local.yaml`. The command that called it runs on whatever the outcome. Only this CLI
+ * writes: the library, the MCP server and `variant ui` do not.
  */
 export const migrateConfigFiles = (
   config: ResolvedConfig,
   env: NodeJS.ProcessEnv = process.env,
   print: (line: string) => void = (line) => console.error(line),
 ): void => {
-  for (const file of [config.configPath, join(config.configDir, LOCAL_FILENAME)]) {
+  for (const file of [config.configPath]) {
     if (handled.has(file)) {
       continue;
     }
