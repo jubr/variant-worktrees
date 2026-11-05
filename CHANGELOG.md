@@ -4,7 +4,7 @@
 
 ### Added
 
-- VS Code: an activity-bar **Variant Worktrees** tree lists the same rows as the Explorer section, with icon `variant-worktrees-view-icon.svg`.
+- VS Code: an activity-bar **Variant Worktrees** tree lists the same rows as the Explorer section, with icon `vw-mini-icon.svg`.
 
 ## [0.0.6] - 2026-11-05
 

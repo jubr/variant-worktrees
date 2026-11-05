@@ -114,18 +114,18 @@ describe("activity bar manifest", () => {
       {
         id: "variantWorktrees",
         title: "Variant Worktrees",
-        icon: "media/variant-worktrees-view-icon.svg",
+        icon: "media/vw-mini-icon.svg",
       },
     ]);
     expect(manifest.contributes.viewsContainers?.panel).toBeUndefined();
   });
 
   it("ships the view icon and whitelists it for the package", () => {
-    const packaged = new URL("../media/variant-worktrees-view-icon.svg", import.meta.url);
+    const packaged = new URL("../media/vw-mini-icon.svg", import.meta.url);
 
     expect(readFileSync(packaged, "utf8")).toContain("<svg");
     expect(readFileSync(new URL("../.vscodeignore", import.meta.url), "utf8").split("\n")).toContain(
-      "!media/variant-worktrees-view-icon.svg",
+      "!media/vw-mini-icon.svg",
     );
   });
 
