@@ -116,6 +116,29 @@ describe("configuration migration in the CLI", () => {
     expect(result.stderr).toContain("VARIANT_MIGRATE=0");
   });
 
+  it("does not rewrite a variants.local.yaml that uses runtime.instances", async () => {
+    const { directory, file } = project(NEW, true);
+    const local = join(directory, "variants.local.yaml");
+    const text = `${LOCAL_HEADER}\n\nruntime:\n  slug: main\n  instances:\n    be: { port: 62060 }\n`;
+    writeFileSync(local, text);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect({
+      exitCode: result.exitCode,
+      stderr: result.stderr,
+      stdout: result.stdout,
+      text: readFileSync(local, "utf8"),
+    }).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: expect.any(String),
+      text,
+    });
+    expect(readFileSync(local, "utf8")).toBe(text);
+    expect(result.stderr).not.toContain(local);
+  });
+
   it("rewrites the git-ignored variants.local.yaml next to it", async () => {
     const { directory, file } = project(NEW, true);
     const local = join(directory, "variants.local.yaml");
