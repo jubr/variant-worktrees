@@ -1,0 +1,17 @@
+## 1. Panel contribution
+
+- [ ] 1.1 Extend `packages/variant-vscode/src/variants-manifest.spec.ts` with failing assertions for [specs/variant-vscode/variants-tree | Variants tree in the panel](../../specs/variant-vscode/variants-tree/spec.md#requirement-variants-tree-in-the-panel): `viewsContainers.panel` has id `variantWorktrees`, title `Variant Worktrees`, icon `media/icon-128.png`; `views.variantWorktrees` has one view `variant.worktrees` named `Variant Worktrees`, `when` `workspaceFolderCount > 0`, `visibility` `visible`; that view stays contributed while `variant.onboardingOpen` is true; `views.explorer` still swaps `variant.variants` and `variant.onboarding` as it does now; both welcome entries are copied for `variant.worktrees`; every `view/title` and `view/item/context` `when` that named `variant.variants` is now `(view == variant.variants || view == variant.worktrees)` plus the rest of the clause. Verify with `bun test packages/variant-vscode/src/variants-manifest.spec.ts`: the new assertions fail, the existing explorer assertions pass.
+
+- [ ] 1.2 Add that container, view, welcome copy, and parenthesized `when` clauses to `packages/variant-vscode/package.json`. Leave the Explorer views and the sort submenu bodies unchanged. Verify with `bun test packages/variant-vscode/src/variants-manifest.spec.ts`: the file passes.
+
+## 2. Shared tree
+
+- [ ] 2.1 Extend `packages/variant-vscode/src/variants-view.spec.ts` and `packages/variant-vscode/src/extension.test.ts` with failing assertions for the same requirement: `createTreeView` is called for `variant.variants` and `variant.worktrees` with the same `treeDataProvider`, and activation with a workspace folder registers both ids and still registers `variant.play` once. Verify with `bun test` on those two files: the new assertions fail.
+
+- [ ] 2.2 In `registerVariantsView`, call `createTreeView` for `variant.worktrees` with the existing provider. Do not add a provider, a store, or a command. Point the specification comment at `openspec/specs/variant-vscode/variants-tree/spec.md`. Leave `variants-expand.ts` focusing `variant.variants` only. Verify with `bun test` on `variants-view.spec.ts`, `extension.test.ts`, and `variants-expand.spec.ts`: all three pass, and expand still runs only `variant.variants.focus` then `workbench.action.focusActiveEditorGroup`.
+
+## 3. Docs and validation
+
+- [ ] 3.1 Document the panel tab in `packages/variant-vscode/README.md` and add one clause to the Explorer sentence in `docs/guide/core.md`. Add `## Unreleased` with an Added bullet to `CHANGELOG.md` and `packages/variant-vscode/CHANGELOG.md`. Verify those four files mention the panel **Variant Worktrees** tree and that neither changelog still starts at `## [0.0.6]`.
+
+- [ ] 3.2 Run `openspec validate --all --strict --no-interactive` and `bun test packages/variant-vscode`. Verify both exit 0.
