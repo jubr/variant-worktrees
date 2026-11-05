@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runCli } from "./support/cli.js";
+import { runCli, runCommand } from "./support/cli.js";
 
 describe("variant CLI", () => {
   it("lists lifecycle commands in help", async () => {
@@ -159,15 +160,21 @@ describe("variant CLI", () => {
   });
 
   it("runs the config, create, list, implode smoke sequence", async () => {
-    const directory = mkdtempSync(join("/tmp", "variant-cli-"));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-")));
     const configPath = join(directory, "variants.yaml");
     writeFileSync(configPath, "db:\n  dialect: sqlite\n");
-    const environment = { VARIANT_CONFIG: configPath };
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+    execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+    execFileSync("git", ["-C", directory, "commit", "-q", "--allow-empty", "-m", "initial"]);
+    const environment = { VARIANT_CONFIG: configPath, VARIANT_WORKTREE: "1" };
+    const variant = (args: string[]) =>
+      runCommand(["bun", join(import.meta.dir, "../src/cli.ts")], args, environment, directory);
     try {
-      expect((await runCli(["config"], environment)).exitCode).toBe(0);
-      expect((await runCli(["create", "-s", "test-feature"], environment)).exitCode).toBe(0);
-      expect((await runCli(["list"], environment)).stdout).toContain("test-feature");
-      expect((await runCli(["implode", "-s", "test-feature"], environment)).exitCode).toBe(0);
+      expect((await variant(["config"])).exitCode).toBe(0);
+      expect((await variant(["create", "-s", "test-feature"])).exitCode).toBe(0);
+      expect((await variant(["list"])).stdout).toContain("test-feature");
+      expect((await variant(["implode", "-s", "test-feature"])).exitCode).toBe(0);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

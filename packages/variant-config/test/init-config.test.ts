@@ -42,15 +42,31 @@ const POSTGRES = {
 };
 
 describe("renderInitConfig", () => {
-  it("writes the Postgres settings and the prefix, with the password as a reference", () => {
-    const { text } = render(POSTGRES);
-
-    expect(parsed(text)).toMatchObject({
-      db: { dialect: "postgres", host: "db.local", port: 5433, user: "app", database: "appdb" },
-      variant: { prefix: "_v-" },
+  it("writes Postgres host, port, user and password as references and the database name as text", () => {
+    const { text } = render(POSTGRES, {
+      POSTGRES_HOST: join(dirname(directory), "mise.local.toml"),
+      POSTGRES_PORT: join(dirname(directory), "mise.local.toml"),
+      POSTGRES_USER: join(dirname(directory), "mise.local.toml"),
+      POSTGRES_PASSWORD: join(dirname(directory), "mise.local.toml"),
     });
-    expect(parsed(text).db.password).toBe("${POSTGRES_PASSWORD}");
+    const db = parsed(text).db;
+
+    expect(db).toMatchObject({
+      dialect: "postgres",
+      host: "${POSTGRES_HOST}",
+      port: "${POSTGRES_PORT}",
+      user: "${POSTGRES_USER}",
+      password: "${POSTGRES_PASSWORD}",
+      database: "appdb",
+    });
+    expect(text).toContain("host: ${POSTGRES_HOST} # from ../mise.local.toml");
+    expect(text).toContain("port: ${POSTGRES_PORT} # from ../mise.local.toml");
+    expect(text).toContain("user: ${POSTGRES_USER} # from ../mise.local.toml");
+    expect(text).toContain("password: ${POSTGRES_PASSWORD} # from ../mise.local.toml");
+    expect(parsed(text).variant.main).toBeUndefined();
+    expect(parsed(text).variant.root).toBeUndefined();
     expect(text).not.toContain("hunter2");
+    expect(text).not.toContain("db.local");
   });
 
   it("writes MariaDB as dialect mysql", () => {
@@ -199,6 +215,8 @@ describe("renderInitConfig", () => {
       expect(VariantsConfigSchema.safeParse(parseYaml(text)).success).toBe(true);
       const config = loadConfig({ cwd: directory, environment: () => environment });
       expect(config.db).toEqual(detectConnection(directory, () => environment).config);
+      expect(config.variant.main).toBe(directory);
+      expect(config.variant.root).toBe(directory);
       expect(Object.keys(config.variant.watches)).toEqual(["api", "be", "fe"]);
     });
 

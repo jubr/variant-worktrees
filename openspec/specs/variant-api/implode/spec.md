@@ -102,7 +102,7 @@ The system SHALL, before the worktree report is taken and the worktree is remove
 
 The system SHALL return and print, before removing the worktree and before discarding lockfile changes, a report of what the worktree still holds. The same report string SHALL be the value returned on the result and the text printed for it. The text summary printed after the command returns SHALL NOT repeat that report.
 
-The report SHALL list the git commands that show that dirt, in this order, skipping a command whose output is empty: `git status --porcelain`, `git diff --stat`, then one `git diff -U1 <path>` for each path that `git diff --name-only` lists, in that order. `<path>` SHALL be the path that listing prints, relative to the worktree. Each kept command SHALL be the string `\n\033[33m+ <command>\033[0m\n` (dark yellow `\033[33m` around `+ <command>`, then `\033[0m`) followed by that command's output. The output SHALL be plain git text: git color SHALL be off, and the output SHALL contain no ANSI sequence. The trace SHALL be the only colored part of the report.
+The report SHALL list the git commands that show that dirt, in this order, skipping a command whose output is empty: `git status --porcelain`, `git diff --stat`, then one `git diff -U1 <path>` for each path that `git diff --name-only` lists, in that order. `<path>` SHALL be the path that listing prints, relative to the worktree. Each kept command SHALL be the string `\n\033[33m+ <command>\033[0m\n` (dark yellow `\033[33m` around `+ <command>`, then `\033[0m`) followed by that command's output. Git's own color SHALL be off. The tool SHALL color the diff body itself: each kept hunk line that starts with `+` and is not `+++` SHALL be wrapped in `\033[32m` and `\033[0m`, and each kept hunk line that starts with `-` SHALL be wrapped in `\033[31m` and `\033[0m`. Context lines, `+++` lines, and the output of `git status --porcelain` and `git diff --stat` SHALL contain no ANSI sequence. The report string SHALL contain these sequences when standard output is not a terminal.
 
 The output of each `git diff -U1 <path>` SHALL omit every line that is a `diff --git` header, an `index <hex>..<hex> <mode>` header, or an old-file header starting with `--- `, and SHALL keep every other line. Those lines SHALL be omitted wherever they occur, not by dropping a fixed number of leading lines. For a modification of a tracked file the kept patch starts at the `+++` line and the hunk, with one line of context. A header of another shape (`+++`, `new file mode`, `rename from`, `rename to`, `similarity index`) SHALL stay.
 
@@ -116,7 +116,12 @@ The per-file patches SHALL be included only when the number of kept patch lines,
 #### Scenario: Color when captured
 
 - **WHEN** that report is produced while standard output is not a terminal
-- **THEN** the `+` and the command of each trace are wrapped in `\033[33m` and `\033[0m`, and no command output contains an ANSI sequence
+- **THEN** the `+` and the command of each trace are wrapped in `\033[33m` and `\033[0m`
+
+#### Scenario: Diff lines are colored
+
+- **WHEN** tracked `src/a.ts` has an unstaged change that adds one line and removes one line, and `maxDiffLines` is 200
+- **THEN** the added hunk line is wrapped in `\033[32m` and `\033[0m`, the removed hunk line is wrapped in `\033[31m` and `\033[0m`, and the `+++` line contains no ANSI sequence
 
 #### Scenario: Two files in listed order
 

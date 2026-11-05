@@ -1,6 +1,6 @@
-import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
-import { LOCAL_FILENAME } from "variant-config";
+import { existsSync, mkdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
 import { loadVariantConfig } from "./mise.js";
 import { createVariant } from "./operations/create.js";
@@ -67,10 +67,25 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     return [
       { path: stateDir },
       { path: root, accept: (filename) => filename === null || filename.startsWith(prefix) },
-      ...directories.map((path) => ({
-        path,
-        accept: (filename: string | null) => filename === null || filename === LOCAL_FILENAME,
-      })),
+      ...directories.flatMap((path) => {
+        const cache = join(path, ".cache", "variant");
+        const cacheName = STATE_FILE.slice(STATE_FILE.lastIndexOf("/") + 1);
+        return [
+          {
+            path,
+            accept: (filename: string | null) =>
+              filename === null || filename === LOCAL_FILENAME || filename === ".cache",
+          },
+          ...(existsSync(cache)
+            ? [
+                {
+                  path: cache,
+                  accept: (filename: string | null) => filename === null || filename === cacheName,
+                },
+              ]
+            : []),
+        ];
+      }),
     ];
   };
   const subscriptions = createStateSubscriptions({
@@ -99,6 +114,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 };
 
 export { loadConfig } from "variant-config";
+export { worktreeReport } from "./cleanup.js";
 export { listSlugs } from "./list-slugs.js";
 export {
   type LoadVariantConfigOptions,

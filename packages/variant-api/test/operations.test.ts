@@ -9,18 +9,21 @@ const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-operations
 
 describe("variant client operations", () => {
   it("creates, lists, and implodes an isolated SQLite variant", async () => {
-    const directory = tempDirectory();
+    const parent = tempDirectory();
+    const directory = join(parent, "repo");
     try {
-      const baseConfig = loadConfig({ cwd: directory });
-      const config = {
-        ...baseConfig,
-        db: { dialect: "sqlite" as const },
-      };
+      execFileSync("git", ["init", "-q", "-b", "main", directory], { encoding: "utf8" });
+      execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+      execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+      writeFileSync(join(directory, ".gitignore"), ".cache\n_v-*\n");
+      writeFileSync(join(directory, "README.md"), "test\n");
+      execFileSync("git", ["-C", directory, "add", ".gitignore", "README.md"]);
+      execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
+      const baseConfig = loadConfig({ cwd: directory, env: {} });
       const client = createClient({
-        config,
+        config: { ...baseConfig, db: { dialect: "sqlite" as const } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
-        worktree: false,
       });
 
       const created = await client.create("test-feature");
@@ -28,16 +31,17 @@ describe("variant client operations", () => {
       expect(created.implodeClean).toBe(true);
       expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
       expect(existsSync(created.target)).toBe(false);
+      expect(existsSync(join(directory, ".cache", "variants", "test-feature.yaml"))).toBe(false);
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);
 
       expect(await client.implode("test-feature")).toMatchObject({
         slug: "test-feature",
         removed: true,
-        worktreeRemoved: false,
+        worktreeRemoved: true,
       });
       expect(await client.list()).toEqual([]);
     } finally {
-      rmSync(directory, { recursive: true, force: true });
+      rmSync(parent, { recursive: true, force: true });
     }
   });
 
@@ -110,16 +114,19 @@ describe("variant client operations", () => {
         now: () => new Date(2026, 10, 4, 12, 22, 5),
       });
       const created = await client.create("demo");
-      const localFile = join(created.worktree as string, "variants.local.yaml");
+      const stateFile = join(created.worktree as string, ".cache", "variant", "state.yaml");
 
-      expect(readFileSync(localFile, "utf8")).toContain("createdAt: 2026-11-04_12:22:05");
+      const written = readFileSync(stateFile, "utf8");
+      expect(written).toContain("createdAt: 2026-11-04_12:22:05");
+      expect(written).toContain("slug: demo");
+      expect(written).toContain("dialect: sqlite");
+      expect(existsSync(join(repo, ".cache", "variants", "demo.yaml"))).toBe(false);
 
-      writeFileSync(localFile, "custom: kept\nruntime:\n  createdAt: 2026-01-02_03:04:05\n");
+      writeFileSync(stateFile, "slug: demo\ncreatedAt: 2026-01-02_03:04:05\n");
       await client.create("demo");
 
-      const kept = readFileSync(localFile, "utf8");
+      const kept = readFileSync(stateFile, "utf8");
       expect(kept).toContain("createdAt: 2026-01-02_03:04:05");
-      expect(kept).toContain("custom: kept");
       expect(kept).not.toContain("2026-11-04_12:22:05");
     } finally {
       rmSync(parent, { recursive: true, force: true });

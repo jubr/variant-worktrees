@@ -1,11 +1,13 @@
-import { realpathSync } from "node:fs";
+import { realpathSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
   clearRuntime,
   type ResolvedConfig,
   type ResolvedRuntime,
+  RUNTIME_FILE,
   type Runtime,
   readRuntime,
+  STATE_FILE,
   UI_WATCH_KEY,
   writeRuntime,
 } from "variant-config";
@@ -53,6 +55,13 @@ export const writeVariantRuntime = (config: ResolvedConfig, worktree: string, ru
   const dir = variantConfigDir(config, worktree);
   const ui = recordedUiWatch(dir);
   writeRuntime(dir, ui ? { ...runtime, watches: { ...runtime.watches, [UI_WATCH_KEY]: ui } } : runtime);
+};
+
+/** Deletes the cache files of a variant. Does not rewrite a legacy `variants.local.yaml`. */
+export const removeVariantRuntime = (config: ResolvedConfig, worktree: string): void => {
+  const dir = variantConfigDir(config, worktree);
+  rmSync(join(dir, STATE_FILE), { force: true });
+  rmSync(join(dir, RUNTIME_FILE), { force: true });
 };
 
 export const clearVariantRuntime = (config: ResolvedConfig, worktree: string): void => {

@@ -1,13 +1,5 @@
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import {
-  findConfigFile,
-  isSchemaHeaderNotice,
-  LOCAL_FILENAME,
-  loadConfig,
-  type MigrationResult,
-  migrateFile,
-} from "variant-config";
+import { findConfigFile, isSchemaHeaderNotice, loadConfig, type MigrationResult, migrateFile } from "variant-config";
 import * as vscode from "vscode";
 
 /**
@@ -29,9 +21,8 @@ const messageFor = (result: MigrationResult): string => {
   if (result.status === "skipped") {
     return `${result.file} is not in the current format and was not rewritten: ${result.reason}. Update it by hand (${names}).`;
   }
-  const how = result.file.endsWith(LOCAL_FILENAME)
-    ? "It is git-ignored and written by Variant Worktrees."
-    : result.backup !== undefined
+  const how =
+    result.backup !== undefined
       ? `It is not tracked by git, so the old text is saved as ${result.backup}.`
       : "Review the change with git diff and revert it with git checkout.";
   return `${result.file} was updated to the current names and format. ${how} (${names})`;
@@ -78,9 +69,9 @@ const undo = (file: string, before: string, after: string, backup: string | unde
 };
 
 /**
- * Rewrites the configuration files of the workspace that use names of an earlier version, best effort, and tells the user
+ * Rewrites a `variants.yaml` that uses names of an earlier version, best effort, and tells the user
  * with a warning notification that has the actions **Open file** and, after a rewrite, **Undo**. A warning with an action stays until it is closed.
- * Each file is announced once per session. A failure never reaches the caller: the views load on whatever the outcome.
+ * Does not rewrite `variants.local.yaml`. Each file is announced once per session. A failure never reaches the caller: the views load on whatever the outcome.
  */
 export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => void } => {
   const announced = new Set<string>();
@@ -93,7 +84,7 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
         }
         const env = deps.env ?? process.env;
         const config = loadConfig({ cwd: deps.root, configPath, env });
-        for (const file of [config.configPath, join(config.configDir, LOCAL_FILENAME)]) {
+        for (const file of [config.configPath]) {
           if (announced.has(file)) {
             continue;
           }

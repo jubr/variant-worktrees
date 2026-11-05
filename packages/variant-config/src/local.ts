@@ -1,15 +1,17 @@
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import { findSchemaHeader, schemaHeaderFor } from "./header.js";
 import { migrateLegacy } from "./legacy.js";
 import {
   envSegment,
   LOCAL_FILENAME,
   type ResolvedRuntime,
+  RUNTIME_FILE,
   type Runtime,
-  RuntimeSchema,
   type RuntimeWatch,
+  STATE_FILE,
+  type StateFile,
+  StateFileSchema,
   VariantsLocalSchema,
 } from "./schema.js";
 
@@ -45,7 +47,7 @@ export interface LocalState {
   migrations: string[];
 }
 
-const readLocal = (configDir: string, env: NodeJS.ProcessEnv): LocalState => {
+const readLegacy = (configDir: string, env: NodeJS.ProcessEnv): LocalState => {
   const path = join(configDir, LOCAL_FILENAME);
   if (!existsSync(path)) {
     return { migrations: [] };
@@ -53,6 +55,70 @@ const readLocal = (configDir: string, env: NodeJS.ProcessEnv): LocalState => {
   const { data, notices } = migrateLegacy(parseYaml(readFileSync(path, "utf8")) ?? {}, path);
   const local = VariantsLocalSchema.parse(expandEnv(data, env));
   return { ...(local.runtime ? { runtime: resolveRuntime(local.runtime) } : {}), migrations: notices };
+};
+
+const dbFromState = (state: StateFile): ResolvedRuntime["db"] => {
+  if (state.dialect === undefined && state.target === undefined) {
+    return undefined;
+  }
+  if (state.dialect === "sqlite") {
+    return {
+      ...(state.dialect ? { dialect: state.dialect } : {}),
+      ...(state.target ? { filename: state.target } : {}),
+    };
+  }
+  return {
+    ...(state.dialect ? { dialect: state.dialect } : {}),
+    ...(state.target ? { schema: state.target } : {}),
+  };
+};
+
+const runtimeFromState = (state: StateFile): ResolvedRuntime => {
+  const db = dbFromState(state);
+  return {
+    ...(state.slug ? { slug: state.slug } : {}),
+    ...(state.mode ? { mode: state.mode } : {}),
+    ...(state.dir ? { dir: state.dir } : {}),
+    ...(state.log ? { log: state.log } : {}),
+    ...(state.createdAt ? { createdAt: state.createdAt } : {}),
+    ...(db ? { db } : {}),
+    ...(state.watches ? { watches: state.watches } : {}),
+  };
+};
+
+/** Reads `.cache/variant/state.yaml`. Absent file is `undefined`. An unknown key fails validation. */
+const readStateFile = (configDir: string): StateFile | undefined => {
+  const path = join(configDir, STATE_FILE);
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  return StateFileSchema.parse(parseYaml(readFileSync(path, "utf8")) ?? {});
+};
+
+const readDumpDb = (configDir: string): ResolvedRuntime["db"] => {
+  const path = join(configDir, RUNTIME_FILE);
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  try {
+    const dump = parseYaml(readFileSync(path, "utf8")) as { db?: ResolvedRuntime["db"] } | null;
+    return dump?.db;
+  } catch {
+    return undefined;
+  }
+};
+
+const readLocal = (configDir: string, env: NodeJS.ProcessEnv): LocalState => {
+  const state = readStateFile(configDir);
+  if (!state) {
+    return readLegacy(configDir, env);
+  }
+  const runtime = runtimeFromState(state);
+  const dumped = readDumpDb(configDir);
+  if (dumped) {
+    runtime.db = { ...runtime.db, ...dumped };
+  }
+  return { runtime, migrations: [] };
 };
 
 const positiveInteger = (name: string, value: string): number => {
@@ -121,31 +187,91 @@ export const readRuntimeState = (
   return { runtime: { ...runtime, watches }, migrations };
 };
 
-/** Writes the `runtime` section of `<configDir>/variants.local.yaml`, validated, keeping the file's other top-level keys. */
-export const writeRuntime = (configDir: string, runtime: Runtime): void => {
-  const path = join(configDir, LOCAL_FILENAME);
-  const text = existsSync(path) ? readFileSync(path, "utf8") : "";
-  const existing: unknown = text === "" ? {} : parseYaml(text);
-  const others = typeof existing === "object" && existing !== null ? existing : {};
-  const header = findSchemaHeader(text) ?? schemaHeaderFor(LOCAL_FILENAME);
-  writeFileSync(path, `${header}\n\n${stringifyYaml({ ...others, runtime: RuntimeSchema.parse(runtime) })}`);
-};
-
-/** Removes the `runtime` section of `<configDir>/variants.local.yaml`, keeping other keys; a file left empty is removed. */
-export const clearRuntime = (configDir: string): void => {
-  const path = join(configDir, LOCAL_FILENAME);
-  if (!existsSync(path)) {
+const writeIfChanged = (path: string, text: string): void => {
+  if (existsSync(path) && readFileSync(path, "utf8") === text) {
     return;
   }
-  const text = readFileSync(path, "utf8");
-  const existing: unknown = parseYaml(text);
-  const { runtime: _removed, ...others } =
-    typeof existing === "object" && existing !== null ? (existing as Record<string, unknown>) : {};
-  if (Object.keys(others).length === 0) {
-    rmSync(path);
-  } else {
-    const header = findSchemaHeader(text);
-    writeFileSync(path, `${header === undefined ? "" : `${header}\n\n`}${stringifyYaml(others)}`);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+};
+
+const targetOf = (db: Runtime["db"]): string | undefined => db?.schema ?? db?.filename;
+
+const watchFacts = (watches: Runtime["watches"]): StateFile["watches"] =>
+  Object.fromEntries(
+    Object.entries(watches ?? {}).map(([key, watch]) => [
+      key,
+      {
+        ...(watch.port !== undefined ? { port: watch.port } : {}),
+        ...(watch.pid !== undefined ? { pid: watch.pid } : {}),
+        ...(watch.url !== undefined ? { url: watch.url } : {}),
+        ...(watch.startedAt !== undefined ? { startedAt: watch.startedAt } : {}),
+      },
+    ]),
+  );
+
+const stateFromRuntime = (runtime: Runtime): StateFile => {
+  const target = targetOf(runtime.db);
+  return StateFileSchema.parse({
+    ...(runtime.slug ? { slug: runtime.slug } : {}),
+    ...(runtime.createdAt ? { createdAt: runtime.createdAt } : {}),
+    ...(runtime.dir ? { dir: runtime.dir } : {}),
+    ...(runtime.db?.dialect ? { dialect: runtime.db.dialect } : {}),
+    ...(target ? { target } : {}),
+    ...(runtime.mode ? { mode: runtime.mode } : {}),
+    ...(runtime.log ? { log: runtime.log } : {}),
+    ...(runtime.watches ? { watches: watchFacts(runtime.watches) } : {}),
+  });
+};
+
+const configPathOf = (configDir: string): string | undefined =>
+  ["variants.yaml", "variants.yml"].map((name) => join(configDir, name)).find((path) => existsSync(path));
+
+/**
+ * Writes `.cache/variant/state.yaml` and `.cache/variant/runtime.yaml`.
+ * Skips a file whose text would not change. Does not create or rewrite `variants.local.yaml`.
+ * Specification: openspec/specs/variant-config/core/spec.md
+ */
+export const writeRuntime = (configDir: string, runtime: Runtime): void => {
+  const state = stateFromRuntime(runtime);
+  const configPath = configPathOf(configDir);
+  const dump = {
+    ...(runtime.db ? { db: runtime.db } : {}),
+    ...(runtime.watches ? { watches: watchFacts(runtime.watches) } : {}),
+    ...(configPath ? { configPath } : {}),
+  };
+  writeIfChanged(join(configDir, STATE_FILE), stringifyYaml(state));
+  writeIfChanged(join(configDir, RUNTIME_FILE), stringifyYaml(dump));
+};
+
+const withoutOperation = (state: StateFile): StateFile => {
+  const { mode: _mode, log: _log, watches: _watches, ...kept } = state;
+  return kept;
+};
+
+/**
+ * Clears `mode`, `log` and `watches` from the state file and the process facts from the dump.
+ * Keeps identity fields. Does not create or rewrite `variants.local.yaml`.
+ */
+export const clearRuntime = (configDir: string): void => {
+  const statePath = join(configDir, STATE_FILE);
+  const dumpPath = join(configDir, RUNTIME_FILE);
+  const state = readStateFile(configDir) ?? stateFromRuntime(readLegacy(configDir, {}).runtime ?? {});
+  const kept = withoutOperation(state);
+  if (Object.keys(kept).length === 0) {
+    rmSync(statePath, { force: true });
+    rmSync(dumpPath, { force: true });
+    return;
+  }
+  writeIfChanged(statePath, stringifyYaml(kept));
+  if (existsSync(dumpPath)) {
+    try {
+      const dump = (parseYaml(readFileSync(dumpPath, "utf8")) ?? {}) as Record<string, unknown>;
+      delete dump.watches;
+      writeIfChanged(dumpPath, stringifyYaml(dump));
+    } catch {
+      rmSync(dumpPath, { force: true });
+    }
   }
 };
 

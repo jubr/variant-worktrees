@@ -8,16 +8,16 @@ and record what runs in the variant's own `variants.local.yaml`, so a variant is
 
 ### Requirement: Runtime preparation
 
-The system SHALL prepare a variant for both `up` and `watch` in this order: ensure its worktree (the primary worktree for slug `main`), assign a port to every watch, prepare the database target, provision (see the provisioning capability), and only then start watches. A port SHALL be the resolved watch port (environment override, then `variants.local.yaml`, then a free port of `variant.ports.range`); no two watches SHALL share a port, and a conflict between two overrides SHALL fail naming both variables. The database target SHALL be created clean by `up` (an existing variant schema or database is dropped first) and created only when missing by `watch`. For slug `main` the target SHALL never be created or dropped.
+The system SHALL prepare a variant for both `up` and `watch` in this order: ensure its worktree (the primary worktree for slug `main`), assign a port to every watch, prepare the database target, provision (see the provisioning capability), and only then start watches. A port SHALL be the resolved watch port (environment override, then `.cache/variant/state.yaml`, then a free port of `variant.ports.range`); no two watches SHALL share a port, and a conflict between two overrides SHALL fail naming both variables. The database target SHALL be created clean by `up` (an existing variant schema or database is dropped first) and created only when missing by `watch`. For slug `main` the target SHALL never be created or dropped.
 
 #### Scenario: Ports reused
 
-- **WHEN** `variants.local.yaml` records port 62060 for watch `fe` and `up` runs again
+- **WHEN** `state.yaml` records port 62060 for watch `fe` and `up` runs again
 - **THEN** `fe` is assigned 62060
 
 #### Scenario: Environment port wins
 
-- **WHEN** `VARIANT_FE_PORT` is `62070` and `variants.local.yaml` records 62060 for `fe`
+- **WHEN** `VARIANT_FE_PORT` is `62070` and `state.yaml` records 62060 for `fe`
 - **THEN** `fe` is assigned 62070 and that port is recorded
 
 #### Scenario: Conflicting overrides
@@ -84,6 +84,22 @@ The system SHALL start every watch that has a `container` as a container named `
 - **WHEN** no container engine is available
 - **THEN** `up` fails before building or starting anything, naming `docker` and `podman`
 
+### Requirement: Worktree file selects the watches
+
+When the loaded configuration is a worktree's `variants.yaml` and that file defines `variant.watches`, `watch` and `up` SHALL start those watches and SHALL NOT start watches autodetected from the primary checkout. The command environment SHALL be the one the provisioning capability already sets, including `VARIANT_<K>_PORT` for every watch and the expanded `env.overrides` of that watch. A watch `api` whose overrides set `PORT` to `${port}` SHALL see `PORT` equal to the port assigned to `api`. A watch `spa` whose command contains `--port "$VARIANT_SPA_PORT"` and whose overrides set `VARIANT_API_PORT` to `${api.port}` SHALL see `VARIANT_SPA_PORT` equal to the port assigned to `spa` and `VARIANT_API_PORT` equal to the port assigned to `api`, and the started command SHALL be the command from the worktree file.
+
+#### Scenario: Ports from the worktree file
+
+- **WHEN** `/work/_v-demo/variants.yaml` defines watch `api` with `env.overrides.PORT: ${port}` and watch `spa` with command `task app:dev -- --host 0.0.0.0 --port "$VARIANT_SPA_PORT" --strictPort` and `env.overrides.VARIANT_API_PORT: ${api.port}`, `/work/app/variants.yaml` defines no watches, and `watch` runs with working directory `/work/_v-demo`
+- **THEN** the `api` process environment has `PORT` equal to the port assigned to `api`
+- **AND** the `spa` process environment has `VARIANT_SPA_PORT` equal to the spa port and `VARIANT_API_PORT` equal to the api port
+- **AND** the started spa command is that `task app:dev` command, not `bun run dev`
+
+#### Scenario: Primary file is not autodetected
+
+- **WHEN** that same `watch` runs
+- **THEN** no process is started with `bun run start:dev` taken from `/work/app`
+
 ### Requirement: The watch command runs watches as host processes
 
 The system SHALL start the `watch` command of every watch as a process in the watch directory with the command environment, stdout and stderr attached to the console, and SHALL record the process id of each in the runtime state. A watch without a `watch` command SHALL NOT be started. Watches SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each watch.
@@ -130,7 +146,7 @@ The system SHALL keep an attached `watch` running until it is interrupted, a wat
 #### Scenario: Detached watch
 
 - **WHEN** `watch` runs with `detach`
-- **THEN** the call returns with the pids recorded in `variants.local.yaml` while the processes keep running
+- **THEN** the call returns with the pids recorded in `.cache/variant/state.yaml` while the processes keep running
 
 #### Scenario: Re-run replaces leftovers
 
@@ -153,32 +169,42 @@ The system SHALL allow only one runtime per slug. `watch` SHALL stop the variant
 
 ### Requirement: Runtime state recording
 
-The system SHALL write the `runtime` section of the variant's `variants.local.yaml` (in the variant's worktree, next to its `variants.yaml`) after watches start: `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `db` (dialect and target) and, for every watch by key, `port`, the rendered `url` when it has a `url` template, `startedAt`, and, for host processes, `pid`. `startedAt` SHALL be the local time that watch started, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). An existing `runtime.createdAt` SHALL be kept. Other top-level keys of the file SHALL be kept.
+The system SHALL write `.cache/variant/state.yaml` and `.cache/variant/runtime.yaml` in the variant directory after watches start. `state.yaml` SHALL hold `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `dialect`, `target` and, for every watch by key, `port`, the rendered `url` when it has a `url` template, `startedAt`, and, for host processes, `pid`. `startedAt` SHALL be the local time that watch started, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). An existing `createdAt` SHALL be kept. `runtime.yaml` SHALL hold the resolved detection dump, including the resolved database settings, each watch command, and the configuration path. Either file SHALL be left untouched when its serialized content would not change. The system SHALL NOT write `variants.local.yaml`.
 
 #### Scenario: Written after up
 
 - **WHEN** `up` finishes for slug `demo` with `fe` on port 62060 and a `url` template
-- **THEN** `variants.local.yaml` holds `runtime.mode: up`, `runtime.slug: demo` and `runtime.watches.fe` with port 62060 and `url: http://demo.vw.localhost:62060`
+- **THEN** `state.yaml` holds `mode: up`, `slug: demo` and `watches.fe` with port 62060 and `url: http://demo.vw.localhost:62060`
 
 #### Scenario: Pids written for watch
 
 - **WHEN** `watch` starts host processes
-- **THEN** each watch entry holds the `pid` of its process
+- **THEN** each watch entry in `state.yaml` holds the `pid` of its process
 
 #### Scenario: Start time written
 
 - **WHEN** `watch` starts `fe` at 12:30:00 local time on 2026-11-04
-- **THEN** `runtime.watches.fe.startedAt` is `2026-11-04_12:30:00`
+- **THEN** `watches.fe.startedAt` in `state.yaml` is `2026-11-04_12:30:00`
 
 #### Scenario: Created time kept
 
-- **WHEN** `runtime.createdAt` is `2026-01-02_03:04:05` and `watch` rewrites the runtime section
-- **THEN** `runtime.createdAt` is still `2026-01-02_03:04:05`
+- **WHEN** `createdAt` is `2026-01-02_03:04:05` and `watch` rewrites the state
+- **THEN** `createdAt` is still `2026-01-02_03:04:05`
+
+#### Scenario: Detection dump written
+
+- **WHEN** `watch` starts a watch whose command is `task app:dev -- --port "$VARIANT_SPA_PORT"`
+- **THEN** `runtime.yaml` contains that command and the configuration path
+
+#### Scenario: Unchanged content is not rewritten
+
+- **WHEN** `watch` records a state identical to the `state.yaml` already on disk
+- **THEN** the modification time of `state.yaml` is unchanged
 
 #### Scenario: Other keys kept
 
-- **WHEN** the file has another top-level key before `up` runs
-- **THEN** that key is unchanged afterwards
+- **WHEN** a legacy `variants.local.yaml` has another top-level key and `state.yaml` is written
+- **THEN** `state.yaml` holds the operational keys, and the legacy file is not rewritten
 
 ### Requirement: Readiness and opening
 
@@ -201,12 +227,12 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 
 ### Requirement: Down
 
-The system SHALL provide `down` for a slug that stops every recorded host process with its descendants, removes the variant's containers and its network, and removes the `runtime` section from `variants.local.yaml` while keeping other top-level keys. It SHALL keep the database target, the storage directory and the variant state, and SHALL work for slug `main`. A variant that has nothing running SHALL succeed without changes.
+The system SHALL provide `down` for a slug that stops every recorded host process with its descendants, removes the variant's containers and its network, and clears `mode`, `log` and `watches` from `.cache/variant/state.yaml` while keeping `slug`, `createdAt`, `dir`, `dialect` and `target`. It SHALL drop the process facts from `.cache/variant/runtime.yaml` in the same way. It SHALL keep the database target and the storage directory, and SHALL work for slug `main`. A variant that has nothing running SHALL succeed without changes.
 
 #### Scenario: Down after watch
 
 - **WHEN** slug `demo` runs a detached watch and `down` runs for `demo`
-- **THEN** the processes are terminated and the file has no `runtime` section
+- **THEN** the processes are terminated and `state.yaml` has no `mode`, `log` or `watches`
 
 #### Scenario: Down after up
 
@@ -222,6 +248,11 @@ The system SHALL provide `down` for a slug that stops every recorded host proces
 
 - **WHEN** the recorded pid no longer exists
 - **THEN** `down` ignores it and still clears the runtime state
+
+#### Scenario: Created time kept
+
+- **WHEN** `state.yaml` has `createdAt: 2026-01-02_03:04:05` and `down` runs
+- **THEN** `createdAt` is still `2026-01-02_03:04:05`
 
 ### Requirement: Container command echo
 
@@ -258,7 +289,7 @@ The system SHALL print a warning to the progress log when `watch` starts no proc
 
 ### Requirement: Detached watch log
 
-A `watch` with the `detach` option SHALL write the stdout and stderr of every process it starts, interleaved as they are produced, to one log file named `variants.watch.log` next to the `variants.local.yaml` of the variant (git-ignored, removed with the worktree). It SHALL truncate that file when it starts, write the line `[<key>] <command>` for each process before it starts, and record the absolute path as `runtime.log`. Output SHALL reach the file while the processes run, so a reader can follow it with `tail -f`. An attached `watch` SHALL keep its output on the console, write no log file, and record no `log`. `down` SHALL remove `runtime.log` from the runtime state and keep the file. `up` SHALL write no log file.
+A `watch` with the `detach` option SHALL write the stdout and stderr of every process it starts, interleaved as they are produced, to one log file named `variants.watch.log` in the variant directory (git-ignored, removed with the worktree). It SHALL truncate that file when it starts, write the line `[<key>] <command>` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. Output SHALL reach the file while the processes run, so a reader can follow it with `tail -f`. An attached `watch` SHALL keep its output on the console, write no log file, and record no `log`. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
 
 #### Scenario: Detached output reaches the file
 
@@ -268,7 +299,7 @@ A `watch` with the `detach` option SHALL write the stdout and stderr of every pr
 #### Scenario: Log path recorded
 
 - **WHEN** `watch` runs detached for slug `demo`
-- **THEN** `variants.local.yaml` holds `runtime.log` with the absolute path of `variants.watch.log`
+- **THEN** `state.yaml` holds `log` with the absolute path of `variants.watch.log`
 
 #### Scenario: Two processes, one file
 
@@ -283,9 +314,9 @@ A `watch` with the `detach` option SHALL write the stdout and stderr of every pr
 #### Scenario: Attached keeps the console
 
 - **WHEN** `watch` runs attached
-- **THEN** the output goes to the console, no log file is written and no `runtime.log` is recorded
+- **THEN** the output goes to the console, no log file is written and no `log` is recorded
 
 #### Scenario: Down drops the record
 
 - **WHEN** `down` stops a detached watch
-- **THEN** `runtime.log` is no longer in the runtime state and the file still exists
+- **THEN** `log` is no longer in `state.yaml` and the file still exists

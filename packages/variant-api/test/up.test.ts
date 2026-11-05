@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "variant-config";
+import { loadConfig, readRuntime } from "variant-config";
 import { parse as parseYaml } from "yaml";
 import { createClient } from "../src/index.js";
 import type { OperationContext } from "../src/operations/types.js";
@@ -142,7 +142,7 @@ const withProject = async (
       context,
       up: (slug = "demo") => upVariant(context, slug, { opener: async () => {}, log: () => {} }),
       localFile,
-      runtime: () => (parseYaml(readFileSync(localFile, "utf8")) as { runtime: Record<string, unknown> }).runtime,
+      runtime: () => readRuntime(directory) as Record<string, unknown>,
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });

@@ -10,7 +10,7 @@ What `provision`, `up`, and `watch` actually run is set in [Configuration](./con
 
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
-- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), `variant.abbr`, `variant.prefix`, and one watch per Vite or NestJS app and per package with a `watch` script. Other accepted values of a setting follow `#` on the same line. Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), `variant.abbr`, `variant.prefix`, and one watch per Vite or NestJS app and per package with a `watch` script. Other accepted values of a setting follow `#` on the same line. Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name. `variant.main` and `variant.root` are omitted.
 - `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
 - `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none. Nothing is installed. A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and `variant.mise.binPath`). A failing Mise step stops no other step.
 
@@ -24,7 +24,7 @@ variant init --force
 
 ## config
 
-Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment.
+Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment. The printed object includes the resolved `variant.main` and `variant.root` even though `init` does not write them. Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not. `db.port` may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
 
 ```bash
 variant config
@@ -59,7 +59,7 @@ variant list -v --json
 
 ## status
 
-Show everything known about one variant: the facts `list` shows plus the `runtime` section of its `variants.local.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime. It also shows the path of the runtime file and the log file of a detached watch. `VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
+Show everything known about one variant: the facts `list` shows plus `.cache/variant/runtime.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime. It also shows the path of that file and the log file of a detached watch. `VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug. An old `variants.local.yaml` is read only when `state.yaml` is absent.
 
 ```bash
 variant status feature-forty-two
@@ -111,7 +111,7 @@ variant watch -s feature-forty-two --from feat/other
 
 `--reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again. Without it, `watch` does not drop a schema.
 
-Without `--detach`, the command stays attached. It exits 130 on interrupt, 1 when a watch ends or the worktree disappears, and 0 only when detached. `--detach` starts the processes in the background and returns. Detached, the output of all its processes goes to one log file, `variants.watch.log` in the worktree next to `variants.local.yaml`: the file is emptied when the watch starts, each process gets a `[key] command` line, and the output arrives while the processes run, so `tail -f` follows it in real time. `list` and `status` show its path; `down` keeps the file. An attached watch writes no log file, its output stays on the console.
+Inside a variant worktree that has its own `variants.yaml`, `watch` runs the commands of that file and keeps the environment it finds (`PORT`, `VARIANT_SPA_PORT`, `VARIANT_API_PORT`). Without `--detach`, the command stays attached. It exits 130 on interrupt, 1 when a watch ends or the worktree disappears, and 0 only when detached. `--detach` starts the processes in the background and returns. Detached, the output of all its processes goes to one log file, `variants.watch.log` in the worktree: the file is emptied when the watch starts, each process gets a `[key] command` line, and the output arrives while the processes run, so `tail -f` follows it in real time. `list` and `status` show its path; `down` keeps the file. An attached watch writes no log file, its output stays on the console. State is written to `.cache/variant/state.yaml` and `.cache/variant/runtime.yaml`.
 
 ## deprovision
 
@@ -123,7 +123,7 @@ variant deprovision -s feature-forty-two
 
 ## implode
 
-Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers.
+Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed and the old `variants.local.yaml` is not recreated.
 
 ```bash
 variant implode -s feature-forty-two
@@ -132,7 +132,7 @@ variant implode -s feature-forty-two --force
 
 ## ui
 
-Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension. It lists every variant with its state (watching, up, down). `main` stays pinned first. The run control is the play icon **variant watch** when the variant is down, and a square stop when it is watching or up. The implode control is an explosion, muted when implode would fail, and `main` has none. In the editor, a row with a URL has **Open url** immediately left of the run control: it opens that URL in the external browser, and in a Cursor browser tab while Alt is held. Activating the muted explosion asks whether to pass `--force`; **Force** implodes with force and does not open the clean confirmation. A failed watch, down, or implode shows that error in a notification. **Sort** (also the setting `variant.sort`) uses the labels `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
+Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension. It lists every variant with its state (watching, up, down). `main` stays pinned first. The run control is the play icon **variant watch** when the variant is down, and a square stop when it is watching or up. In the editor, after this view starts a watch, the row stays on a loading icon until the recorded pid is alive and a GET of the row URL joined with that watch's `ready` path returns 200, then the external browser opens the row URL once. A watch with no URL, or no `ready` path, is not fetched and is not opened. The implode control is an explosion, muted when implode would fail, and `main` has none. In the editor, a row with a URL has **Open url** immediately left of the run control: it opens that URL in the external browser, and in a Cursor browser tab while Alt is held. Activating the muted explosion writes the colored implode report to the extension output, then asks whether to pass `--force`; **Force** implodes with force and does not open the clean confirmation. A failed watch, down, or implode shows that error in a notification. **Sort** (also the setting `variant.sort`) uses the labels `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`. Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
 
 ```bash
 variant ui

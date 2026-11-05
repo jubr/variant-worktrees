@@ -116,18 +116,17 @@ describe("configuration migration in the CLI", () => {
     expect(result.stderr).toContain("VARIANT_MIGRATE=0");
   });
 
-  it("rewrites the git-ignored variants.local.yaml next to it", async () => {
+  it("does not rewrite a variants.local.yaml that uses runtime.instances", async () => {
     const { directory, file } = project(NEW, true);
     const local = join(directory, "variants.local.yaml");
-    writeFileSync(local, `${LOCAL_HEADER}\n\nruntime:\n  slug: main\n  instances:\n    be: { port: 62060 }\n`);
+    const text = `${LOCAL_HEADER}\n\nruntime:\n  slug: main\n  instances:\n    be: { port: 62060 }\n`;
+    writeFileSync(local, text);
 
     const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
 
-    expect(readFileSync(local, "utf8")).toBe(
-      `${LOCAL_HEADER}\n\nruntime:\n  slug: main\n  watches:\n    be: { port: 62060 }\n`,
-    );
-    expect(result.stderr).toContain(local);
-    expect(result.stderr).not.toContain(`git checkout -- ${local}`);
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(local, "utf8")).toBe(text);
+    expect(result.stderr).not.toContain(local);
   });
 
   it("prints nothing about migration for a current file", async () => {

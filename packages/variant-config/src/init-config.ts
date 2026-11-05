@@ -76,11 +76,13 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
   db.dialect = dialect;
   note(["db", "dialect"], others(DIALECTS, dialect));
   if (source === "env") {
-    const reference = (field: "password" | "url"): void => {
+    const reference = (field: "host" | "port" | "user" | "password" | "url"): void => {
       const name = variables[field];
       db[field] = `\${${name}}`;
       note(["db", field], fromWhere(name as string));
     };
+    const postgresSetting = (field: "host" | "port" | "user"): boolean =>
+      dialect === "postgres" && variables[field]?.startsWith("POSTGRES_") === true;
     const fields: (keyof DbConfig)[] = [
       "url",
       "host",
@@ -101,6 +103,8 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
         reference("password");
       } else if (field === "url" && variables.url !== undefined && urlHasPassword(value as string)) {
         reference("url");
+      } else if ((field === "host" || field === "port" || field === "user") && postgresSetting(field)) {
+        reference(field);
       } else if (field !== "dialect") {
         db[field] = value;
       }

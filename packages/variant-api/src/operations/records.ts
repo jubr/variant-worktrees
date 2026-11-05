@@ -11,6 +11,7 @@ import {
   type ResolvedConfig,
   readRuntimes,
   renderTemplate,
+  STATE_FILE,
   UI_WATCH_KEY,
 } from "variant-config";
 import { implodeWouldSucceed } from "../implode-clean.js";
@@ -146,10 +147,16 @@ const longestUptime = (watches: Record<string, WatchFacts>): number | undefined 
   return all.length === 0 ? undefined : Math.max(...all);
 };
 
+/** The file `list` and `status` time and name: the cache file when it exists, otherwise the legacy file. */
+const runtimeFile = (dir: string): string => {
+  const state = join(dir, STATE_FILE);
+  return existsSync(state) ? state : join(dir, LOCAL_FILENAME);
+};
+
 const runtimeStatus = (found: DiscoveredRuntime, watches: Record<string, WatchFacts>): RuntimeStatus => {
   const { slug, mode, dir, log, createdAt, db, watches: _recorded } = found.runtime;
   return {
-    file: join(found.dir, LOCAL_FILENAME),
+    file: runtimeFile(found.dir),
     ...(slug ? { slug } : {}),
     ...(mode ? { mode } : {}),
     ...(dir ? { dir } : {}),
@@ -244,7 +251,7 @@ export const collectRecords = async (
     const prefixed = join(context.config.variant.root, `${context.config.variant.prefix}${slug}`);
     const located = existsSync(prefixed) ? prefixed : undefined;
     const directory = [state?.worktree, found?.dir, located].find((path) => path !== undefined && existsSync(path));
-    const yaml = found ? join(found.dir, LOCAL_FILENAME) : directory ? join(directory, LOCAL_FILENAME) : undefined;
+    const yaml = found ? runtimeFile(found.dir) : directory ? runtimeFile(directory) : undefined;
     const worktree = state?.worktree ?? found?.runtime.dir ?? found?.dir ?? located;
     const knownTarget = multi !== undefined || databaseSlugs.has(slug);
     return {

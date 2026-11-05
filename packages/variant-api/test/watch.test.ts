@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
-import { loadConfig } from "variant-config";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { loadConfig, readRuntime } from "variant-config";
+import { stringify as stringifyYaml } from "yaml";
 import type { OperationContext } from "../src/operations/types.js";
 import { watchVariant } from "../src/operations/watch.js";
 import { isProcessAlive } from "../src/runtime-state.js";
@@ -171,7 +171,7 @@ const withProject = async (
         return { done, stop: () => abort.abort() };
       },
       localFile,
-      runtime: () => (parseYaml(readFileSync(localFile, "utf8")) as { runtime: never }).runtime,
+      runtime: () => readRuntime(directory) as never,
       started: async (who) => {
         const marker = join(directory, who, `started-${who}.txt`);
         await until(() => existsSync(marker) && readFileSync(marker, "utf8") !== "");

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "variant-config";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { loadConfig, readRuntime } from "variant-config";
+import { stringify as stringifyYaml } from "yaml";
 import { createClient } from "../src/index.js";
 import { isProcessAlive } from "../src/runtime-state.js";
 import { type EngineStub, installEngineStub } from "./support/engine-stub.js";
@@ -102,7 +102,8 @@ describe("down", () => {
       expect(await untilDead(watcher.pid)).toBe(true);
       expect(await untilDead(watcher.child)).toBe(true);
       expect(result.processes).toEqual([{ key: "fe", pid: watcher.pid }]);
-      expect(existsSync(localFile)).toBe(false);
+      expect(readRuntime(directory)).toEqual({ slug: "demo" });
+      expect(existsSync(localFile)).toBe(true);
     }));
 
   it("drops the recorded watch log from the runtime and keeps the file", () =>
@@ -113,18 +114,19 @@ describe("down", () => {
 
       await down();
 
-      expect(existsSync(localFile)).toBe(false);
+      expect(readRuntime(directory)?.log).toBeUndefined();
+      expect(readRuntime(directory)?.mode).toBeUndefined();
       expect(readFileSync(log, "utf8")).toBe("[fe] bun run dev\n");
     }));
 
   it("ignores a stale pid and still clears the runtime", () =>
-    withProject(async ({ down, localFile }) => {
+    withProject(async ({ down, localFile, directory }) => {
       writeFileSync(localFile, "runtime:\n  slug: demo\n  watches:\n    fe: { pid: 2147483000 }\n");
 
       const result = await down();
 
       expect(result.processes).toEqual([]);
-      expect(existsSync(localFile)).toBe(false);
+      expect(readRuntime(directory)?.watches).toBeUndefined();
     }));
 
   it("does not signal a recorded pid whose working directory is outside the worktree", () =>
@@ -160,7 +162,8 @@ describe("down", () => {
 
       await down();
 
-      expect(parseYaml(readFileSync(localFile, "utf8"))).toEqual({ other: "kept" });
+      expect(readFileSync(localFile, "utf8")).toContain("other: kept");
+      expect(readRuntime(directory)).toEqual({ slug: "demo" });
       expect(readFileSync(join(stateDir, "demo.db"), "utf8")).toBe("rows");
       expect(existsSync(join(stateDir, "demo.yaml"))).toBe(true);
     }));
@@ -193,7 +196,7 @@ describe("down", () => {
       expect(result.processes.map(({ key }) => key)).toEqual(["fe"]);
       expect(await untilDead(watcher.pid)).toBe(true);
       expect(isProcessAlive(server.pid)).toBe(true);
-      expect(parseYaml(readFileSync(localFile, "utf8"))).toEqual({ runtime: { watches: { "variant-ui": ui } } });
+      expect(readRuntime(directory)?.watches).toEqual({ "variant-ui": ui });
     }));
 
   it("succeeds and reports nothing stopped when nothing runs", () =>

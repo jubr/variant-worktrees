@@ -35,11 +35,14 @@ export const DbMultiSchema = z
   });
 export type DbMulti = z.infer<typeof DbMultiSchema>;
 
+/** A port in `variants.yaml`: a positive integer, a digit string, or one `${NAME}` template. */
+const configPortSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
+
 export const DbConfigSchema = z.strictObject({
   dialect: DbDialectSchema.optional(),
   url: z.string().min(1).optional(),
   host: z.string().min(1).optional(),
-  port: PortSchema.optional(),
+  port: configPortSchema.optional(),
   user: z.string().min(1).optional(),
   password: z.string().optional(),
   database: z.string().min(1).optional(),
@@ -487,7 +490,7 @@ export const VariantsConfigSchema = z
 export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
 
 /** A port written literally, or as a `${NAME}` template that is replaced from the environment when the file is read. */
-const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
+const portOrTemplateSchema = configPortSchema;
 
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
 export const RuntimeDbSchema = DbConfigSchema.omit({ multi: true }).extend({
@@ -523,6 +526,27 @@ export const RuntimeSchema = z.strictObject({
 export type Runtime = z.infer<typeof RuntimeSchema>;
 /** The runtime state as resolved: environment templates replaced, so the database port is a number. */
 export type ResolvedRuntime = Omit<Runtime, "db"> & { db?: DbConfig };
+
+/**
+ * `<variant>/.cache/variant/state.yaml`. Identity and watch facts only: no password and no watch command.
+ * Specification: openspec/specs/variant-config/core/spec.md
+ */
+export const StateFileSchema = z.strictObject({
+  slug: z.string().min(1).optional(),
+  createdAt: localStampSchema.optional(),
+  dir: z.string().min(1).optional(),
+  dialect: DbDialectSchema.optional(),
+  target: z.string().min(1).optional(),
+  mode: z.enum(["up", "watch"]).optional(),
+  log: z.string().min(1).optional(),
+  watches: z.record(z.string().min(1), RuntimeWatchSchema).optional(),
+});
+export type StateFile = z.infer<typeof StateFileSchema>;
+
+/** Relative path of the operational state file inside a variant directory. */
+export const STATE_FILE = ".cache/variant/state.yaml";
+/** Relative path of the detection dump inside a variant directory. */
+export const RUNTIME_FILE = ".cache/variant/runtime.yaml";
 
 export const LOCAL_FILENAME = "variants.local.yaml";
 

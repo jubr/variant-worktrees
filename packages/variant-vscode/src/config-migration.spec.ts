@@ -176,12 +176,29 @@ describe("configuration migration in the extension", () => {
     expect(actions).toEqual(["Open file"]);
   });
 
-  it("shows one warning per file, for variants.yaml and variants.local.yaml", () => {
-    const { root } = project(OLD, { local: `${LOCAL_HEADER}\n\nruntime:\n  instances:\n    be: { port: 62060 }\n` });
+  it("does not rewrite a variants.local.yaml that uses runtime.instances", () => {
+    const local = `${LOCAL_HEADER}\n\nruntime:\n  instances:\n    be: { port: 62060 }\n`;
+    const { root } = project(NEW, { local });
 
     createConfigMigration({ root, env: ENV }).run();
 
-    expect(showWarningMessage).toHaveBeenCalledTimes(2);
+    expect(readFileSync(join(root, "variants.local.yaml"), "utf8")).toBe(local);
+    expect(
+      showWarningMessage.mock.calls
+        .map((call) => String(call[0]))
+        .some((message) => message.includes("variants.local.yaml")),
+    ).toBe(false);
+  });
+
+  it("warns once for variants.yaml and leaves variants.local.yaml unread by the migration", () => {
+    const local = `${LOCAL_HEADER}\n\nruntime:\n  instances:\n    be: { port: 62060 }\n`;
+    const { root, file } = project(OLD, { local });
+
+    createConfigMigration({ root, env: ENV }).run();
+
+    expect(showWarningMessage).toHaveBeenCalledTimes(1);
+    expect(String(showWarningMessage.mock.calls[0]?.[0])).toContain(file);
+    expect(readFileSync(join(root, "variants.local.yaml"), "utf8")).toBe(local);
   });
 
   it("shows nothing for a current configuration", () => {

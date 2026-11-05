@@ -4,6 +4,7 @@
  * These tests run the built library (`dist/`) in a child process: `bun run test` builds `variant-api` first.
  */
 import { describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -62,13 +63,17 @@ describe("variant-api on Node and Bun", () => {
       const directory = realpathSync(mkdtempSync(join("/tmp", "variant-node-sqlite-")));
       try {
         writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+        execFileSync("git", ["init", "-q", "-b", "main", directory]);
+        execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+        execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+        execFileSync("git", ["-C", directory, "commit", "-q", "--allow-empty", "-m", "initial"]);
         const result = await run(
           runtime,
           `import { existsSync } from "node:fs";
            const { createClient } = await import(${JSON.stringify(entries.index)});
-           const client = createClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: false });
+           const client = createClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: true });
            const file = ${JSON.stringify(join(directory, ".cache/variants/test-feature.db"))};
-           const state = ${JSON.stringify(join(directory, ".cache/variants/test-feature.yaml"))};
+           const state = ${JSON.stringify(join(directory, "_v-test-feature", ".cache/variant/state.yaml"))};
            await client.create("test-feature");
            const database = existsSync(file);
            const stateWritten = existsSync(state);
@@ -76,7 +81,7 @@ describe("variant-api on Node and Bun", () => {
            await client.implode("test-feature");
            console.log(JSON.stringify({ database, stateWritten, listed, removed: !existsSync(state), after: (await client.list()).map((record) => record.slug) }));`,
         );
-        expect(result.stderr).toBe("");
+        expect(result.stderr.trim()).toBe("");
         expect(JSON.parse(result.stdout)).toEqual({
           database: false,
           stateWritten: true,

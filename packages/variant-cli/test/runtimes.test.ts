@@ -4,6 +4,7 @@
  * Runs the built `dist/cli.js` under Node and Bun and a compiled single-file executable: `bun run test` builds first.
  */
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { compileCli } from "../../../scripts/package-cli.ts";
@@ -69,12 +70,19 @@ describe("variant on Node, Bun and as a compiled executable", () => {
 
     it(`creates and lists a SQLite variant under ${name}`, () =>
       withVariants(async (environment, directory) => {
-        const created = await runCommand(command(), ["create", "-s", "gamma", "--json"], environment);
+        execFileSync("git", ["init", "-q", "-b", "main", directory]);
+        execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+        execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+        execFileSync("git", ["-C", directory, "add", "variants.yaml"]);
+        execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
+        const worktree = { ...environment, VARIANT_WORKTREE: "1" };
+        const created = await runCommand(command(), ["create", "-s", "gamma", "--json"], worktree, directory);
         expect(created.stderr).toBe("");
         expect(existsSync(join(directory, ".cache/variants/gamma.db"))).toBe(false);
-        expect(existsSync(join(directory, ".cache/variants/gamma.yaml"))).toBe(true);
+        expect(existsSync(join(directory, ".cache/variants/gamma.yaml"))).toBe(false);
+        expect(existsSync(join(directory, "_v-gamma", ".cache/variant/state.yaml"))).toBe(true);
 
-        const listed = await runCommand(command(), ["list", "--json"], environment);
+        const listed = await runCommand(command(), ["list", "--json"], worktree, directory);
         expect(listed.exitCode).toBe(0);
         expect((JSON.parse(listed.stdout) as { slug: string }[]).map((record) => record.slug)).toEqual([
           "alpha",

@@ -97,9 +97,69 @@ interface ConfigFileDiscovery {
   warnings: string[];
 }
 
-const discoverConfigFile = (startDir: string): ConfigFileDiscovery => {
-  const warnings: string[] = [];
-  for (const directory of ancestorDirectories(startDir)) {
+const gitOutput = (directory: string, args: string[]): string | undefined => {
+  try {
+    return execFileSync("git", ["-C", directory, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+};
+
+const sameDirectory = (left: string, right: string): boolean => {
+  try {
+    return realpathSync(left) === realpathSync(right);
+  } catch {
+    return resolve(left) === resolve(right);
+  }
+};
+
+/**
+ * The git toplevel when `startDir` is inside a linked worktree, not the primary checkout.
+ * Specification: openspec/specs/variant-config/core/spec.md
+ */
+/** A checkout has a `.git` entry at or above `startDir`. A variant root has none, so git is not asked. */
+const insideCheckout = (startDir: string): boolean => {
+  let directory = resolve(startDir);
+  for (;;) {
+    if (existsSync(join(directory, ".git"))) {
+      return true;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) {
+      return false;
+    }
+    directory = parent;
+  }
+};
+
+const linkedWorktreeRoot = (startDir: string): string | undefined => {
+  if (!insideCheckout(startDir)) {
+    return undefined;
+  }
+  const toplevel = gitOutput(resolve(startDir), ["rev-parse", "--show-toplevel"]);
+  if (!toplevel) {
+    return undefined;
+  }
+  const gitDir = gitOutput(toplevel, ["rev-parse", "--git-dir"]);
+  const commonDir = gitOutput(toplevel, ["rev-parse", "--git-common-dir"]);
+  if (!gitDir || !commonDir) {
+    return undefined;
+  }
+  if (sameDirectory(resolve(toplevel, gitDir), resolve(toplevel, commonDir))) {
+    return undefined;
+  }
+  try {
+    return realpathSync(toplevel);
+  } catch {
+    return resolve(toplevel);
+  }
+};
+
+const searchConfigFiles = (directories: readonly string[], warnings: string[]): string | undefined => {
+  for (const directory of directories) {
     for (const filename of CONFIG_FILENAMES) {
       const path = join(directory, filename);
       if (!existsSync(path)) {
@@ -109,10 +169,48 @@ const discoverConfigFile = (startDir: string): ConfigFileDiscovery => {
         warnings.push(`${path}: a variants.yaml symlink in the variant root is an anti-pattern`);
         continue;
       }
-      return { path, warnings };
+      return path;
     }
   }
-  for (const directory of ancestorDirectories(startDir)) {
+  return undefined;
+};
+
+const configFileAt = (directory: string): string | undefined => {
+  for (const filename of CONFIG_FILENAMES) {
+    const path = join(directory, filename);
+    if (existsSync(path)) {
+      return path;
+    }
+  }
+  return undefined;
+};
+
+const discoverConfigFile = (startDir: string): ConfigFileDiscovery => {
+  const warnings: string[] = [];
+  const ancestors = ancestorDirectories(startDir);
+  const worktree = linkedWorktreeRoot(startDir);
+  if (worktree) {
+    const bounded: string[] = [];
+    for (const directory of ancestors) {
+      bounded.push(directory);
+      if (sameDirectory(directory, worktree)) {
+        break;
+      }
+    }
+    const found = searchConfigFiles(bounded, warnings);
+    if (found) {
+      return { path: found, warnings };
+    }
+    const atRoot = configFileAt(worktree);
+    if (atRoot) {
+      return { path: atRoot, warnings };
+    }
+  }
+  const found = searchConfigFiles(ancestors, warnings);
+  if (found) {
+    return { path: found, warnings };
+  }
+  for (const directory of ancestors) {
     const linked = configFromAgentsSymlink(directory);
     if (linked) {
       return { path: linked, warnings };
@@ -214,9 +312,17 @@ const resolveWatches = (
       )
     : detectWatches(configDir);
 
+const positivePort = (value: string, setting: string): number => {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(`${setting}: expected a positive integer, received ${value}`);
+  }
+  return port;
+};
+
 /** `db` with the environment references of its text settings expanded; `db` belongs to no variant. */
-const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig =>
-  Object.fromEntries(
+const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig => {
+  const expanded = Object.fromEntries(
     Object.entries(db).map(([name, value]) => [
       name,
       typeof value === "string"
@@ -224,6 +330,11 @@ const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig =>
         : value,
     ]),
   ) as DbConfig;
+  if (typeof expanded.port === "string") {
+    expanded.port = positivePort(expanded.port, "db.port");
+  }
+  return expanded;
+};
 
 /** `variant.open`, unless `VARIANT_OPEN=0` turns opening off. */
 const resolveOpen = (configured: boolean | undefined, env: NodeJS.ProcessEnv): boolean =>
@@ -430,6 +541,8 @@ export {
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,
+  RUNTIME_FILE,
+  STATE_FILE,
   UI_PORT_ENV,
   UI_WATCH_KEY,
   VariantsConfigSchema,

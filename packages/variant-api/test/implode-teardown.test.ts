@@ -64,7 +64,8 @@ describe("implode teardown", () => {
       expect(existsSync(join(directory, ".cache", "variants", "demo.db"))).toBe(false);
       expect(existsSync(join(directory, ".cache", "variants", "demo.yaml"))).toBe(false);
       expect(existsSync(join(directory, ".storage"))).toBe(false);
-      expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
+      expect(existsSync(join(directory, ".cache", "variant", "state.yaml"))).toBe(false);
+      expect(existsSync(join(directory, "variants.local.yaml"))).toBe(true);
     }));
 
   it("refuses main and names the primary checkout", () =>

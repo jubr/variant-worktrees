@@ -84,7 +84,7 @@ name in runtime state, templates such as `${be.port}` and the `VARIANT_<KEY>_POR
 environment overrides, so `VARIANT_BE_PORT=62099` pins the port of `be`). `url` is a URL template
 with `${slug}` and `${port}` placeholders; `env.sourceFile` names an env file, relative to `dir`, that is
 copied for a variant and amended with `env.overrides`. The port is `VARIANT_<KEY>_PORT`, else `runtime.watches.<key>.port`
-from the git-ignored `variants.local.yaml` in the variant's worktree, otherwise a random free
+from `<variant>/.cache/variant/state.yaml` (or a legacy `variants.local.yaml` when that file is absent), otherwise a free
 port of `variant.ports.range` (default `42000-42999`). If `variant.watches` is omitted, subdirectories below the configuration file are
 searched automatically.
 

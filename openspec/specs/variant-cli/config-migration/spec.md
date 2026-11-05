@@ -7,7 +7,7 @@ Defines when and how the `variant` command rewrites a configuration that uses na
 
 ### Requirement: CLI rewrites a migrated configuration
 
-After loading a configuration, the `variant` command SHALL best-effort rewrite `variants.yaml` and `variants.local.yaml` that need a migration (names of an earlier version, or no schema header, see `variant-config/core`) with the current names and the schema header, and SHALL continue with the command whether or not the rewrite happens or succeeds. A `variants.yaml` that is tracked by git and has no uncommitted changes SHALL be rewritten, so that the rewrite is visible in `git diff` and undone by `git checkout`. A `variants.yaml` that is not tracked by git (or not in a repository) SHALL be rewritten after its old text is saved, byte for byte, next to it as `<file>~` (for example `variants.yaml~`); when that backup already exists the file SHALL NOT be rewritten, so no earlier backup is lost. A `variants.yaml` with uncommitted changes SHALL NOT be rewritten. `variants.local.yaml`, which is git-ignored and written by the tool itself, SHALL be rewritten without that condition. No file SHALL be rewritten, and no backup written, when the environment variable `CI` is set to a value other than empty, `0` or `false`, or when `VARIANT_MIGRATE` is `0`. After a rewrite the command SHALL print on standard error the file, each change, and, for a tracked file, that the change can be reviewed with `git diff` and reverted with `git checkout -- <file>`, or, for an untracked file, that git cannot revert it and where the backup is. When a file needs a migration and is not rewritten, the command SHALL print on standard error the file, each change and the reason (uncommitted changes, an existing backup, `CI`, `VARIANT_MIGRATE`, or the write failure), and the command SHALL still run on the migrated reading. The messages SHALL appear once per process and file. Library calls (`variant-api`), the MCP server and `variant ui` SHALL NOT write the file.
+After loading a configuration, the `variant` command SHALL best-effort rewrite a `variants.yaml` that needs a migration (names of an earlier version, or no schema header, see `variant-config/core`) with the current names and the schema header, and SHALL continue with the command whether or not the rewrite happens or succeeds. A `variants.yaml` that is tracked by git and has no uncommitted changes SHALL be rewritten, so that the rewrite is visible in `git diff` and undone by `git checkout`. A `variants.yaml` that is not tracked by git (or not in a repository) SHALL be rewritten after its old text is saved, byte for byte, next to it as `<file>~` (for example `variants.yaml~`); when that backup already exists the file SHALL NOT be rewritten, so no earlier backup is lost. A `variants.yaml` with uncommitted changes SHALL NOT be rewritten. The command SHALL NOT rewrite or create `variants.local.yaml`. No file SHALL be rewritten, and no backup written, when the environment variable `CI` is set to a value other than empty, `0` or `false`, or when `VARIANT_MIGRATE` is `0`. After a rewrite the command SHALL print on standard error the file, each change, and, for a tracked file, that the change can be reviewed with `git diff` and reverted with `git checkout -- <file>`, or, for an untracked file, that git cannot revert it and where the backup is. When a file needs a migration and is not rewritten, the command SHALL print on standard error the file, each change and the reason (uncommitted changes, an existing backup, `CI`, `VARIANT_MIGRATE`, or the write failure), and the command SHALL still run on the migrated reading. The messages SHALL appear once per process and file. Library calls (`variant-api`), the MCP server and `variant ui` SHALL NOT write the file.
 
 #### Scenario: Schema header added
 
@@ -44,10 +44,15 @@ After loading a configuration, the `variant` command SHALL best-effort rewrite `
 - **WHEN** `CI=true` is set, or `VARIANT_MIGRATE=0`
 - **THEN** no file is rewritten, no backup is written, and the command runs on the migrated reading
 
+#### Scenario: Legacy runtime file left alone
+
+- **WHEN** a `variants.local.yaml` uses `runtime.instances` and a `variant` command loads it
+- **THEN** the file is not rewritten
+
 #### Scenario: Runtime state file
 
 - **WHEN** a `variants.local.yaml` uses `runtime.instances` and a `variant` command loads it
-- **THEN** the file is rewritten with `runtime.watches` although it is git-ignored, unless an opt-out applies
+- **THEN** the file is not rewritten
 
 #### Scenario: Write fails
 

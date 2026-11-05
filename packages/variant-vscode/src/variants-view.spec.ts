@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as vscode from "vscode";
@@ -200,6 +201,404 @@ describe("inline actions", () => {
     expect(fake.calls).toEqual([{ name: "watch", slug: "demo", options: expect.objectContaining({ detach: true }) }]);
   });
 
+  it("shows a loading icon after play until the ready path returns 200, then opens the URL once", async () => {
+    const url = "http://demo.vw.localhost:62100";
+    let finish: (code: number) => void = () => {};
+    const pendingBody = new Promise<number>((resolve) => {
+      finish = resolve;
+    });
+    const fetched: string[] = [];
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(((input: string | URL | Request) => {
+      fetched.push(String(input));
+      return pendingBody.then((code) => new Response(null, { status: code }));
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo", url });
+    const kept = record("kept");
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url,
+      mode: "watch",
+      watches: { spa: { pid: 5151, url, alive: true } },
+    });
+    const fake = fakeClient([downDemo, kept]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo, kept]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({ variant: { watches: { spa: { ready: "/index.html", dir: "." } } } }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo, kept], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      const icon = (slug: string): string => {
+        const found = tree.treeDataProvider
+          .getChildren()
+          .find((entry) => entry.kind === "variant" && entry.record.slug === slug);
+        if (!found) {
+          throw new Error(`no ${slug}`);
+        }
+        return (tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id;
+      };
+
+      await command("variant.play")(node("demo"));
+
+      expect(icon("demo")).toBe("loading~spin");
+      expect(
+        tree.treeDataProvider.getChildren().map((entry) => (entry.kind === "variant" ? entry.record.slug : entry.kind)),
+      ).toEqual(["main", "demo", "kept"]);
+      expect(fetched).toEqual(["http://demo.vw.localhost:62100/index.html"]);
+      expect(openExternal).not.toHaveBeenCalled();
+
+      finish(200);
+      await pendingBody;
+      for (let turn = 0; turn < 10; turn += 1) {
+        await Promise.resolve();
+      }
+
+      expect(icon("demo")).toBe("circle-filled");
+      expect(openExternal).toHaveBeenCalledTimes(1);
+      expect(String(openExternal.mock.calls[0]?.[0])).toBe(url);
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
+  it("leaves the loading icon when the pid dies before the ready path returns 200", async () => {
+    const url = "http://demo.vw.localhost:62100";
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((() => new Promise(() => {})) as typeof fetch);
+    let alive = true;
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        if (!alive) {
+          throw new Error("ESRCH");
+        }
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo", url });
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url,
+      mode: "watch",
+      watches: { spa: { pid: 5151, url, alive: true } },
+    });
+    const fake = fakeClient([downDemo]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({ variant: { watches: { spa: { ready: "/index.html", dir: "." } } } }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      const row = (): vscode.TreeItem => {
+        const found = tree.treeDataProvider
+          .getChildren()
+          .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+        if (!found) {
+          throw new Error("no demo");
+        }
+        return tree.treeDataProvider.getTreeItem(found);
+      };
+
+      await command("variant.play")(node("demo"));
+      expect((row().iconPath as vscode.ThemeIcon).id).toBe("loading~spin");
+
+      alive = false;
+      fake.publish([
+        record("demo", {
+          worktree: "/work/_v-demo",
+          url,
+          mode: "watch",
+          watches: { spa: { pid: 5151, url, alive: false } },
+        }),
+      ]);
+
+      expect((row().iconPath as vscode.ThemeIcon).id).toBe("circle-outline");
+      expect(String(row().tooltip)).toContain("stale");
+      expect(openExternal).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
+  it("does not open a watch that is already healthy when the view loads", async () => {
+    const url = "http://demo.vw.localhost:62100";
+    const fetched: string[] = [];
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request) => {
+      fetched.push(String(input));
+      return new Response(null, { status: 200 });
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url,
+      mode: "watch",
+      watches: { spa: { pid: 5151, url, alive: true } },
+    });
+    const fake = fakeClient([watchingDemo]);
+    const client = Object.assign(fake.client, {
+      config: () => ({ variant: { watches: { spa: { ready: "/index.html", dir: "." } } } }),
+    });
+
+    try {
+      const { view } = await open([watchingDemo], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      await view.store.start();
+      for (let turn = 0; turn < 10; turn += 1) {
+        await Promise.resolve();
+      }
+      const found = tree.treeDataProvider
+        .getChildren()
+        .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+      if (!found) {
+        throw new Error("no demo");
+      }
+
+      expect((tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id).toBe("circle-filled");
+      expect(openExternal).not.toHaveBeenCalled();
+      expect(fetched).toEqual([]);
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
+  it("does not fetch or open a watch this view started when the row has no URL", async () => {
+    const fetched: string[] = [];
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request) => {
+      fetched.push(String(input));
+      return new Response(null, { status: 200 });
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo" });
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      mode: "watch",
+      watches: { spa: { pid: 5151, alive: true } },
+    });
+    const fake = fakeClient([downDemo]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({ variant: { watches: { spa: { ready: "/index.html", dir: "." } } } }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      await command("variant.play")(node("demo"));
+      for (let turn = 0; turn < 10; turn += 1) {
+        await Promise.resolve();
+      }
+      const found = tree.treeDataProvider
+        .getChildren()
+        .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+      if (!found) {
+        throw new Error("no demo");
+      }
+
+      expect((tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id).toBe("circle-filled");
+      expect(fetched).toEqual([]);
+      expect(openExternal).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
+  it("does not fetch or open a watch that has no ready path", async () => {
+    const url = "http://demo.vw.localhost:62100";
+    const fetched: string[] = [];
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request) => {
+      fetched.push(String(input));
+      return new Response(null, { status: 200 });
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo", url });
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url,
+      mode: "watch",
+      watches: { spa: { pid: 5151, url, alive: true } },
+    });
+    const fake = fakeClient([downDemo]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({ variant: { watches: { spa: { dir: "." } } } }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      await command("variant.play")(node("demo"));
+      for (let turn = 0; turn < 10; turn += 1) {
+        await Promise.resolve();
+      }
+      const found = tree.treeDataProvider
+        .getChildren()
+        .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+      if (!found) {
+        throw new Error("no demo");
+      }
+
+      expect((tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id).toBe("circle-filled");
+      expect(fetched).toEqual([]);
+      expect(openExternal).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
+  it("keeps the loading icon after a non-200 and opens once the ready path returns 200", async () => {
+    const url = "http://demo.vw.localhost:62100";
+    const fetched: string[] = [];
+    let calls = 0;
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request) => {
+      fetched.push(String(input));
+      calls += 1;
+      return new Response(null, { status: calls === 1 ? 503 : 200 });
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo", url });
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url,
+      mode: "watch",
+      watches: { spa: { pid: 5151, url, alive: true } },
+    });
+    const fake = fakeClient([downDemo]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({ variant: { watches: { spa: { ready: "/index.html", dir: "." } } } }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      const icon = (): string => {
+        const found = tree.treeDataProvider
+          .getChildren()
+          .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+        if (!found) {
+          throw new Error("no demo");
+        }
+        return (tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id;
+      };
+
+      await command("variant.play")(node("demo"));
+      for (let turn = 0; turn < 10; turn += 1) {
+        await Promise.resolve();
+      }
+
+      expect(icon()).toBe("loading~spin");
+      expect(fetched).toEqual(["http://demo.vw.localhost:62100/index.html"]);
+      expect(openExternal).not.toHaveBeenCalled();
+
+      const deadline = Date.now() + 2000;
+      while (fetched.length < 2 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      expect(fetched.length).toBeGreaterThanOrEqual(2);
+      expect(icon()).toBe("circle-filled");
+      expect(openExternal).toHaveBeenCalledTimes(1);
+      expect(String(openExternal.mock.calls[0]?.[0])).toBe(url);
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
   it("stop brings the variant down", async () => {
     const { command, node, fake } = await open([watching]);
 
@@ -260,6 +659,50 @@ describe("inline actions", () => {
 
     choose(undefined);
     await pending;
+  });
+
+  it("writes the colored implode report before asking to force, and does not implode", async () => {
+    const root = mkdtempSync(join("/tmp", "variant-dirty-report-"));
+    const file = join(root, "src/a.ts");
+    const git = (...args: string[]): void => {
+      execFileSync("git", ["-C", root, ...args], { stdio: "ignore" });
+    };
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", root]);
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      mkdirSync(join(root, "src"), { recursive: true });
+      writeFileSync(file, "export const a = 1;\n");
+      git("add", ".");
+      git("commit", "-q", "-m", "initial");
+      writeFileSync(file, "export const a = 1;\nexport const added = true;\n");
+
+      const seen: string[] = [];
+      showWarningMessage.mockImplementation((async () => {
+        seen.push("dialog");
+        return "Cancel";
+      }) as never);
+      const dirty = record("demo", { implodeClean: false, worktree: root });
+      const { command, node, fake } = await open([dirty], {
+        log: {
+          info: (message) => seen.push(message),
+          error: () => {},
+        },
+      });
+
+      await command("variant.implodeDirty")(node("demo"));
+
+      const reportAt = seen.findIndex((entry) => entry.includes("\x1b[32m+export const added = true;\x1b[0m"));
+      expect(reportAt).toBeGreaterThanOrEqual(0);
+      expect(seen.indexOf("dialog")).toBeGreaterThan(reportAt);
+      expect(showWarningMessage.mock.calls).toEqual([
+        ["Clean implode failed, do you want to `--force`?", "Cancel", "Force"],
+      ]);
+      expect(fake.calls).toEqual([]);
+      expect(readFileSync(file, "utf8")).toBe("export const a = 1;\nexport const added = true;\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("leaves the variant and logs implode cancelled when Force is cancelled", async () => {

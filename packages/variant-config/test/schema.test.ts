@@ -16,14 +16,25 @@ describe("VariantsConfigSchema", () => {
     }
   });
 
-  it("rejects a database port with the wrong type", () => {
+  it("rejects a database port that is neither an integer nor a port template", () => {
     const result = VariantsConfigSchema.safeParse({
-      db: { dialect: "postgres", host: "localhost", port: "5432" },
+      db: { dialect: "postgres", host: "localhost", port: "not-a-number" },
     });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues.some((issue) => issue.path.join(".") === "db.port")).toBe(true);
     }
+  });
+
+  it("accepts a digit string and a single ${NAME} template for db.port", () => {
+    expect(
+      VariantsConfigSchema.safeParse({ db: { dialect: "postgres", host: "localhost", port: "5432" } }).success,
+    ).toBe(true);
+    expect(
+      VariantsConfigSchema.safeParse({
+        db: { dialect: "postgres", host: "localhost", port: "${POSTGRES_PORT}" },
+      }).success,
+    ).toBe(true);
   });
 
   it("rejects a watch with the reserved key variant-ui, naming it", () => {

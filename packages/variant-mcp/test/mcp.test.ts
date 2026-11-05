@@ -119,8 +119,14 @@ describe("MCP server", () => {
   });
 
   it("creates, lists, and implodes a variant through MCP", async () => {
-    const directory = tempDirectory();
+    const directory = realpathSync(tempDirectory());
     const configPath = configFile(directory);
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+    execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+    execFileSync("git", ["-C", directory, "add", "variants.yaml"]);
+    execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
+    const options = { cwd: directory, env: { VARIANT_WORKTREE: "1" } };
     try {
       const create = await mcp(
         [
@@ -133,6 +139,7 @@ describe("MCP server", () => {
           },
         ],
         configPath,
+        options,
       );
       expect(JSON.parse(create.lines.at(-1) ?? "{}").result.isError).not.toBe(true);
 
@@ -142,6 +149,7 @@ describe("MCP server", () => {
           { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "variant_list", arguments: {} } },
         ],
         configPath,
+        options,
       );
       expect(JSON.parse(list.lines.at(-1) ?? "{}").result.content[0].text).toContain("test-feature");
 
@@ -156,6 +164,7 @@ describe("MCP server", () => {
           },
         ],
         configPath,
+        options,
       );
       expect(JSON.parse(implode.lines.at(-1) ?? "{}").result.isError).not.toBe(true);
     } finally {

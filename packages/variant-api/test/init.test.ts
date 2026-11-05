@@ -55,7 +55,7 @@ describe("init", () => {
     expect(config.variant.prefix).toBe("_v-");
     expect(config.db).toMatchObject({
       dialect: "postgres",
-      host: "db",
+      host: "${POSTGRES_HOST}",
       database: "app",
       password: "${POSTGRES_PASSWORD}",
     });
