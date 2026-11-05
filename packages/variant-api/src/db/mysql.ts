@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import type { DbConfig } from "variant-config";
 import type { DatabaseAdapter } from "../types.js";
+import { contactTarget, QueryGuard } from "./failure.js";
 
 const quoteIdentifier = (value: string): string => `\`${value.replaceAll("`", "``")}\``;
 
@@ -27,8 +28,10 @@ export class MysqlAdapter implements DatabaseAdapter {
   readonly dialect = "mysql";
   private readonly pool;
   private readonly db;
+  private readonly guard: QueryGuard;
 
   constructor(config: DbConfig) {
+    this.guard = new QueryGuard(contactTarget(config));
     this.pool = config.url
       ? createPool(config.url)
       : createPool({
@@ -37,9 +40,14 @@ export class MysqlAdapter implements DatabaseAdapter {
           user: config.user ?? "root",
           password: config.password,
           database: config.database,
+          connectTimeout: 5000,
           ssl: config.ssl ? {} : undefined,
         });
     this.db = drizzle(this.pool);
+  }
+
+  private execute(statement: string): Promise<unknown> {
+    return this.guard.run(() => this.db.execute(sql.raw(statement)));
   }
 
   target(slug: string): string {
@@ -48,7 +56,7 @@ export class MysqlAdapter implements DatabaseAdapter {
 
   async create(slug: string): Promise<string> {
     const database = this.target(slug);
-    await this.db.execute(sql.raw(`CREATE DATABASE IF NOT EXISTS ${quoteIdentifier(database)}`));
+    await this.execute(`CREATE DATABASE IF NOT EXISTS ${quoteIdentifier(database)}`);
     return database;
   }
 
@@ -66,13 +74,13 @@ export class MysqlAdapter implements DatabaseAdapter {
 
   async destroy(slug: string): Promise<boolean> {
     const database = this.target(slug);
-    await this.db.execute(sql.raw(`DROP DATABASE IF EXISTS ${quoteIdentifier(database)}`));
+    await this.execute(`DROP DATABASE IF EXISTS ${quoteIdentifier(database)}`);
     return true;
   }
 
   async list(): Promise<string[]> {
-    const [rows] = await this.pool.query(
-      "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE 'v\\_%'",
+    const [rows] = await this.guard.run(() =>
+      this.pool.query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE 'v\\_%'"),
     );
     return (rows as Array<{ SCHEMA_NAME: string }>).map((row) => row.SCHEMA_NAME);
   }

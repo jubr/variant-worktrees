@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { type DbConfig, multiLikePattern } from "variant-config";
 import type { DatabaseAdapter } from "../types.js";
+import { contactTarget, QueryGuard } from "./failure.js";
 
 const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
@@ -35,14 +36,22 @@ export class PostgresAdapter implements DatabaseAdapter {
   readonly dialect = "postgres";
   private readonly client;
   private readonly db;
+  private readonly guard: QueryGuard;
 
   constructor(config: DbConfig) {
+    this.guard = new QueryGuard(contactTarget(config));
     this.client = postgres(connectionUrl(config), {
       ssl: config.ssl ? "require" : undefined,
+      connect_timeout: 5,
       // AIDEV-NOTE: postgres.js prints notices (e.g. "schema already exists") with console.log, which would corrupt the JSON on stdout.
       onnotice: () => {},
     });
     this.db = drizzle(this.client);
+  }
+
+  /** Runs one statement. A contact failure warns once per adapter; the statement, if any, is debug. */
+  private execute<T>(query: ReturnType<typeof sql.raw>): Promise<T> {
+    return this.guard.run(() => this.db.execute<T>(query));
   }
 
   target(slug: string): string {
@@ -56,16 +65,16 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async createSchema(name: string): Promise<void> {
-    await this.db.execute(sql.raw(createSchemaSql(name)));
+    await this.execute(sql.raw(createSchemaSql(name)));
   }
 
   async matchingSchemas(prefix: string): Promise<string[]> {
-    const rows = await this.db.execute<{ schema_name: string }>(sql.raw(matchingSchemasSql(prefix)));
+    const rows = await this.execute<{ schema_name: string }>(sql.raw(matchingSchemasSql(prefix)));
     return rows.map((row) => row.schema_name);
   }
 
   async dropSchema(name: string): Promise<void> {
-    await this.db.execute(sql.raw(dropSchemaSql(name)));
+    await this.execute(sql.raw(dropSchemaSql(name)));
   }
 
   async destroy(slug: string): Promise<boolean> {
@@ -74,7 +83,7 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async list(): Promise<string[]> {
-    const rows = await this.db.execute<{ schema_name: string }>(
+    const rows = await this.execute<{ schema_name: string }>(
       sql`SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'v\\_%'`,
     );
     return rows.map((row) => row.schema_name);
