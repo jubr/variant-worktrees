@@ -10,12 +10,13 @@
         <mask id="git-mask">
             <rect x="0" y="0" width="15" height="15" rx="1.5" fill="white" />
             
-            <!-- Scaled & centered git element leaving 0.6px padding (spoke stroke width) -->
-            <g transform="translate(-0.533, -0.228) scale(15.678)">
+            <!-- Scaled & shifted git element (moved up by 0.6px: translateY = -0.828) -->
+            <g transform="translate(-0.533, -0.828) scale(15.678)">
                 <!-- Connectors -->
                 <path d="M 0.434 0.310 L 0.434 0.822" stroke="black" stroke-width="0.125" fill="none" />
 
-                <path d="M 0.241 0.141 L 0.748 0.594" stroke="black" stroke-width="0.125" fill="none" />
+                <!-- Extended diagonal line extending past upper-left edge of the rect -->
+                <path d="M -0.100 -0.164 L 0.748 0.594" stroke="black" stroke-width="0.125" stroke-linecap="butt" fill="none" />
 
                 <!-- Three circular nodes -->
                 <ellipse cx="0.434" cy="0.310" rx="0.124" ry="0.111" fill="black" stroke="none" />
