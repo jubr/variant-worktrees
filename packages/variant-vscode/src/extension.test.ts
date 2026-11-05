@@ -164,7 +164,8 @@ describe("extension", () => {
       }
 
       const ids = registerCommand.mock.calls.map((entry) => entry[0]);
-      expect(createTreeView.mock.calls.map((call) => call[0])).toEqual(["variant.variants"]);
+      expect(createTreeView.mock.calls.map((call) => call[0])).toEqual(["variant.variants", "variant.worktrees"]);
+      expect(ids.filter((id) => id === "variant.play")).toEqual(["variant.play"]);
       expect(ids).toEqual(expect.arrayContaining(["variant.play", "variant.stop", "variant.implode"]));
     });
 
