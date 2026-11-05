@@ -9,7 +9,7 @@ A contributed view id belongs to one container. An activity-bar container requir
 **Goals:**
 
 - Add the activity-bar container and a second view id with contribution JSON and one extra `createTreeView` on the provider that already exists.
-- Ship `assets/brand/variant-worktrees-view-icon.svg` as that container's icon.
+- Ship `media/variant-worktrees-view-icon.svg` as that container's icon. No copy under `assets/brand`.
 
 **Non-Goals:**
 
@@ -32,13 +32,13 @@ A contributed view id belongs to one container. An activity-bar container requir
 }
 ```
 
-`media/variant-worktrees-view-icon.svg` is a copy of `assets/brand/variant-worktrees-view-icon.svg`. The host resolves `icon` inside the extension, and `.vscodeignore` drops anything not whitelisted, so the whitelist gains `!media/variant-worktrees-view-icon.svg`. The brand file stays the source; the copy is what the manifest names.
+The icon file is `packages/variant-vscode/media/variant-worktrees-view-icon.svg`. It is not stored under `assets/brand`. The host resolves `icon` inside the extension, and `.vscodeignore` drops anything not whitelisted, so the whitelist gains `!media/variant-worktrees-view-icon.svg`.
 
 `views.variantWorktrees` gets one view, id `variant.worktrees`, name `Variant Worktrees`, `when` `workspaceFolderCount > 0`, `visibility` `visible`.
 
 `variant.variants` stays in `explorer` with its current `when` (`workspaceFolderCount > 0 && !variant.onboardingOpen`) and `visibility` `collapsed`. The activity-bar view's `when` omits `variant.onboardingOpen`, so the tree stays there while the Explorer shows the onboarding webview. `Onboard` already runs `variant.onboardingInit`, which reveals the Explorer dialog.
 
-Alternative considered: `viewsContainers.panel` with `media/icon-128.png`. The container belongs on the activity bar, and its icon is the view svg, which already uses `currentColor`. Alternative: point `icon` at `../../assets/brand/...`. The packaged extension would not contain that path.
+Alternative considered: `viewsContainers.panel` with `media/icon-128.png`. The container belongs on the activity bar, and its icon is the view svg, which already uses `currentColor`. Alternative: keep a second copy under `assets/brand`. The extension only needs the file it ships.
 
 ### One provider, two tree views
 
@@ -54,12 +54,12 @@ Each `view/title` and `view/item/context` entry that now says `view == variant.v
 
 ### Tests pin the contribution and the shared provider
 
-Extend the manifest tests for the activity-bar container, the svg path and bytes against the brand file, the whitelist line, the second view's `when`, the duplicated welcome entries, and the parenthesized menu clauses. Extend the activation test so `createTreeView` is called with `variant.variants` and `variant.worktrees`. Extend the view test so both calls receive the same provider. Do not copy the row, sort, or action scenarios; those already cover the provider.
+Extend the manifest tests for the activity-bar container, the media svg, the whitelist line, the second view's `when`, the duplicated welcome entries, and the parenthesized menu clauses. Extend the activation test so `createTreeView` is called with `variant.variants` and `variant.worktrees`. Extend the view test so both calls receive the same provider. Do not copy the row, sort, or action scenarios; those already cover the provider.
 
 ## Risks / Trade-offs
 
 - [Bare `||` in a menu `when`] → Parentheses around the view check, asserted by the manifest test.
-- [Svg missing from the vsix] → Whitelist `media/variant-worktrees-view-icon.svg` and assert that line. The brand file alone is not inside the extension.
+- [Svg missing from the vsix] → Whitelist `media/variant-worktrees-view-icon.svg` and assert that line.
 - [Opening the activity-bar view and the Explorer tree doubles `getChildren`] → The provider reads one store. No second list or watch.
 - [The activity-bar icon is visible once the extension is installed] → Startup still does not call `variant.worktrees.focus`, so the Explorer stays the active sidebar.
 
