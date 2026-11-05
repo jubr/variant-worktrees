@@ -85,6 +85,10 @@ export class MysqlAdapter implements DatabaseAdapter {
     return (rows as Array<{ SCHEMA_NAME: string }>).map((row) => row.SCHEMA_NAME);
   }
 
+  async assertReachable(): Promise<void> {
+    await this.guard.run(() => this.pool.query("SELECT 1"));
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }

@@ -95,6 +95,8 @@ export interface VariantUpdate {
   error?: string;
   /** Set with `error` when the read failed because of Mise. */
   mise?: MiseFailure;
+  /** The database contact warning. The records are the partial list, and `error` is unset. */
+  warning?: string;
 }
 
 /** How `down` talks to the person running it. */
@@ -291,4 +293,6 @@ export interface DatabaseAdapter {
   list(): Promise<string[]>;
   target(slug: string): string;
   close(): Promise<void>;
+  /** Resolves when the server accepts a connection. Absent for SQLite, whose inventory is files. */
+  assertReachable?(): Promise<void>;
 }

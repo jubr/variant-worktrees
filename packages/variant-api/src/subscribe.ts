@@ -9,8 +9,8 @@ export interface WatchTarget {
 }
 
 export interface StateSubscriptionOptions {
-  /** The records of the project, as `list` returns them. */
-  read: () => Promise<VariantRecord[]>;
+  /** The records of the project, as `list` returns them, plus a contact warning when the database is unreachable. */
+  read: () => Promise<VariantRecord[] | { records: VariantRecord[]; warning?: string }>;
   /** The directories to watch right now. Asked again after every read, so new worktrees are picked up. */
   targets: () => WatchTarget[];
   /** Changes that follow each other within this time produce one read. */
@@ -55,6 +55,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
   let last: VariantRecord[] | undefined;
   let lastKey: string | undefined;
   let lastError: string | undefined;
+  let lastWarning: string | undefined;
   let lastMise: MiseFailure | undefined;
   let reading = false;
   let readAgain = false;
@@ -130,10 +131,17 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
     reading = true;
     try {
       let next: VariantRecord[] | undefined;
+      let warning: string | undefined;
       let failure: string | undefined;
       let mise: MiseFailure | undefined;
       try {
-        next = await options.read();
+        const outcome = await options.read();
+        if (Array.isArray(outcome)) {
+          next = outcome;
+        } else {
+          next = outcome.records;
+          warning = outcome.warning;
+        }
       } catch (error) {
         failure = messageOf(error);
         mise = miseOf(error);
@@ -145,6 +153,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
         if (failure !== lastError) {
           lastError = failure;
           lastMise = mise;
+          lastWarning = undefined;
           broadcast({
             records: last ?? [],
             ...(failure === undefined ? {} : { error: failure }),
@@ -153,13 +162,14 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
         }
       } else {
         const key = withoutUptime(next);
-        const changed = last === undefined || key !== lastKey || lastError !== undefined;
+        const changed = last === undefined || key !== lastKey || lastError !== undefined || lastWarning !== warning;
         last = next;
         lastKey = key;
         lastError = undefined;
         lastMise = undefined;
+        lastWarning = warning;
         if (changed) {
-          broadcast({ records: next });
+          broadcast({ records: next, ...(warning === undefined ? {} : { warning }) });
         }
       }
       arm();
@@ -195,6 +205,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
     last = undefined;
     lastKey = undefined;
     lastError = undefined;
+    lastWarning = undefined;
     lastMise = undefined;
   };
 
@@ -210,6 +221,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
           records: last,
           ...(lastError === undefined ? {} : { error: lastError }),
           ...(lastMise === undefined ? {} : { mise: lastMise }),
+          ...(lastWarning === undefined ? {} : { warning: lastWarning }),
         };
         queueMicrotask(() => deliver(subscriber, update));
       }

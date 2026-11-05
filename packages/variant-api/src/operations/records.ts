@@ -14,6 +14,7 @@ import {
   STATE_FILE,
   UI_WATCH_KEY,
 } from "variant-config";
+import { DatabaseContactError } from "../db/failure.js";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
@@ -185,10 +186,21 @@ export const collectRecords = async (
 ): Promise<VariantRecord[]> => {
   const { dialect } = context.adapter;
   const multi = context.config.db.multi;
-  const listed = await context.adapter.list();
   const head = multi === undefined ? undefined : multiSchemaHead(multi.schemaPrefix);
-  const catalog =
-    head === undefined ? listed : [...new Set([...listed, ...(await context.adapter.matchingSchemas(head))])];
+  let listed: string[] = [];
+  try {
+    listed = await context.adapter.list();
+    if (head !== undefined) {
+      listed = [...new Set([...listed, ...(await context.adapter.matchingSchemas(head))])];
+    }
+  } catch (error) {
+    if (!(error instanceof DatabaseContactError)) {
+      throw error;
+    }
+    context.contactWarning = error.message;
+    listed = [];
+  }
+  const catalog = listed;
   const runtimes = runtimeBySlug(context);
   const fromState = stateSlugs(context.stateDir);
   const fromWorktrees = multi === undefined ? [] : worktreeSlugs(context);
@@ -203,7 +215,17 @@ export const collectRecords = async (
         (path) => path !== undefined && existsSync(path),
       );
       const prefix = expandedPrefix(context, slug, directory);
-      const matched = prefix === "" ? [] : groupMultiSchemas(await context.adapter.matchingSchemas(prefix), prefix);
+      let matched: string[] = [];
+      if (prefix !== "" && context.contactWarning === undefined) {
+        try {
+          matched = groupMultiSchemas(await context.adapter.matchingSchemas(prefix), prefix);
+        } catch (error) {
+          if (!(error instanceof DatabaseContactError)) {
+            throw error;
+          }
+          context.contactWarning = error.message;
+        }
+      }
       schemasOf.set(slug, matched);
       for (const name of matched) {
         consumed.add(name);

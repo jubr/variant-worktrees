@@ -89,7 +89,15 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
     ];
   };
   const subscriptions = createStateSubscriptions({
-    read: () => withAdapter((context) => listVariants(context)),
+    read: async () => {
+      let warning: string | undefined;
+      const records = await withAdapter(async (context) => {
+        const found = await listVariants(context);
+        warning = context.contactWarning;
+        return found;
+      });
+      return warning === undefined ? records : { records, warning };
+    },
     targets: watchTargets,
     ...options.subscription,
   });

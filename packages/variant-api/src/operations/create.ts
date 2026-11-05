@@ -42,6 +42,7 @@ export const createVariant = async (
   requestedSlug?: string,
   options?: { from?: string },
 ): Promise<VariantRecord> => {
+  await context.adapter.assertReachable?.();
   const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
   const existing = readState(context.stateDir, slug);
   const worktree =

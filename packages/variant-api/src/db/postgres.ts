@@ -89,6 +89,10 @@ export class PostgresAdapter implements DatabaseAdapter {
     return rows.map((row) => row.schema_name);
   }
 
+  async assertReachable(): Promise<void> {
+    await this.execute(sql`SELECT 1`);
+  }
+
   async close(): Promise<void> {
     await this.client.end({ timeout: 1 });
   }
