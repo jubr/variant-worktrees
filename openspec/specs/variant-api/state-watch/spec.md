@@ -17,7 +17,7 @@ The library SHALL offer a subscription to the variant records of the project. A 
 
 #### Scenario: Runtime file changes
 
-- **WHEN** `watch` starts for `demo` and rewrites its `variants.local.yaml`
+- **WHEN** `watch` starts for `demo` and rewrites its `.cache/variant/state.yaml`
 - **THEN** the subscriber receives a set in which `demo` has `mode: watch`
 
 #### Scenario: State file added
@@ -37,8 +37,13 @@ The library SHALL offer a subscription to the variant records of the project. A 
 
 #### Scenario: Burst coalesced
 
-- **WHEN** three runtime files change within 100 milliseconds
+- **WHEN** three state files change within 100 milliseconds
 - **THEN** one set is delivered
+
+#### Scenario: Unchanged rewrite is not a change
+
+- **WHEN** a write leaves the modification time of `state.yaml` unchanged
+- **THEN** that write alone does not deliver a set
 
 ### Requirement: Subscription failure and teardown
 

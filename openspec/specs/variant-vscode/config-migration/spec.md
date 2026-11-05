@@ -7,7 +7,7 @@ Defines how the VS Code extension migrates a configuration that uses names of an
 
 ### Requirement: Extension rewrites a migrated configuration
 
-When the extension loads the configuration of a workspace folder, it SHALL best-effort rewrite the file or files that need a migration (names of an earlier version, or no schema header; see `variant-config/core`) under the same rules as the `variant` command (see `variant-cli/config-migration`): `variants.yaml` when tracked by git without uncommitted changes, or, when not tracked, after saving its old text as `<file>~` (not when that backup exists), `variants.local.yaml` unconditionally, and nothing when `CI` is set to a value other than empty, `0` or `false` or when `VARIANT_MIGRATE` is `0`. It SHALL then show one warning notification per file and session that does not disappear on its own, that states the change, says whether the file was rewritten (and that git can show and revert the change, or where the backup of an untracked file is) or why it was not, and offers the action **Open file**, which opens the file in an editor, and, when it rewrote the file, the action **Undo**, which writes the text from before the rewrite back. **Undo** SHALL leave a file alone that changed since the rewrite and say so. **Undo** SHALL also remove the backup of an untracked file when it still holds that text. After **Undo** the file is rewritten again when the extension next loads it, unless `VARIANT_MIGRATE=0`, and the message after **Undo** says so. A failure to rewrite SHALL NOT stop the views from loading on the migrated reading.
+When the extension loads the configuration of a workspace folder, it SHALL best-effort rewrite the file or files that need a migration (names of an earlier version, or no schema header; see `variant-config/core`) under the same rules as the `variant` command (see `variant-cli/config-migration`): `variants.yaml` when tracked by git without uncommitted changes, or, when not tracked, after saving its old text as `<file>~` (not when that backup exists), and nothing when `CI` is set to a value other than empty, `0` or `false` or when `VARIANT_MIGRATE` is `0`. It SHALL NOT rewrite or create `variants.local.yaml`. It SHALL then show one warning notification per file and session that does not disappear on its own, that states the change, says whether the file was rewritten (and that git can show and revert the change, or where the backup of an untracked file is) or why it was not, and offers the action **Open file**, which opens the file in an editor, and, when it rewrote the file, the action **Undo**, which writes the text from before the rewrite back. **Undo** SHALL leave a file alone that changed since the rewrite and say so. **Undo** SHALL also remove the backup of an untracked file when it still holds that text. After **Undo** the file is rewritten again when the extension next loads it, unless `VARIANT_MIGRATE=0`, and the message after **Undo** says so. A failure to rewrite SHALL NOT stop the views from loading on the migrated reading.
 
 #### Scenario: Rewritten and announced
 
@@ -33,6 +33,11 @@ When the extension loads the configuration of a workspace folder, it SHALL best-
 
 - **WHEN** the file has uncommitted changes, its backup exists, or an opt-out applies
 - **THEN** the file is unchanged and the notification gives the reason and offers **Open file** only
+
+#### Scenario: Legacy runtime file left alone
+
+- **WHEN** the extension loads a workspace that has a `variants.local.yaml`
+- **THEN** that file is not rewritten and no notification names it
 
 #### Scenario: Open file
 
