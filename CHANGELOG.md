@@ -11,29 +11,40 @@
   standard error) instead of an error; a value of the wrong type is still an error.
 - `variant.ports.range` (`LOW-HIGH`, default `42000-42999`): free ports of watches and of `variant ui` are picked from
   it. An explicit `VARIANT_<KEY>_PORT` may lie anywhere.
-- Files that use `variant.instances`, `runtime.instances` or `variant.reservedPorts` still load, with a notice. The
-  `variant` CLI and the VS Code extension rewrite them in place when `variants.yaml` is tracked by git and clean, or
-  untracked after saving the old text as `variants.yaml~` (and always `variants.local.yaml`); `VARIANT_MIGRATE=0` or a set `CI` turns the rewrite off. The library, the MCP server
+- Files that use `variant.instances` or `variant.reservedPorts` still load, with a notice. The
+  `variant` CLI and the VS Code extension rewrite `variants.yaml` in place when it is tracked by git and clean, or
+  untracked after saving the old text as `variants.yaml~`. `variants.local.yaml` is not rewritten. `VARIANT_MIGRATE=0` or a set `CI` turns the rewrite off. The library, the MCP server
   and `variant ui` never write.
-- `variants.yaml` and `variants.local.yaml` begin with a `yaml-language-server` schema header. A `variants.local.yaml` that
-  the tool writes starts with it, and the migration of the CLI and the VS Code extension adds it to a file that has no
-  schema line (a line you wrote is kept).
+- `variants.yaml` begins with a `yaml-language-server` schema header. The migration of the CLI and the VS Code extension adds it to a file that has no
+  schema line (a line you wrote is kept). `.cache/variant/state.yaml` and `runtime.yaml` have no schema line.
 - `task package:vsix:unpacked` works in the main checkout.
 - `variant init` (and the MCP tool `variant_init`, and `client.init`) writes a `variants.yaml` from autodetection, adds
   `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration; each step can be turned
   off and `--force` replaces an existing file. Secrets are written as `${NAME}` references with a comment naming their
-  source. A package with a `watch` script becomes a watch without `kind`.
+  source. For Postgres, `host`, `port`, `user` and `password` are `${NAME}` and `database` is the detected name.
+  `variant.main` and `variant.root` are omitted; `variant config` still prints them. A package with a `watch` script becomes a watch without `kind`.
 - VS Code: the command **Variant: Initialize in this Repo** shows an initialization dialog in the Variant Worktrees section, and a
   notification offers it once after a local commit when a database and an application are detected.
 - In the Variants tree, a row with a URL has **Open url** immediately left of play or stop. It opens the URL in the
-  external browser, or in a Cursor browser tab while Alt is held. The muted explosion asks whether to pass `--force`.
-  A failed watch, down, or implode shows the error in a notification.
+  external browser, or in a Cursor browser tab while Alt is held. After this view starts a watch, the row stays on a
+  loading icon until the recorded pid is alive and a GET of the row URL joined with that watch's `ready` path returns
+  200, then the row URL opens once. A watch with no URL, or no `ready` path, is not fetched and is not opened. The muted
+  explosion writes the colored implode report (added hunk lines green, removed hunk lines red) to the extension output,
+  then asks whether to pass `--force`. A failed watch, down, or implode shows the error in a notification.
 - MariaDB (`MARIADB_*`, `mariadb://`) is detected as the `mysql` dialect.
 - `variant.mise.binPath` (the editor setting and the key of `variants.yaml`) names a Mise executable that is not on `PATH`.
   The extension offers **Trust** when Mise reports an untrusted configuration.
 
 ### Changed
 
+- **Breaking:** operational state is `<variant>/.cache/variant/state.yaml` and `runtime.yaml`. `variants.local.yaml` and
+  `.cache/variants/<slug>.yaml` are no longer written. An old file is still read when `state.yaml` is absent. A
+  `variants.yaml` inside a linked worktree wins over an ancestor file and an `AGENTS.md` symlink. `watch` there runs
+  that file's commands and keeps `PORT`, `VARIANT_SPA_PORT` and `VARIANT_API_PORT`.
+- **Breaking:** `db.port` accepts a positive integer or a string (digits or one `${NAME}`). The resolved value is a
+  positive integer. A string that does not resolve that way still fails. The published JSON schema accepts both.
+- **Breaking:** `variant implode` colors added diff hunks green and removed diff hunks red. Command traces stay yellow
+  and git's own color stays off.
 - **Breaking:** `variant.steps` is a map keyed by step name, with `cmd` instead of `run`. A custom step sets exactly one of `runBefore` and `runAfter`. A list no longer loads. `run` without `cmd` is still read as the command, with a warning.
 - `create` records the worktree and the state and does not create a schema. `provision` does, unless a step named `provision` replaces it. `up` no longer drops the database first. `implode` implies `deprovision`.
 - The Explorer section starts collapsed and expands when the workspace uses variants or looks ready for them.
@@ -78,7 +89,7 @@
 - The README and the configuration guide describe how each `VARIANT_*` environment variable maps to a
   `variants.yaml` setting or template placeholder, and in which direction it works.
 - The Variant Worktrees view sorts by name, created or changed (`variant.sort`, default name ascending). Created is the
-  earlier birth time of the variant directory and `variants.local.yaml`; changed is the later modification time. The
+  earlier birth time of the variant directory and `.cache/variant/state.yaml` (or `variants.local.yaml` when that cache file is absent); changed is the later modification time. The
   panel follows that setting; the browser page stays in name order. Records carry `createdMs`, `changedMs` and
   `implodeClean` (whether implode without `--force` would succeed, including `preRm`, untracked and restore).
 - The play action is named **variant watch**; the icon stays play. The trash icon sits at the right of every row except
