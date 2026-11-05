@@ -323,7 +323,7 @@
       },
       {
         "view": "variant.variants",
-        "contents": "No variants yet. Run `variant create` in a terminal to make one.",
+        "contents": "Variants are not initialized, but no variants created yet.\n[Onboard](command:variant.create)",
         "when": "variant.noVariants"
       }
     ],
