@@ -25,6 +25,13 @@ const slugArg: ArgDefinition = {
   short: "s",
 };
 
+const fromArg: ArgDefinition = {
+  name: "from",
+  description: "Commit, tag, or branch a new variant branch starts at. Omitted, it starts at variant.baseBranch",
+  type: "string",
+  required: false,
+};
+
 const verboseArg: ArgDefinition = {
   name: "verbose",
   description: "Print the full output of quiet provisioning steps; for list, all meta information of every variant",
@@ -36,6 +43,8 @@ const verboseArg: ArgDefinition = {
 const slugString = (args: Record<string, unknown>): string | undefined => args.slug as string | undefined;
 const verbose = (args: Record<string, unknown>): { verbose?: boolean } =>
   args.verbose === undefined ? {} : { verbose: args.verbose === true };
+const fromOf = (args: Record<string, unknown>): { from?: string } =>
+  typeof args.from === "string" ? { from: args.from } : {};
 
 const stepArg = (name: string, description: string): ArgDefinition => ({
   name,
@@ -80,8 +89,8 @@ export const commands: CommandDefinition[] = [
   {
     name: "create",
     description: "Create or refresh a database variant",
-    args: [slugArg, verboseArg],
-    execute: (client, args) => client.create(slugString(args)),
+    args: [slugArg, fromArg, verboseArg],
+    execute: (client, args) => client.create(slugString(args), fromOf(args)),
   },
   {
     name: "list",
@@ -98,14 +107,14 @@ export const commands: CommandDefinition[] = [
   {
     name: "provision",
     description: "Run configured variant runtime and seed commands",
-    args: [slugArg, verboseArg],
-    execute: (client, args) => client.provision(slugString(args), verbose(args)),
+    args: [slugArg, fromArg, verboseArg],
+    execute: (client, args) => client.provision(slugString(args), { ...verbose(args), ...fromOf(args) }),
   },
   {
     name: "up",
     description: "Run the watches of a variant as containers",
-    args: [slugArg, verboseArg],
-    execute: (client, args) => client.up(slugString(args), verbose(args)),
+    args: [slugArg, fromArg, verboseArg],
+    execute: (client, args) => client.up(slugString(args), { ...verbose(args), ...fromOf(args) }),
   },
   {
     name: "down",
@@ -124,6 +133,7 @@ export const commands: CommandDefinition[] = [
     description: "Run the watches of a variant as supervised host processes",
     args: [
       slugArg,
+      fromArg,
       {
         name: "detach",
         description: "Start the processes in the background and return",
@@ -141,6 +151,7 @@ export const commands: CommandDefinition[] = [
     execute: (client, args) =>
       client.watch(slugString(args), {
         ...verbose(args),
+        ...fromOf(args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
         ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
       }),

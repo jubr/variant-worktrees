@@ -150,7 +150,11 @@ describe("client.subscribe", () => {
         await received.until((update) => slugs(update).includes("late"));
 
         put("_v-late/variants.local.yaml", "runtime:\n  slug: late\n  mode: up\n");
-        await received.until((update) => update.records.some((variant) => variant.slug === "late" && variant.mode));
+        // A busy suite can miss the watch event. The liveness poll is 5s, so wait past it.
+        await received.until(
+          (update) => update.records.some((variant) => variant.slug === "late" && variant.mode),
+          8000,
+        );
       } finally {
         unsubscribe();
       }

@@ -158,6 +158,7 @@ The `VARIANT_*` variables map to `variants.yaml` settings and template placehold
 variant init                           # write variants.yaml, .gitignore and the mise entry from autodetection
 variant config
 variant create -s preview-one
+variant create -s preview-one --from feat/other   # new branch starts at that commit
 variant list                           # slug, mode, uptime, full url, watch log file, dir
 variant list -v                        # all meta information of every variant
 variant status preview-one             # everything known about one variant
@@ -171,6 +172,8 @@ variant implode -s preview-one         # tear down and remove the worktree
 variant ui --detach                    # the variants web page: print its URL with the token, keep serving
 variant ui --stop                      # end the UI server of the project
 ```
+
+`--from` on `create`, `provision`, `up`, and `watch` is a commit, tag, or branch. A new variant branch starts there. Omit it and the branch starts at `variant.baseBranch`. There is no short flag. An existing worktree, or a branch that already uses a configured prefix, is left as it is. `implode` still requires the work to be merged into `variant.baseBranch`.
 
 Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
 PostgreSQL and MySQL use isolated schemas/databases; SQLite uses one database

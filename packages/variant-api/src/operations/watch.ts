@@ -114,7 +114,7 @@ const untilEnd = (
 export const watchVariant = async (
   context: OperationContext,
   requestedSlug?: string,
-  options: WatchOptions = {},
+  options: WatchOptions & { from?: string } = {},
 ): Promise<WatchResult> => {
   const { config } = context;
   const log = options.log ?? logToStderr;

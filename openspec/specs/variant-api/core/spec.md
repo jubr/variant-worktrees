@@ -173,7 +173,7 @@ The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-v
 
 ### Requirement: Worktree coupling
 
-The system SHALL create `_v-<slug>` worktrees below the resolved `variant.root` with `git worktree add` in the resolved `variant.main` when variant operations require it, and reuse one that exists. Variant operations SHALL NOT change the working directory of the process. A new worktree SHALL start a branch named with the first of `variant.branchPrefixes` from `variant.baseBranch`, unless a branch named with any configured prefix already exists, which SHALL be checked out instead. When the root is the main tree or lies inside it and a `.gitignore` exists there, creating a worktree SHALL add the line `<prefix>*` (for example `_v-*`) to that `.gitignore` unless a line already ignores it (`<prefix>*` or `/<prefix>*`, with or without a trailing `/`; a comment does not count). The system SHALL NOT create a `.gitignore` and SHALL NOT change one when the root is outside the main tree. When the process working directory is the variant root, `create`, `watch`, `down`, and `implode` of an explicit slug SHALL inspect git in the resolved `variant.main` and SHALL NOT fail because the variant root is not a git checkout. They SHALL NOT need a `variants.yaml` in the variant root. `watch` of a slug other than `main` SHALL run each watch command, and the provisioning command of each watch, with the watch's `dir` resolved against that slug's worktree. `watch` of `main` SHALL run in the primary checkout. `implode` SHALL remove the worktree through `variant.main`. `${slug}` in those commands SHALL expand to the explicit slug.
+The system SHALL create `_v-<slug>` worktrees below the resolved `variant.root` with `git worktree add` in the resolved `variant.main` when variant operations require it, and reuse one that exists. Variant operations SHALL NOT change the working directory of the process. A new worktree SHALL start a branch named with the first of `variant.branchPrefixes` from the commit-ish given as `from` when the operation sets `from`, and otherwise from `variant.baseBranch`, unless a branch named with any configured prefix already exists, which SHALL be checked out instead. `from` SHALL be a branch, tag, or commit that git can resolve in the repository of `variant.main`. A relative name such as `HEAD` SHALL be the HEAD of the process working directory when that directory is a worktree of that repository, and otherwise the HEAD of `variant.main`. When `from` is set and git cannot resolve it, the operation SHALL fail and SHALL leave no new branch and no new worktree. An existing worktree for the slug SHALL be reused, and `from` SHALL NOT move its branch. `from` SHALL NOT change the branch `implode` uses as its merge base. When the root is the main tree or lies inside it and a `.gitignore` exists there, creating a worktree SHALL add the line `<prefix>*` (for example `_v-*`) to that `.gitignore` unless a line already ignores it (`<prefix>*` or `/<prefix>*`, with or without a trailing `/`; a comment does not count). The system SHALL NOT create a `.gitignore` and SHALL NOT change one when the root is outside the main tree. When the process working directory is the variant root, `create`, `watch`, `down`, and `implode` of an explicit slug SHALL inspect git in the resolved `variant.main` and SHALL NOT fail because the variant root is not a git checkout. They SHALL NOT need a `variants.yaml` in the variant root. `watch` of a slug other than `main` SHALL run each watch command, and the provisioning command of each watch, with the watch's `dir` resolved against that slug's worktree. `watch` of `main` SHALL run in the primary checkout. `implode` SHALL remove the worktree through `variant.main`. `${slug}` in those commands SHALL expand to the explicit slug.
 
 #### Scenario: Ensure worktree on create
 - **WHEN** `create("add-auth")` is called from the primary worktree
@@ -238,6 +238,47 @@ The system SHALL create `_v-<slug>` worktrees below the resolved `variant.root` 
 #### Scenario: Worktree outside the main tree
 - **WHEN** the root is the directory that holds the main tree
 - **THEN** no `.gitignore` is changed
+
+#### Scenario: Create from a commit-ish
+- **WHEN** `create("add-auth", { from })` requires a worktree, no branch under `variant.branchPrefixes` exists for that slug, and `from` resolves to a commit other than the tip of `variant.baseBranch`
+- **THEN** branch `feat/add-auth` is created with that commit as its HEAD
+
+#### Scenario: Provision from a commit-ish
+- **WHEN** `provision("add-auth", { from })` requires a worktree and no prefixed branch exists for that slug
+- **THEN** the new branch HEAD is the commit `from` resolves to
+
+#### Scenario: Up from a commit-ish
+- **WHEN** `up("add-auth", { from })` requires a worktree and no prefixed branch exists for that slug
+- **THEN** the new branch HEAD is the commit `from` resolves to
+
+#### Scenario: Watch from a commit-ish
+- **WHEN** `watch("add-auth", { from })` requires a worktree and no prefixed branch exists for that slug
+- **THEN** the new branch HEAD is the commit `from` resolves to
+
+#### Scenario: HEAD is the current worktree
+- **WHEN** the process working directory is a worktree of the repository whose HEAD is commit C, and `create("add-auth", { from: "HEAD" })` creates a branch
+- **THEN** the new branch HEAD is C
+
+#### Scenario: HEAD outside a checkout
+- **WHEN** the process working directory is not a worktree of the repository, `variant.main` HEAD is commit M, and `create("add-auth", { from: "HEAD" })` creates a branch
+- **THEN** the new branch HEAD is M
+
+#### Scenario: Existing branch ignores from
+- **WHEN** branch `fix/add-auth` already exists and `create("add-auth", { from })` runs with `from` resolving to a different commit
+- **THEN** the worktree checks out `fix/add-auth` at that branch's existing HEAD
+
+#### Scenario: Existing worktree ignores from
+- **WHEN** a worktree for `add-auth` already exists and `create("add-auth", { from })` runs
+- **THEN** that worktree is reused and its HEAD is unchanged
+
+#### Scenario: Unknown commit-ish
+- **WHEN** `create("add-auth", { from: "no-such-commit" })` requires a worktree and no prefixed branch exists for that slug
+- **THEN** the call fails
+- **AND** branch `feat/add-auth` does not exist and the worktree directory does not exist
+
+#### Scenario: From does not move the implode base
+- **WHEN** a variant branch was created with `from` set to a commit that is not an ancestor of `variant.baseBranch`
+- **THEN** `implode` of that slug without `force` still refuses because the work is not merged into `variant.baseBranch`
 
 ### Requirement: State persistence
 

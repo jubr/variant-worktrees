@@ -62,7 +62,10 @@ describe("describeCli", () => {
     const slug = byName("create").flags.find((flag) => flag.long === "slug");
 
     expect(slug).toMatchObject({ long: "slug", short: "s", takesValue: true });
-    expect(byName("create").flags.map((flag) => flag.long)).toEqual(["slug", "verbose", "json", "yaml"]);
+    const from = byName("create").flags.find((flag) => flag.long === "from");
+    expect(from).toMatchObject({ long: "from", takesValue: true });
+    expect(from?.short).toBeUndefined();
+    expect(byName("create").flags.map((flag) => flag.long)).toEqual(["slug", "from", "verbose", "json", "yaml"]);
   });
 
   it("describes the flags of watch, implode and list, with the output flags last", () => {

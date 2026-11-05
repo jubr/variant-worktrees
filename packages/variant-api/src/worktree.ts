@@ -70,6 +70,34 @@ const ignoreWorktrees = (root: string, prefix: string, main: string): void => {
   }
 };
 
+const gitCommonDir = (dir: string): string | undefined => {
+  try {
+    return realpathSync(runGit(dir, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  } catch {
+    return undefined;
+  }
+};
+
+/** True when `cwd` is a worktree of the same repository as `repository`. */
+const sharesRepository = (cwd: string, repository: string): boolean => {
+  const left = gitCommonDir(cwd);
+  const right = gitCommonDir(repository);
+  return left !== undefined && left === right;
+};
+
+/**
+ * Resolve `from` before `git worktree add`. Relative names such as `HEAD` use `cwd` when that directory is a
+ * worktree of the repository, and `fallback` (`variant.main`) otherwise.
+ */
+const resolveCommit = (from: string, cwd: string, fallback: string): string => {
+  const where = sharesRepository(cwd, fallback) ? cwd : fallback;
+  try {
+    return runGit(where, ["rev-parse", "--verify", "--end-of-options", `${from}^{commit}`]);
+  } catch {
+    throw new Error(`Cannot resolve '${from}'`);
+  }
+};
+
 /** The directory to ask git in: the main tree when it is a repository, else the working directory. */
 const gitDirectory = (cwd: string, main?: string): string => {
   if (main) {
@@ -90,6 +118,7 @@ export const ensureWorktree = (
   prefix: string = DEFAULT_PREFIX,
   branches: BranchSettings = DEFAULT_BRANCH_SETTINGS,
   main?: string,
+  from?: string,
 ): string => {
   const normalized = sanitizeSlug(slug, branches.branchPrefixes);
   const repository = gitDirectory(cwd, main);
@@ -103,6 +132,12 @@ export const ensureWorktree = (
     return resolve(existing);
   }
 
+  const candidates = branches.branchPrefixes.map((entry) => `${entry}${normalized}`);
+  const branch = candidates.find((candidate) => branchExists(primary, candidate)) ?? (candidates[0] as string);
+  const reusingBranch = branchExists(primary, branch);
+  // Resolve before creating a directory so a bad commit-ish leaves nothing behind. An existing branch is checked out as it is.
+  const start = reusingBranch || from === undefined ? branches.baseBranch : resolveCommit(from, cwd, main ?? primary);
+
   const root = resolve(variantRoot ?? detectVariantRoot(repository, main ?? detectVariantMain(repository)));
   mkdirSync(root, { recursive: true });
   const destination = join(root, `${prefix}${normalized}`);
@@ -110,11 +145,9 @@ export const ensureWorktree = (
     throw new Error(`Worktree path already exists but is not registered: ${destination}`);
   }
 
-  const candidates = branches.branchPrefixes.map((entry) => `${entry}${normalized}`);
-  const branch = candidates.find((candidate) => branchExists(primary, candidate)) ?? (candidates[0] as string);
-  const args = branchExists(primary, branch)
+  const args = reusingBranch
     ? ["worktree", "add", destination, branch]
-    : ["worktree", "add", "-b", branch, destination, branches.baseBranch];
+    : ["worktree", "add", "-b", branch, destination, start];
   runGit(primary, args);
   ignoreWorktrees(root, prefix, main ?? primary);
   return resolve(destination);

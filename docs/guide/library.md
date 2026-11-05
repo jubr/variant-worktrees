@@ -29,7 +29,8 @@ console.log(result.file, result.gitignore.status, result.detected?.dialect);
 ## Lifecycle
 
 ```ts
-await client.create("preview-one");
+await client.create("preview-one"); // starts at variant.baseBranch
+await client.create("other", { from: "feat/other" });
 await client.provision("preview-one");
 const variants = await client.list();
 
@@ -38,6 +39,8 @@ const watched = await client.watch("preview-one", { detach: true }); // host pro
 await client.down("preview-one"); // stop what runs, keep the data
 await client.implode("preview-one"); // tear down and remove the worktree
 ```
+
+`create(slug, { from })`, and the `from` option of `provision`, `up`, and `watch`, start a new branch at that commit, tag, or branch. Omit `from` and the branch starts at `variant.baseBranch`. An existing worktree is not moved. `implode` still requires a merge into `variant.baseBranch`.
 
 `create` is idempotent for isolated variants. `implode` replaces the former
 `destroy`: it refuses `main`, refuses work that is not merged into
