@@ -2,37 +2,37 @@
     <defs>
         <!-- Mask to cut a 1px gap around the top-left square for the wheel background -->
         <mask id="wheel-mask">
-            <!-- Keep everything visible by default -->
             <rect x="0" y="0" width="24" height="24" fill="white" />
-            <!-- Hide a 16x16 block at the top-left, leaving a perfect 1px gap around the 15x15 square -->
             <rect x="0" y="0" width="16" height="16" rx="2.5" fill="black" />
         </mask>
 
-        <!-- Mask to cut the new Git logo out of the enlarged top-left square -->
+        <!-- Mask to cut the Git logo cutout out of the top-left rounded rectangle -->
         <mask id="git-mask">
-            <!-- White background keeps the 15x15 square solid -->
             <rect x="0" y="0" width="15" height="15" rx="1.5" fill="white" />
             
-            <!-- Git logo matching the thick reference shape, rotated 45deg CCW, centered -->
-            <g transform="translate(7.5, 7.5) rotate(-45)" fill="black" stroke="black" stroke-width="2.6" stroke-linecap="butt">
-                <!-- Main stem extending flat to top-left -->
-                <line x1="0" y1="3" x2="0" y2="-4" />
-                <!-- Branch to top-right -->
-                <line x1="0" y1="0" x2="3" y2="-3" />
-                <!-- Large Nodes (stroke="none" avoids inflating them past their radius) -->
-                <circle cx="0" cy="3" r="1.8" stroke="none" />
-                <circle cx="0" cy="0" r="1.8" stroke="none" />
-                <circle cx="3" cy="-3" r="1.8" stroke="none" />
+            <!-- Scaled & centered git element leaving 0.6px padding (spoke stroke width) -->
+            <g transform="translate(-0.533, -0.228) scale(15.678)">
+                <!-- Connectors -->
+                <path d="M 0.434 0.310 L 0.434 0.822" stroke="black" stroke-width="0.125" fill="none" />
+
+                <path d="M 0.241 0.141 L 0.748 0.594" stroke="black" stroke-width="0.125" fill="none" />
+
+                <!-- Three circular nodes -->
+                <ellipse cx="0.434" cy="0.310" rx="0.124" ry="0.111" fill="black" stroke="none" />
+
+                <ellipse cx="0.434" cy="0.822" rx="0.124" ry="0.111" fill="black" stroke="none" />
+
+                <ellipse cx="0.748" cy="0.594" rx="0.124" ry="0.111" fill="black" stroke="none" />
             </g>
         </mask>
     </defs>
     
-    <!-- Background Wheel and Spokes, clipped 1px away from the square -->
+    <!-- Background Wheel and Spokes (clipped 1px away from the square) -->
     <g mask="url(#wheel-mask)">
         <!-- 3/4 Wheel Outer Arc (12:00 clockwise to 12:45) -->
         <path d="M 12 0.5 A 11.5 11.5 0 1 1 0.5 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
         
-        <!-- 8 Radial Spokes extending inward leaving exactly 10% (1.2px) empty center -->
+        <!-- 8 Radial Spokes extending inward leaving 10% empty center -->
         <g stroke="currentColor" stroke-width="0.6" stroke-linecap="round">
             <!-- 12:05 -->
             <line x1="12.60" y1="10.96" x2="17.75" y2="2.04" />
@@ -53,7 +53,6 @@
         </g>
     </g>
 
-    <!-- Enlarged Top-Left Rounded Square with updated Git Cutout -->
-    <!-- Scaled up to 15x15 to become significantly larger and more dominant -->
+    <!-- Top-Left Rounded Square with Git Cutout -->
     <rect x="0" y="0" width="15" height="15" rx="1.5" fill="currentColor" mask="url(#git-mask)" />
 </svg>
