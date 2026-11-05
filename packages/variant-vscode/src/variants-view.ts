@@ -146,6 +146,13 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   const register = (id: string, callback: (node?: VariantNode) => Promise<void>): vscode.Disposable =>
     vscode.commands.registerCommand(id, callback);
 
+  const openRow =
+    (run: (slug: string) => Promise<void>) =>
+    (node?: VariantNode): Promise<void> => {
+      const slug = slugOf(node);
+      return slug === undefined ? Promise.resolve() : attempt("open url", () => run(slug), { slug });
+    };
+
   context.subscriptions.push(
     vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider }),
     provider,
@@ -163,7 +170,22 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
         : attempt("stop", () => store.run(slug, () => actions.down(slug)), { slug });
     }),
     register("variant.implode", implode),
-    register("variant.implodeDirty", () => Promise.resolve()),
+    register("variant.implodeDirty", async (node) => {
+      const slug = slugOf(node);
+      if (slug === undefined) {
+        return;
+      }
+      const choice = await vscode.window.showWarningMessage(
+        "Clean implode failed, do you want to `--force`?",
+        "Cancel",
+        "Force",
+      );
+      if (choice !== "Force") {
+        log?.info("implode cancelled", { slug });
+        return;
+      }
+      return attempt("implode", () => store.run(slug, () => actions.implode(slug, { force: true })), { slug });
+    }),
     register("variant.create", async () => {
       const box = vscode.window.createInputBox();
       box.title = "Create variant";
@@ -189,10 +211,18 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
       const slug = slugOf(node);
       return slug === undefined ? Promise.resolve() : attempt("show output", () => actions.showOutput(slug), { slug });
     }),
-    register("variant.openUrl", (node) => {
-      const slug = slugOf(node);
-      return slug === undefined ? Promise.resolve() : attempt("open url", () => actions.openUrl(slug), { slug });
-    }),
+    register(
+      "variant.openUrl",
+      openRow((slug) => actions.openUrl(slug)),
+    ),
+    register(
+      "variant.openUrlExternal",
+      openRow((slug) => actions.openUrl(slug)),
+    ),
+    register(
+      "variant.openUrlCursor",
+      openRow((slug) => actions.openUrlInEditor(slug)),
+    ),
     register("variant.stopUiServer", () => attempt("stop ui server", () => actions.stopUiServer())),
     register("variant.openPanel", () => attempt("open panel", () => panel.open())),
     register("variant.openInBrowser", () =>

@@ -30,11 +30,13 @@ export interface VariantActions {
   watch(slug: string): Promise<void>;
   /** Brings the variant down; for the `variant-ui` row it stops the UI server instead. */
   down(slug: string): Promise<void>;
-  /** Removes the variant. The caller has asked for confirmation. */
-  implode(slug: string): Promise<void>;
+  /** Removes the variant. The caller has asked for confirmation. `force` discards unmerged work. */
+  implode(slug: string, options?: { force?: boolean }): Promise<void>;
   /** Opens the log of the variant's detached watch in an editor. */
   showOutput(slug: string): Promise<void>;
   openUrl(slug: string): Promise<void>;
+  /** Opens the row URL in a Simple Browser editor tab. */
+  openUrlInEditor(slug: string): Promise<void>;
   stopUiServer(): Promise<void>;
 }
 
@@ -53,6 +55,13 @@ export const createActions = (deps: ActionDeps): VariantActions => {
     }
     (deps.kill ?? process.kill)(pid, "SIGTERM");
   };
+  const requireUrl = (slug: string): string => {
+    const url = find(slug)?.url;
+    if (url === undefined) {
+      throw new Error(`${slug} has no URL`);
+    }
+    return url;
+  };
   return {
     watch: async (slug) => {
       await (await deps.loadClient(directoryOf(slug))).watch(slug, { ...report, detach: true });
@@ -63,11 +72,14 @@ export const createActions = (deps: ActionDeps): VariantActions => {
       }
       await (await deps.loadClient(directoryOf(slug))).down(slug, report);
     },
-    implode: async (slug) => {
+    implode: async (slug, options) => {
       if (slug === "main") {
         throw new Error("main cannot be imploded");
       }
-      await (await deps.loadClient(directoryOf(slug))).implode(slug, report);
+      await (await deps.loadClient(directoryOf(slug))).implode(slug, {
+        ...report,
+        ...(options?.force === true ? { force: true } : {}),
+      });
     },
     showOutput: async (slug) => {
       const log = find(slug)?.log;
@@ -78,11 +90,10 @@ export const createActions = (deps: ActionDeps): VariantActions => {
       await vscode.window.showTextDocument(document, { preview: true });
     },
     openUrl: async (slug) => {
-      const url = find(slug)?.url;
-      if (url === undefined) {
-        throw new Error(`${slug} has no URL`);
-      }
-      await vscode.env.openExternal(vscode.Uri.parse(url));
+      await vscode.env.openExternal(vscode.Uri.parse(requireUrl(slug)));
+    },
+    openUrlInEditor: async (slug) => {
+      await vscode.commands.executeCommand("simpleBrowser.api.open", vscode.Uri.parse(requireUrl(slug)));
     },
     stopUiServer,
   };
