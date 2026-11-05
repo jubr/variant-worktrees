@@ -130,3 +130,5 @@ example/**/*.sqlite
 out/
 # Extension IPC socket
 .vscode/variant-worktrees.sock
+# Local editor workspace settings
+.vscode/settings.json
