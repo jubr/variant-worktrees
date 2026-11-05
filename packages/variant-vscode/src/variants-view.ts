@@ -14,6 +14,7 @@ import { createVariantsStore, type VariantsStore } from "./variants-store.ts";
 import { type VariantNode, VariantsTreeProvider } from "./variants-tree.ts";
 
 export const VIEW_ID = "variant.variants";
+const WORKTREES_VIEW_ID = "variant.worktrees";
 
 const SORT_VALUES = [
   ["nameAsc", "name-asc"],
@@ -68,9 +69,9 @@ const slugOf = (node: VariantNode | undefined): string | undefined =>
   node?.kind === "variant" ? node.record.slug : undefined;
 
 /**
- * The Variants view of the Explorer: the tree, its welcome contexts, and the commands of its items.
+ * Explorer and activity-bar Variants trees: one provider, its welcome contexts, and its item commands.
  *
- * Specification: openspec/changes/vscode-view/specs/variant-vscode/variants-tree/spec.md
+ * Specification: openspec/specs/variant-vscode/variants-tree/spec.md
  */
 export const registerVariantsView = (context: vscode.ExtensionContext, deps: ViewDeps): VariantsView => {
   const loadClient = deps.loadClient ?? loadVariantClient(deps.root, deps.miseBinPath);
@@ -210,6 +211,7 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
 
   context.subscriptions.push(
     vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider }),
+    vscode.window.createTreeView(WORKTREES_VIEW_ID, { treeDataProvider: provider }),
     provider,
     { dispose: () => store.dispose() },
     register("variant.play", (node) => {

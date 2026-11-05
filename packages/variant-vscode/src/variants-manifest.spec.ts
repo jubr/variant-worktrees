@@ -1,15 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 
+interface MenuEntry {
+  command?: string;
+  submenu?: string;
+  alt?: string;
+  when?: string;
+  group?: string;
+}
+
 interface Manifest {
   engines: { vscode: string };
   dependencies: Record<string, string>;
   contributes: {
     commands: Array<{ command: string; title: string }>;
+    viewsContainers?: {
+      activitybar?: Array<{ id: string; title: string; icon: string }>;
+      panel?: unknown;
+    };
     views?: Record<string, Array<{ id: string; name: string; type?: string; when?: string; visibility?: string }>>;
     configuration: { properties: Record<string, { type: string; default?: unknown; markdownDescription?: string }> };
     viewsWelcome?: Array<{ view: string; contents: string; when?: string }>;
-    menus?: Record<string, Array<{ command: string; when?: string; group?: string }>>;
+    menus?: Record<string, MenuEntry[]>;
   };
 }
 
@@ -87,5 +99,111 @@ describe("onboarding manifest", () => {
     expect(setting?.type).toBe("string");
     expect(setting?.default).toBe("");
     expect(setting?.markdownDescription).toContain("Mise");
+  });
+});
+
+const eitherView = "(view == variant.variants || view == variant.worktrees)";
+
+const onEitherView = (rest: string): string => (rest === "" ? eitherView : `${eitherView} && ${rest}`);
+
+const menu = (name: "view/title" | "view/item/context"): MenuEntry[] => manifest.contributes.menus?.[name] ?? [];
+
+describe("activity bar manifest", () => {
+  it("contributes one Variant Worktrees activity-bar container and no panel container", () => {
+    expect(manifest.contributes.viewsContainers?.activitybar).toEqual([
+      {
+        id: "variantWorktrees",
+        title: "Variant Worktrees",
+        icon: "media/vw-mini-icon.svg",
+      },
+    ]);
+    expect(manifest.contributes.viewsContainers?.panel).toBeUndefined();
+  });
+
+  it("ships the view icon and whitelists it for the package", () => {
+    const packaged = new URL("../media/vw-mini-icon.svg", import.meta.url);
+
+    expect(readFileSync(packaged, "utf8")).toContain("<svg");
+    expect(readFileSync(new URL("../.vscodeignore", import.meta.url), "utf8").split("\n")).toContain(
+      "!media/vw-mini-icon.svg",
+    );
+  });
+
+  it("shows the activity-bar tree for any open folder, including while Explorer shows onboarding", () => {
+    const explorer = manifest.contributes.views?.explorer ?? [];
+    const explorerShown = (onboardingOpen: boolean): string[] =>
+      explorer
+        .filter((view) => holds(view.when, { workspaceFolderCount: 1, "variant.onboardingOpen": onboardingOpen }))
+        .map((view) => view.id);
+
+    expect(explorerShown(false)).toEqual(["variant.variants"]);
+    expect(explorerShown(true)).toEqual(["variant.onboarding"]);
+
+    const activity = manifest.contributes.views?.variantWorktrees ?? [];
+    expect(activity).toEqual([
+      {
+        id: "variant.worktrees",
+        name: "Variant Worktrees",
+        when: "workspaceFolderCount > 0",
+        visibility: "visible",
+      },
+    ]);
+
+    const activityShown = (onboardingOpen: boolean, folders: number): string[] =>
+      activity
+        .filter((view) => holds(view.when, { workspaceFolderCount: folders, "variant.onboardingOpen": onboardingOpen }))
+        .map((view) => view.id);
+
+    expect(activityShown(true, 1)).toEqual(["variant.worktrees"]);
+    expect(activityShown(false, 0)).toEqual([]);
+  });
+
+  it("copies both welcome entries, and empty Onboard runs variant.create on each tree", () => {
+    const forView = (view: string): Array<{ view: string; contents: string; when?: string }> =>
+      (manifest.contributes.viewsWelcome ?? []).filter((entry) => entry.view === view);
+    const noConfig = {
+      contents: "Variants are not initialized in this workspace.\n[Onboard](command:variant.onboardingInit)",
+      when: "variant.noConfig",
+    };
+    const noVariants = {
+      contents: "Variants are not initialized, but no variants created yet.\n[Onboard](command:variant.create)",
+      when: "variant.noVariants",
+    };
+
+    expect(forView("variant.worktrees")).toEqual([
+      { view: "variant.worktrees", ...noConfig },
+      { view: "variant.worktrees", ...noVariants },
+    ]);
+    expect(forView("variant.variants")).toEqual([
+      { view: "variant.variants", ...noConfig },
+      { view: "variant.variants", ...noVariants },
+    ]);
+  });
+
+  it("offers the same title and item actions on both trees", () => {
+    expect(menu("view/title").map((entry) => entry.when)).toEqual([
+      onEitherView(""),
+      onEitherView("variant.currentSort == 'name-asc'"),
+      onEitherView("variant.currentSort == 'name-desc'"),
+      onEitherView("variant.currentSort == 'created-asc'"),
+      onEitherView("variant.currentSort == 'created-desc'"),
+      onEitherView("variant.currentSort == 'changed-asc'"),
+      onEitherView("variant.currentSort == 'changed-desc'"),
+      onEitherView(""),
+      onEitherView(""),
+    ]);
+    expect(menu("view/item/context").map((entry) => entry.when)).toEqual([
+      onEitherView("viewItem =~ /^variant (down|up|watching) .*has-url/"),
+      onEitherView("viewItem =~ /^variant down( |$)/"),
+      onEitherView("viewItem =~ /^variant (watching|up)( |$)/"),
+      onEitherView("viewItem =~ /^variant (down|up|watching) removable/ && viewItem =~ / clean/"),
+      onEitherView("viewItem =~ /^variant (down|up|watching) removable/ && viewItem =~ / dirty/"),
+      onEitherView("viewItem =~ /^variant (down|up|watching) .*has-log/"),
+      onEitherView("viewItem =~ /^variant (down|up|watching) .*has-url/"),
+      onEitherView("viewItem =~ /^variant (down|up|watching) /"),
+      onEitherView("viewItem =~ /^variant (down|up|watching) /"),
+      onEitherView("viewItem =~ /^ui-server$/"),
+      onEitherView("viewItem =~ /^ui-server$/"),
+    ]);
   });
 });

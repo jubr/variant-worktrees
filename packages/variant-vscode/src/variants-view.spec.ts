@@ -85,6 +85,14 @@ describe("Variants view registration", () => {
     expect(options.treeDataProvider).toBeDefined();
   });
 
+  it("shows the same tree in the activity-bar view", async () => {
+    await open();
+
+    const calls = createTreeView.mock.calls as Array<[string, { treeDataProvider: unknown }]>;
+    expect(calls.map(([id]) => id)).toEqual(["variant.variants", "variant.worktrees"]);
+    expect(calls[0]?.[1].treeDataProvider).toBe(calls[1]?.[1].treeDataProvider);
+  });
+
   it("sets the welcome context for a project without variants.yaml", async () => {
     await open([down], { hasConfig: () => false });
 

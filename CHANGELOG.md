@@ -4,6 +4,12 @@
 
 ### Added
 
+- VS Code: an activity-bar **Variant Worktrees** tree lists the same rows as the Explorer section, with icon `vw-mini-icon.svg`.
+
+## [0.0.6] - 2026-11-05
+
+### Added
+
 - `--from` on `create`, `provision`, `up`, and `watch` (the same option on the library and the MCP tools) starts a new variant branch at that commit, tag, or branch. Omit it and the branch starts at `variant.baseBranch`. An existing branch or worktree is left in place. `implode` still merges against `variant.baseBranch`.
 - `db.multi` (PostgreSQL): `schemaPrefix` (default `v_${slug}-`) and exactly one of `tenants` and `tenantsCmd`. A variant owns one schema per tenant. `${multi.tenants}` and `${multi.schemaPrefix}` pass the list and the prefix to a step. `list` stays one row; `status`, `list --verbose`, JSON, YAML and MCP carry `schemas`. Schemas left behind with no worktree are grouped by the prefix. The same grouping applies without `db.multi` to PostgreSQL names `v_<slug>-<tenant>` (slug hyphens stored as underscores, tenant after the last hyphen), so `v_fix_entra_vbu_login-de99` and its siblings are one row. `implode` drops those real names, including when the worktree directory is already gone. The VS Code tree marks such a row with a superscript d (a superscript 2 when that glyph cannot be shown).
 - `variant deprovision` drops the schema, or every schema under the prefix. A step named `deprovision` replaces that drop. `watch --reprovision` runs it before provisioning again. `down` does not drop.
@@ -75,6 +81,20 @@
   the main checkout for git. A `variants.yaml` symlink in that root is skipped and warned about as an anti-pattern.
 - A title event for a chat that already existed at startup, and the decision that skips it (`before startup`), are
   logged at Trace. A title event after startup stays at Debug.
+
+### Release notes
+
+- feat: schema warnings, port range, instances to watches, config migration by @jubr in https://github.com/jubr/variant-worktrees/pull/25
+- feat: variant init, Mise environment, and editor onboarding by @jubr in https://github.com/jubr/variant-worktrees/pull/26
+- feat(api)!: trace dirty worktrees in the implode report by @jubr in https://github.com/jubr/variant-worktrees/pull/27
+- fix: watch from the variant root and quiet startup title events by @jubr in https://github.com/jubr/variant-worktrees/pull/28
+- feat: make the explorer section easier to use by @jubr in https://github.com/jubr/variant-worktrees/pull/29
+- fix(chat-renamer): rename the chat the user is working in by @jubr in https://github.com/jubr/variant-worktrees/pull/30
+- feat: postgres multi-schema variants by @jubr in https://github.com/jubr/variant-worktrees/pull/31
+- feat: start new variant worktrees at --from by @jubr in https://github.com/jubr/variant-worktrees/pull/32
+- feat(variant-vscode): force dirty implode and open row URL by @jubr in https://github.com/jubr/variant-worktrees/pull/33
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.5...v0.0.6
 
 ## [0.0.5] - 2026-11-03
 
