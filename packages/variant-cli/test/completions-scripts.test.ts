@@ -128,9 +128,11 @@ describe.each(SHELLS)("%s completion script", (shell) => {
       const part = section(shell, script, String(command.name));
       expect(part).toContain(longFlag(shell, "json"));
       expect(part).toContain(longFlag(shell, "yaml"));
+      expect(part).toContain(longFlag(shell, "log-level"));
     }
     for (const name of ["ui", "completions"]) {
       expect(section(shell, script, name)).not.toContain(longFlag(shell, "json"));
+      expect(section(shell, script, name)).not.toContain(longFlag(shell, "log-level"));
     }
   });
 

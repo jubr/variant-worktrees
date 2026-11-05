@@ -1,0 +1,113 @@
+import { describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { schemaHeaderFor } from "variant-config";
+import { runCli, withVariants } from "./support/cli.js";
+
+const CLEAN_DB = {
+  DATABASE_URL: "",
+  POSTGRES_HOST: "",
+  POSTGRES_PORT: "",
+  POSTGRES_USER: "",
+  POSTGRES_PASSWORD: "",
+  POSTGRES_DB: "",
+  POSTGRES_SCHEMA: "",
+  MYSQL_HOST: "",
+  MYSQL_PORT: "",
+  MYSQL_USER: "",
+  MYSQL_PASSWORD: "",
+  MYSQL_DATABASE: "",
+  MYSQL_SCHEMA: "",
+  MARIADB_HOST: "",
+  MARIADB_PORT: "",
+  MARIADB_USER: "",
+  MARIADB_PASSWORD: "",
+  MARIADB_DATABASE: "",
+  SQLITE_DATABASE: "",
+  SQLITE_PATH: "",
+};
+
+/** A project whose PostgreSQL server refuses connections, with variant `demo` on disk. */
+const withUnreachable = async (run: (environment: Record<string, string>) => Promise<void>): Promise<void> => {
+  const directory = realpathSync(mkdtempSync(join("/tmp", "variant-log-level-")));
+  try {
+    const yaml = `${schemaHeaderFor("variants.yaml")}\n\ndb:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n`;
+    mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
+    writeFileSync(join(directory, "variants.yaml"), yaml);
+    writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
+    await run({ ...CLEAN_DB, VARIANT_CONFIG: join(directory, "variants.yaml") });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
+describe("log level flag", () => {
+  it("prints the contact warning on stderr and keeps it off stdout", () =>
+    withUnreachable(async (environment) => {
+      const result = await runCli(["list"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toContain("warning:");
+      expect(result.stderr).toContain("postgres");
+      expect(result.stderr).toContain("app");
+      expect(result.stderr).not.toContain("SELECT");
+      expect(result.stderr).not.toContain("s3cret");
+      expect(result.stdout).toContain("demo");
+      expect(result.stdout).not.toContain("warning:");
+      expect(result.stdout).not.toContain("Cannot contact");
+    }));
+
+  it("hides the warning at error and still exits 0", () =>
+    withUnreachable(async (environment) => {
+      const result = await runCli(["list", "--log-level=error"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).not.toContain("Cannot contact");
+      expect(result.stdout).toContain("demo");
+    }));
+
+  it("prints trace lines when the threshold is trace", () =>
+    withVariants(async (environment) => {
+      const result = await runCli(["list", "--log-level=trace"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toMatch(/^trace:/m);
+    }));
+
+  it("selects debug when the flag comes before the command name", () =>
+    withVariants(async (environment) => {
+      const result = await runCli(["--log-level=debug", "list"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toMatch(/^debug:/m);
+      expect(result.stderr).not.toMatch(/^trace:/m);
+    }));
+
+  it("treats warning as warn", () =>
+    withUnreachable(async (environment) => {
+      const result = await runCli(["list", "--log-level=warning"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toMatch(/^warning:/m);
+      expect(result.stderr).not.toMatch(/^debug:/m);
+    }));
+
+  it("rejects an unknown level without running the command", () =>
+    withVariants(async (environment) => {
+      const result = await runCli(["list", "--log-level=loud"], environment);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("--log-level");
+      expect(result.stderr).toContain("trace");
+      expect(result.stderr).toContain("debug");
+      expect(result.stderr).toContain("info");
+      expect(result.stderr).toContain("warn");
+      expect(result.stderr).toContain("error");
+      expect(result.stderr).toContain("warning");
+      expect(result.stdout).not.toContain("alpha");
+    }));
+});
+
+describe("verbose is not a log level", () => {
+  it("keeps the verbose listing and does not print debug lines", () =>
+    withVariants(async (environment) => {
+      const result = await runCli(["list", "-v"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("runtime:");
+      expect(result.stderr).not.toMatch(/^debug:/m);
+    }));
+});

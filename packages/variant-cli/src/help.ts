@@ -1,3 +1,4 @@
+import { LOG_LEVEL_FLAG } from "./log-level.js";
 import { GLOBAL_FLAGS } from "./output.js";
 
 /** Flags cleye adds itself; they apply to every command, so they are listed with the global flags. */
@@ -50,7 +51,11 @@ export const withGlobalFlags = <Node>(nodes: Node[]): Node[] => {
         ...(flags?.data.body ?? { type: "table" }),
         data: {
           ...(flags?.data.body.data ?? {}),
-          tableData: [...GLOBAL_FLAGS.map(({ name, description }) => flagRow(name, description)), ...builtIn],
+          tableData: [
+            ...GLOBAL_FLAGS.map(({ name, description }) => flagRow(name, description)),
+            flagRow(LOG_LEVEL_FLAG.name, LOG_LEVEL_FLAG.description),
+            ...builtIn,
+          ],
         },
       } as Table,
     },

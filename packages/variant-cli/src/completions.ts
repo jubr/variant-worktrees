@@ -8,6 +8,7 @@
  */
 import { commands } from "variant-api/commands";
 import { flagSpecsFor, UI_DESCRIPTION, UI_FLAGS } from "./cli-flags.js";
+import { LOG_LEVEL_FLAG } from "./log-level.js";
 import { GLOBAL_FLAGS } from "./output.js";
 
 export const SHELLS = ["zsh", "bash", "fish"] as const;
@@ -58,11 +59,14 @@ const uiCommandModel: CommandModel = {
 };
 
 /** The output flags every lifecycle command accepts. */
-const outputFlags: FlagModel[] = GLOBAL_FLAGS.map(({ name, description }) => ({
-  long: name,
-  description,
-  takesValue: false,
-}));
+const outputFlags: FlagModel[] = [
+  ...GLOBAL_FLAGS.map(({ name, description }) => ({
+    long: name,
+    description,
+    takesValue: false,
+  })),
+  { long: LOG_LEVEL_FLAG.name, description: LOG_LEVEL_FLAG.description, takesValue: true },
+];
 
 export const describeCli = (): CommandModel[] => [
   ...commands.map(
