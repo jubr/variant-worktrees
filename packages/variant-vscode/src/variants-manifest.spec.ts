@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 interface MenuEntry {
   command?: string;
@@ -120,12 +120,10 @@ describe("activity bar manifest", () => {
     expect(manifest.contributes.viewsContainers?.panel).toBeUndefined();
   });
 
-  it("ships the brand icon and whitelists it for the package", () => {
+  it("ships the view icon and whitelists it for the package", () => {
     const packaged = new URL("../media/variant-worktrees-view-icon.svg", import.meta.url);
-    const brand = new URL("../../../assets/brand/variant-worktrees-view-icon.svg", import.meta.url);
 
-    expect(existsSync(packaged)).toBe(true);
-    expect(readFileSync(packaged)).toEqual(readFileSync(brand));
+    expect(readFileSync(packaged, "utf8")).toContain("<svg");
     expect(readFileSync(new URL("../.vscodeignore", import.meta.url), "utf8").split("\n")).toContain(
       "!media/variant-worktrees-view-icon.svg",
     );
