@@ -9,7 +9,7 @@ db:
   dialect: postgres # sqlite | mysql
   url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set
   host: 127.0.0.1 # required when `url` is absent and dialect is not sqlite
-  port: 5432 # mysql: 3306
+  port: 5432 # mysql: 3306; or ${POSTGRES_PORT}
   user: app
   password: secret
   database: app

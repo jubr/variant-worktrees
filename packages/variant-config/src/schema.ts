@@ -35,11 +35,14 @@ export const DbMultiSchema = z
   });
 export type DbMulti = z.infer<typeof DbMultiSchema>;
 
+/** A port in `variants.yaml`: a positive integer, a digit string, or one `${NAME}` template. */
+const configPortSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
+
 export const DbConfigSchema = z.strictObject({
   dialect: DbDialectSchema.optional(),
   url: z.string().min(1).optional(),
   host: z.string().min(1).optional(),
-  port: PortSchema.optional(),
+  port: configPortSchema.optional(),
   user: z.string().min(1).optional(),
   password: z.string().optional(),
   database: z.string().min(1).optional(),
@@ -487,7 +490,7 @@ export const VariantsConfigSchema = z
 export type VariantsConfig = z.infer<typeof VariantsConfigSchema>;
 
 /** A port written literally, or as a `${NAME}` template that is replaced from the environment when the file is read. */
-const portOrTemplateSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
+const portOrTemplateSchema = configPortSchema;
 
 /** The database settings of a running variant: `db`, except that the port may be an environment template. */
 export const RuntimeDbSchema = DbConfigSchema.omit({ multi: true }).extend({
