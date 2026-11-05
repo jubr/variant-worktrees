@@ -30,6 +30,6 @@
 
 ## 7. Migration, docs, and validation
 
-- [~] 7.1 Add failing tests for [specs/variant-cli/config-migration](../../specs/variant-cli/config-migration/spec.md) and [specs/variant-vscode/config-migration](../../specs/variant-vscode/config-migration/spec.md): a `variants.local.yaml` that uses `runtime.instances` is not rewritten by the CLI or the extension. Verify the tests fail, then stop rewriting that file. Verify the tests pass.
-- [ ] 7.2 Update `README.md`, `docs/guide/core.md`, `packages/variant-vscode/README.md`, and `CHANGELOG.md` for the worktree file, the cache paths, string `db.port`, the init references, the tree health check, and the colored dirty-implode report. Verify `task docs:build` passes.
-- [ ] 7.3 Run `task lint`, `task test`, `task build`, and `openspec validate --all --strict --no-interactive`. Verify each passes.
+- [x] 7.1 Add failing tests for [specs/variant-cli/config-migration](../../specs/variant-cli/config-migration/spec.md) and [specs/variant-vscode/config-migration](../../specs/variant-vscode/config-migration/spec.md): a `variants.local.yaml` that uses `runtime.instances` is not rewritten by the CLI or the extension. Verify the tests fail, then stop rewriting that file. Verify the tests pass.
+- [x] 7.2 Update `README.md`, `docs/guide/core.md`, `packages/variant-vscode/README.md`, and `CHANGELOG.md` for the worktree file, the cache paths, string `db.port`, the init references, the tree health check, and the colored dirty-implode report. Verify `task docs:build` passes.
+- [x] 7.3 Run `task lint`, `task test`, `task build`, and `openspec validate --all --strict --no-interactive`. Verify each passes.
