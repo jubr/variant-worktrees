@@ -50,8 +50,8 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   /** Runs one statement. A contact failure warns once per adapter; the statement, if any, is debug. */
-  private execute<T>(query: ReturnType<typeof sql.raw>): Promise<T> {
-    return this.guard.run(() => this.db.execute<T>(query));
+  private run<T>(operation: () => Promise<T>): Promise<T> {
+    return this.guard.run(operation);
   }
 
   target(slug: string): string {
@@ -65,16 +65,16 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async createSchema(name: string): Promise<void> {
-    await this.execute(sql.raw(createSchemaSql(name)));
+    await this.run(() => this.db.execute(sql.raw(createSchemaSql(name))));
   }
 
   async matchingSchemas(prefix: string): Promise<string[]> {
-    const rows = await this.execute<{ schema_name: string }>(sql.raw(matchingSchemasSql(prefix)));
+    const rows = await this.run(() => this.db.execute<{ schema_name: string }>(sql.raw(matchingSchemasSql(prefix))));
     return rows.map((row) => row.schema_name);
   }
 
   async dropSchema(name: string): Promise<void> {
-    await this.execute(sql.raw(dropSchemaSql(name)));
+    await this.run(() => this.db.execute(sql.raw(dropSchemaSql(name))));
   }
 
   async destroy(slug: string): Promise<boolean> {
@@ -83,14 +83,16 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async list(): Promise<string[]> {
-    const rows = await this.execute<{ schema_name: string }>(
-      sql`SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'v\\_%'`,
+    const rows = await this.run(() =>
+      this.db.execute<{ schema_name: string }>(
+        sql`SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'v\\_%'`,
+      ),
     );
     return rows.map((row) => row.schema_name);
   }
 
   async assertReachable(): Promise<void> {
-    await this.execute(sql`SELECT 1`);
+    await this.run(() => this.db.execute(sql`SELECT 1`));
   }
 
   async close(): Promise<void> {
