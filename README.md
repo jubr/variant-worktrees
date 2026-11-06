@@ -185,7 +185,7 @@ file per variant. Every command is explained in the
 `variant status` reports one variant: the facts `list` shows plus all of its runtime state (mode,
 directory, database settings with the password hidden, and each watch's port, pid, URL, whether the
 process is alive, and how long it has run). `variant watch --detach` writes the output of all its processes
-to `variants.watch.log` in the worktree, so you can follow it in real time with `tail -f`; `list` and `status`
+to `.cache/variant/watch.log` in the worktree, so you can follow it in real time with `tail -f`; `list` and `status`
 show the path. Commands print text for people. Add a global flag for a machine-readable result.
 
 ### Global flags

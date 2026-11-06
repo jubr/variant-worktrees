@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- A detached `watch` writes its output to `.cache/variant/watch.log` in the worktree.
+
 ### Added
 
 - `--log-level` (`trace`, `debug`, `info`, `warn`, `error`, or `warning`) prints the library log on standard error. The default is `warn`. `-v` stays richer command output.

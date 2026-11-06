@@ -523,7 +523,7 @@ describe("detached watch log", () => {
     `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
     `    fe: ${printingWatcher("fe")}`,
   );
-  const logIn = (directory: string): string => join(directory, "variants.watch.log");
+  const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
   const untilLogHas = (directory: string, ...needles: string[]): Promise<void> =>
     until(
       () =>
@@ -546,6 +546,7 @@ describe("detached watch log", () => {
 
   it("starts the file over when the watch runs again", () =>
     withProject(async ({ watch, directory }) => {
+      mkdirSync(join(directory, ".cache", "variant"), { recursive: true });
       writeFileSync(logIn(directory), "old run\n");
       await watch({ detach: true });
       await untilLogHas(directory, "out be");

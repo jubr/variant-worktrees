@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { appendFileSync, closeSync, existsSync, openSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { stopProcessTree } from "../processes.js";
 import { announce, logToStderr } from "../ready.js";
 import { commandEnvironment, expandSetting, type VariantRun } from "../run-context.js";
@@ -131,6 +131,7 @@ export const watchVariant = async (
   // (no pipe), which keeps the output real-time and alive after this process exits. Truncated on each start.
   const logFile = options.detach === true && toStart.length > 0 ? watchLogPath(config, run.worktree) : undefined;
   if (logFile) {
+    mkdirSync(dirname(logFile), { recursive: true });
     writeFileSync(logFile, "");
   }
   const output = logFile ? openSync(logFile, "a") : undefined;

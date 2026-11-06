@@ -289,17 +289,17 @@ The system SHALL print a warning to the progress log when `watch` starts no proc
 
 ### Requirement: Detached watch log
 
-A `watch` with the `detach` option SHALL write the stdout and stderr of every process it starts, interleaved as they are produced, to one log file named `variants.watch.log` in the variant directory (git-ignored, removed with the worktree). It SHALL truncate that file when it starts, write the line `[<key>] <command>` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. Output SHALL reach the file while the processes run, so a reader can follow it with `tail -f`. An attached `watch` SHALL keep its output on the console, write no log file, and record no `log`. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
+A `watch` with the `detach` option SHALL write the stdout and stderr of every process it starts, interleaved as they are produced, to one log file `.cache/variant/watch.log` in the variant directory (git-ignored, removed with the worktree). It SHALL truncate that file when it starts, write the line `[<key>] <command>` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. Output SHALL reach the file while the processes run, so a reader can follow it with `tail -f`. An attached `watch` SHALL keep its output on the console, write no log file, and record no `log`. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
 
 #### Scenario: Detached output reaches the file
 
 - **WHEN** `watch` runs detached with a command that prints `ready` and keeps running
-- **THEN** `variants.watch.log` contains `ready` while the process still runs
+- **THEN** `.cache/variant/watch.log` contains `ready` while the process still runs
 
 #### Scenario: Log path recorded
 
 - **WHEN** `watch` runs detached for slug `demo`
-- **THEN** `state.yaml` holds `log` with the absolute path of `variants.watch.log`
+- **THEN** `state.yaml` holds `log` with the absolute path of `.cache/variant/watch.log`
 
 #### Scenario: Two processes, one file
 

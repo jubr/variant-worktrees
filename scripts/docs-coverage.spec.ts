@@ -56,7 +56,7 @@ describe("README CLI section", () => {
   });
 
   test("names the watch log file and the minimal list columns", () => {
-    expect(cli).toContain("variants.watch.log");
+    expect(cli).toContain(".cache/variant/watch.log");
     expect(cli).toContain("variant list -v");
   });
 });
@@ -86,7 +86,7 @@ describe("documentation", () => {
   });
 
   test("the configuration guide documents the runtime log path", () => {
-    expect(read("docs/guide/configuration.md")).toContain("variants.watch.log");
+    expect(read("docs/guide/configuration.md")).toContain(".cache/variant/watch.log");
   });
 });
 
