@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.7] - 2026-11-06
 
 ### Changed
 
@@ -11,6 +11,14 @@
 - `--log-level` (`trace`, `debug`, `info`, `warn`, `error`, or `warning`) prints the library log on standard error. The default is `warn`. `-v` stays richer command output.
 - When PostgreSQL or MySQL cannot be contacted, reads still list variants known from state and worktrees and warn once. Changes fail with that sentence and do not show SQL. `create` does not add a worktree. The editor trees show `Database unreachable` first and one warning per outage. MCP sends the same stream as logging notifications.
 - VS Code: an activity-bar **Variant Worktrees** tree lists the same rows as the Explorer section, with icon `vw-mini-icon.svg`.
+
+### Release notes
+
+- feat(variant-vscode): show the variants tree on the activity bar by @jubr in https://github.com/jubr/variant-worktrees/pull/35
+- feat: use the worktree config and cache runtime state by @jubr in https://github.com/jubr/variant-worktrees/pull/36
+- feat: keep reads working when the database is down by @jubr in https://github.com/jubr/variant-worktrees/pull/37
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.6...v0.0.7
 
 ## [0.0.6] - 2026-11-05
 

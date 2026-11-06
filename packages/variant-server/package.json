@@ -1,6 +1,6 @@
 {
   "name": "variant-server",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "description": "The loopback HTTP server behind `variant ui`: the variants app, an events stream and the variant actions",
   "type": "module",
