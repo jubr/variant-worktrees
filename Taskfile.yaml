@@ -90,12 +90,31 @@ tasks:
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun run --filter ./packages/chat-renamer-vscode vsce-package
 
-  package:vsix:unpacked:
-    desc: "Build, package the variant-worktrees vsix, and unpack it into the main checkout at out/variant-worktrees-main (in the main checkout or a variant worktree)"
+  bleed:vsix:
+    desc: "Build, package the variant-worktrees vsix, and unpack it into ../vw-bleeds/variant-vscode"
     cmds:
       - task: build
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun scripts/package-vsix-unpacked.ts
+
+  bleed:cli:
+    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant"
+    cmds:
+      - task: build
+      - bun scripts/bleed.ts cli
+
+  bleed:mcp:
+    desc: "Build the host variant-mcp executable and publish it to ../vw-bleeds/variant-mcp/bin/variant-mcp"
+    cmds:
+      - task: build
+      - bun scripts/bleed.ts mcp
+
+  bleed:all:
+    desc: "Publish the extension, CLI, and MCP server into ../vw-bleeds"
+    cmds:
+      - task: bleed:vsix
+      - task: bleed:cli
+      - task: bleed:mcp
 
   package:cli:
     desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host)"

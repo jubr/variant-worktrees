@@ -5,7 +5,7 @@
  */
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { compileCli } from "./package-cli.ts";
 import { bleedDirectory } from "./package-vsix-unpacked.ts";
 
@@ -88,3 +88,20 @@ export const bleedMcp = (cwd: string): Promise<string> =>
   publishMcp(cwd, async (outfile) => {
     await compileMcp(cwd, outfile);
   });
+
+if (import.meta.main) {
+  const command = process.argv[2];
+  const cwd = resolve(import.meta.dir, "..");
+  try {
+    if (command === "cli") {
+      console.log(await bleedCli(cwd));
+    } else if (command === "mcp") {
+      console.log(await bleedMcp(cwd));
+    } else {
+      throw new Error("usage: bun scripts/bleed.ts cli|mcp");
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+}
