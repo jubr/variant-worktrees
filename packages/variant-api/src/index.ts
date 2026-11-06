@@ -88,8 +88,23 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
       }),
     ];
   };
+  let listed = false;
+  let contactDown = false;
   const subscriptions = createStateSubscriptions({
-    read: () => withAdapter((context) => listVariants(context)),
+    read: async () => {
+      let warning: string | undefined;
+      const records = await withAdapter(async (context) => {
+        if (contactDown) {
+          context.adapter.silenceContact?.();
+        }
+        const found = await listVariants(context, { quiet: listed });
+        listed = true;
+        warning = context.contactWarning;
+        return found;
+      });
+      contactDown = warning !== undefined;
+      return warning === undefined ? records : { records, warning };
+    },
     targets: watchTargets,
     ...options.subscription,
   });
@@ -116,6 +131,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 export { loadConfig } from "variant-config";
 export { worktreeReport } from "./cleanup.js";
 export { listSlugs } from "./list-slugs.js";
+export { LOG_LEVELS, type LogEvent, type LogLevel, type LogSink, log, setLogSink } from "./log.js";
 export {
   type LoadVariantConfigOptions,
   loadVariantConfig,

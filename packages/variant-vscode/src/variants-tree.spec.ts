@@ -232,4 +232,22 @@ describe("variants tree", () => {
     expect(demo?.item.contextValue).toBe("variant up removable clean has-log has-url");
     expect(main?.item.contextValue).toBe("variant down main dirty");
   });
+
+  it("lists Database unreachable first and drops it when contact returns", async () => {
+    const message = "Cannot contact postgres database app at 127.0.0.1:5432";
+    const { fake, provider } = await started([record("demo"), record("main")]);
+    fake.publish([record("demo"), record("main")], { warning: message });
+
+    const down = items(provider);
+    const first = down[0]?.item;
+    expect(down.map(({ item }) => item.label)).toEqual(["Database unreachable", "main", "demo"]);
+    expect(String(first?.description)).toContain("app");
+    expect(String(first?.description)).toContain("127.0.0.1");
+    expect(String(first?.tooltip)).toBe(message);
+    expect(String(first?.tooltip)).not.toContain("SELECT");
+    expect((first?.iconPath as vscode.ThemeIcon).id).toBe("warning");
+
+    fake.publish([record("demo"), record("main"), record("orphan")]);
+    expect(items(provider).map(({ item }) => item.label)).not.toContain("Database unreachable");
+  });
 });

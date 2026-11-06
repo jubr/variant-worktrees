@@ -7,6 +7,11 @@ describe("public exports", () => {
   it("exports redacted for renderers outside the library", () => {
     expect(api.redacted({ db: { password: "secret", user: "me" } })).toEqual({ db: { password: "***", user: "me" } });
   });
+
+  it("exports the log sink a host attaches", () => {
+    expect(api.setLogSink).toBeFunction();
+    expect(api.LOG_LEVELS).toEqual(["trace", "debug", "info", "warn", "error"]);
+  });
 });
 
 describe("package manifest", () => {

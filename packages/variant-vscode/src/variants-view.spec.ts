@@ -76,6 +76,39 @@ afterEach(() => {
   executeCommand.mockImplementation((async () => undefined) as never);
 });
 
+describe("unreachable database", () => {
+  it("shows Database unreachable first in both trees and warns once per outage", async () => {
+    const message = "Cannot contact postgres database app at 127.0.0.1:5432";
+    const { fake } = await open([record("demo"), record("main")]);
+    const calls = createTreeView.mock.calls as Array<
+      [
+        string,
+        { treeDataProvider: { getChildren: () => VariantNode[]; getTreeItem: (node: VariantNode) => vscode.TreeItem } },
+      ]
+    >;
+    expect(calls.map(([id]) => id)).toEqual(["variant.variants", "variant.worktrees"]);
+
+    const labels = (index: number): string[] =>
+      calls[index]?.[1].treeDataProvider
+        .getChildren()
+        .map((node) => String(calls[index]?.[1].treeDataProvider.getTreeItem(node).label)) ?? [];
+
+    fake.publish([record("demo"), record("main")], { warning: message });
+    fake.publish([record("demo"), record("main")], { warning: message });
+    fake.publish([record("demo"), record("main")], { warning: message });
+
+    expect(labels(0)).toEqual(["Database unreachable", "main", "demo"]);
+    expect(labels(1)).toEqual(["Database unreachable", "main", "demo"]);
+    expect(showWarningMessage).toHaveBeenCalledTimes(1);
+    expect(showWarningMessage).toHaveBeenCalledWith(message);
+
+    fake.publish([record("demo"), record("main")]);
+    fake.publish([record("demo"), record("main")], { warning: message });
+
+    expect(showWarningMessage).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("Variants view registration", () => {
   it("shows the tree in the variant.variants view", async () => {
     await open();

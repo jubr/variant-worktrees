@@ -32,6 +32,8 @@ export interface VariantsStore {
   status(): StoreStatus;
   /** The reason the library failed to load, or the last read failed. */
   error(): string | undefined;
+  /** Set while postgres or mysql cannot be contacted. Absent once contact returns. */
+  warning(): string | undefined;
   /** Set with `error` when the last read failed because of Mise. */
   mise(): MiseFailure | undefined;
   pending(): ReadonlySet<string>;
@@ -49,6 +51,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
   let records: readonly VariantRecord[] = [];
   let status: StoreStatus = "loading";
   let error: string | undefined;
+  let warning: string | undefined;
   let mise: MiseFailure | undefined;
   let stop: (() => void) | undefined;
   let starting: Promise<void> | undefined;
@@ -72,6 +75,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
       stop = client.subscribe((update) => {
         records = update.error === undefined ? withMain(update.records) : update.records;
         error = update.error;
+        warning = update.warning;
         mise = update.mise;
         status = records.length === 0 ? "empty" : "ready";
         notify();
@@ -87,6 +91,7 @@ export const createVariantsStore = (deps: VariantsStoreDeps): VariantsStore => {
     records: () => records,
     status: () => status,
     error: () => error,
+    warning: () => warning,
     mise: () => mise,
     pending: () => pending,
     onDidChange: (listener) => {

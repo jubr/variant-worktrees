@@ -13,7 +13,8 @@ import type { VariantsStore } from "./variants-store.ts";
 export type VariantNode =
   | { kind: "variant"; record: VariantRecord }
   | { kind: "ui"; url?: string; pid?: number }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "unreachable"; message: string };
 
 /** The label of the UI server item, and the slug under which the app stops it. */
 export const UI_SERVER_LABEL = "UI server";
@@ -126,7 +127,9 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
     }
     const records = this.store.records();
     const server = uiServerOf(records);
+    const warning = this.store.warning();
     return [
+      ...(warning === undefined ? [] : [{ kind: "unreachable" as const, message: warning }]),
       ...(server ? [{ kind: "ui" as const, ...server }] : []),
       ...sortVariants(records, this.sort()).map((record) => ({ kind: "variant" as const, record })),
     ];
@@ -145,6 +148,14 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
       item.iconPath = new vscode.ThemeIcon("error");
       item.tooltip = node.message;
       item.contextValue = "error";
+      return item;
+    }
+    if (node.kind === "unreachable") {
+      const item = new vscode.TreeItem("Database unreachable", vscode.TreeItemCollapsibleState.None);
+      item.iconPath = new vscode.ThemeIcon("warning");
+      item.description = node.message;
+      item.tooltip = node.message;
+      item.contextValue = "database-unreachable";
       return item;
     }
     const item = new vscode.TreeItem(UI_SERVER_LABEL, vscode.TreeItemCollapsibleState.None);

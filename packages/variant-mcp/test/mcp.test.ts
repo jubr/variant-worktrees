@@ -517,3 +517,90 @@ describe("MCP status and verbose list", () => {
       expect(item.runtime).toBeUndefined();
     }));
 });
+
+const logging = (result: McpResult): { level: string; data: unknown }[] =>
+  result.lines
+    .map((line) => JSON.parse(line) as { method?: string; params?: { level: string; data: unknown } })
+    .filter((message) => message.method === "notifications/message")
+    .map((message) => message.params as { level: string; data: unknown });
+
+const setLevel = (id: number, level: string): object => ({
+  jsonrpc: "2.0",
+  id,
+  method: "logging/setLevel",
+  params: { level },
+});
+
+/** PostgreSQL on a closed port, with variant `demo` known from its state file. */
+const withUnreachableMcp = async (run: (directory: string, configPath: string) => Promise<void>): Promise<void> => {
+  const directory = realpathSync(tempDirectory());
+  try {
+    const configPath = join(directory, "variants.yaml");
+    mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
+    writeFileSync(
+      configPath,
+      "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n",
+    );
+    writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
+    await run(directory, configPath);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
+describe("MCP logging", () => {
+  it("sends warning and not info until the client sets a level", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), call(2, "variant_list")], configPath, { cwd: directory });
+      const notes = logging(result);
+      expect(notes.some((note) => note.level === "warning")).toBe(true);
+      expect(notes.some((note) => note.level === "info")).toBe(false);
+      const listed = answer(result, 2);
+      expect(listed.isError).not.toBe(true);
+      expect(listed.text).not.toContain("SELECT");
+    }));
+
+  it("sends info and warning but not debug when the client asks for info", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), setLevel(2, "info"), call(3, "variant_list")], configPath, {
+        cwd: directory,
+      });
+      const notes = logging(result);
+      expect(notes.some((note) => note.level === "info")).toBe(true);
+      expect(notes.some((note) => note.level === "warning")).toBe(true);
+      expect(notes.some((note) => note.level === "debug")).toBe(false);
+    }));
+
+  it("sends trace as a debug notification whose data names trace", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), setLevel(2, "debug"), call(3, "variant_list")], configPath, {
+        cwd: directory,
+      });
+      const trace = logging(result).find(
+        (note) => note.level === "debug" && JSON.stringify(note.data).includes("trace"),
+      );
+      expect(trace).toBeDefined();
+    }));
+
+  it("drops the warning when the client asks for error", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), setLevel(2, "error"), call(3, "variant_list")], configPath, {
+        cwd: directory,
+      });
+      expect(logging(result).some((note) => note.level === "warning")).toBe(false);
+    }));
+
+  it("returns variant_create as an error whose text is the contact warning", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const result = await mcp([...initMessages(), call(2, "variant_create", { slug: "demo" })], configPath, {
+        cwd: directory,
+      });
+      const created = answer(result, 2);
+      expect(created.isError).toBe(true);
+      expect(created.text).toContain("postgres");
+      expect(created.text).toContain("app");
+      expect(created.text).toContain("127.0.0.1");
+      expect(created.text).not.toContain("SELECT");
+      expect(created.text).not.toContain("s3cret");
+    }));
+});

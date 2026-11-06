@@ -4,6 +4,7 @@ import { type FSWatcher, mkdirSync, mkdtempSync, realpathSync, rmSync, watch, wr
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
+import { type LogEvent, setLogSink } from "../src/log.js";
 import { MiseError } from "../src/mise.js";
 import { createStateSubscriptions } from "../src/subscribe.js";
 import type { VariantRecord, VariantUpdate } from "../src/types.js";
@@ -105,6 +106,37 @@ describe("client.subscribe", () => {
         unsubscribe();
       }
     }));
+
+  it("delivers demo, no orphan, and the contact warning when the database cannot be contacted", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-subscribe-contact-")));
+    mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
+    writeFileSync(
+      join(directory, "variants.yaml"),
+      "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n",
+    );
+    writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
+    const client = createClient({
+      config: loadConfig({ cwd: directory, env: {}, environment: () => ({}) }),
+      cwd: directory,
+      stateDir: join(directory, ".cache", "variants"),
+      worktree: false,
+      subscription: { debounceMs: 10, livenessIntervalMs: 60_000 },
+    });
+    const received = collector();
+    const unsubscribe = client.subscribe(received.listener);
+    try {
+      const update = await received.until((candidate) => candidate.records.some((variant) => variant.slug === "demo"));
+      expect(slugs(update)).not.toContain("orphan");
+      expect(update.error).toBeUndefined();
+      expect(update.warning).toContain("postgres");
+      expect(update.warning).toContain("app");
+      expect(update.warning).toContain("127.0.0.1");
+      expect(update.warning).not.toContain("SELECT");
+    } finally {
+      unsubscribe();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 
   it("delivers a set in which demo watches after its runtime file is rewritten", () =>
     withProject(async ({ client, put }) => {
@@ -246,6 +278,77 @@ describe("state subscriptions", () => {
       await pause(150);
 
       expect(received.updates).toHaveLength(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("retries an unreachable database on a backoff that restarts after contact returns", async () => {
+    let reachable = false;
+    let reads = 0;
+    const subscriptions = createStateSubscriptions({
+      debounceMs: 5,
+      livenessIntervalMs: 15,
+      contactRetryMs: (attempt) => [40, 80, 160][Math.min(attempt, 2)] ?? 160,
+      read: async () => {
+        reads += 1;
+        return reachable
+          ? { records: [record("demo"), record("orphan")] }
+          : { records: [record("demo")], warning: "Cannot contact postgres database app at 127.0.0.1:1" };
+      },
+      targets: () => [],
+    });
+    const events: LogEvent[] = [];
+    setLogSink((event) => events.push(event));
+    const received = collector();
+    const unsubscribe = subscriptions.subscribe(received.listener);
+    try {
+      await received.until((update) => update.warning !== undefined);
+      const afterFirst = reads;
+      await pause(25);
+      expect(reads).toBe(afterFirst);
+      await pause(30);
+      expect(reads).toBe(afterFirst + 1);
+
+      reachable = true;
+      await received.until((update) => update.warning === undefined && slugs(update).includes("orphan"));
+      expect(events.filter((event) => event.message === "database contact restored")).toHaveLength(1);
+
+      reachable = false;
+      const seen = received.updates.length;
+      await received.until((update) => update.warning !== undefined && received.updates.indexOf(update) >= seen);
+      const atOutage = reads;
+      await pause(55);
+      expect(reads).toBe(atOutage + 1);
+      expect(events.filter((event) => event.message === "database contact restored")).toHaveLength(1);
+    } finally {
+      setLogSink(undefined);
+      unsubscribe();
+    }
+  });
+
+  it("delivers partial records and the contact warning when the database is unreachable, then clears it", async () => {
+    const warning = "Cannot contact postgres database app at 127.0.0.1:5432";
+    let reachable = false;
+    const subscriptions = createStateSubscriptions({
+      ...quick,
+      read: async () =>
+        reachable ? { records: [record("demo"), record("orphan")] } : { records: [record("demo")], warning },
+      targets: () => [],
+    });
+    const received = collector();
+    const unsubscribe = subscriptions.subscribe(received.listener);
+    try {
+      const down = await received.until((update) => update.warning !== undefined);
+      expect(slugs(down)).toEqual(["demo"]);
+      expect(slugs(down)).not.toContain("orphan");
+      expect(down.error).toBeUndefined();
+      expect(down.warning).toBe(warning);
+
+      reachable = true;
+      const up = await received.until((update) => update.warning === undefined && slugs(update).includes("orphan"));
+      expect(slugs(up)).toContain("demo");
+      expect(up.error).toBeUndefined();
     } finally {
       unsubscribe();
     }

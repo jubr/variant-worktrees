@@ -54,10 +54,10 @@ export const fakeClient = (initial: VariantRecord[] = []) => {
     client,
     calls,
     listeners,
-    publish: (next: VariantRecord[]) => {
+    publish: (next: VariantRecord[], extra?: { warning?: string }) => {
       records = next;
       for (const listener of [...listeners]) {
-        listener({ records });
+        listener({ records, ...extra });
       }
     },
     failNext: (message: string) => {

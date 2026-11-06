@@ -11,6 +11,7 @@ import {
   type VariantWatch,
 } from "variant-config";
 import { echoCommand, type ProgressLog } from "./echo.js";
+import { log } from "./log.js";
 import type { OperationContext } from "./operations/types.js";
 import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from "./run-context.js";
 
@@ -161,9 +162,12 @@ export const runProvisioning = async (
         // AIDEV-NOTE: a provision cmd replaces this. Otherwise one schema per tenant, or the single target.
         if (run.multi) {
           for (const tenant of run.multi.tenants()) {
-            await context.adapter.createSchema(multiSchemaName(run.multi.prefix, run.slug, tenant));
+            const schema = multiSchemaName(run.multi.prefix, run.slug, tenant);
+            log("info", `[${run.slug}] [${name}] create schema ${schema}`);
+            await context.adapter.createSchema(schema);
           }
         } else {
+          log("info", `[${run.slug}] [${name}] create schema ${context.adapter.target(run.slug)}`);
           await context.adapter.create(run.slug);
         }
       }
@@ -175,6 +179,7 @@ export const runProvisioning = async (
       continue;
     }
     const stepCommand = expandSetting(config, run, step.cmd, `variant.steps.${name}.cmd`);
+    log("info", `[${run.slug}] [${name}] ${stepCommand}`);
     commands.push(stepCommand);
     echoCommand(stepCommand, options.log);
     const result = execute(
@@ -200,7 +205,9 @@ export const runProvisioning = async (
 
   const seed = seedCommandFor(config, run.slug);
   if (seed) {
-    command(expandSetting(config, run, seed, "seed"), run.projectDir, plainEnv);
+    const seedCommand = expandSetting(config, run, seed, "seed");
+    log("info", `[${run.slug}] [seed] ${seedCommand}`);
+    command(seedCommand, run.projectDir, plainEnv);
   }
   return { commands, output };
 };

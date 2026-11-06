@@ -13,6 +13,7 @@ import {
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
+import { type LogEvent, setLogSink } from "../src/log.js";
 
 const saved: Record<string, string | undefined> = {};
 const setEnv = (name: string, value: string | undefined): void => {
@@ -74,6 +75,37 @@ const parseEnv = (text: string): Record<string, string> =>
       .filter((line) => line.includes("="))
       .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]),
   );
+
+describe("step log", () => {
+  it("emits each step at info as it runs, as [slug] [step] cmd", () =>
+    withProject(
+      (d) =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          `  seed: echo seed >> ${d}/order.log`,
+          "  steps:",
+          `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
+          `    two: { cmd: "echo two >> ${d}/order.log", runBefore: seed }`,
+        ),
+      async (_directory, provision) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await provision();
+        } finally {
+          setLogSink(undefined);
+        }
+        expect(events.filter((event) => event.level === "info").map((event) => event.message)).toEqual([
+          `[demo] [provision] create schema ${_directory}/.cache/variants/demo.db`,
+          `[demo] [one] echo one >> ${_directory}/order.log`,
+          `[demo] [two] echo two >> ${_directory}/order.log`,
+          `[demo] [seed] echo seed >> ${_directory}/order.log`,
+        ]);
+      },
+    ));
+});
 
 describe("provisioning order", () => {
   it("runs the up commands, the steps in order, then the seed command", () =>

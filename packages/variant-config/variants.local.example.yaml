@@ -10,7 +10,7 @@ runtime:
   slug: demo-embody-assume-user
   mode: watch # up
   dir: /Users/me/work/_v-demo-embody-assume-user # the variant's worktree
-  log: /Users/me/work/_v-demo-embody-assume-user/variants.watch.log # output of a detached watch; follow it with tail -f
+  log: /Users/me/work/_v-demo-embody-assume-user/.cache/variant/watch.log # output of a detached watch; follow it with tail -f
   createdAt: 2026-11-04_12:22:05 # local time the variant was created, YYYY-MM-DD_HH:MM:SS
   db: # the same settings as `db` in variants.yaml; only `port` may also be a ${NAME} template
     dialect: postgres # sqlite | mysql

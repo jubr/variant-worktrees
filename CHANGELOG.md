@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- A detached `watch` writes its output to `.cache/variant/watch.log` in the worktree.
+
 ### Added
 
+- `--log-level` (`trace`, `debug`, `info`, `warn`, `error`, or `warning`) prints the library log on standard error. The default is `warn`. `-v` stays richer command output.
+- When PostgreSQL or MySQL cannot be contacted, reads still list variants known from state and worktrees and warn once. Changes fail with that sentence and do not show SQL. `create` does not add a worktree. The editor trees show `Database unreachable` first and one warning per outage. MCP sends the same stream as logging notifications.
 - VS Code: an activity-bar **Variant Worktrees** tree lists the same rows as the Explorer section, with icon `vw-mini-icon.svg`.
 
 ## [0.0.6] - 2026-11-05

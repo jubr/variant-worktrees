@@ -79,6 +79,19 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     loadClient,
     hasConfig: deps.hasConfig ?? (() => findConfigFile(deps.root) !== undefined && existsSync(deps.root)),
   });
+  let unreachable = false;
+  store.onDidChange(() => {
+    const message = store.warning();
+    if (message === undefined) {
+      unreachable = false;
+      return;
+    }
+    if (unreachable) {
+      return;
+    }
+    unreachable = true;
+    void vscode.window.showWarningMessage(message);
+  });
   const log = deps.log;
   const actions = createActions({
     loadClient,
