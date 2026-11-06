@@ -16,8 +16,8 @@ const repo = join(root, "../..");
 const built = join(root, "dist");
 const { version } = (await Bun.file(join(root, "package.json")).json()) as { version: string };
 
-/** The version line this checkout would stamp, computed from git rather than from the build helper. */
-const bakedVersionLine = (): string => {
+/** The version token this checkout would stamp, computed from git rather than from the build helper. */
+const bakedToken = (): string => {
   const git = (args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
   const commit = git(["rev-parse", "HEAD"]);
@@ -30,10 +30,18 @@ const bakedVersionLine = (): string => {
   }
   const slug = branch.replace(/^(feat|fix|feature)\//, "");
   const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
-  const date = new Date().toISOString().slice(0, 10);
-  const token = `${version}${suffix}`;
-  const details = `${platformToken(process.platform, process.arch)}, ${date}, https://github.com/jubr/variant-worktrees`;
-  return `${token}\n${VERSION_BANNER}\n\n${details}`;
+  return `${version}${suffix}`;
+};
+
+const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
+
+const expectBakedVersion = (stdout: string): void => {
+  const lines = stdout.trimEnd().split("\n");
+  const token = bakedToken().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  expect(lines[0]).toMatch(new RegExp(`^${token} \\(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\)$`));
+  expect(lines.slice(1, 6).join("\n")).toBe(VERSION_BANNER);
+  expect(lines[6]).toBe("");
+  expect(lines[7]).toBe(detailsLine);
 };
 
 let compiledDirectory: string;
@@ -75,14 +83,15 @@ const runners: [name: string, command: () => string[]][] = [
 ];
 
 describe("variant on Node, Bun and as a compiled executable", () => {
+  const versionOut: Record<string, string> = {};
+
   for (const [name, command] of runners) {
     it(`prints the baked version line with --version under ${name}`, async () => {
       const result = await runCommand(command(), ["--version"], {}, compiledDirectory);
-      const lines = result.stdout.replace(/\n$/, "").split("\n");
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.trimEnd()).toBe(bakedVersionLine());
-      expect(lines[0]).toBe(bakedVersionLine().split("\n")[0]);
+      expectBakedVersion(result.stdout);
+      versionOut[name] = result.stdout;
     });
 
     it(`shows the version in the help header under ${name}`, async () => {
@@ -147,6 +156,10 @@ describe("variant on Node, Bun and as a compiled executable", () => {
       60_000,
     );
   }
+
+  it("prints the same version under node and bun", () => {
+    expect(versionOut.bun).toBe(versionOut.node);
+  });
 });
 
 describe("the UI server is not a binary of its own", () => {

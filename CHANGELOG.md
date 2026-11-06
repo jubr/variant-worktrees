@@ -4,7 +4,7 @@
 
 ### Changed
 
-- `variant --version` prints the version, then a cursive `Variant-Worktrees` banner, then the platform, the UTC build date, and the repository URL. Off `main`, the version gains `-{slug}-{n}-{hash4}`.
+- `variant --version` prints the version and the UTC build time, then a cursive `Variant-Worktrees` banner, then the platform and the repository URL. Off `main`, the version gains `-{slug}-{n}-{hash4}`. `task bleed:vsix` writes that version token into the unpacked extension `package.json`.
 - `task package:vsix:unpacked` is removed. `task bleed:vsix`, `task bleed:cli`, and `task bleed:mcp` publish the extension, the host `variant` executable, and the host `variant-mcp` executable into `vw-bleeds` beside the checkout. `task bleed:all` runs the three.
 
 ## [0.0.7] - 2026-11-06

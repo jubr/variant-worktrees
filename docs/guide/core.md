@@ -190,7 +190,7 @@ These flags work on every command, before or after the command name. `variant --
 | `--yaml` | Print the same result as YAML |
 | `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` is `warn`. Default `warn`. Prefixes are `trace:`, `debug:`, `info:`, `warning:`, and `error:` |
 | `--help`, `-h` | Show help |
-| `--version` | Print the version, then a cursive `Variant-Worktrees` banner, then the platform, the UTC build date, and `https://github.com/jubr/variant-worktrees` (top level only). Off `main`, the version gains `-{slug}-{n}-{hash4}` |
+| `--version` | Print the version and the UTC build time, then a cursive `Variant-Worktrees` banner, then the platform and `https://github.com/jubr/variant-worktrees` (top level only). Off `main`, the version gains `-{slug}-{n}-{hash4}` |
 
 Without a flag, commands print a text summary meant for people. Scripts should use `--json` or `--yaml`; the text layout can change. Giving both `--json` and `--yaml` fails before anything runs. Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.
 

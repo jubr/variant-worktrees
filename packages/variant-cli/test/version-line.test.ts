@@ -18,10 +18,10 @@ describe("version line", () => {
       formatVersionLine({
         version: "1.2.3",
         platform: "macos-arm64",
-        date: "2001-02-03",
+        date: "2001-02-03 04:05:06",
         variant: "",
       }),
-    ).toBe(`1.2.3\n${DRAWING}\n\nmacos-arm64, 2001-02-03, https://github.com/jubr/variant-worktrees`);
+    ).toBe(`1.2.3 (2001-02-03 04:05:06)\n${DRAWING}\n\nmacos-arm64, https://github.com/jubr/variant-worktrees`);
   });
 
   it("appends the variant string when it is not empty", () => {
@@ -29,11 +29,11 @@ describe("version line", () => {
       formatVersionLine({
         version: "1.2.3",
         platform: "macos-arm64",
-        date: "2001-02-03",
+        date: "2001-02-03 04:05:06",
         variant: "version-details-4-abcd",
       }),
     ).toBe(
-      `1.2.3-version-details-4-abcd\n${DRAWING}\n\nmacos-arm64, 2001-02-03, https://github.com/jubr/variant-worktrees`,
+      `1.2.3-version-details-4-abcd (2001-02-03 04:05:06)\n${DRAWING}\n\nmacos-arm64, https://github.com/jubr/variant-worktrees`,
     );
   });
 

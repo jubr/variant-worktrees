@@ -24,7 +24,7 @@ describe("version stamp", () => {
     const variant = branch === "main" ? "" : `${slug}-${commits}-${commit.slice(0, 4)}`;
     const defines = versionDefines(repo, new Date("2001-02-03T04:05:06Z"));
 
-    expect(JSON.parse(defines.VARIANT_BUILD_DATE)).toBe("2001-02-03");
+    expect(JSON.parse(defines.VARIANT_BUILD_DATE)).toBe("2001-02-03 04:05:06");
     expect(JSON.parse(defines.VARIANT_BUILD_VARIANT)).toBe(variant);
   });
 
@@ -32,7 +32,7 @@ describe("version stamp", () => {
     const directory = mkdtempSync(join("/tmp", "variant-stamp-"));
     try {
       const defines = versionDefines(directory, new Date("2001-02-03T04:05:06Z"));
-      expect(JSON.parse(defines.VARIANT_BUILD_DATE)).toBe("2001-02-03");
+      expect(JSON.parse(defines.VARIANT_BUILD_DATE)).toBe("2001-02-03 04:05:06");
       expect(defines.VARIANT_BUILD_VARIANT).toBeUndefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });

@@ -46,7 +46,8 @@ export const readVariant = (directory: string): string => {
   }
 };
 
-export const utcDate = (now: Date): string => now.toISOString().slice(0, 10);
+/** UTC `YYYY-MM-DD HH:MM:SS`. */
+export const utcDate = (now: Date): string => now.toISOString().slice(0, 19).replace("T", " ");
 
 declare const VARIANT_BUILD_DATE: string | undefined;
 declare const VARIANT_BUILD_VARIANT: string | undefined;
@@ -81,7 +82,7 @@ export const platformToken = (platform: string, arch: string): string => `${OS_N
 
 const versionToken = (version: string, variant?: string): string => (variant ? `${version}-${variant}` : version);
 
-/** Version, the script drawing, a blank line, then platform, date, and URL. */
+/** Version and build time, the script drawing, a blank line, then platform and URL. */
 export const renderVersion = (input: {
   version: string;
   platform: string;
@@ -89,7 +90,7 @@ export const renderVersion = (input: {
   variant?: string;
   color: boolean;
 }): string =>
-  `${versionToken(input.version, input.variant)}\n${renderBanner(input.color)}\n${input.platform}, ${input.date}, ${REPOSITORY_URL}\n`;
+  `${versionToken(input.version, input.variant)} (${input.date})\n${renderBanner(input.color)}\n${input.platform}, ${REPOSITORY_URL}\n`;
 
 export const formatVersionLine = (input: {
   version: string;
