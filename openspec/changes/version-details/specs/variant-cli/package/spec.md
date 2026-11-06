@@ -2,12 +2,12 @@
 
 ### Requirement: Runs on Node and Bun
 
-`variant` SHALL run under Node.js 22.13 or newer and under Bun, and the package SHALL declare `engines.node` as `>=22.13.0`. The compiled single-file executables of a release SHALL be built from this package and keep the names `variant-<version>-<os>-<arch>[.exe]`. `variant --version` under Node and under Bun SHALL print the same line, the package version followed by the parenthetical build date, eight-character commit hash, and repository URL defined for the CLI.
+`variant` SHALL run under Node.js 22.13 or newer and under Bun, and the package SHALL declare `engines.node` as `>=22.13.0`. The compiled single-file executables of a release SHALL be built from this package and keep the names `variant-<version>-<os>-<arch>[.exe]`. `variant --version` under Node and under Bun SHALL print the same output: the cursive `variant-worktrees` drawing, then the version token, the runtime platform, and parentheses holding the build date and the repository URL defined for the CLI. The parentheses SHALL NOT contain a commit hash. A build from a branch other than `main` SHALL use the same `{version}-{slug}-{n}-{hash4}` token under both.
 
 #### Scenario: Version under Node
 
 - **WHEN** `variant --version` runs under Node from the built `dist/`
-- **THEN** it prints the version line, including the build date, the eight-character hash, and `https://github.com/jubr/variant-worktrees` captured for that build
+- **THEN** it prints the version line, including the runtime platform, the build date, and `https://github.com/jubr/variant-worktrees` captured for that build, and no commit hash inside the parentheses
 
 #### Scenario: Version under Bun
 
