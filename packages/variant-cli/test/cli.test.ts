@@ -2,7 +2,27 @@ import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { platformToken, VERSION_BANNER } from "../src/version-line.js";
 import { runCli, runCommand } from "./support/cli.js";
+
+/** The version line for this checkout, built from git rather than from the formatter. */
+const versionLine = (version: string): string => {
+  const directory = join(import.meta.dir, "..");
+  const git = (args: string[]): string => execFileSync("git", ["-C", directory, ...args], { encoding: "utf8" }).trim();
+  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+  const commit = git(["rev-parse", "HEAD"]);
+  let commits = git(["rev-list", "--count", "HEAD"]);
+  try {
+    const tag = git(["describe", "--tags", "--abbrev=0"]);
+    commits = git(["rev-list", "--count", `${tag}..HEAD`]);
+  } catch {
+    // A checkout with no tag counts every commit.
+  }
+  const slug = branch.replace(/^(feat|fix|feature)\//, "");
+  const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
+  const date = new Date().toISOString().slice(0, 10);
+  return `${version}${suffix} ${platformToken(process.platform, process.arch)} (${date} https://github.com/jubr/variant-worktrees)`;
+};
 
 describe("variant CLI", () => {
   it("lists lifecycle commands in help", async () => {
@@ -24,9 +44,15 @@ describe("variant CLI", () => {
     const { version } = (await Bun.file(`${import.meta.dir}/../package.json`).json()) as { version: string };
     const help = await runCli(["--help"]);
     const flag = await runCli(["--version"]);
+    const line = versionLine(version);
 
-    expect(help.stdout).toContain(`variant v${version}`);
-    expect(flag.stdout.trim()).toBe(version);
+    expect(help.stdout.trimStart().startsWith(`variant v${version}`)).toBe(true);
+    expect(help.stdout).not.toContain(VERSION_BANNER);
+    expect(help.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
+    expect(flag.exitCode).toBe(0);
+    expect(flag.stdout.replace(/\n$/, "").split("\n").slice(0, -1).join("\n")).toBe(VERSION_BANNER);
+    expect(flag.stdout.trimEnd().endsWith(line)).toBe(true);
+    expect(flag.stdout.trimEnd().split("\n").at(-1)).not.toMatch(/\([0-9a-f]{4,}/);
   });
 
   it("has no destroy command; implode replaces it", async () => {
@@ -81,9 +107,12 @@ describe("variant CLI", () => {
 
   it("keeps --version as the only version flag", async () => {
     const { version } = (await Bun.file(`${import.meta.dir}/../package.json`).json()) as { version: string };
+    const line = versionLine(version);
+    const verbose = await runCli(["-v"]);
 
-    expect((await runCli(["-v"])).stdout.trim()).not.toBe(version);
-    expect((await runCli(["--version"])).stdout.trim()).toBe(version);
+    expect(verbose.stdout).not.toContain(line);
+    expect(verbose.stdout).not.toContain(VERSION_BANNER);
+    expect((await runCli(["--version"])).stdout.trimEnd().endsWith(line)).toBe(true);
   });
 
   describe("warnings for extra properties", () => {
