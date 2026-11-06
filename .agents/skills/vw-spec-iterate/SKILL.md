@@ -50,6 +50,7 @@ On warn: still do the full Reads (gate is not waived), but tell the user and sug
 
 - If not in `mise hook-env`: Always `mise x -- …` for `openspec`, `task`, `bun`, and other project tools.
   This applies to all command invocations in this file. Also note `mise` manages env vars for child processes.
+- `variant watch -s $slug` may be required for UI or tests. `variant down -s $slug` stops the watches and leaves schemas and the worktree. `variant deprovision -s $slug` also drops that slug's schemas.
 
 ## Loop
 

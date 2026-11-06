@@ -1,4 +1,20 @@
-# Contributor source-of-truth map
+## Workspace structure
+
+The workspace is most likely set up like this:
+
+```
+<root>/
+  _v-feature-one/
+  _v-feature-42/
+  variant-worktrees/ # main git checkout
+  .agents -> variant-worktrees/.agents/
+  AGENTS.md -> variant-worktrees/AGENTS.md
+  CONTRIBUTING.md -> variant-worktrees/CONTRIBUTING.md
+```
+
+Do not read AGENTS.md + CONTRIBUTING.md twice.
+
+## Contributor source-of-truth map
 
 Read the narrowest authoritative source for the question at hand:
 
@@ -9,15 +25,15 @@ Read the narrowest authoritative source for the question at hand:
 
 ## Project overview
 
-Bun workspace monorepo:
+Bun workspace monorepo in `packages/`:
 
-- **`variant-config`** — shared `variants.yaml` parser and mise/env autodetection.
-- **`variant-api`** — TypeScript database variant lifecycle library for Node.js and Bun.
-- **`variant-cli`** — the `variant` command: argument parsing, help, and text/JSON/YAML output.
-- **`variant-mcp`** — MCP server exposing variant lifecycle tools.
-- **`variant-ui`** — the variants React app (one UI for the editor webview and the browser) and its transport seam.
-- **`variant-server`** — loopback HTTP server (token, SSE, static app) behind `variant ui`. A library, not a binary: `variant-cli` bundles it, with the built app, into its package and executables.
-- **`variant-vscode`** — VS Code extension in the same workspace, included in the root build.
+- `variant-config` — shared `variants.yaml` parser and mise/env autodetection.
+- `variant-api` — TypeScript database variant lifecycle library for Node.js and Bun.
+- `variant-cli` — the `variant` command: argument parsing, help, and text/JSON/YAML output.
+- `variant-mcp` — MCP server exposing variant lifecycle tools.
+- `variant-ui` — the variants React app (one UI for the editor webview and the browser) and its transport seam.
+- `variant-server` — loopback HTTP server (token, SSE, static app) behind `variant ui`. A library, not a binary: `variant-cli` bundles it, with the built app, into its package and executables.
+- `variant-vscode` — VS Code extension in the same workspace, included in the root build.
 
 Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts, and that socket refuses every lifecycle command. The extension's own views (the Variants view and the panel) call `variant-api` in-process for `list`, `watch`, `down` and `implode`; those calls are not reachable from the socket. Do not route the rest through the extension.
 
@@ -33,6 +49,19 @@ This will set all relevant env vars, including $PATH. The `mise x --` prefix is 
 Tasks: `task <name>` at repo root. Root `package.json` is the Bun workspace; do not treat `bun run` as the agent CLI.
 No mise? `/opt/homebrew/bin/mise`.
 Override env vars: `mise x -- env FOO=bar bash -c 'echo $FOO'`
+
+## Variants
+
+Configured at [variants.yaml](variants.yaml).
+
+- `variant create -s $slug [--from {branch}]` creates the feature worktree and its state. Omit `--from` to start at `variant.baseBranch`. Schema creation is `provision`.
+- `variant provision` creates the schema and runs install, env, up, and seed. Creates the worktree when it is missing.
+- `variant watch [--detach] [--reprovision]` runs the watches on the host when UI or tests need them. Creates and provisions when those are missing. `--reprovision` drops the schemas before provisioning again.
+- `variant down` stops the watches and containers and leaves schemas, data, and the worktree.
+- `variant deprovision` stops the watches and drops that slug's schemas. The worktree stays.
+- `variant implode [--force]` deprovisions, drops storage, and removes the worktree when the branch is merged. The branch stays. `--force` only when the user explicitly allows it.
+
+Ports, pids, URLs are in `{worktree}/.cache/variant/state.yaml`. Logs in `{worktree}/.cache/variant/watch.log`.
 
 ## Using hk from a coding agent
 

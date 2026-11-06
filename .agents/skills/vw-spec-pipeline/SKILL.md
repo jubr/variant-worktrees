@@ -20,6 +20,7 @@ Ship `$slug` through GitHub Actions. Assume local `task check:full` already pass
 
 - If not in `mise hook-env`: Always `mise x -- …` for `openspec`, `task`, `bun`, and other project tools.
   This applies to all command invocations in this file. Also note `mise` manages env vars for child processes.
+- `variant watch -s $slug` may be required for a live stack. `variant down -s $slug` stops the watches and leaves schemas. `variant deprovision -s $slug` also drops that slug's schemas. Do not deprovision or implode in this skill.
 - Git: commit only when the user asked or when fixing CI requires a new commit; never `--no-verify` unless explicitly requested. Stop and ask when non-trivial uncommitted work is present. Product-code pushes must not use `[skip ci]`.
 
 ## Caffeinate
