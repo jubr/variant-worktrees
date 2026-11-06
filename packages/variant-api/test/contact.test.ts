@@ -11,6 +11,7 @@ const YAML = "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database
 const withUnreachable = async (
   run: (client: ReturnType<typeof createClient>, events: () => LogEvent[]) => Promise<void>,
   files: Record<string, string> = {},
+  subscription?: { debounceMs?: number; livenessIntervalMs?: number; contactRetryMs?: (attempt: number) => number },
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-contact-")));
   const put = (path: string, content: string): void => {
@@ -31,6 +32,7 @@ const withUnreachable = async (
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),
       worktree: false,
+      ...(subscription === undefined ? {} : { subscription }),
     });
     await run(client, () => events);
   } finally {
@@ -51,6 +53,29 @@ const warning = (events: LogEvent[]): string => {
   expect(message).not.toContain("s3cret");
   return message;
 };
+
+const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+describe("subscription contact retries", () => {
+  it("lists and warns once, then stays quiet while it retries", () =>
+    withUnreachable(
+      async (client, events) => {
+        const stop = client.subscribe(() => {});
+        try {
+          await pause(90);
+        } finally {
+          stop();
+        }
+        expect(events().filter((event) => event.level === "warn")).toHaveLength(1);
+        expect(events().filter((event) => event.message === "list")).toHaveLength(1);
+        expect(events().filter((event) => event.message === "listing variants")).toHaveLength(1);
+        expect(events().filter((event) => event.message === "listed variants")).toHaveLength(1);
+        expect(events().filter((event) => event.level === "debug").length).toBeLessThanOrEqual(2);
+      },
+      { "_v-demo/.cache/variant/state.yaml": "slug: demo\n" },
+      { debounceMs: 5, livenessIntervalMs: 15, contactRetryMs: () => 20 },
+    ));
+});
 
 describe("list while the database cannot be contacted", () => {
   it("returns the worktree variant and omits a schema-only variant", () =>

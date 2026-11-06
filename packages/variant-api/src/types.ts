@@ -78,6 +78,8 @@ export interface VariantClientOptions {
     debounceMs?: number;
     /** How often records are read although no file changed, to notice a process that ended. */
     livenessIntervalMs?: number;
+    /** Delay before the next read while the database cannot be contacted. Defaults to exponential backoff capped at 1 minute. */
+    contactRetryMs?: (attempt: number) => number;
   };
 }
 
@@ -211,6 +213,8 @@ export interface UpResult {
 export interface ListOptions {
   /** Give every record all the meta information `status` returns. */
   verbose?: boolean;
+  /** Skip the list trace, debug, and info lines. A subscription uses this after the first read. */
+  quiet?: boolean;
 }
 
 /** What `init` does; every step is on unless turned off. */
@@ -295,4 +299,6 @@ export interface DatabaseAdapter {
   close(): Promise<void>;
   /** Resolves when the server accepts a connection. Absent for SQLite, whose inventory is files. */
   assertReachable?(): Promise<void>;
+  /** Drops contact logs for a retry. The failure still throws. */
+  silenceContact?(): void;
 }

@@ -50,6 +50,10 @@ export class MysqlAdapter implements DatabaseAdapter {
     return this.guard.run(() => this.db.execute(sql.raw(statement)));
   }
 
+  silenceContact(): void {
+    this.guard.silence();
+  }
+
   target(slug: string): string {
     return databaseFor(slug);
   }

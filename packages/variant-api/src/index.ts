@@ -88,14 +88,21 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
       }),
     ];
   };
+  let listed = false;
+  let contactDown = false;
   const subscriptions = createStateSubscriptions({
     read: async () => {
       let warning: string | undefined;
       const records = await withAdapter(async (context) => {
-        const found = await listVariants(context);
+        if (contactDown) {
+          context.adapter.silenceContact?.();
+        }
+        const found = await listVariants(context, { quiet: listed });
+        listed = true;
         warning = context.contactWarning;
         return found;
       });
+      contactDown = warning !== undefined;
       return warning === undefined ? records : { records, warning };
     },
     targets: watchTargets,

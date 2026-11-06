@@ -49,6 +49,10 @@ export class PostgresAdapter implements DatabaseAdapter {
     this.db = drizzle(this.client);
   }
 
+  silenceContact(): void {
+    this.guard.silence();
+  }
+
   /** Runs one statement. A contact failure warns once per adapter; the statement, if any, is debug. */
   private run<T>(operation: () => Promise<T>): Promise<T> {
     return this.guard.run(operation);

@@ -158,20 +158,26 @@ const visibleMessage = (error: unknown, statement: string | undefined): string =
 /** One command's database calls share a guard so a contact failure warns once. */
 export class QueryGuard {
   private warned = false;
+  private quiet = false;
 
   constructor(private readonly target: ContactTarget | undefined) {}
+
+  /** Later attempts of one outage stay silent. The first attempt of the next outage uses a new guard. */
+  silence(): void {
+    this.quiet = true;
+  }
 
   async run<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();
     } catch (error) {
       const statement = statementOf(error);
-      if (statement !== undefined) {
+      if (statement !== undefined && !this.quiet) {
         log("debug", statement);
       }
       if (this.target !== undefined && isContact(error)) {
         const message = contactWarning(this.target);
-        if (!this.warned) {
+        if (!this.warned && !this.quiet) {
           this.warned = true;
           log("warn", message);
         }
