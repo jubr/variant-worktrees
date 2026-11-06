@@ -4,7 +4,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { sanitizeSlug } from "../../variant-api/src/slug.ts";
+import { sanitizeSlug } from "variant-api";
 
 export const REPOSITORY_URL = "https://github.com/jubr/variant-worktrees";
 
