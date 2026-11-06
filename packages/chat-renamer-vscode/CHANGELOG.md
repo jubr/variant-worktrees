@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.7] - 2026-11-06
+
+### Release notes
+
+- feat(variant-vscode): show the variants tree on the activity bar by @jubr in https://github.com/jubr/variant-worktrees/pull/35
+- feat: use the worktree config and cache runtime state by @jubr in https://github.com/jubr/variant-worktrees/pull/36
+- feat: keep reads working when the database is down by @jubr in https://github.com/jubr/variant-worktrees/pull/37
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.6...v0.0.7
+
 ## [0.0.6] - 2026-11-05
 
 ### Changed
