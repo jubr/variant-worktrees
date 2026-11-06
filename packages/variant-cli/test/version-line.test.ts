@@ -8,6 +8,7 @@ import {
   platformToken,
   readVariant,
   renderBanner,
+  resolveVersionFacts,
   variantString,
   versionColor,
 } from "../src/version-line.js";
@@ -67,12 +68,16 @@ describe("version line", () => {
     expect(renderBanner(false)).toBe(`${DRAWING}\n`);
   });
 
-  it("colors the drawing orange and leaves the glyphs unchanged", () => {
+  it("colors the drawing orange and leaves the hyphen in the default color", () => {
     const colored = renderBanner(true);
+    const orange = "\u001b[38;5;208m";
+    const reset = "\u001b[0m";
+    const plainHyphen = `${reset}-${orange}${reset}-${orange}${reset}-${orange}${reset}-${orange}${reset}-${orange}`;
 
-    expect(colored.startsWith("\u001b[38;5;208m")).toBe(true);
-    expect(colored.endsWith("\u001b[0m")).toBe(true);
-    expect(colored.replaceAll("\u001b[38;5;208m", "").replaceAll("\u001b[0m", "")).toBe(`${DRAWING}\n`);
+    expect(colored.startsWith(orange)).toBe(true);
+    expect(colored.endsWith(reset)).toBe(true);
+    expect(colored.replaceAll(orange, "").replaceAll(reset, "")).toBe(`${DRAWING}\n`);
+    expect(colored).toContain(`|${plainHyphen}|`);
   });
 
   it("colors only when stdout is a terminal and NO_COLOR is unset", () => {
@@ -108,6 +113,8 @@ describe("version line", () => {
       expect(readVariant(feature)).toBe(`sample-1-${commit.slice(0, 4)}`);
       commitIn(main, "main");
       expect(readVariant(main)).toBe("");
+      expect(resolveVersionFacts(main, new Date("2001-02-03T04:05:06Z")).date).toBe("2001-02-03");
+      expect(resolveVersionFacts(feature, new Date("2001-02-03T04:05:06Z")).date).toBe("2001-02-03 04:05:06");
     } finally {
       rmSync(feature, { recursive: true, force: true });
       rmSync(main, { recursive: true, force: true });

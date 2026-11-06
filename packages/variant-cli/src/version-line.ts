@@ -46,21 +46,27 @@ export const readVariant = (directory: string): string => {
   }
 };
 
-/** UTC `YYYY-MM-DD HH:MM:SS`. */
-export const utcDate = (now: Date): string => now.toISOString().slice(0, 19).replace("T", " ");
+/** UTC date. An empty `variant` (`main`, or no commit) is `YYYY-MM-DD`. Any other variant is `YYYY-MM-DD HH:MM:SS`. */
+export const utcDate = (now: Date, variant: string): string => {
+  const iso = now.toISOString();
+  return variant ? `${iso.slice(0, 10)} ${iso.slice(11, 19)}` : iso.slice(0, 10);
+};
 
 declare const VARIANT_BUILD_DATE: string | undefined;
 declare const VARIANT_BUILD_VARIANT: string | undefined;
 
 /** Date and `variant` from the build stamp when it was baked, otherwise from this checkout and `now`. */
-export const resolveVersionFacts = (directory: string, now: Date): { date: string; variant: string } => ({
-  date: typeof VARIANT_BUILD_DATE === "string" ? VARIANT_BUILD_DATE : utcDate(now),
-  variant: typeof VARIANT_BUILD_VARIANT === "string" ? VARIANT_BUILD_VARIANT : readVariant(directory),
-});
+export const resolveVersionFacts = (directory: string, now: Date): { date: string; variant: string } => {
+  const variant = typeof VARIANT_BUILD_VARIANT === "string" ? VARIANT_BUILD_VARIANT : readVariant(directory);
+  return {
+    date: typeof VARIANT_BUILD_DATE === "string" ? VARIANT_BUILD_DATE : utcDate(now, variant),
+    variant,
+  };
+};
 
 export const renderBanner = (color: boolean): string => {
   const drawing = `${VERSION_BANNER}\n`;
-  return color ? `${ORANGE}${drawing}${RESET}` : drawing;
+  return color ? `${ORANGE}${drawing.replaceAll("-", `${RESET}-${ORANGE}`)}${RESET}` : drawing;
 };
 
 const HASH = /^[0-9a-f]{4,}$/;
@@ -82,7 +88,7 @@ export const platformToken = (platform: string, arch: string): string => `${OS_N
 
 const versionToken = (version: string, variant?: string): string => (variant ? `${version}-${variant}` : version);
 
-/** Version and build time, the script drawing, a blank line, then platform and URL. */
+/** Version and parenthetical, the script drawing, a blank line, then platform and URL. */
 export const renderVersion = (input: {
   version: string;
   platform: string;
