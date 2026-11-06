@@ -13,7 +13,7 @@ import { attachLogLevel, takeLogLevel } from "./log-level.js";
 import { migrateConfigFiles } from "./migration.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
-import { formatVersionLine, platformToken, readVariant, renderBanner, utcDate, versionColor } from "./version-line.js";
+import { formatVersionLine, platformToken, renderBanner, resolveVersionFacts, versionColor } from "./version-line.js";
 import { printWarnings } from "./warnings.js";
 
 const { version } = pkg;
@@ -113,13 +113,14 @@ try {
   }
   if (args.includes("--version") && requested === undefined) {
     const directory = dirname(fileURLToPath(import.meta.url));
+    const facts = resolveVersionFacts(directory, new Date());
     process.stdout.write(
       `${renderBanner(versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }))}${formatVersionLine(
         {
           version,
           platform: platformToken(process.platform, process.arch),
-          date: utcDate(new Date()),
-          variant: readVariant(directory),
+          date: facts.date,
+          variant: facts.variant,
         },
       )}\n`,
     );

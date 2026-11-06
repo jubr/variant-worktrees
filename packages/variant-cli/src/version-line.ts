@@ -48,6 +48,15 @@ export const readVariant = (directory: string): string => {
 
 export const utcDate = (now: Date): string => now.toISOString().slice(0, 10);
 
+declare const VARIANT_BUILD_DATE: string | undefined;
+declare const VARIANT_BUILD_VARIANT: string | undefined;
+
+/** Date and `variant` from the build stamp when it was baked, otherwise from this checkout and `now`. */
+export const resolveVersionFacts = (directory: string, now: Date): { date: string; variant: string } => ({
+  date: typeof VARIANT_BUILD_DATE === "string" ? VARIANT_BUILD_DATE : utcDate(now),
+  variant: typeof VARIANT_BUILD_VARIANT === "string" ? VARIANT_BUILD_VARIANT : readVariant(directory),
+});
+
 export const renderBanner = (color: boolean): string => {
   const drawing = `${VERSION_BANNER}\n`;
   return color ? `${ORANGE}${drawing}${RESET}` : drawing;
