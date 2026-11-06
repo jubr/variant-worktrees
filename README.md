@@ -199,7 +199,7 @@ flags in `variant --help` and `variant <command> --help`.
 | `--yaml` | Print the result as YAML |
 | `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` is `warn`. Default `warn` |
 | `--help`, `-h` | Show help |
-| `--version` | Show the version (top level only) |
+| `--version` | Print a cursive `variant-worktrees` banner, then the version, the platform (`macos-arm64`), and parentheses with the UTC build date and `https://github.com/jubr/variant-worktrees` (top level only). Off `main`, the version gains `-{slug}-{n}-{hash4}` |
 
 Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line is prefixed `trace:`, `debug:`, `info:`, `warning:`, or `error:`. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level.
 
