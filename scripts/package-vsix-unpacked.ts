@@ -1,6 +1,8 @@
 /**
- * From the main checkout or a variant worktree, unpack `out/variant-worktrees-<version>.vsix` into the main checkout at
- * `out/variant-worktrees-main`, with `package.json` at that folder's root so Cursor or VS Code can load it.
+ * Unpack `out/variant-worktrees-<version>.vsix` so `package.json` is the root of `vw-bleeds/variant-vscode`
+ * beside the checkout, and Cursor or VS Code can load that folder.
+ *
+ * Specification: openspec/specs/meta/dev-bleeds/spec.md
  *
  * Usage:
  *   bun scripts/package-vsix-unpacked.ts [cwd]
@@ -11,8 +13,6 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { detectVariantMain } from "../packages/variant-config/src/autodetect.ts";
 
-const UNPACKED_EXTENSION_DIR = "variant-worktrees-main";
-
 /** The main checkout `cwd` publishes into: the checkout itself, or the one a variant worktree belongs to. */
 export const publishTarget = (cwd: string): string => {
   const main = detectVariantMain(cwd);
@@ -21,9 +21,12 @@ export const publishTarget = (cwd: string): string => {
   return main;
 };
 
-/** Unpack `vsixPath` into the main checkout's `out/variant-worktrees-main`, from the main checkout or a worktree. */
-export const unpackIntoMain = (cwd: string, vsixPath: string): string => {
-  const destination = join(publishTarget(cwd), "out", UNPACKED_EXTENSION_DIR);
+/** `vw-bleeds` beside the checkout that runs the task. */
+export const bleedDirectory = (cwd: string): string => join(resolve(cwd), "..", "vw-bleeds");
+
+/** Unpack `vsixPath` so `package.json` is the root of `vw-bleeds/variant-vscode`. */
+export const publishExtension = (cwd: string, vsixPath: string): string => {
+  const destination = join(bleedDirectory(cwd), "variant-vscode");
   unpackVsix(vsixPath, destination);
   return destination;
 };
@@ -62,7 +65,7 @@ const variantVsix = (root: string): string => {
 if (import.meta.main) {
   const cwd = resolve(process.argv[2] ?? join(import.meta.dir, ".."));
   try {
-    console.log(unpackIntoMain(cwd, variantVsix(cwd)));
+    console.log(publishExtension(cwd, variantVsix(cwd)));
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
