@@ -24,14 +24,17 @@ describe("bleed tasks", () => {
     expect(tasks["package:vsix"]).toBeDefined();
     expect(tasks["package:cli"]).toBeDefined();
     expect(tasks["bleed:vsix"]?.cmds?.map((entry) => (typeof entry === "string" ? entry : entry.task))).toEqual([
+      "mkdir -p {{.ROOT_DIR}}/../vw-bleeds",
       "build",
       "bun run --filter ./packages/variant-vscode vsce-package",
       "bun scripts/package-vsix-unpacked.ts",
     ]);
-    expect(command(tasks["bleed:cli"] as Task, 0)).toBe("build");
-    expect(command(tasks["bleed:cli"] as Task, 1)).toBe("bun scripts/bleed.ts cli");
-    expect(command(tasks["bleed:mcp"] as Task, 0)).toBe("build");
-    expect(command(tasks["bleed:mcp"] as Task, 1)).toBe("bun scripts/bleed.ts mcp");
+    expect(command(tasks["bleed:cli"] as Task, 0)).toBe("mkdir -p {{.ROOT_DIR}}/../vw-bleeds");
+    expect(command(tasks["bleed:cli"] as Task, 1)).toBe("build");
+    expect(command(tasks["bleed:cli"] as Task, 2)).toBe("bun scripts/bleed.ts cli");
+    expect(command(tasks["bleed:mcp"] as Task, 0)).toBe("mkdir -p {{.ROOT_DIR}}/../vw-bleeds");
+    expect(command(tasks["bleed:mcp"] as Task, 1)).toBe("build");
+    expect(command(tasks["bleed:mcp"] as Task, 2)).toBe("bun scripts/bleed.ts mcp");
     expect(tasks["bleed:all"]?.cmds).toEqual([{ task: "bleed:vsix" }, { task: "bleed:cli" }, { task: "bleed:mcp" }]);
   });
 });

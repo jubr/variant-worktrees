@@ -93,6 +93,7 @@ tasks:
   bleed:vsix:
     desc: "Build, package the variant-worktrees vsix, and unpack it into ../vw-bleeds/variant-vscode"
     cmds:
+      - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
       - task: build
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun scripts/package-vsix-unpacked.ts
@@ -100,12 +101,14 @@ tasks:
   bleed:cli:
     desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant"
     cmds:
+      - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
       - task: build
       - bun scripts/bleed.ts cli
 
   bleed:mcp:
     desc: "Build the host variant-mcp executable and publish it to ../vw-bleeds/variant-mcp/bin/variant-mcp"
     cmds:
+      - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
       - task: build
       - bun scripts/bleed.ts mcp
 
