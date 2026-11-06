@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { cli, command } from "cleye";
 import { createClient, listSlugs } from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
@@ -11,6 +13,7 @@ import { attachLogLevel, takeLogLevel } from "./log-level.js";
 import { migrateConfigFiles } from "./migration.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
+import { formatVersionLine, platformToken, readVariant, renderBanner, utcDate, versionColor } from "./version-line.js";
 import { printWarnings } from "./warnings.js";
 
 const { version } = pkg;
@@ -108,20 +111,34 @@ try {
   if (requested !== undefined && !known(requested)) {
     throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
   }
-  await cli(
-    {
-      name: "variant",
-      version,
-      help: {
-        description: "Database variants for git worktrees",
-        render: renderHelp,
+  if (args.includes("--version") && requested === undefined) {
+    const directory = dirname(fileURLToPath(import.meta.url));
+    process.stdout.write(
+      `${renderBanner(versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }))}${formatVersionLine(
+        {
+          version,
+          platform: platformToken(process.platform, process.arch),
+          date: utcDate(new Date()),
+          variant: readVariant(directory),
+        },
+      )}\n`,
+    );
+  } else {
+    await cli(
+      {
+        name: "variant",
+        version,
+        help: {
+          description: "Database variants for git worktrees",
+          render: renderHelp,
+        },
+        strictFlags: true,
+        commands: [...commands.map((definition) => runCommand(definition, format)), uiCommand(), completionsCli],
       },
-      strictFlags: true,
-      commands: [...commands.map((definition) => runCommand(definition, format)), uiCommand(), completionsCli],
-    },
-    undefined,
-    args.length === 0 ? ["--help"] : args,
-  );
+      undefined,
+      args.length === 0 ? ["--help"] : args,
+    );
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;

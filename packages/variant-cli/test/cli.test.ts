@@ -52,7 +52,9 @@ describe("variant CLI", () => {
     expect(flag.exitCode).toBe(0);
     expect(flag.stdout.replace(/\n$/, "").split("\n").slice(0, -1).join("\n")).toBe(VERSION_BANNER);
     expect(flag.stdout.trimEnd().endsWith(line)).toBe(true);
-    expect(flag.stdout.trimEnd().split("\n").at(-1)).not.toMatch(/\([0-9a-f]{4,}/);
+    expect(flag.stdout.trimEnd().split("\n").at(-1)).toMatch(
+      /\(\d{4}-\d{2}-\d{2} https:\/\/github\.com\/jubr\/variant-worktrees\)$/,
+    );
   });
 
   it("has no destroy command; implode replaces it", async () => {
