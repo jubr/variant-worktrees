@@ -8,11 +8,41 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { compileCli } from "../../../scripts/package-cli.ts";
+import { platformToken, VERSION_BANNER } from "../src/version-line.js";
 import { runCommand, withVariants } from "./support/cli.js";
 
 const root = join(import.meta.dir, "..");
+const repo = join(root, "../..");
 const built = join(root, "dist");
 const { version } = (await Bun.file(join(root, "package.json")).json()) as { version: string };
+
+/** The version token this checkout would stamp, computed from git rather than from the build helper. */
+const bakedToken = (): string => {
+  const git = (args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
+  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+  const commit = git(["rev-parse", "HEAD"]);
+  let commits = git(["rev-list", "--count", "HEAD"]);
+  try {
+    const tag = git(["describe", "--tags", "--abbrev=0"]);
+    commits = git(["rev-list", "--count", `${tag}..HEAD`]);
+  } catch {
+    // A checkout with no tag counts every commit.
+  }
+  const slug = branch.replace(/^(feat|fix|feature)\//, "");
+  const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
+  return `${version}${suffix}`;
+};
+
+const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
+
+const expectBakedVersion = (stdout: string): void => {
+  const lines = stdout.trimEnd().split("\n");
+  const token = bakedToken().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  expect(lines[0]).toMatch(new RegExp(`^${token} \\(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\)$`));
+  expect(lines.slice(1, 6).join("\n")).toBe(VERSION_BANNER);
+  expect(lines[6]).toBe("");
+  expect(lines[7]).toBe(detailsLine);
+};
 
 let compiledDirectory: string;
 let compiled: string;
@@ -53,18 +83,23 @@ const runners: [name: string, command: () => string[]][] = [
 ];
 
 describe("variant on Node, Bun and as a compiled executable", () => {
-  for (const [name, command] of runners) {
-    it(`prints the version of variant-cli alone with --version under ${name}`, async () => {
-      const result = await runCommand(command(), ["--version"]);
+  const versionOut: Record<string, string> = {};
 
-      expect(result.stdout.trim()).toBe(version);
+  for (const [name, command] of runners) {
+    it(`prints the baked version line with --version under ${name}`, async () => {
+      const result = await runCommand(command(), ["--version"], {}, compiledDirectory);
+
       expect(result.exitCode).toBe(0);
+      expectBakedVersion(result.stdout);
+      versionOut[name] = result.stdout;
     });
 
     it(`shows the version in the help header under ${name}`, async () => {
-      const result = await runCommand(command(), ["--help"]);
+      const result = await runCommand(command(), ["--help"], {}, compiledDirectory);
 
-      expect(result.stdout).toContain(`variant v${version}`);
+      expect(result.stdout.trimStart().startsWith(`variant v${version}`)).toBe(true);
+      expect(result.stdout).not.toContain(VERSION_BANNER);
+      expect(result.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
       expect(result.exitCode).toBe(0);
     });
 
@@ -121,6 +156,10 @@ describe("variant on Node, Bun and as a compiled executable", () => {
       60_000,
     );
   }
+
+  it("prints the same version under node and bun", () => {
+    expect(versionOut.bun).toBe(versionOut.node);
+  });
 });
 
 describe("the UI server is not a binary of its own", () => {

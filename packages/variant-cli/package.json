@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:ui && bun run build:types && chmod +x dist/cli.js",
-    "build:js": "bun build ./src/cli.ts --outdir dist --target node --format esm --sourcemap=external --external cleye --external variant-api --external variant-config --external yaml",
+    "build:js": "bun ../../scripts/build-cli.ts",
     "build:ui": "bun run scripts/build-ui.ts",
     "build:types": "tsc --emitDeclarationOnly",
     "prepublishOnly": "bun run build",

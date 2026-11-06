@@ -32,7 +32,7 @@ const fixtureVsix = (directory: string): string => {
   mkdirSync(join(packed, "extension", "dist"), { recursive: true });
   writeFileSync(
     join(packed, "extension", "package.json"),
-    `${JSON.stringify({ name: "variant-worktrees", publisher: "jubr", main: "./dist/extension.cjs" }, null, 2)}\n`,
+    `${JSON.stringify({ name: "variant-worktrees", publisher: "jubr", version: "0.0.7", main: "./dist/extension.cjs" }, null, 2)}\n`,
   );
   writeFileSync(join(packed, "extension", "dist", "extension.cjs"), "exports.activate = () => {};\n");
   writeFileSync(join(packed, "extension.vsixmanifest"), "<PackageManifest/>\n");
@@ -95,6 +95,32 @@ describe("publishExtension", () => {
     expect(realpathSync(destination)).toBe(realpathSync(join(directory, "vw-bleeds", "variant-vscode")));
     expect(existsSync(join(feature, "out", "variant-worktrees-main"))).toBe(false);
     expect(existsSync(join(repo, "out", "variant-worktrees-main"))).toBe(false);
+  });
+
+  test("writes the version token into the unpacked package.json", () => {
+    const directory = temp();
+    const repo = join(directory, "main");
+    mkdirSync(repo);
+    initRepo(repo);
+    git(repo, "checkout", "-q", "-b", "feat/sample");
+    const commit = execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+
+    const destination = publishExtension(repo, fixtureVsix(directory));
+    const manifest = JSON.parse(readFileSync(join(destination, "package.json"), "utf8")) as { version: string };
+
+    expect(manifest.version).toBe(`0.0.7-sample-1-${commit.slice(0, 4)}`);
+  });
+
+  test("keeps the package version when the checkout is main", () => {
+    const directory = temp();
+    const repo = join(directory, "main");
+    mkdirSync(repo);
+    initRepo(repo);
+
+    const destination = publishExtension(repo, fixtureVsix(directory));
+    const manifest = JSON.parse(readFileSync(join(destination, "package.json"), "utf8")) as { version: string };
+
+    expect(manifest.version).toBe("0.0.7");
   });
 
   test("replaces a stale file in vw-bleeds/variant-vscode", () => {

@@ -8,9 +8,10 @@
  *   bun scripts/package-vsix-unpacked.ts [cwd]
  */
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { readVariant } from "../packages/variant-cli/src/version-line.ts";
 import { detectVariantMain } from "../packages/variant-config/src/autodetect.ts";
 
 /** The main checkout `cwd` publishes into: the checkout itself, or the one a variant worktree belongs to. */
@@ -25,9 +26,23 @@ export const publishTarget = (cwd: string): string => {
 export const bleedDirectory = (cwd: string): string => join(resolve(cwd), "..", "vw-bleeds");
 
 /** Unpack `vsixPath` so `package.json` is the root of `vw-bleeds/variant-vscode`. */
+/** Replace the unpacked extension `version` with the CLI version token for `cwd`. */
+export const stampExtensionVersion = (cwd: string, destination: string): void => {
+  const manifestPath = join(destination, "package.json");
+  const text = readFileSync(manifestPath, "utf8");
+  const version = /"version"\s*:\s*"([^"]*)"/.exec(text)?.[1];
+  if (version === undefined) {
+    return;
+  }
+  const variant = readVariant(cwd);
+  const token = variant ? `${version}-${variant}` : version;
+  writeFileSync(manifestPath, text.replace(/("version"\s*:\s*")[^"]*(")/, `$1${token}$2`));
+};
+
 export const publishExtension = (cwd: string, vsixPath: string): string => {
   const destination = join(bleedDirectory(cwd), "variant-vscode");
   unpackVsix(vsixPath, destination);
+  stampExtensionVersion(cwd, destination);
   return destination;
 };
 

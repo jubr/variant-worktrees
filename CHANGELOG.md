@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `variant --version` prints the version and a parenthetical, then a cursive `Variant-Worktrees` banner, then the platform and the repository URL. On `main` the parenthetical is the UTC date. Off `main` it is the UTC date and time, and the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color. `task bleed:vsix` writes that version token into the unpacked extension `package.json`.
 - `task package:vsix:unpacked` is removed. `task bleed:vsix`, `task bleed:cli`, and `task bleed:mcp` publish the extension, the host `variant` executable, and the host `variant-mcp` executable into `vw-bleeds` beside the checkout. `task bleed:all` runs the three.
 
 ## [0.0.7] - 2026-11-06

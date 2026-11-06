@@ -8,6 +8,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { versionDefines } from "./version-stamp.ts";
 
 /** Platforms a release ships a `variant` executable for. */
 export const RELEASE_TARGETS = [
@@ -52,6 +53,7 @@ export const compileCli = async (root: string, outfile: string, target?: string)
   const result = await Bun.build({
     entrypoints: [join(root, "packages/variant-cli/src/cli.ts")],
     compile: target === undefined ? { outfile } : { outfile, target: target as Bun.Build.Target },
+    define: versionDefines(root),
     plugins: [
       {
         name: "embed-variants-app",
