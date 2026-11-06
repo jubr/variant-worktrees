@@ -31,7 +31,9 @@ const bakedVersionLine = (): string => {
   const slug = branch.replace(/^(feat|fix|feature)\//, "");
   const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
   const date = new Date().toISOString().slice(0, 10);
-  return `${version}${suffix} ${platformToken(process.platform, process.arch)} (${date} https://github.com/jubr/variant-worktrees)`;
+  const token = `${version}${suffix}`;
+  const details = `${platformToken(process.platform, process.arch)}, ${date}, https://github.com/jubr/variant-worktrees`;
+  return `${token}\n${VERSION_BANNER}\n\n${details}`;
 };
 
 let compiledDirectory: string;
@@ -79,11 +81,8 @@ describe("variant on Node, Bun and as a compiled executable", () => {
       const lines = result.stdout.replace(/\n$/, "").split("\n");
 
       expect(result.exitCode).toBe(0);
-      expect(lines.slice(0, -1).join("\n")).toBe(VERSION_BANNER);
-      expect(lines.at(-1)).toBe(bakedVersionLine());
-      expect(result.stdout).toContain(
-        `(${new Date().toISOString().slice(0, 10)} https://github.com/jubr/variant-worktrees)`,
-      );
+      expect(result.stdout.trimEnd()).toBe(bakedVersionLine());
+      expect(lines[0]).toBe(bakedVersionLine().split("\n")[0]);
     });
 
     it(`shows the version in the help header under ${name}`, async () => {

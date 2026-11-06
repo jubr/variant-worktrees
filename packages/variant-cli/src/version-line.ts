@@ -12,11 +12,11 @@ const ORANGE = "\u001b[38;5;208m";
 const RESET = "\u001b[0m";
 
 export const VERSION_BANNER = [
-  "                                                            _",
-  "                 o                                         | |",
-  "      __,   ,_       __,   _  _  _|_             __   ,_   | | _|_  ,_    _   _   ,",
-  "|  |_/  |  /  |  |  /  |  / |/ |  |-----|  |  |_/  \\_/  |  |/_) |  /  |  |/  |/  / \\_",
-  " \\/  \\_/|_/   |_/|_/\\_/|_/  |  |_/|_/    \\/ \\/  \\__/    |_/| \\_/|_/   |_/|__/|__/ \\/",
+  " _                                       _                     _",
+  "(_|   |_/          o                    (_|   |   |_/         | |",
+  "  |   | __,   ,_       __,   _  _  _|_    |   |   | __   ,_   | | _|_  ,_    _   _   ,",
+  "  |   |/  |  /  |  |  /  |  / |/ |  |-----|   |   |/  \\_/  |  |/_) |  /  |  |/  |/  / \\_",
+  "   \\_/ \\_/|_/   |_/|_/\\_/|_/  |  |_/|_/    \\_/ \\_/ \\__/    |_/| \\_/|_/   |_/|__/|__/ \\/",
 ].join("\n");
 
 export const versionColor = (input: { isTTY: boolean; NO_COLOR?: string }): boolean =>
@@ -79,12 +79,21 @@ const OS_NAMES: Record<string, string> = { darwin: "macos", win32: "windows" };
 
 export const platformToken = (platform: string, arch: string): string => `${OS_NAMES[platform] ?? platform}-${arch}`;
 
+const versionToken = (version: string, variant?: string): string => (variant ? `${version}-${variant}` : version);
+
+/** Version, the script drawing, a blank line, then platform, date, and URL. */
+export const renderVersion = (input: {
+  version: string;
+  platform: string;
+  date: string;
+  variant?: string;
+  color: boolean;
+}): string =>
+  `${versionToken(input.version, input.variant)}\n${renderBanner(input.color)}\n${input.platform}, ${input.date}, ${REPOSITORY_URL}\n`;
+
 export const formatVersionLine = (input: {
   version: string;
   platform: string;
   date: string;
   variant?: string;
-}): string => {
-  const token = input.variant ? `${input.version}-${input.variant}` : input.version;
-  return `${token} ${input.platform} (${input.date} ${REPOSITORY_URL})`;
-};
+}): string => renderVersion({ ...input, color: false }).replace(/\n$/, "");

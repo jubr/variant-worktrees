@@ -21,7 +21,7 @@ describe("version line", () => {
         date: "2001-02-03",
         variant: "",
       }),
-    ).toBe("1.2.3 macos-arm64 (2001-02-03 https://github.com/jubr/variant-worktrees)");
+    ).toBe(`1.2.3\n${DRAWING}\n\nmacos-arm64, 2001-02-03, https://github.com/jubr/variant-worktrees`);
   });
 
   it("appends the variant string when it is not empty", () => {
@@ -32,7 +32,9 @@ describe("version line", () => {
         date: "2001-02-03",
         variant: "version-details-4-abcd",
       }),
-    ).toBe("1.2.3-version-details-4-abcd macos-arm64 (2001-02-03 https://github.com/jubr/variant-worktrees)");
+    ).toBe(
+      `1.2.3-version-details-4-abcd\n${DRAWING}\n\nmacos-arm64, 2001-02-03, https://github.com/jubr/variant-worktrees`,
+    );
   });
 
   it("names Darwin as macos, Windows as windows, and keeps Linux", () => {
@@ -114,9 +116,9 @@ describe("version line", () => {
 });
 
 const DRAWING = [
-  "                                                            _",
-  "                 o                                         | |",
-  "      __,   ,_       __,   _  _  _|_             __   ,_   | | _|_  ,_    _   _   ,",
-  "|  |_/  |  /  |  |  /  |  / |/ |  |-----|  |  |_/  \\_/  |  |/_) |  /  |  |/  |/  / \\_",
-  " \\/  \\_/|_/   |_/|_/\\_/|_/  |  |_/|_/    \\/ \\/  \\__/    |_/| \\_/|_/   |_/|__/|__/ \\/",
+  " _                                       _                     _",
+  "(_|   |_/          o                    (_|   |   |_/         | |",
+  "  |   | __,   ,_       __,   _  _  _|_    |   |   | __   ,_   | | _|_  ,_    _   _   ,",
+  "  |   |/  |  /  |  |  /  |  / |/ |  |-----|   |   |/  \\_/  |  |/_) |  /  |  |/  |/  / \\_",
+  "   \\_/ \\_/|_/   |_/|_/\\_/|_/  |  |_/|_/    \\_/ \\_/ \\__/    |_/| \\_/|_/   |_/|__/|__/ \\/",
 ].join("\n");

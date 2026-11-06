@@ -21,7 +21,9 @@ const versionLine = (version: string): string => {
   const slug = branch.replace(/^(feat|fix|feature)\//, "");
   const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
   const date = new Date().toISOString().slice(0, 10);
-  return `${version}${suffix} ${platformToken(process.platform, process.arch)} (${date} https://github.com/jubr/variant-worktrees)`;
+  const token = `${version}${suffix}`;
+  const details = `${platformToken(process.platform, process.arch)}, ${date}, https://github.com/jubr/variant-worktrees`;
+  return `${token}\n${VERSION_BANNER}\n\n${details}`;
 };
 
 describe("variant CLI", () => {
@@ -50,11 +52,8 @@ describe("variant CLI", () => {
     expect(help.stdout).not.toContain(VERSION_BANNER);
     expect(help.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
     expect(flag.exitCode).toBe(0);
-    expect(flag.stdout.replace(/\n$/, "").split("\n").slice(0, -1).join("\n")).toBe(VERSION_BANNER);
-    expect(flag.stdout.trimEnd().endsWith(line)).toBe(true);
-    expect(flag.stdout.trimEnd().split("\n").at(-1)).toMatch(
-      /\(\d{4}-\d{2}-\d{2} https:\/\/github\.com\/jubr\/variant-worktrees\)$/,
-    );
+    expect(flag.stdout.trimEnd()).toBe(line);
+    expect(flag.stdout.startsWith(`${line.split("\n")[0]}\n`)).toBe(true);
   });
 
   it("has no destroy command; implode replaces it", async () => {
@@ -114,7 +113,7 @@ describe("variant CLI", () => {
 
     expect(verbose.stdout).not.toContain(line);
     expect(verbose.stdout).not.toContain(VERSION_BANNER);
-    expect((await runCli(["--version"])).stdout.trimEnd().endsWith(line)).toBe(true);
+    expect((await runCli(["--version"])).stdout.trimEnd()).toBe(line);
   });
 
   describe("warnings for extra properties", () => {
