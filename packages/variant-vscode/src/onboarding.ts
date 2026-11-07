@@ -2,6 +2,7 @@ import { findConfigFile, getVariantsAdoption, resolveMiseBinary, type VariantsAd
 import * as vscode from "vscode";
 import { createMiseGuard, type MiseGuard } from "./mise-guard.ts";
 import { type CommitWatcher, createCommitWatcher } from "./onboarding-commits.ts";
+import { resolveOnboardingDirectory } from "./onboarding-directory.ts";
 import { createOnboardingNotice, type OnboardingNotice } from "./onboarding-notice.ts";
 import { type Onboarding, registerOnboarding } from "./onboarding-view.ts";
 import type { ActivityLog } from "./variants-actions.ts";
@@ -26,8 +27,8 @@ export interface OnboardingFlowDeps {
   log?: ActivityLog;
   /** Starts watching for commits; the `HEAD` reflog by default. */
   watchCommits?: (root: string, onCommit: () => void) => CommitWatcher;
-  /** Adoption of the workspace; reads the environment through Mise by default. */
-  adoption?: () => Promise<VariantsAdoption>;
+  /** Adoption of the onboarding directory; reads the environment through Mise by default. */
+  adoption?: (directory: string) => Promise<VariantsAdoption>;
   /** Runs `mise trust --all` in a directory; the resolved Mise by default. */
   trust?: (directory: string) => Promise<void>;
   nonce?: () => string;
@@ -62,7 +63,10 @@ const trustThroughMise = async (directory: string): Promise<void> => {
 
 export const registerOnboardingFlow = (context: vscode.ExtensionContext, deps: OnboardingFlowDeps): OnboardingFlow => {
   const { root, view, log } = deps;
-  const hasConfig = (): boolean => findConfigFile(root) !== undefined;
+  const resolved = resolveOnboardingDirectory(root);
+  let directory = resolved.kind === "directory" ? resolved.path : root;
+  const hasConfig = (): boolean => findConfigFile(directory) !== undefined;
+  const adoption = deps.adoption ?? adoptionThroughMise;
   const guard = createMiseGuard({
     trust: deps.trust ?? trustThroughMise,
     showError: (message, ...buttons) => vscode.window.showErrorMessage(message, ...buttons),
@@ -70,43 +74,58 @@ export const registerOnboardingFlow = (context: vscode.ExtensionContext, deps: O
     ...(log ? { log } : {}),
   });
 
-  const onboarding = registerOnboarding(context, {
-    extensionUri: context.extensionUri,
-    loadClient: view.loadClient,
-    store: view.store,
-    guard,
-    hasConfig,
-    ...(log ? { log } : {}),
-    ...(deps.nonce ? { nonce: deps.nonce } : {}),
-  });
+  const start = (): OnboardingFlow => {
+    const onboarding = registerOnboarding(context, {
+      extensionUri: context.extensionUri,
+      loadClient: (cwd) => view.loadClient(cwd ?? directory),
+      store: view.store,
+      guard,
+      hasConfig,
+      ...(log ? { log } : {}),
+      ...(deps.nonce ? { nonce: deps.nonce } : {}),
+    });
 
-  const notice = createOnboardingNotice({
-    root,
-    state: context.workspaceState,
-    adoption: deps.adoption ?? (() => adoptionThroughMise(root)),
-    showInfo: (message, ...buttons) => vscode.window.showInformationMessage(message, ...buttons),
-    runCommand: (id) => vscode.commands.executeCommand(id),
-    guard,
-    ...(log ? { log } : {}),
-  });
-  const watcher = (deps.watchCommits ?? ((directory, onCommit) => createCommitWatcher({ root: directory, onCommit })))(
-    root,
-    () => void notice.check(),
-  );
+    const notice = createOnboardingNotice({
+      root: directory,
+      state: context.workspaceState,
+      adoption: () => adoption(directory),
+      showInfo: (message, ...buttons) => vscode.window.showInformationMessage(message, ...buttons),
+      runCommand: (id) => vscode.commands.executeCommand(id),
+      guard,
+      ...(log ? { log } : {}),
+    });
+    const watcher = (deps.watchCommits ?? ((watched, onCommit) => createCommitWatcher({ root: watched, onCommit })))(
+      directory,
+      () => void notice.check(),
+    );
 
-  // A read of the variants that failed because of Mise: one notification, and a fresh read after Trust.
-  const unsubscribe = view.store.onDidChange(() => {
-    const failure = view.store.mise();
-    if (failure !== undefined) {
-      guard.report(failure, () => view.store.restart());
-    }
-  });
+    // A read of the variants that failed because of Mise: one notification, and a fresh read after Trust.
+    const unsubscribe = view.store.onDidChange(() => {
+      const failure = view.store.mise();
+      if (failure !== undefined) {
+        guard.report(failure, () => view.store.restart());
+      }
+    });
 
-  context.subscriptions.push({
-    dispose: () => {
-      watcher.dispose();
-      unsubscribe();
-    },
-  });
-  return { onboarding, guard, notice };
+    context.subscriptions.push({
+      dispose: () => {
+        watcher.dispose();
+        unsubscribe();
+      },
+    });
+    return { onboarding, guard, notice };
+  };
+
+  if (resolved.kind === "choice") {
+    void vscode.window
+      .showQuickPick(resolved.paths, { placeHolder: "Choose the checkout to initialize" })
+      .then((picked) => {
+        if (typeof picked === "string") {
+          directory = picked;
+        }
+        start();
+      });
+    return { onboarding: { open: async () => {}, isOpen: () => false }, guard, notice: { check: async () => {} } };
+  }
+  return start();
 };
