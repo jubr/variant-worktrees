@@ -54,7 +54,7 @@ Override env vars: `mise x -- env FOO=bar bash -c 'echo $FOO'`
 
 Configured at [variants.yaml](variants.yaml).
 
-- `variant create -s $slug [--from {branch}] [--pull-ff]` creates the feature worktree and its state. Omit `--from` to start at `variant.baseBranch`. `--pull-ff` fast-forwards that start branch before a new variant branch is created. Schema creation is `provision`.
+- `variant create -s $slug [--from {branch}] [--pull-ff] [--mise-install=bg|sync|no]` creates the feature worktree and its state. Omit `--from` to start at `variant.baseBranch`. `--pull-ff` fast-forwards that start branch before a new variant branch is created. `--mise-install` defaults to `bg`: when the worktree has a Mise config, `create` runs `mise trust --all` and `mise install` in the background. Schema creation is `provision`.
 - `variant provision` creates the schema and runs install, env, up, and seed. Creates the worktree when it is missing.
 - `variant watch [--detach] [--reprovision]` runs the watches on the host when UI or tests need them. Creates and provisions when those are missing. `--reprovision` drops the schemas before provisioning again.
 - `variant down` stops the watches and containers and leaves schemas, data, and the worktree.
