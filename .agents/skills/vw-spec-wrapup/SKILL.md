@@ -24,7 +24,7 @@ Close out `$slug` after implementation CI is green.
   This applies to all command invocations in this file. Also note `mise` manages env vars for child processes.
 - GitHub CLI should already be authenticated from `vw-spec-start`; if not, follow that skill's `gh` step.
 - `variant down -s $slug` stops the watches and leaves schemas and the worktree. `variant deprovision -s $slug` also drops that slug's schemas. `variant implode -s $slug` deprovisions and then removes the worktree. Stop the watch before sync-archive so the tree is quiet.
-- After `main` in the primary checkout contains the merge, implode from that checkout. The git branch stays. `--force` only when the user explicitly allows it. Do not `git worktree remove` by hand, and do not add a Taskfile task for implode.
+- After `main` in the primary checkout contains the merge, implode from that checkout. `--branch-rm=no` is optional and keeps the local branch. Omitted, implode removes that branch. `--force` only when the user explicitly allows it. Do not `git worktree remove` by hand, and do not add a Taskfile task for implode.
 
 ## Steps
 
@@ -44,7 +44,7 @@ Close out `$slug` after implementation CI is green.
    - the product-code Actions run is **success** (not a skipped sync-archive tip).
    Default is no merge. Never merge a failed or still-running run. The human reviewer owns the merge otherwise.
 10. **Fast-forward the main checkout** — only after the pull request is merged. In the **primary** product checkout (not the feature worktree), inspect `git status` and `git log` first. Then `git fetch` and `git pull --ff-only` on `main`. Do not reset, checkout, or clean in a way that drops local commits or uncommitted work. If fast-forward would fail or unique local commits exist, stop and ask what to do. Do not rewrite that checkout. If the pull request is not merged yet, skip this step and skip implode.
-11. **Implode the worktree** — only after `main` in the primary checkout has the merge. From that checkout run `variant implode -s $slug`. That deprovisions (drops schemas) and removes the worktree. `variant down` keeps the schemas. Refuse and report if implode aborts on a dirty or unmerged tree. Use `variant implode -s $slug --force` only when the user explicitly allows it.
+11. **Implode the worktree** — only after `main` in the primary checkout has the merge. From that checkout run `variant implode -s $slug`. That deprovisions (drops schemas), removes the worktree, and removes the local branch. `--branch-rm=no` is optional and keeps the branch: `variant implode -s $slug --branch-rm=no`. `variant down` keeps the schemas. Refuse and report if implode aborts on a dirty or unmerged tree. Use `variant implode -s $slug --force` only when the user explicitly allows it.
 12. **Stop caffeinate.** Stop any leftover `caffeinate` from `vw-spec-pipeline`.
 
 ## Done when
