@@ -27,24 +27,19 @@ The CI workflow SHALL run on every push to a branch other than `main`. Pushes to
 - **WHEN** a newer commit is pushed to the same non-`main` branch while an earlier run is in progress
 - **THEN** the earlier run is cancelled
 
-### Requirement: Packaging proven on feature branches
+### Requirement: Extension packages on feature branches
 
-The CI workflow SHALL, in the same run, package both extensions as `.vsix` files and compile the `variant` CLI to a single-file executable for macOS arm64 only (the pre-release binary; no other platform is built on feature branches). It SHALL build that executable on a macOS arm64 runner and execute it to confirm it starts. It SHALL attach these files to the run as downloadable artifacts.
+The CI workflow SHALL, in the same run, package both extensions as `.vsix` files and attach them to the run as downloadable artifacts. It SHALL NOT compile a `variant` executable, SHALL NOT run one, and SHALL NOT attach one.
 
 #### Scenario: Packages build
 
 - **WHEN** the CI workflow succeeds
-- **THEN** the run has artifacts containing the variant-worktrees `.vsix`, the chat-renamer `.vsix`, and a `variant` executable for macOS arm64
-- **AND** the run has no `variant` executable for any other platform
-
-#### Scenario: Executable starts
-
-- **WHEN** the compiled `variant` executable is run with `--help`
-- **THEN** it exits successfully and prints its usage
+- **THEN** the run has artifacts containing the variant-worktrees `.vsix` and the chat-renamer `.vsix`
+- **AND** the run has no `variant` executable
 
 #### Scenario: Packaging failure fails the build
 
-- **WHEN** a `.vsix` cannot be packaged or the CLI cannot be compiled
+- **WHEN** a `.vsix` cannot be packaged
 - **THEN** the CI workflow fails
 
 ### Requirement: Reusable by release
