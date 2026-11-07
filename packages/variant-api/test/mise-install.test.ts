@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
+import { type LogEvent, setLogSink } from "../src/log.js";
 import { installMiseBackground } from "../src/mise-install.js";
 import { installEngineStub } from "./support/engine-stub.js";
 
@@ -91,6 +92,37 @@ describe("create installs Mise tools", () => {
       expect(stderr.indexOf("MISE_TRUST")).toBeGreaterThan(-1);
       expect(stderr.indexOf("MISE_TRUST")).toBeLessThan(stderr.indexOf("MISE_INSTALL"));
     } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("logs each mise command at info as [create] + command, with the slug beside the message", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mise-log-")));
+    const repo = join(parent, "repo");
+    const events: LogEvent[] = [];
+    try {
+      initRepo(repo);
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      git(repo, "add", "mise.toml");
+      git(repo, "commit", "-q", "-m", "mise");
+      const mise = stubMise(parent, "exit 0");
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
+      const client = createClient({
+        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        miseBinPath: mise.binary,
+      });
+      setLogSink((event) => events.push(event));
+
+      await client.create("add-auth", { miseInstall: "sync" });
+
+      expect(events.filter((event) => event.level === "info")).toEqual([
+        { level: "info", message: "[create] + mise trust --all", slug: "add-auth" },
+        { level: "info", message: "[create] + mise install", slug: "add-auth" },
+      ]);
+    } finally {
+      setLogSink(undefined);
       rmSync(parent, { recursive: true, force: true });
     }
   });

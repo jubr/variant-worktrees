@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { log, setLogSink } from "variant-api";
 import { schemaHeaderFor } from "variant-config";
+import { attachLogLevel } from "../src/log-level.ts";
 import { runCli, withVariants } from "./support/cli.js";
 
 const CLEAN_DB = {
@@ -100,6 +102,24 @@ describe("log level flag", () => {
       expect(result.stderr).toContain("warning");
       expect(result.stdout).not.toContain("alpha");
     }));
+
+  it("prints a mise command at info without the slug", () => {
+    const lines: string[] = [];
+    const write = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+      return true;
+    }) as typeof process.stderr.write;
+    attachLogLevel("info");
+    try {
+      log("info", "[create] + mise install", "add-auth");
+      log("debug", "[create] + mise trust --all", "add-auth");
+    } finally {
+      setLogSink(undefined);
+      process.stderr.write = write;
+    }
+    expect(lines).toEqual(["info: [create] + mise install\n"]);
+  });
 });
 
 describe("verbose is not a log level", () => {

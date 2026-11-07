@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { log } from "./log.js";
 import { logToStderr } from "./ready.js";
 
 /**
@@ -40,8 +41,13 @@ const writeOutput = (output: string): void => {
   }
 };
 
+const announceMise = (action: string, command: string, slug: string): void => {
+  log("info", `[${action}] + ${command}`, slug === "" ? undefined : slug);
+};
+
 /** `mise -C <directory> trust --all`, then `install` when trust exits 0. The caller waits. */
-export const installMiseSync = (binary: string, directory: string): void => {
+export const installMiseSync = (binary: string, directory: string, action = "create", slug = ""): void => {
+  announceMise(action, "mise trust --all", slug);
   const trust = spawnSync(binary, ["-C", directory, "trust", "--all"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -51,6 +57,7 @@ export const installMiseSync = (binary: string, directory: string): void => {
   if (trust.error || (trust.status ?? 1) !== 0) {
     throw new Error(trustOutput.trim());
   }
+  announceMise(action, "mise install", slug);
   const install = spawnSync(binary, ["-C", directory, "install"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -83,6 +90,8 @@ export const installMiseInWorktree = async (
   directory: string | undefined,
   mode: MiseInstallMode,
   resolveBinary: () => string | undefined,
+  action = "create",
+  slug = "",
 ): Promise<void> => {
   if (directory === undefined || mode === "no" || !worktreeHasMiseConfig(directory)) {
     return;
@@ -97,9 +106,11 @@ export const installMiseInWorktree = async (
     throw new Error("Mise was not found. Set variant.mise.binPath to the executable.");
   }
   if (mode === "sync") {
-    installMiseSync(binary, directory);
+    installMiseSync(binary, directory, action, slug);
     return;
   }
+  announceMise(action, "mise trust --all", slug);
+  announceMise(action, "mise install", slug);
   await installMiseBackground(binary, directory);
 };
 

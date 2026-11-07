@@ -29,7 +29,13 @@ export const provisionVariant = async (
         )
       : (locateWorktree(context, slug) ?? checkoutRoot(repositoryDirectory(context)));
   if (context.useWorktree && slug !== "main") {
-    await installMiseInWorktree(worktree, mode, () => miseBinaryFor(context.config, context.miseBinPath));
+    await installMiseInWorktree(
+      worktree,
+      mode,
+      () => miseBinaryFor(context.config, context.miseBinPath),
+      "provision",
+      slug,
+    );
   }
   const run = await prepareRun(context, slug, worktree);
   return { slug, ...(await runProvisioning(context, run, options)) };

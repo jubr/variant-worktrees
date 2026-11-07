@@ -86,7 +86,7 @@ export const createVariant = async (
   if (variantDirectory !== undefined) {
     rememberCreated(context, variantDirectory, slug, target);
   }
-  await installMiseInWorktree(worktree, mode, () => miseBinaryFor(context.config, context.miseBinPath));
+  await installMiseInWorktree(worktree, mode, () => miseBinaryFor(context.config, context.miseBinPath), command, slug);
   const state = existing ?? {
     slug,
     target,

@@ -66,6 +66,15 @@ describe("createLogger", () => {
     );
   });
 
+  it("puts a slug field first and leaves it out of the trailing pairs", () => {
+    const { entries, sink } = collect();
+
+    createLogger(sink).info("watch", { slug: "demo", force: true });
+    createLogger(sink).child("title-event").info("decision", { slug: "demo" });
+
+    expect(entries.map((entry) => entry.message)).toEqual(["<demo> watch force=true", "<demo> [title-event] decision"]);
+  });
+
   it("drops undefined fields", () => {
     const { entries, sink } = collect();
 

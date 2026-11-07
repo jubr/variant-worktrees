@@ -176,6 +176,38 @@ describe("extension", () => {
       expect(createOutputChannel.mock.calls.map((call) => call[0])).toEqual(["Variant Worktrees"]);
     });
 
+    it("writes a mise command with the slug first", () => {
+      const infos: string[] = [];
+      const noop = () => {};
+      createOutputChannel.mockImplementation((() => ({
+        trace: noop,
+        debug: noop,
+        info: (message: string) => infos.push(message),
+        warn: noop,
+        error: noop,
+        dispose: noop,
+      })) as unknown as typeof vscode.window.createOutputChannel);
+      vscode.env.appName = "Cursor";
+      try {
+        activate({
+          subscriptions: [],
+          globalState: { get: () => undefined, update: async () => {} },
+          extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
+          globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+        } as unknown as vscode.ExtensionContext);
+        log("info", "[create] + mise install", "add-auth");
+        log("info", "[demo] [provision] create schema app");
+      } finally {
+        vscode.env.appName = undefined;
+        setLogSink(undefined);
+      }
+
+      expect(infos.slice(-2)).toEqual([
+        '<add-auth> [create] cmd="mise install"',
+        "<demo> [provision] create schema app",
+      ]);
+    });
+
     it("activates on startup so the log channel is listed without running a command", () => {
       const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
         activationEvents: string[];
