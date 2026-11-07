@@ -120,7 +120,22 @@ describe("variant CLI", () => {
     expect((await runCli(["watch", "--help"])).stdout).toContain("--detach");
     expect((await runCli(["watch", "--help"])).stdout).toContain("--reprovision");
     expect((await runCli(["implode", "--help"])).stdout).toContain("--force");
+    expect((await runCli(["implode", "--help"])).stdout).toContain("--branch-rm");
+    expect((await runCli(["implode", "--help"])).stdout).toContain("yes or no");
     expect((await runCli(["provision", "--help"])).stdout).toContain("--verbose");
+  });
+
+  it("rejects branch-rm tokens other than yes and no", async () => {
+    for (const value of ["true", "false", "maybe"]) {
+      const result = await runCli(["implode", `--branch-rm=${value}`, "demo"]);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("--branch-rm");
+      expect(result.stderr).toContain("yes, no");
+    }
+    const bare = await runCli(["implode", "--branch-rm"]);
+    expect(bare.exitCode).not.toBe(0);
+    expect(bare.stderr).toContain("--branch-rm");
+    expect(bare.stderr).toContain("yes, no");
   });
 
   it("takes -v as the short form of --verbose on every command", async () => {
@@ -229,7 +244,23 @@ describe("variant CLI", () => {
       expect((await variant(["config"])).exitCode).toBe(0);
       expect((await variant(["create", "-s", "test-feature"])).exitCode).toBe(0);
       expect((await variant(["list"])).stdout).toContain("test-feature");
-      expect((await variant(["implode", "-s", "test-feature"])).exitCode).toBe(0);
+      const quiet = await variant(["implode", "-s", "test-feature"]);
+      expect(quiet.exitCode).toBe(0);
+      expect(quiet.stdout).toContain("removed branch feat/test-feature");
+      expect(quiet.stderr).not.toContain("debug:");
+      expect(
+        execFileSync("git", ["-C", directory, "branch", "--list", "feat/test-feature"], { encoding: "utf8" }),
+      ).toBe("");
+
+      expect((await variant(["create", "-s", "other"])).exitCode).toBe(0);
+      const kept = await variant(["implode", "-s", "other", "--branch-rm=no", "--log-level=debug"]);
+      expect(kept.exitCode).toBe(0);
+      expect(kept.stderr).toContain("debug: kept branch feat/other");
+      expect(execFileSync("git", ["-C", directory, "branch", "--list", "feat/other"], { encoding: "utf8" })).toContain(
+        "feat/other",
+      );
+      const removed = await variant(["implode", "-s", "other", "--log-level=debug"]);
+      expect(removed.stderr).toContain("debug: removed branch feat/other");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

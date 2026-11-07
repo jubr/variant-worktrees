@@ -13,7 +13,7 @@ export const flagSpecsFor = (definition: CommandDefinition): FlagSpec[] => [
   ...definition.args.map(
     (arg): FlagSpec => ({
       name: arg.name,
-      type: arg.type,
+      type: arg.type === "choice" ? "string" : arg.type,
       ...(arg.short ? { short: arg.short } : {}),
       description: arg.name === "slug" ? "Explicit variant slug; overrides git detection" : arg.description,
     }),
