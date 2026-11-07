@@ -1,0 +1,83 @@
+name: Packslip
+
+# Specification: openspec/specs/meta/release-artifacts/spec.md
+# Signs the six variant executables of one published GitHub Release.
+# The signing job cannot change the release. The next job uploads only the bundle.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to sign, for example v1.2.3
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to sign, for example v1.2.3
+        required: true
+        type: string
+
+jobs:
+  sign:
+    name: Sign release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      # AIDEV-NOTE: contents stays read. jdx/packslip uses this job's token even when token is not an input.
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the six executables
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir -p dist
+          for name in \
+            "variant-${version}-linux-x64" \
+            "variant-${version}-linux-arm64" \
+            "variant-${version}-darwin-x64" \
+            "variant-${version}-darwin-arm64" \
+            "variant-${version}-windows-x64.exe" \
+            "variant-${version}-windows-arm64.exe"
+          do
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir dist --clobber
+            test -f "dist/${name}"
+          done
+      - uses: jdx/packslip@44e50e5f64551234b4a382d991bd7f7f7d021d06 # v1.11.3
+        id: packslip
+        with:
+          artifacts: dist/*
+          bin: variant
+          tag: ${{ inputs.tag }}
+          upload: false
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: packslip-bundle
+          path: ${{ steps.packslip.outputs.bundle }}
+          if-no-files-found: error
+
+  publish:
+    name: Upload packslip bundle
+    needs: sign
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: packslip-bundle
+          path: packslip
+      - name: Upload the signed bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test -f packslip/packslip.sigstore.json
+          gh release upload "$TAG" packslip/packslip.sigstore.json \
+            --repo "$GITHUB_REPOSITORY" --clobber
