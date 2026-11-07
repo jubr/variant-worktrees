@@ -161,6 +161,7 @@ variant init                           # write variants.yaml, .gitignore and the
 variant config
 variant create -s preview-one
 variant create -s preview-one --from feat/other   # new branch starts at that commit
+variant create -s preview-one --pull-ff           # fast-forward the start branch first
 variant list                           # slug, mode, uptime, full url, watch log file, dir
 variant list -v                        # all meta information of every variant
 variant status preview-one             # everything known about one variant
@@ -176,6 +177,8 @@ variant ui --stop                      # end the UI server of the project
 ```
 
 `--from` on `create`, `provision`, `up`, and `watch` is a commit, tag, or branch. A new variant branch starts there. Omit it and the branch starts at `variant.baseBranch`. There is no short flag. An existing worktree, or a branch that already uses a configured prefix, is left as it is. `implode` still requires the work to be merged into `variant.baseBranch`.
+
+`--pull-ff` on those same four commands (library option `pullFf`, no short flag) fast-forwards the start branch before a new variant branch is created. It does not pull the new branch. The start branch is `from` when that names a local branch, and `variant.baseBranch` otherwise. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error includes the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network.
 
 Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
 PostgreSQL and MySQL use isolated schemas/databases; SQLite uses one database

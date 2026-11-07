@@ -27,24 +27,23 @@ If scope is unclear before proposing, MUST read skill `openspec-explore` first.
 
 - If not in `mise hook-env`: Always `mise x -- …` for `openspec`, `task`, `bun`, and other project tools.
 This applies to all command invocations in this file. Also note `mise` manages env vars for child processes.
-- Workspace: `variant create -s $slug [--from {branch}]`. Start `variant watch -s $slug` only when the user explicitly asks for a watch. `variant down` stops the watches and leaves schemas and the worktree. `variant deprovision` also drops that slug's schemas.
+- Workspace: `variant create -s $slug --pull-ff`, plus `--from {branch}` only when the caller names a start. Start `variant watch -s $slug` only when the user explicitly asks for a watch. `variant down` stops the watches and leaves schemas and the worktree. `variant deprovision` also drops that slug's schemas.
 - Install missing tools with `mise trust .` + `mise install` from the checkout root.
 
 ## Steps
 
 1. **Resolve** `$slug`**.** User supplies kebab name, or derive from the request. Announce: `Using change: $slug` (override: re-run with another slug). Use kebab name literally, do not prepend date.
-2. **Sync base.** From the main product checkout (not a dirty feature worktree): `git fetch` + `git pull --ff-only` on `main`.
-3. **Workspace.** `variant create -s $slug [--from {branch}]`. Omit `--from` to start from `variant.baseBranch`.
+2. **Workspace.** `variant create -s $slug --pull-ff`. Add `--from {branch}` only when the caller names a start. `--pull-ff` fast-forwards that start branch before the new variant branch is created.
 
    Continue in the worktree path the command prints.
-4. **Tooling.** Start `mise install` in background task, no need to sync wait for it.
-5. **GitHub CLI.** Ensure `gh` is authenticated before later PR/pipeline work: `gh auth status`. Do not commit tokens.
-6. **Watch, only when asked.** When the user explicitly asks for a watch, run `variant watch --detach`. Report each watch URL in the chat.
-7. **Read openspec-propose skill.** Read in FULL `.agents/skills/openspec-propose/SKILL.md`.
+3. **Tooling.** Start `mise install` in background task, no need to sync wait for it.
+4. **GitHub CLI.** Ensure `gh` is authenticated before later PR/pipeline work: `gh auth status`. Do not commit tokens.
+5. **Watch, only when asked.** When the user explicitly asks for a watch, run `variant watch --detach`. Report each watch URL in the chat.
+6. **Read openspec-propose skill.** Read in FULL `.agents/skills/openspec-propose/SKILL.md`.
 
    Change creation protocol — do not duplicate its steps.
-8. **Propose.** Follow skill `openspec-propose` with change name `$slug`. Wait for an explicit apply/iterate request before coding.
-9. **Commit the change.** One Conventional Commit containing only `openspec/changes/$slug/` (proposal, design, delta specs, `tasks.md` as planned). No product code. This is the first OpenSpec commit. Wrapup later commits leftover `tasks.md` checkboxes if needed, then a separate **sync-archive** commit on this **same** feature branch.
+7. **Propose.** Follow skill `openspec-propose` with change name `$slug`. Wait for an explicit apply/iterate request before coding.
+8. **Commit the change.** One Conventional Commit containing only `openspec/changes/$slug/` (proposal, design, delta specs, `tasks.md` as planned). No product code. This is the first OpenSpec commit. Wrapup later commits leftover `tasks.md` checkboxes if needed, then a separate **sync-archive** commit on this **same** feature branch.
 
 Report in chat contains markdown links that open the [proposal.md](http://proposal.md) & friends in the editor in the correct worktree.
 

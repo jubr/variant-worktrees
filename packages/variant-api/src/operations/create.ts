@@ -40,7 +40,7 @@ const rememberCreated = (context: OperationContext, directory: string, slug: str
 export const createVariant = async (
   context: OperationContext,
   requestedSlug?: string,
-  options?: { from?: string },
+  options?: { from?: string; pullFf?: boolean; command?: string; detach?: boolean; reprovision?: boolean },
 ): Promise<VariantRecord> => {
   await context.adapter.assertReachable?.();
   const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
@@ -55,6 +55,12 @@ export const createVariant = async (
           context.config.variant,
           context.config.variant.main,
           options?.from,
+          {
+            pullFf: options?.pullFf,
+            command: options?.command ?? "create",
+            detach: options?.detach,
+            reprovision: options?.reprovision,
+          },
         )
       : undefined;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);

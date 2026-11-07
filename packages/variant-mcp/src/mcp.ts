@@ -85,19 +85,23 @@ for (const command of commands) {
     shape[arg.name] = arg.required ? schema : schema.optional();
   }
 
-  server.tool(`variant_${command.name}`, command.description, shape, async (params) => {
-    try {
-      const result = await command.execute(client, { ...params, ...command.mcpFixed });
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-      };
-    } catch (error) {
-      return {
-        content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }],
-        isError: true,
-      };
-    }
-  });
+  server.registerTool(
+    `variant_${command.name}`,
+    { description: command.description, inputSchema: z.strictObject(shape) },
+    async (params) => {
+      try {
+        const result = await command.execute(client, { ...params, ...command.mcpFixed });
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }],
+          isError: true,
+        };
+      }
+    },
+  );
 }
 
 await server.connect(new StdioServerTransport());

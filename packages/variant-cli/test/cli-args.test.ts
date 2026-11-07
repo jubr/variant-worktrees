@@ -23,6 +23,28 @@ describe("command line arguments", () => {
     expect(collectArgs(definition("provision"), { verbose: true })).toEqual({ verbose: true });
   });
 
+  it("passes --pull-ff to create, provision, up, and watch", () => {
+    for (const name of ["create", "provision", "up", "watch"]) {
+      expect(collectArgs(definition(name), { slug: "demo", pullFf: true })).toEqual({ slug: "demo", pullFf: true });
+      expect(definition(name).args.find((arg) => arg.name === "pullFf")?.short).toBeUndefined();
+    }
+    for (const name of ["down", "implode"]) {
+      expect(definition(name).args.find((arg) => arg.name === "pullFf")).toBeUndefined();
+    }
+  });
+
+  it("leaves pullFf off the arguments when the flag is omitted", async () => {
+    const seen: unknown[] = [];
+    const client = {
+      create: async (...args: unknown[]) => {
+        seen.push(args);
+        return {};
+      },
+    };
+    await definition("create").execute(client as never, { slug: "demo" });
+    expect(seen).toEqual([["demo", {}]]);
+  });
+
   it("passes --from to create, provision, up, and watch", () => {
     for (const name of ["create", "provision", "up", "watch"]) {
       expect(collectArgs(definition(name), { slug: "demo", from: "feat/other" })).toEqual({
