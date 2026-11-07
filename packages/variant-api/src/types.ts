@@ -262,10 +262,10 @@ export interface InitResult {
 export interface VariantClient {
   /** Bootstraps the directory: `variants.yaml` from autodetection, the `.gitignore` line and the Mise entry. */
   init(options?: InitOptions): Promise<InitResult>;
-  create(slug?: string, options?: { from?: string }): Promise<VariantRecord>;
+  create(slug?: string, options?: { from?: string; pullFf?: boolean }): Promise<VariantRecord>;
   implode(slug?: string, options?: ImplodeOptions): Promise<ImplodeResult>;
-  up(slug?: string, options?: UpOptions & { from?: string }): Promise<UpResult>;
-  watch(slug?: string, options?: WatchOptions & { from?: string }): Promise<WatchResult>;
+  up(slug?: string, options?: UpOptions & { from?: string; pullFf?: boolean }): Promise<UpResult>;
+  watch(slug?: string, options?: WatchOptions & { from?: string; pullFf?: boolean }): Promise<WatchResult>;
   down(slug?: string, options?: DownOptions): Promise<DownResult>;
   /** Stops the watches, then drops the schemas. A `deprovision` script replaces the drop. */
   deprovision(slug?: string, options?: UpOptions): Promise<DeprovisionResult>;
@@ -274,7 +274,7 @@ export interface VariantClient {
   list(options?: ListOptions): Promise<VariantRecord[]>;
   provision(
     slug?: string,
-    options?: { from?: string; verbose?: boolean; log?: (line: string) => void },
+    options?: { from?: string; pullFf?: boolean; verbose?: boolean; log?: (line: string) => void },
   ): Promise<{ slug: string; commands: string[]; output: string }>;
   config(): ResolvedConfig;
   /**

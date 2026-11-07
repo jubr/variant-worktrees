@@ -92,6 +92,22 @@ describe("variant CLI", () => {
     expect(short.stderr).toContain("Unknown flag");
   });
 
+  it("lists --pull-ff with no short flag on the commands that create a worktree", async () => {
+    for (const name of ["create", "provision", "up", "watch"]) {
+      const help = (await runCli([name, "--help"])).stdout;
+      expect(help).toContain("--pull-ff");
+      expect(help).not.toMatch(/-\w, --pull-ff/);
+    }
+  });
+
+  it("rejects --pull-ff on down and implode", async () => {
+    for (const name of ["down", "implode"]) {
+      const result = await runCli([name, "--pull-ff"]);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("Unknown flag: --pull-ff");
+    }
+  });
+
   it("rejects --from on down and implode", async () => {
     for (const name of ["down", "implode"]) {
       const result = await runCli([name, "--from", "abc123"]);

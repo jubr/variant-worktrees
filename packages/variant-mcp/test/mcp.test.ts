@@ -209,12 +209,14 @@ describe("MCP server", () => {
       const properties = (name: string) =>
         Object.keys(tools.find((tool) => tool.name === name)?.inputSchema.properties ?? {});
 
-      expect(properties("variant_create")).toEqual(["slug", "from", "verbose"]);
-      expect(properties("variant_provision")).toEqual(["slug", "from", "verbose"]);
-      expect(properties("variant_up")).toEqual(["slug", "from", "verbose"]);
-      expect(properties("variant_watch")).toEqual(["slug", "from", "reprovision", "verbose"]);
+      expect(properties("variant_create")).toEqual(["slug", "from", "pullFf", "verbose"]);
+      expect(properties("variant_provision")).toEqual(["slug", "from", "pullFf", "verbose"]);
+      expect(properties("variant_up")).toEqual(["slug", "from", "pullFf", "verbose"]);
+      expect(properties("variant_watch")).toEqual(["slug", "from", "pullFf", "reprovision", "verbose"]);
       expect(properties("variant_down")).not.toContain("from");
+      expect(properties("variant_down")).not.toContain("pullFf");
       expect(properties("variant_implode")).not.toContain("from");
+      expect(properties("variant_implode")).not.toContain("pullFf");
       expect(properties("variant_implode")).toContain("force");
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -260,6 +262,77 @@ describe("MCP server", () => {
       ).toBe(side);
     } finally {
       rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("fast-forwards the start branch when pullFf is set", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mcp-pull-ff-")));
+    const origin = join(parent, "origin.git");
+    const repo = join(parent, "repo");
+    const git = (...args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git("add", "README.md");
+      git("commit", "-q", "-m", "initial");
+      execFileSync("git", ["init", "-q", "--bare", "-b", "main", origin]);
+      git("remote", "add", "origin", origin);
+      git("push", "-q", "-u", "origin", "main");
+      const ahead = join(parent, "ahead");
+      execFileSync("git", ["clone", "-q", origin, ahead]);
+      execFileSync("git", ["-C", ahead, "config", "user.email", "variant@example.test"]);
+      execFileSync("git", ["-C", ahead, "config", "user.name", "Variant Tests"]);
+      writeFileSync(join(ahead, "ahead.txt"), "remote\n");
+      execFileSync("git", ["-C", ahead, "add", "ahead.txt"]);
+      execFileSync("git", ["-C", ahead, "commit", "-q", "-m", "ahead"]);
+      execFileSync("git", ["-C", ahead, "push", "-q", "origin", "main"]);
+
+      const result = await mcp(
+        [
+          ...initMessages(),
+          {
+            jsonrpc: "2.0",
+            id: 3,
+            method: "tools/call",
+            params: { name: "variant_create", arguments: { slug: "add-auth", pullFf: true } },
+          },
+        ],
+        configFile(repo),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      const response = JSON.parse(result.lines.at(-1) ?? "{}");
+
+      expect(response.result.isError).not.toBe(true);
+      expect(git("rev-parse", "HEAD")).toBe(
+        execFileSync("git", ["-C", origin, "rev-parse", "main"], { encoding: "utf8" }).trim(),
+      );
+      expect(
+        execFileSync("git", ["-C", join(repo, "_v-add-auth"), "rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+      ).toBe(git("rev-parse", "HEAD"));
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects pullFf on down and implode", async () => {
+    const directory = tempDirectory();
+    try {
+      for (const name of ["variant_down", "variant_implode"]) {
+        const result = await mcp(
+          [
+            ...initMessages(),
+            { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name, arguments: { pullFf: true } } },
+          ],
+          configFile(directory),
+        );
+        const response = JSON.parse(result.lines.at(-1) ?? "{}");
+        const rejected = response.error !== undefined || response.result?.isError === true;
+        expect(rejected).toBe(true);
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 });

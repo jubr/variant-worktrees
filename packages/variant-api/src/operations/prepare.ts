@@ -20,7 +20,7 @@ export const prepareVariant = async (
   context: OperationContext,
   slug: string,
   mode: "up" | "watch",
-  options: ProvisionOptions = {},
+  options: ProvisionOptions & { detach?: boolean } = {},
 ): Promise<PreparedVariant> => {
   const earlier = locateWorktree(context, slug);
   if (earlier) {
@@ -35,8 +35,15 @@ export const prepareVariant = async (
     worktree = earlier ?? repositoryDirectory(context);
   } else {
     worktree =
-      (await createVariant(context, slug, { from: options.from })).worktree ??
-      checkoutRoot(repositoryDirectory(context));
+      (
+        await createVariant(context, slug, {
+          from: options.from,
+          pullFf: options.pullFf,
+          command: mode,
+          detach: options.detach,
+          reprovision: options.reprovision,
+        })
+      ).worktree ?? checkoutRoot(repositoryDirectory(context));
   }
 
   const run = await prepareRun(context, slug, worktree);

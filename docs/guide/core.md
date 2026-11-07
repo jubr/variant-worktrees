@@ -36,9 +36,12 @@ Create the git worktree and the state for a slug. This does not create a databas
 
 `--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there. Omit it and the branch starts at `variant.baseBranch`. An existing worktree for the slug, or a branch that already uses any configured prefix, is checked out as it is; `--from` does not move it. `implode` still requires a merge into `variant.baseBranch`. `provision`, `up`, and `watch` take the same flag, because each of them creates the worktree when it is missing.
 
+`--pull-ff` has no short flag. Before a new variant branch is created it fast-forwards the start branch: `from` when that names a local branch, otherwise `variant.baseBranch`. It does not pull the new branch. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error prints the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network. `provision`, `up`, and `watch` take the same flag.
+
 ```bash
 variant create -s feature-forty-two
 variant create -s feature-forty-two --from feat/other
+variant create -s feature-forty-two --pull-ff
 ```
 
 ## list
@@ -77,7 +80,7 @@ variant provision -s feature-forty-two
 variant provision -s feature-forty-two --from feat/other
 ```
 
-`--from` starts a new branch at that commit. See [create](#create).
+`--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first. See [create](#create).
 
 ## up
 
@@ -88,7 +91,7 @@ variant up -s feature-forty-two
 variant up -s feature-forty-two --from feat/other
 ```
 
-`--from` starts a new branch at that commit. See [create](#create).
+`--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first. See [create](#create).
 
 ## down
 
@@ -109,7 +112,7 @@ variant watch -s feature-forty-two --reprovision
 variant watch -s feature-forty-two --from feat/other
 ```
 
-`--from` starts a new branch at that commit. See [create](#create).
+`--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first. See [create](#create).
 
 `--reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again. Without it, `watch` does not drop a schema.
 

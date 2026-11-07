@@ -22,6 +22,7 @@ export const provisionVariant = async (
           config.variant,
           config.variant.main,
           options.from,
+          { pullFf: options.pullFf, command: "provision", reprovision: options.reprovision },
         )
       : (locateWorktree(context, slug) ?? checkoutRoot(repositoryDirectory(context)));
   const run = await prepareRun(context, slug, worktree);
