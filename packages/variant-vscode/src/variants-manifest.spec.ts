@@ -22,6 +22,7 @@ interface Manifest {
     configuration: { properties: Record<string, { type: string; default?: unknown; markdownDescription?: string }> };
     viewsWelcome?: Array<{ view: string; contents: string; when?: string }>;
     menus?: Record<string, MenuEntry[]>;
+    mcpServerDefinitionProviders?: Array<{ id: string; label: string }>;
   };
 }
 
@@ -47,6 +48,16 @@ describe("variants view manifest", () => {
       expect(manifest.dependencies["variant-ui"]).toBe("workspace:*");
       expect(manifest.dependencies["variant-server"]).toBeUndefined();
     });
+  });
+});
+
+/**
+ * Specification: openspec/specs/variant-vscode/mcp-registration/spec.md
+ */
+describe("mcp registration manifest", () => {
+  it("contributes one provider, id variant, label Variant Worktrees", () => {
+    expect(manifest.contributes.mcpServerDefinitionProviders).toEqual([{ id: "variant", label: "Variant Worktrees" }]);
+    expect(manifest.engines.vscode).toBe("^1.101.0");
   });
 });
 
