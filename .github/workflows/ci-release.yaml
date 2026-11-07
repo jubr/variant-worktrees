@@ -98,6 +98,21 @@ jobs:
           path: out
       - run: gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --generate-notes out/*
 
+  packslip:
+    needs: [version, release]
+    if: >-
+      needs.release.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && needs.version.outputs.exists == 'false'
+      && !(github.event_name == 'workflow_dispatch' && inputs.dry-run)
+    uses: ./.github/workflows/packslip.yaml
+    with:
+      tag: v${{ needs.version.outputs.version }}
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
   # AIDEV-NOTE: registry publication is not a job here. publish-extensions.yaml is a separate
   # workflow triggered by workflow_run after this "Release" workflow completes, so the Open VSX
   # trusted publisher (OIDC) sees publish-extensions.yaml, not a workflow called from this one.
