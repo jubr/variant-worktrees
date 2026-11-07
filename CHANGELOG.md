@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- A release created from `main` attaches `packslip.sigstore.json` for the six `variant` executables. The signing job has `contents: read`.
+
 ### Changed
 
 - Onboarding initializes the main checkout when the opened workspace folder has no `.git` directory.
