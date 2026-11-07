@@ -188,11 +188,12 @@ const layouts: Record<string, (result: never, options: TextOptions) => string[] 
     ...section("networks", result.networks),
   ],
   implode: (result: ImplodeResult) =>
-    !result.removed && !result.worktreeRemoved
+    !result.removed && !result.worktreeRemoved && !result.branchRemoved
       ? `Nothing to implode for ${result.slug}`
       : [
           `Imploded ${result.slug}`,
           ...(result.worktreeRemoved && result.worktree ? [`removed worktree ${result.worktree}`] : []),
+          ...(result.branchRemoved && result.branch ? [`removed branch ${result.branch}`] : []),
         ],
 };
 

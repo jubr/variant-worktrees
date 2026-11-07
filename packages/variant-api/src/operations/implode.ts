@@ -2,8 +2,9 @@ import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
-import { git } from "../git.js";
+import { git, runGit } from "../git.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
+import { log as emit } from "../log.js";
 import { logToStderr } from "../ready.js";
 import { prepareRun } from "../run-context.js";
 import { removeVariantRuntime, variantConfigDir } from "../runtime-state.js";
@@ -75,10 +76,66 @@ const removableWorktree = (context: OperationContext, worktree: string | undefin
   }
 };
 
+const HEADS = "refs/heads/";
+
+/** The branch checked out in `worktree`, when it is a local branch. A detached HEAD has none. */
+const checkedOutBranch = (context: OperationContext, worktree: string): string | undefined => {
+  const target = realpathOrSelf(worktree);
+  const ref = worktreeEntries(repositoryDirectory(context)).find(
+    (entry) => realpathOrSelf(entry.path) === target,
+  )?.branch;
+  return ref?.startsWith(HEADS) ? ref.slice(HEADS.length) : undefined;
+};
+
+/**
+ * The first existing `<prefix><slug>` local branch, in `variant.branchPrefixes` order.
+ * A directory that is not a git checkout has no branch to remove.
+ */
+const prefixedBranch = (context: OperationContext, slug: string): string | undefined => {
+  let primary: string;
+  try {
+    primary = primaryWorktree(repositoryDirectory(context));
+  } catch {
+    return undefined;
+  }
+  return context.config.variant.branchPrefixes
+    .map((prefix) => `${prefix}${slug}`)
+    .find((name) => runGit(primary, ["show-ref", "--verify", "--quiet", `${HEADS}${name}`]).ok);
+};
+
+const assertBranchRm = (value: ImplodeOptions["branchRm"]): void => {
+  if (value !== undefined && value !== "yes" && value !== "no") {
+    throw new Error("branchRm must be one of yes, no");
+  }
+};
+
+/**
+ * Last step of implode. `no` keeps the branch. Omitted and `yes` delete it with `git branch -D` from the primary
+ * checkout. The merge gate has already decided the work may go.
+ */
+const removeLocalBranch = (
+  context: OperationContext,
+  slug: string,
+  branch: string | undefined,
+  branchRm: ImplodeOptions["branchRm"],
+): Pick<ImplodeResult, "branch" | "branchRemoved"> => {
+  if (branchRm === "no") {
+    emit("debug", branch ? `kept branch ${branch}` : `no branch to remove for ${slug}`);
+    return { ...(branch ? { branch } : {}), branchRemoved: false };
+  }
+  if (!branch) {
+    emit("debug", `no branch to remove for ${slug}`);
+    return { branchRemoved: false };
+  }
+  git(primaryWorktree(repositoryDirectory(context)), ["branch", "-D", branch]);
+  emit("debug", `removed branch ${branch}`);
+  return { branch, branchRemoved: true };
+};
+
 /**
  * Retires a variant: refuses `main`, and unless `force` or `implode.requireMerged: false` refuses work that is not
- * merged into the base branch. Then tears the variant down, cleans leftovers, prints what would be lost and removes
- * the worktree. The branch stays.
+ * merged into the base branch. Then tears the variant down, cleans leftovers, prints what would be lost, removes
+ * the worktree, and removes the local branch unless `branchRm` is `no`.
  */
 export const implodeVariant = async (
   context: OperationContext,
@@ -91,6 +148,7 @@ export const implodeVariant = async (
   if (slug === "main") {
     throw new Error("Refusing to implode main: it is the primary checkout");
   }
+  assertBranchRm(options.branchRm);
   const located = locateWorktree(context, slug);
   const present = located !== undefined && existsSync(located);
   const removable = present ? removableWorktree(context, located) : undefined;
@@ -105,12 +163,13 @@ export const implodeVariant = async (
     }
   }
 
+  const branch = removable ? checkedOutBranch(context, removable) : present ? undefined : prefixedBranch(context, slug);
   const removed = await teardownVariant(context, slug, present ? located : undefined, options.log);
   if (!removable) {
     if (located !== undefined && !present) {
       git(primaryWorktree(repositoryDirectory(context)), ["worktree", "prune"]);
     }
-    return { slug, removed, worktreeRemoved: false };
+    return { slug, removed, worktreeRemoved: false, ...removeLocalBranch(context, slug, branch, options.branchRm) };
   }
 
   const projectDir = variantConfigDir(config, removable);
@@ -125,5 +184,12 @@ export const implodeVariant = async (
   log(report);
   restoreTracked(removable, discard);
   removeWorktree(primaryWorktree(repositoryDirectory(context)), removable, options.force === true);
-  return { slug, removed, worktreeRemoved: true, worktree: removable, report };
+  return {
+    slug,
+    removed,
+    worktreeRemoved: true,
+    worktree: removable,
+    report,
+    ...removeLocalBranch(context, slug, branch, options.branchRm),
+  };
 };

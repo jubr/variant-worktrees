@@ -1,6 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 interface McpResult {
@@ -218,6 +227,9 @@ describe("MCP server", () => {
       expect(properties("variant_implode")).not.toContain("from");
       expect(properties("variant_implode")).not.toContain("pullFf");
       expect(properties("variant_implode")).toContain("force");
+      expect(properties("variant_implode")).toContain("branchRm");
+      const implode = tools.find((tool) => tool.name === "variant_implode");
+      expect(implode?.inputSchema.properties.branchRm).toMatchObject({ enum: ["yes", "no"] });
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -475,6 +487,17 @@ describe("MCP runtime tools", () => {
       expect(refused.isError).toBe(true);
       expect(refused.text).toContain("force");
 
+      const rejected = answer(
+        await mcp(
+          [...initMessages(), call(6, "variant_implode", { slug: "demo", branchRm: true })],
+          configPath,
+          options,
+        ),
+        6,
+      );
+      expect(rejected.isError).toBe(true);
+      expect(existsSync(created.worktree)).toBe(true);
+
       const forced = answer(
         await mcp([...initMessages(), call(5, "variant_implode", { slug: "demo", force: true })], configPath, options),
         5,
@@ -484,7 +507,50 @@ describe("MCP runtime tools", () => {
         slug: "demo",
         worktreeRemoved: true,
         worktree: created.worktree,
+        branch: "feat/demo",
+        branchRemoved: true,
       });
+      expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("variant_implode removes a merged branch by default and keeps it when branchRm is no", async () => {
+    const parent = realpathSync(tempDirectory());
+    const repo = join(parent, "repo");
+    const git = (cwd: string, ...args: string[]): string =>
+      execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      git(repo, "config", "user.email", "variant@example.test");
+      git(repo, "config", "user.name", "Variant Tests");
+      writeFileSync(join(repo, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(repo, ".gitignore"), ".cache\n_v-*\n");
+      git(repo, "add", ".");
+      git(repo, "commit", "-q", "-m", "initial");
+      const configPath = join(repo, "variants.yaml");
+      const options = { cwd: repo, env: { VARIANT_WORKTREE: "1" } };
+
+      await mcp([...initMessages(), call(3, "variant_create", { slug: "demo" })], configPath, options);
+      const kept = answer(
+        await mcp(
+          [...initMessages(), call(4, "variant_implode", { slug: "demo", branchRm: "no" })],
+          configPath,
+          options,
+        ),
+        4,
+      );
+      expect(kept.isError).not.toBe(true);
+      expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+
+      const removed = answer(
+        await mcp([...initMessages(), call(5, "variant_implode", { slug: "demo" })], configPath, options),
+        5,
+      );
+      expect(removed.isError).not.toBe(true);
+      expect(JSON.parse(removed.text).branchRemoved).toBe(true);
+      expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
     } finally {
       rmSync(parent, { recursive: true, force: true });
     }

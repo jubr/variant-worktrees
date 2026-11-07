@@ -42,7 +42,7 @@ variant watch
 variant implode # implies down
 ```
 
-After `cd`, the slug comes from the branch, so `watch` and `implode` need no `-s`. `implode` stops the processes, drops the database and storage, and removes the worktree. It refuses `main` and work that is not merged into the base branch unless you pass `--force`. The branch itself stays.
+After `cd`, the slug comes from the branch, so `watch` and `implode` need no `-s`. `implode` stops the processes, drops the database and storage, removes the worktree, and then removes the local branch. It refuses `main` and work that is not merged into the base branch unless you pass `--force`. `--branch-rm=no` keeps the branch. `--branch-rm=yes` is the default. A debug log names the branch when `--log-level=debug`.
 
 ## Install
 
@@ -171,7 +171,8 @@ variant watch -s preview-one --detach  # watches as host processes
 variant watch --reprovision            # drop the schemas, then provision again
 variant down -s preview-one            # stop them, keep the data
 variant deprovision -s preview-one     # stop the watches and drop the schemas
-variant implode -s preview-one         # tear down and remove the worktree
+variant implode -s preview-one         # tear down, remove the worktree, then the local branch
+variant implode -s preview-one --branch-rm=no  # keep the local branch
 variant ui --detach                    # the variants web page: print its URL with the token, keep serving
 variant ui --stop                      # end the UI server of the project
 ```

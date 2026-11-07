@@ -79,7 +79,7 @@ variant deprovision
 
 ### implode
 
-Implies `deprovision`, then removes the worktree. The branch stays.
+Implies `deprovision`, then removes the worktree and, by default, the local branch. `--branch-rm=no` keeps the branch.
 
 ```bash
 variant implode

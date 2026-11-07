@@ -38,7 +38,8 @@ const variants = await client.list();
 await client.up("preview-one"); // watches as containers, on a fresh database
 const watched = await client.watch("preview-one", { detach: true }); // host processes
 await client.down("preview-one"); // stop what runs, keep the data
-await client.implode("preview-one"); // tear down and remove the worktree
+await client.implode("preview-one"); // tear down, remove the worktree, then the local branch
+await client.implode("preview-one", { branchRm: "no" }); // keep the local branch
 ```
 
 `create(slug, { from })`, and the `from` option of `provision`, `up`, and `watch`, start a new branch at that commit, tag, or branch. Omit `from` and the branch starts at `variant.baseBranch`. An existing worktree is not moved. `implode` still requires a merge into `variant.baseBranch`.

@@ -3,9 +3,11 @@ import type { VariantClient } from "./types.js";
 export interface ArgDefinition {
   name: string;
   description: string;
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "choice";
   required: boolean;
   short?: string;
+  /** Allowed tokens when `type` is `choice`. A two-token choice uses `yes` and `no`. */
+  values?: readonly string[];
 }
 
 export interface CommandDefinition {
@@ -181,9 +183,19 @@ export const commands: CommandDefinition[] = [
         type: "boolean",
         required: false,
       },
+      {
+        name: "branchRm",
+        description: "Remove the local branch after the worktree: yes or no. Default yes",
+        type: "choice",
+        values: ["yes", "no"],
+        required: false,
+      },
       verboseArg,
     ],
     execute: (client, args) =>
-      client.implode(slugString(args), args.force === undefined ? {} : { force: args.force === true }),
+      client.implode(slugString(args), {
+        ...(args.force === undefined ? {} : { force: args.force === true }),
+        ...(args.branchRm === undefined ? {} : { branchRm: args.branchRm as "yes" | "no" }),
+      }),
   },
 ];

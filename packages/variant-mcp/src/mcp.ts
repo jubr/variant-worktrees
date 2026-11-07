@@ -81,6 +81,8 @@ for (const command of commands) {
       schema = z.number().describe(arg.description);
     } else if (arg.type === "boolean") {
       schema = z.boolean().describe(arg.description);
+    } else if (arg.type === "choice" && arg.values && arg.values.length > 0) {
+      schema = z.enum(arg.values as [string, ...string[]]).describe(arg.description);
     }
     shape[arg.name] = arg.required ? schema : schema.optional();
   }
