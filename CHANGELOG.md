@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `--pull-ff` on `create`, `provision`, `up`, and `watch` (library `pullFf`, MCP `pullFf`, no short flag) fast-forwards the start branch before a new variant branch is created. It does not pull the new branch. The start branch is `from` when that names a local branch, otherwise `variant.baseBranch`. A tag, commit, remote-tracking name, or `HEAD` is used as given. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error includes the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network.
+
 ### Changed
 
 - Onboarding initializes the main checkout when the opened workspace folder has no `.git` directory.

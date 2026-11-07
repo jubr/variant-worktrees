@@ -31,6 +31,7 @@ console.log(result.file, result.gitignore.status, result.detected?.dialect);
 ```ts
 await client.create("preview-one"); // starts at variant.baseBranch
 await client.create("other", { from: "feat/other" });
+await client.create("fresh", { pullFf: true }); // fast-forward the start branch first
 await client.provision("preview-one");
 const variants = await client.list();
 
@@ -41,6 +42,8 @@ await client.implode("preview-one"); // tear down and remove the worktree
 ```
 
 `create(slug, { from })`, and the `from` option of `provision`, `up`, and `watch`, start a new branch at that commit, tag, or branch. Omit `from` and the branch starts at `variant.baseBranch`. An existing worktree is not moved. `implode` still requires a merge into `variant.baseBranch`.
+
+`pullFf: true` on those four methods fast-forwards the start branch before a new variant branch is created. It does not pull the new branch. The start branch is `from` when that names a local branch, and `variant.baseBranch` otherwise. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error includes the command to run again. Omit `pullFf` and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network.
 
 `create` is idempotent for isolated variants. `implode` replaces the former
 `destroy`: it refuses `main`, refuses work that is not merged into
