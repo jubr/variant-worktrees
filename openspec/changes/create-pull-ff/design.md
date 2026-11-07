@@ -8,6 +8,7 @@ See proposal.md for why. `ensureWorktree` creates a new branch with `git worktre
 
 - Fast-forward the start branch before `git worktree add -b`, only when `pullFf` is set and a new branch will be created.
 - Leave no branch and no directory when that update fails.
+- Leave the start checkout un-pulled when the update cannot be applied cleanly.
 - Build the retry line from the command name and the options the call already has.
 
 **Non-Goals:**
@@ -15,7 +16,7 @@ See proposal.md for why. `ensureWorktree` creates a new branch with `git worktre
 - A pull inside the new worktree.
 - A merge commit when the start branch has diverged.
 - Fetching so that a tag, a raw commit, or a remote-tracking name becomes newer.
-- Resetting a checkout that `--autostash` left conflicted.
+- Leaving a conflicted or half-updated checkout for the caller to clean up.
 
 ## Decisions
 
@@ -37,15 +38,30 @@ A start branch checked out in no worktree updates with `git fetch <remote> <upst
 
 Alternative: `git pull --ff --autostash` everywhere. Rejected. It merges on divergence, and it cannot run for a branch that is not checked out.
 
+### Dry-run, then update
+
+`git pull --dry-run` only rehearses the fetch. It does not report an `--autostash` pop conflict, so it is not the preflight.
+
+Preflight, with the local branch and the checkout files untouched:
+
+1. `git fetch <remote> <upstream-branch>` so the remote-tracking ref is current. A fetch failure stops here.
+2. Refuse when `branch.<name>.remote` or `branch.<name>.merge` is missing.
+3. Refuse when `git merge-base --is-ancestor HEAD <upstream>` fails. That is a divergence, not a merge.
+4. `git stash create --include-untracked` snapshots local changes and untracked files without storing a reflog entry and without changing the worktree. An empty snapshot means a clean tree. A non-empty one is checked with `git merge-tree --write-tree <upstream> <snapshot>`. A conflict, or an untracked path the incoming tree would overwrite, refuses the update.
+
+Only a clean preflight continues to `git pull --ff-only --autostash` or to the refspec fetch. Record `HEAD` and that snapshot first. If the mutating command still fails, `git reset --hard` back to the recorded `HEAD`, restore the snapshot onto the worktree, and drop any stash entry the pull left. The checkout then matches the pre-call state: same tip, same local changes, no conflict markers.
+
+Alternative: pull first and reset only after a conflict. Rejected. A conflicted autostash pop is the state the caller asked not to be left in, and the preflight avoids starting it.
+
 ### Reuse and `main` skip the network
 
 The existing-worktree return and the existing-prefixed-branch checkout stay where they are, ahead of the update. Slug `main` returns the primary checkout and does not pull. A second `create --pull-ff` of an existing slug does not move it.
 
 ### Fail before any directory
 
-Run the update after those reuse checks and before `mkdir` and `git worktree add`. Resolve the start commit after a successful update so the new branch sees the new tip. Missing upstream, a rejected fast-forward, and a non-zero pull or fetch throw. Do not delete a stash and do not reset the checkout.
+Run the dry-run and the update after those reuse checks and before `mkdir` and `git worktree add`. Resolve the start commit after a successful update so the new branch sees the new tip. Missing upstream, a rejected dry-run, and a restored failed update throw. The checkout the caller had is unchanged in each of those cases.
 
-The error includes git's stderr, the checkout path when one was updated, one sentence on the repair (set an upstream, reconcile the divergence in that checkout, or fix the conflict `--autostash` left), and one line:
+The error includes git's stderr, the reason (no upstream, divergence, or a conflict with local changes), and one line:
 
 `variant <command> --pull-ff [--from <value>] --slug <slug>`
 
@@ -67,7 +83,7 @@ Fixture repos get a bare clone as `origin` and an upstream on the start branch. 
 
 ## Risks / Trade-offs
 
-- [`--autostash` pop conflicts and leaves the start checkout dirty] → The variant call still fails with no new worktree. The error names that checkout. The implementation does not reset or clean it.
+- [The preflight misses a failure and the pull still dirties the checkout] → The recorded `HEAD` and snapshot are restored before the error returns. A test covers a dry-run conflict and a failed update that must end un-pulled.
 - [Two creates fast-forward the same checkout at once] → Git serializes the update. The loser fails the fast-forward and retries the printed command.
 - [`pullFf` needs a reachable upstream] → Omitted, create stays offline. Set, a network or upstream failure aborts before a worktree exists.
 - [A branch whose upstream remote is not `origin`] → The remote comes from `branch.<name>.remote`.

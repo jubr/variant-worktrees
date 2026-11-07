@@ -2,7 +2,7 @@
 
 ### Requirement: Fast-forward the start branch
 
-When `pullFf` is set and the operation creates a new variant branch, the system SHALL fast-forward the start branch to its upstream before the worktree is added, and that new branch SHALL start at the updated tip. The start branch SHALL be the branch named by `from` when `from` names a branch, and SHALL be `variant.baseBranch` otherwise. When that branch is checked out in a worktree of the repository, the fast-forward SHALL run in that checkout and SHALL restore local changes stashed for the update. When that branch is checked out in no worktree, the fast-forward SHALL update the branch ref from its upstream and SHALL NOT change the files of any existing worktree. The system SHALL NOT pull the new variant branch. The system SHALL NOT create a merge commit on the start branch. When the start branch has no upstream, has diverged from its upstream, or the update fails, the operation SHALL fail and SHALL leave no new branch and no new worktree. The error SHALL name the failure, SHALL say how to repair the checkout that was updated, and SHALL include one runnable `variant` command that repeats the same operation, including `--pull-ff`, the slug, and `from` when `from` was set. When `from` names a tag or a commit, `pullFf` SHALL NOT fetch and the new branch SHALL start at that commit. When an existing worktree for the slug is reused, or an existing branch under any configured prefix is checked out, `pullFf` SHALL NOT move that branch and SHALL NOT contact the remote. When the slug resolves to `main`, `pullFf` SHALL NOT fetch and SHALL NOT pull. When `pullFf` is omitted, the operation SHALL NOT fetch and SHALL NOT pull. The fast-forward SHALL NOT change the working directory of the process.
+When `pullFf` is set and the operation creates a new variant branch, the system SHALL fast-forward the start branch to its upstream before the worktree is added, and that new branch SHALL start at the updated tip. The start branch SHALL be the branch named by `from` when `from` names a branch, and SHALL be `variant.baseBranch` otherwise. Before that fast-forward, the system SHALL dry-run it. The dry-run SHALL detect a conflict with local changes, a divergence from the upstream, a missing upstream, and any other error that would make the fast-forward fail. The dry-run SHALL NOT move the start branch and SHALL NOT change that checkout's files. When the dry-run fails, the system SHALL NOT start the fast-forward, and the start branch and its checkout SHALL stay at their pre-call state, including local changes. When that branch is checked out in a worktree of the repository and the dry-run passes, the fast-forward SHALL run in that checkout and SHALL restore local changes stashed for the update. When that branch is checked out in no worktree and the dry-run passes, the fast-forward SHALL update the branch ref from its upstream and SHALL NOT change the files of any existing worktree. When a fast-forward starts and then fails, the system SHALL restore the start branch and its checkout to the pre-call state, including local changes, and SHALL leave no conflict markers. The system SHALL NOT pull the new variant branch. The system SHALL NOT create a merge commit on the start branch. When the start branch has no upstream, has diverged from its upstream, or the update fails, the operation SHALL fail and SHALL leave no new branch and no new worktree. The error SHALL name the failure and SHALL include one runnable `variant` command that repeats the same operation, including `--pull-ff`, the slug, and `from` when `from` was set. When `from` names a tag or a commit, `pullFf` SHALL NOT fetch and the new branch SHALL start at that commit. When an existing worktree for the slug is reused, or an existing branch under any configured prefix is checked out, `pullFf` SHALL NOT move that branch and SHALL NOT contact the remote. When the slug resolves to `main`, `pullFf` SHALL NOT fetch and SHALL NOT pull. When `pullFf` is omitted, the operation SHALL NOT fetch and SHALL NOT pull. The fast-forward SHALL NOT change the working directory of the process.
 
 #### Scenario: Checked-out base branch is fast-forwarded first
 
@@ -48,20 +48,30 @@ When `pullFf` is set and the operation creates a new variant branch, the system 
 
 - **WHEN** `main` has commits that are not in its upstream and `create("add-auth", { pullFf: true })` would create a branch
 - **THEN** the call fails
+- **AND** `main` stays at its previous tip
 - **AND** branch `feat/add-auth` does not exist and the worktree directory does not exist
 - **AND** the error names the divergence and includes a runnable `variant create` command with `--pull-ff` and the slug `add-auth`
+
+#### Scenario: Dry-run stops a conflicting update
+
+- **WHEN** the primary checkout is on `main` with local modifications that conflict with the commits on `origin/main`, and `create("add-auth", { pullFf: true })` would create a branch
+- **THEN** the call fails before `main` moves
+- **AND** those modifications are present, with no conflict markers
+- **AND** branch `feat/add-auth` does not exist and the worktree directory does not exist
+- **AND** the error names the conflict and includes a runnable `variant create` command with `--pull-ff` and the slug `add-auth`
+
+#### Scenario: Failed update is restored
+
+- **WHEN** the dry-run passes and the fast-forward of a checked-out start branch then fails
+- **THEN** the call fails with no new branch and no new worktree
+- **AND** the start branch ref and the checkout files match their pre-call state, including local changes and with no conflict markers
+- **AND** the error names the failure and includes the runnable `variant` command that repeats the call
 
 #### Scenario: Missing upstream aborts
 
 - **WHEN** `main` has no upstream and `create("add-auth", { pullFf: true })` would create a branch
 - **THEN** the call fails before a branch or worktree exists
 - **AND** the error says that `main` has no upstream and includes a runnable `variant create` command with `--pull-ff` and the slug `add-auth`
-
-#### Scenario: Failed update names the repair
-
-- **WHEN** the fast-forward of a checked-out start branch fails
-- **THEN** the call fails with no new branch and no new worktree
-- **AND** the error names that checkout, says how to repair it, and includes the runnable `variant` command that repeats the call
 
 #### Scenario: Retry command keeps from
 

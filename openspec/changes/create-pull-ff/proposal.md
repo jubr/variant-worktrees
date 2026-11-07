@@ -10,7 +10,7 @@ A new variant branch starts at whatever commit the start branch has locally. Age
 - Omitted `pullFf` keeps today's create: no fetch and no pull.
 - The start branch is `from` when that option names a branch, and `variant.baseBranch` otherwise. The fast-forward runs in the checkout that has that branch, with local changes stashed and restored. A start branch that is not checked out is fast-forwarded by updating its ref from its upstream. The new worktree is not pulled: its branch has no upstream.
 - A start point that is a tag or a commit is used as given. `pullFf` does not fetch for it.
-- Failure leaves no new branch and no new worktree. The error says what failed, how to fix that checkout, and the exact `variant` command to run again.
+- A dry-run precedes the fast-forward. A predicted conflict or any other error skips the update. The start branch and its checkout stay as they were, including local changes. If the update still fails after it starts, that same un-pulled state is restored. No conflict markers remain. The error names the failure and the exact `variant` command to run again.
 - An existing worktree for the slug, or an existing branch under any configured prefix, is checked out as it is. `pullFf` does not move it.
 - `vw-spec-start` stops fetching and pulling `main` itself. Its create step passes `--pull-ff`.
 
@@ -22,7 +22,7 @@ A new variant branch starts at whatever commit the start branch has locally. Age
 
 ### Modified Capabilities
 
-- `variant-api/core`: before a new worktree branch is created, `pullFf` fast-forwards the start branch. Failure creates nothing. Reuse of an existing worktree or prefixed branch is unchanged.
+- `variant-api/core`: before a new worktree branch is created, `pullFf` dry-runs a fast-forward of the start branch, then does it only when that dry-run is clean. Failure creates nothing and leaves the start checkout un-pulled. Reuse of an existing worktree or prefixed branch is unchanged.
 - `variant-api/commands`: `create`, `provision`, `up`, and `watch` accept an optional boolean `pullFf`. The CLI, MCP tools, and generated forms derive it from that definition.
 - `variant-mcp/tools`: `variant_create`, `variant_provision`, `variant_up`, and `variant_watch` accept optional `pullFf`.
 
