@@ -138,8 +138,7 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 
 - `ci-branch.yaml` — every push to a branch other than `main`: `task check:full`
   (install, lint, build, test, commitlint, docs build), `task lint:workflows`,
-  both `.vsix` packages, and a macOS arm64 pre-release `variant` executable
-  (`task package:vsix`, `task package:cli`). Also called by the release workflow.
+  and both `.vsix` packages (`task package:vsix`). Also called by the release workflow.
 - `ci-release.yaml` — push to `main`: runs `ci-branch.yaml`, then builds both `.vsix`
   files and `variant` single-file executables (`bun build --compile`) for
   linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
