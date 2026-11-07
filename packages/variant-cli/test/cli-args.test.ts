@@ -19,6 +19,30 @@ describe("command line arguments", () => {
     expect(collectArgs(definition("implode"), { force: true }, "demo")).toEqual({ slug: "demo", force: true });
   });
 
+  it("passes branchRm yes and no and rejects other tokens", async () => {
+    expect(collectArgs(definition("implode"), { branchRm: "yes" }, "demo")).toEqual({
+      slug: "demo",
+      branchRm: "yes",
+    });
+    expect(collectArgs(definition("implode"), { branchRm: "no" }, "demo")).toEqual({ slug: "demo", branchRm: "no" });
+    expect(collectArgs(definition("implode"), {}, "demo")).toEqual({ slug: "demo" });
+    expect(() => collectArgs(definition("implode"), { branchRm: "true" }, "demo")).toThrow(/--branch-rm/);
+    expect(() => collectArgs(definition("implode"), { branchRm: "true" }, "demo")).toThrow(/yes, no/);
+    expect(() => collectArgs(definition("implode"), { branchRm: "maybe" }, "demo")).toThrow(/yes, no/);
+
+    const seen: unknown[] = [];
+    await definition("implode").execute(
+      {
+        implode: async (...args: unknown[]) => {
+          seen.push(args);
+          return {};
+        },
+      } as never,
+      { slug: "demo", branchRm: "no", force: true },
+    );
+    expect(seen).toEqual([["demo", { force: true, branchRm: "no" }]]);
+  });
+
   it("passes --verbose to provision", () => {
     expect(collectArgs(definition("provision"), { verbose: true })).toEqual({ verbose: true });
   });

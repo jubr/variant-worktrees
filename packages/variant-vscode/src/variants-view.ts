@@ -206,7 +206,10 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   const confirmImplode = async (slug: string): Promise<boolean> => {
     const choice = await vscode.window.showWarningMessage(
       `Implode ${slug}?`,
-      { modal: true, detail: `This removes the database target and the worktree of ${slug}. It cannot be undone.` },
+      {
+        modal: true,
+        detail: `This removes the database target, the worktree, and the branch of ${slug}. It cannot be undone.`,
+      },
       "Implode",
     );
     return choice === "Implode";

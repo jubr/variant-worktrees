@@ -39,8 +39,9 @@ MCP client configuration:
 - `variant_deprovision({ slug, verbose })` — stop the watches and drop the schemas. A `deprovision` script replaces the drop. It refuses `main` and leaves the worktree.
 - `variant_watch({ slug, from, pullFf, miseInstall, verbose, reprovision })` — start the watch processes detached and return their pids, ports and
   URLs; their output goes to `.cache/variant/watch.log` in the worktree (see `log` of `variant_status`). `from` and `pullFf` are the same as `variant_create`. `miseInstall` is passed through to that create. `reprovision` drops the schemas before provisioning again. A tool call cannot stay attached to a console, so `detach` is always set. `variant_list` and `variant_status` carry `schemas` when `db.multi` is set.
-- `variant_implode({ slug, force })` — stop the variant, drop its database and storage, clear its state and
-  remove its worktree. It refuses `main` and work that is not merged into `variant.baseBranch`, including a branch started with `from`; the error names
+- `variant_implode({ slug, force, branchRm })` — stop the variant, drop its database and storage, clear its state,
+  remove its worktree, and then remove the local branch. `branchRm` is `yes` or `no`. Omitted, it is `yes`. `no` keeps the branch.
+  It refuses `main` and work that is not merged into `variant.baseBranch`, including a branch started with `from`; the error names
   `force`, which overrides the gate.
 
 There is no `variant_destroy`; `variant_implode` replaces it.

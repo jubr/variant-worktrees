@@ -463,3 +463,12 @@ The extension SHALL write each library log event to the existing **Variant Workt
 - **WHEN** the library emits the database contact warning
 - **THEN** the **Variant Worktrees** log channel receives it as a warning
 - **AND** no other log channel is created for it
+
+### Requirement: Implode modal names the branch
+
+The native implode confirmation SHALL name the variant and SHALL say that the database target, the worktree, and the branch are removed. Accepting it SHALL call `implode` without a branch choice, so the implode default applies.
+
+#### Scenario: Modal names the branch
+
+- **WHEN** a person presses the explosion control on a clean `demo`
+- **THEN** the modal detail says the branch of `demo` is removed

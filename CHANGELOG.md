@@ -10,6 +10,7 @@
 
 ### Changed
 
+- `implode` removes the local branch after the worktree. `--branch-rm=yes|no` chooses that step. The default is `yes`. `--branch-rm=no` keeps the branch. A debug log names the branch.
 - Onboarding initializes the main checkout when the opened workspace folder has no `.git` directory.
 - Feature-branch CI no longer builds a macOS `variant` executable. Release still builds every platform executable.
 - `variant --version` prints the version and a parenthetical, then a cursive `Variant-Worktrees` banner, then the platform and the repository URL. On `main` the parenthetical is the UTC date. Off `main` it is the UTC date and time, and the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color. `task bleed:vsix` writes that version token into the unpacked extension `package.json`.

@@ -97,7 +97,30 @@ describe("text output of each command", () => {
 
     expect(out.split("\n")[0]).toBe("Imploded demo");
     expect(out).toContain("removed worktree /work/_v-demo");
+    expect(out).not.toContain("removed branch");
     expect(out).not.toContain("nothing to commit");
+  });
+
+  it("names a removed branch and skips the line when the branch was kept", () => {
+    const removed = text("implode", {
+      slug: "demo",
+      removed: true,
+      worktreeRemoved: true,
+      worktree: "/work/_v-demo",
+      branch: "feat/demo",
+      branchRemoved: true,
+    });
+    const kept = text("implode", {
+      slug: "demo",
+      removed: true,
+      worktreeRemoved: true,
+      worktree: "/work/_v-demo",
+      branch: "feat/demo",
+      branchRemoved: false,
+    });
+
+    expect(removed).toContain("removed branch feat/demo");
+    expect(kept).not.toContain("removed branch");
   });
 
   it("says when an implode found nothing", () => {

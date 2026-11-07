@@ -131,10 +131,11 @@ variant deprovision -s feature-forty-two
 
 ## implode
 
-Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed and the old `variants.local.yaml` is not recreated.
+Stop the variant, drop its schemas and storage, clear its state, remove its worktree, and then remove its local branch. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. `--branch-rm=yes|no` chooses the branch step. The default is `yes`. `--branch-rm=no` keeps the branch. `true` and `false` are rejected. With `--log-level=debug`, stderr names the branch and whether it was removed or kept. The default log threshold hides that line. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed and the old `variants.local.yaml` is not recreated.
 
 ```bash
 variant implode -s feature-forty-two
+variant implode -s feature-forty-two --branch-rm=no
 variant implode -s feature-forty-two --force
 ```
 

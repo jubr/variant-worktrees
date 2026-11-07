@@ -176,6 +176,8 @@ export interface WatchResult {
 export interface ImplodeOptions {
   /** Implode even when the work is not merged, and remove a worktree that has local changes. */
   force?: boolean;
+  /** Remove the local branch after the worktree. Omitted means yes. */
+  branchRm?: "yes" | "no";
   /** Receives the report of what the worktree held; the default writes to stderr. */
   log?: (line: string) => void;
 }
@@ -191,6 +193,10 @@ export interface ImplodeResult {
   worktree?: string;
   /** `git status`, `git diff --stat` and the short diff of the worktree as it was before it was removed. */
   report?: string;
+  /** The local branch of the variant, when one was found. */
+  branch?: string;
+  /** Whether that local branch was deleted. */
+  branchRemoved: boolean;
 }
 
 /** What `up` started. */
