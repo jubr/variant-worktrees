@@ -4335,6 +4335,8 @@ export const window = {
     return box;
   },
   showInformationMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
+  showQuickPick: async <T>(_items: readonly T[] | Promise<readonly T[]>, _options?: unknown): Promise<T | undefined> =>
+    undefined,
   showWarningMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showErrorMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showTextDocument: async (..._args: unknown[]): Promise<unknown> => undefined,
