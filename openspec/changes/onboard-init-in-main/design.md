@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md. `initProject` writes into the `cwd` it is given. The editor builds that client from the first workspace folder and never passes another directory. `resolveMainVscodeDir` already returns the main checkout's `.vscode` directory for a variant root, a linked worktree, and a single repo. `detectVariantMain` looks at the parent of its start directory, so it misses an `AGENTS.md` symlink that sits in the workspace folder itself. `configFromAgentsSymlink` also requires a `variants.yaml`, which is what init is about to create.
+See proposal.md. `initProject` writes into the `cwd` it is given. The editor builds that client from the first workspace folder and never passes another directory. `configFromAgentsSymlink` already follows an `AGENTS.md` symlink to a git checkout, then stops unless that checkout contains `variants.yaml`. `primaryWorktree` is the first path from `git worktree list`, which is the main checkout when linked worktrees are siblings. `resolveMainVscodeDir` is a different walk and is not used here.
 
 `ci-branch.yaml` has three jobs. `ci-release.yaml` calls that workflow, then runs `task package:cli:all` on its own Ubuntu job. Nothing in the release job downloads the feature-branch CLI artifact.
 
@@ -13,7 +13,7 @@ See proposal.md. `initProject` writes into the `cwd` it is given. The editor bui
 
 **Non-Goals:**
 
-- Changing `resolveMainVscodeDir` or teaching `initProject` to search.
+- Changing `resolveMainVscodeDir`, or teaching `initProject` to search.
 - A new macOS job, or a change to `task package:cli` or `ci-release.yaml`.
 
 ## Decisions
@@ -24,15 +24,19 @@ See proposal.md. `initProject` writes into the `cwd` it is given. The editor bui
 
 Alternative: `initProject` walks to the main checkout when `cwd` has no `.git` directory. Rejected. That would change `variant init` and `variant_init` for every caller. The spec keeps those on the process working directory.
 
-### The checkout is `dirname` of `resolveMainVscodeDir`
+### Two existing finders, then a picker
 
-When `lstat` of `<workspace>/.git` is a directory, the onboarding directory is the workspace folder. Otherwise it is `dirname(resolveMainVscodeDir(workspace))`. That function already walks the workspace and its ancestors for an `AGENTS.md` symlink and for a single repo that holds the real `AGENTS.md`, and it does not need `variants.yaml`. Its fallback is `<workspace>/.vscode`, so `dirname` is the workspace folder and init stays there.
+When `lstat` of `<workspace>/.git` is a directory, the onboarding directory is the workspace folder. Otherwise:
 
-A `.git` file (linked worktree) fails the directory test, so the walk runs and lands on the main checkout.
+1. If `<workspace>/AGENTS.md` is a symlink and the directory of the real file contains a `.git` entry, that directory is the checkout. Do not require `variants.yaml`. This is the checkout half of `configFromAgentsSymlink`, without the config-file check.
+2. Otherwise, if child directories are worktrees of one repository, the checkout is `primaryWorktree` of any of them (the first `git worktree list` path). A lone child that contains `.git` is that checkout.
+3. Otherwise the choice is in doubt: the symlink target and the primary worktree differ, or more than one child contains `.git` and they are not worktrees of one repository. Show a quick pick of those directories (each contains `.git`). The chosen path is the directory detection and `init` use. Cancel keeps the workspace folder and writes nothing.
+
+A `.git` file fails the directory test, so a linked worktree falls through to rule 2 and lands on the primary worktree.
+
+Alternative: `dirname(resolveMainVscodeDir(workspace))`. Rejected. That walk answers where the editor socket lives, not where `init` should write.
 
 Alternative: `detectVariantMain(workspace)`. Rejected for the variant-root case. It inspects the parent of the start directory, and the symlink is in the start directory.
-
-Alternative: `configFromAgentsSymlink`. Rejected. It returns nothing until `variants.yaml` exists.
 
 ### CI drops the job and nothing else
 
@@ -43,8 +47,8 @@ Alternative: keep the smoke and drop only the artifact upload. Rejected. The job
 ## Risks / Trade-offs
 
 - [A broken macOS arm64 compile shows up on the release run, not on the feature branch] → Accepted. Release still cross-compiles that target. No feature-branch runner replaces the smoke.
-- [A workspace that is a subdirectory of the main checkout has no `.git` directory of its own] → The ancestor walk returns the checkout root, and init writes there. That matches "find the main repo".
-- [Adoption and the commit watcher move with init] → A container workspace starts watching the checkout's reflog and reads that checkout's environment. The opened folder is not watched. Specified.
+- [The person dismisses the picker] → No file is written. Adoption and the commit watcher stay on the workspace folder until a directory is chosen.
+- [Adoption and the commit watcher move with init] → After a checkout is chosen, they use that checkout. The opened folder is not watched. Specified.
 
 ## Migration Plan
 

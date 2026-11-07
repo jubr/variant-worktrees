@@ -6,10 +6,11 @@ Feature-branch CI also spends a macOS runner on a pre-release `variant` executab
 
 ## What Changes
 
-- When the workspace folder has no `.git` directory, onboarding resolves the main checkout with the same detection that finds the main `.vscode` directory and runs `init` there.
-- A `.git` file (a linked worktree) is not a `.git` directory, so that workspace also initializes the main checkout.
+- When the workspace folder has no `.git` directory, onboarding chooses the checkout by tracing an `AGENTS.md` symlink to a directory that contains `.git`, or, failing that, by taking the primary worktree among sibling git worktrees. `init` runs in that directory.
+- A `.git` file (a linked worktree) is not a `.git` directory, so that workspace also uses those two rules.
+- When the two rules disagree, or more than one directory contains `.git` and neither rule picks a single checkout, a dialog lists the eligible directories and the person chooses where detection and `init` run. Cancel writes nothing.
 - When the workspace folder has a `.git` directory, onboarding still runs `init` in that folder.
-- When detection finds no separate checkout, `init` stays in the workspace folder.
+- When no eligible directory exists, `init` stays in the workspace folder.
 - The same directory is used for the "already has `variants.yaml`" checkbox, adoption, and the one-time commit notification.
 - `variant init` and `variant_init` still act on the directory they are given. Only the editor chooses a different directory.
 - Remove the `cli-prerelease` job from `.github/workflows/ci-branch.yaml`. A feature-branch run no longer compiles, smoke-tests, or uploads a macOS arm64 `variant` executable. The gate, the Node smoke job, and both `.vsix` packages stay. Release still builds every platform executable.
