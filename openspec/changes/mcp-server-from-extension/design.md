@@ -27,7 +27,7 @@ The `vscode.cursor` namespace is not in `@types/vscode`. A `declare module "vsco
 
 ### The editor spawns a bundled ESM script
 
-A second esbuild build, separate from the default CommonJS config, writes `dist/mcp.mjs` with `format: "esm"`, `platform: "node"`, `target: "node22"`, `bundle: true`, and `external: ["bun:sqlite"]`. It does not use the CommonJS `import.meta.url` banner; the ESM bundle has a real `import.meta.url`. The entry is `packages/variant-vscode/src/mcp-entry.ts`, which imports `packages/variant-mcp/src/mcp.ts` by relative path so esbuild inlines `variant-api`. Importing the `variant-mcp` package name would load `dist/mcp.js`, which externalizes `variant-api` and cannot run from the vsix. `.vscodeignore` already ships `dist/*`.
+A second esbuild build, separate from the default CommonJS config, writes `dist/mcp.mjs` with `format: "esm"`, `platform: "node"`, `target: "node22"`, `bundle: true`, and `external: ["bun:sqlite"]`. It keeps a real `import.meta.url`. Its banner only creates a `require` with `createRequire`, because `yaml`'s CommonJS build calls `require("process")` and an ESM bundle otherwise throws on that call. It does not use the extension bundle's `__importMetaUrl` banner. The entry is `packages/variant-vscode/src/mcp-entry.ts`, which imports `packages/variant-mcp/src/mcp.ts` by relative path so esbuild inlines `variant-api`. Importing the `variant-mcp` package name would load `dist/mcp.js`, which externalizes `variant-api` and cannot run from the vsix. `.vscodeignore` already ships `dist/*`.
 
 `mcp-entry.ts` reads `--cwd <directory>`, `process.chdir`s there, splices that flag out of `process.argv`, then imports the server. `mcp.ts` keeps `strict: true` and only `--config`. No `--cwd` means no `chdir`.
 
