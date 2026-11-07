@@ -42,6 +42,7 @@ export const prepareVariant = async (
           command: mode,
           detach: options.detach,
           reprovision: options.reprovision,
+          miseInstall: options.miseInstall,
         })
       ).worktree ?? checkoutRoot(repositoryDirectory(context));
   }

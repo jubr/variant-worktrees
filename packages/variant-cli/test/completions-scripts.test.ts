@@ -70,6 +70,7 @@ describe("describeCli", () => {
       "slug",
       "from",
       "pull-ff",
+      "mise-install",
       "verbose",
       "json",
       "yaml",

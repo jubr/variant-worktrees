@@ -4,6 +4,7 @@
 
 ### Added
 
+- `--mise-install` on `create`, `provision`, and `watch` (library and MCP `miseInstall`, values `bg`, `sync`, and `no`, no short flag). Omit it and the value is `bg`. The install runs only when the worktree has a Mise config, and only from `create`; `provision` and `watch` pass the flag through. `up` does not take it, and there is no configuration-file key. The run is `trust --all`, then `install`, in the worktree. `bg` returns immediately and writes `{worktree}/.cache/variant/mise-install.log`. `sync` waits and fails the command when Mise fails; the worktree stays. Slug `main` and a create that makes no worktree skip it.
 - `--pull-ff` on `create`, `provision`, `up`, and `watch` (library `pullFf`, MCP `pullFf`, no short flag) fast-forwards the start branch before a new variant branch is created. It does not pull the new branch. The start branch is `from` when that names a local branch, otherwise `variant.baseBranch`. A tag, commit, remote-tracking name, or `HEAD` is used as given. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error includes the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network.
 - A release created from `main` attaches `packslip.sigstore.json` for the six `variant` executables. The signing job has `contents: read`.
 

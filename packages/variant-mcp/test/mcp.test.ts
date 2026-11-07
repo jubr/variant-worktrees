@@ -218,14 +218,17 @@ describe("MCP server", () => {
       const properties = (name: string) =>
         Object.keys(tools.find((tool) => tool.name === name)?.inputSchema.properties ?? {});
 
-      expect(properties("variant_create")).toEqual(["slug", "from", "pullFf", "verbose"]);
-      expect(properties("variant_provision")).toEqual(["slug", "from", "pullFf", "verbose"]);
+      expect(properties("variant_create")).toEqual(["slug", "from", "pullFf", "miseInstall", "verbose"]);
+      expect(properties("variant_provision")).toEqual(["slug", "from", "pullFf", "miseInstall", "verbose"]);
       expect(properties("variant_up")).toEqual(["slug", "from", "pullFf", "verbose"]);
-      expect(properties("variant_watch")).toEqual(["slug", "from", "pullFf", "reprovision", "verbose"]);
+      expect(properties("variant_watch")).toEqual(["slug", "from", "pullFf", "miseInstall", "reprovision", "verbose"]);
       expect(properties("variant_down")).not.toContain("from");
       expect(properties("variant_down")).not.toContain("pullFf");
+      expect(properties("variant_down")).not.toContain("miseInstall");
+      expect(properties("variant_up")).not.toContain("miseInstall");
       expect(properties("variant_implode")).not.toContain("from");
       expect(properties("variant_implode")).not.toContain("pullFf");
+      expect(properties("variant_implode")).not.toContain("miseInstall");
       expect(properties("variant_implode")).toContain("force");
       expect(properties("variant_implode")).toContain("branchRm");
       const implode = tools.find((tool) => tool.name === "variant_implode");
@@ -339,6 +342,141 @@ describe("MCP server", () => {
           ],
           configFile(directory),
         );
+        const response = JSON.parse(result.lines.at(-1) ?? "{}");
+        const rejected = response.error !== undefined || response.result?.isError === true;
+        expect(rejected).toBe(true);
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("returns from variant_create while a background install is still running", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mcp-mise-")));
+    const repo = join(parent, "repo");
+    const marker = join(parent, "finished");
+    const log = join(parent, "calls");
+    const binary = join(parent, "mise");
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      execFileSync("git", ["-C", repo, "config", "user.email", "variant@example.test"]);
+      execFileSync("git", ["-C", repo, "config", "user.name", "Variant Tests"]);
+      writeFileSync(join(repo, "README.md"), "test\n");
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      execFileSync("git", ["-C", repo, "add", "README.md", "mise.toml"]);
+      execFileSync("git", ["-C", repo, "commit", "-q", "-m", "initial"]);
+      writeFileSync(log, "");
+      writeFileSync(
+        binary,
+        `#!/bin/sh\necho "$*" >> "${log}"\ncase "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0\n`,
+      );
+      chmodSync(binary, 0o755);
+      writeFileSync(join(repo, "variants.yaml"), `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
+
+      const result = await mcp(
+        [...initMessages(), call(3, "variant_create", { slug: "add-auth" })],
+        join(repo, "variants.yaml"),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      const response = JSON.parse(result.lines.at(-1) ?? "{}");
+
+      expect(response.result?.isError).not.toBe(true);
+      expect(existsSync(marker)).toBe(false);
+      const deadline = Date.now() + 3000;
+      while (!existsSync(marker) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(existsSync(marker)).toBe(true);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("skips Mise when miseInstall is no and fails later before a worktree", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mcp-mise-")));
+    const repo = join(parent, "repo");
+    const log = join(parent, "calls");
+    const binary = join(parent, "mise");
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      execFileSync("git", ["-C", repo, "config", "user.email", "variant@example.test"]);
+      execFileSync("git", ["-C", repo, "config", "user.name", "Variant Tests"]);
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      execFileSync("git", ["-C", repo, "add", "mise.toml"]);
+      execFileSync("git", ["-C", repo, "commit", "-q", "--allow-empty", "-m", "initial"]);
+      writeFileSync(binary, '#!/bin/sh\necho "$3" >> "$LOG"\nexit 0\n'.replace("$LOG", log));
+      chmodSync(binary, 0o755);
+      writeFileSync(log, "");
+      writeFileSync(join(repo, "variants.yaml"), `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
+      const skipped = await mcp(
+        [...initMessages(), call(3, "variant_create", { slug: "quiet", miseInstall: "no" })],
+        join(repo, "variants.yaml"),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      expect(JSON.parse(skipped.lines.at(-1) ?? "{}").result?.isError).not.toBe(true);
+      expect(readFileSync(log, "utf8")).toBe("");
+
+      const invalid = await mcp(
+        [...initMessages(), call(3, "variant_create", { slug: "demo", miseInstall: "later" })],
+        join(repo, "variants.yaml"),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      const response = JSON.parse(invalid.lines.at(-1) ?? "{}");
+      const rejected = response.error !== undefined || response.result?.isError === true;
+      expect(rejected).toBe(true);
+      expect(existsSync(join(repo, "_v-demo"))).toBe(false);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("waits for a sync provision and accepts no on watch", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mcp-mise-")));
+    const repo = join(parent, "repo");
+    const log = join(parent, "calls");
+    const binary = join(parent, "mise");
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main", repo]);
+      execFileSync("git", ["-C", repo, "config", "user.email", "variant@example.test"]);
+      execFileSync("git", ["-C", repo, "config", "user.name", "Variant Tests"]);
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      execFileSync("git", ["-C", repo, "add", "mise.toml"]);
+      execFileSync("git", ["-C", repo, "commit", "-q", "--allow-empty", "-m", "initial"]);
+      writeFileSync(binary, `#!/bin/sh\necho "$3" >> "${log}"\nexit 0\n`);
+      chmodSync(binary, 0o755);
+      writeFileSync(log, "");
+      writeFileSync(
+        join(repo, "variants.yaml"),
+        `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n  watches:\n    be:\n      kind: nestjs\n      dir: .\n      watch: exit 0\n`,
+      );
+      const provisioned = await mcp(
+        [...initMessages(), call(3, "variant_provision", { slug: "add-auth", miseInstall: "sync" })],
+        join(repo, "variants.yaml"),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      expect(JSON.parse(provisioned.lines.at(-1) ?? "{}").result?.isError).not.toBe(true);
+      const calls = readFileSync(log, "utf8");
+      expect(calls.indexOf("trust")).toBeGreaterThanOrEqual(0);
+      expect(calls.indexOf("trust")).toBeLessThan(calls.indexOf("install"));
+
+      writeFileSync(log, "");
+      const watched = await mcp(
+        [...initMessages(), call(3, "variant_watch", { slug: "watched", miseInstall: "no" })],
+        join(repo, "variants.yaml"),
+        { cwd: repo, env: { VARIANT_WORKTREE: "1" } },
+      );
+      expect(JSON.parse(watched.lines.at(-1) ?? "{}").result?.isError).not.toBe(true);
+      expect(readFileSync(log, "utf8")).toBe("");
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects miseInstall on up, down, and implode", async () => {
+    const directory = tempDirectory();
+    try {
+      for (const name of ["variant_up", "variant_down", "variant_implode"]) {
+        const result = await mcp([...initMessages(), call(3, name, { miseInstall: "no" })], configFile(directory));
         const response = JSON.parse(result.lines.at(-1) ?? "{}");
         const rejected = response.error !== undefined || response.result?.isError === true;
         expect(rejected).toBe(true);

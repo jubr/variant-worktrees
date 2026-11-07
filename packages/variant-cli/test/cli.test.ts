@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { platformToken, VERSION_BANNER } from "../src/version-line.js";
 import { runCli, runCommand } from "./support/cli.js";
@@ -97,6 +97,26 @@ describe("variant CLI", () => {
       const help = (await runCli([name, "--help"])).stdout;
       expect(help).toContain("--pull-ff");
       expect(help).not.toMatch(/-\w, --pull-ff/);
+    }
+  });
+
+  it("lists --mise-install with no short flag on create, provision, and watch", async () => {
+    for (const name of ["create", "provision", "watch"]) {
+      const help = (await runCli([name, "--help"])).stdout;
+      expect(help).toContain("--mise-install");
+      expect(help).toContain("bg");
+      expect(help).toContain("sync");
+      expect(help).toContain("no");
+      expect(help).toContain("background");
+      expect(help).not.toMatch(/-\w, --mise-install/);
+    }
+  });
+
+  it("rejects --mise-install on up, down, implode, and config", async () => {
+    for (const name of ["up", "down", "implode", "config"]) {
+      const result = await runCli([name, "--mise-install=no"]);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("Unknown flag: --mise-install");
     }
   });
 
@@ -261,6 +281,72 @@ describe("variant CLI", () => {
       );
       const removed = await variant(["implode", "-s", "other", "--log-level=debug"]);
       expect(removed.stderr).toContain("debug: removed branch feat/other");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("exits before a background install finishes and skips install for no", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-cli-mise-")));
+    const directory = join(parent, "repo");
+    const marker = join(parent, "finished");
+    const log = join(parent, "calls");
+    const binary = join(parent, "mise");
+    writeFileSync(
+      binary,
+      `#!/bin/sh\necho "$3" >> "${log}"\ncase "$3" in install) sleep 0.4; echo done > "${marker}";; esac\nexit 0\n`,
+    );
+    chmodSync(binary, 0o755);
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+    execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+    writeFileSync(join(directory, "mise.toml"), "[tools]\n");
+    writeFileSync(
+      join(directory, "variants.yaml"),
+      `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`,
+    );
+    execFileSync("git", ["-C", directory, "add", "mise.toml", "variants.yaml"]);
+    execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
+    writeFileSync(log, "");
+    const variant = (args: string[]) =>
+      runCommand(["bun", join(import.meta.dir, "../src/cli.ts")], args, { VARIANT_WORKTREE: "1" }, directory);
+    try {
+      const created = await variant(["create", "--slug", "demo"]);
+      expect(created.exitCode).toBe(0);
+      expect(existsSync(marker)).toBe(false);
+      expect(created.stderr).toContain("background");
+      const deadline = Date.now() + 3000;
+      while (!existsSync(marker) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(existsSync(marker)).toBe(true);
+
+      writeFileSync(log, "");
+      const skipped = await variant(["create", "--mise-install=no", "--slug", "quiet"]);
+      expect(skipped.exitCode).toBe(0);
+      expect(readFileSync(log, "utf8")).toBe("");
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects --mise-install=later before creating a worktree", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-mise-")));
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
+    execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
+    execFileSync("git", ["-C", directory, "commit", "-q", "--allow-empty", "-m", "initial"]);
+    try {
+      const result = await runCommand(
+        ["bun", join(import.meta.dir, "../src/cli.ts")],
+        ["create", "--mise-install=later", "--slug", "demo"],
+        { VARIANT_WORKTREE: "1" },
+        directory,
+      );
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("bg, sync, or no");
+      expect(existsSync(join(directory, "_v-demo"))).toBe(false);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

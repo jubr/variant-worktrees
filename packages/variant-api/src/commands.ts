@@ -58,6 +58,22 @@ const fromOf = (args: Record<string, unknown>): { from?: string } =>
 const pullFfOf = (args: Record<string, unknown>): { pullFf?: boolean } =>
   args.pullFf === true ? { pullFf: true } : {};
 
+const miseInstallArg: ArgDefinition = {
+  name: "miseInstall",
+  description:
+    "Install Mise tools in the worktree: bg, sync, or no. Omit to install in the background when the worktree has a Mise config",
+  type: "string",
+  required: false,
+};
+
+const miseInstallOf = (args: Record<string, unknown>): { miseInstall: "bg" | "sync" | "no" } => {
+  const value = args.miseInstall ?? "bg";
+  if (value !== "bg" && value !== "sync" && value !== "no") {
+    throw new Error(`miseInstall must be bg, sync, or no, not ${String(value)}`);
+  }
+  return { miseInstall: value };
+};
+
 const stepArg = (name: string, description: string): ArgDefinition => ({
   name,
   description: `${description}; on unless turned off with --${name}=false`,
@@ -101,8 +117,9 @@ export const commands: CommandDefinition[] = [
   {
     name: "create",
     description: "Create or refresh a database variant",
-    args: [slugArg, fromArg, pullFfArg, verboseArg],
-    execute: (client, args) => client.create(slugString(args), { ...fromOf(args), ...pullFfOf(args) }),
+    args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
+    execute: (client, args) =>
+      client.create(slugString(args), { ...fromOf(args), ...pullFfOf(args), ...miseInstallOf(args) }),
   },
   {
     name: "list",
@@ -119,9 +136,14 @@ export const commands: CommandDefinition[] = [
   {
     name: "provision",
     description: "Run configured variant runtime and seed commands",
-    args: [slugArg, fromArg, pullFfArg, verboseArg],
+    args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
     execute: (client, args) =>
-      client.provision(slugString(args), { ...verbose(args), ...fromOf(args), ...pullFfOf(args) }),
+      client.provision(slugString(args), {
+        ...verbose(args),
+        ...fromOf(args),
+        ...pullFfOf(args),
+        ...miseInstallOf(args),
+      }),
   },
   {
     name: "up",
@@ -148,6 +170,7 @@ export const commands: CommandDefinition[] = [
       slugArg,
       fromArg,
       pullFfArg,
+      miseInstallArg,
       {
         name: "detach",
         description: "Start the processes in the background and return",
@@ -167,6 +190,7 @@ export const commands: CommandDefinition[] = [
         ...verbose(args),
         ...fromOf(args),
         ...pullFfOf(args),
+        ...miseInstallOf(args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
         ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
       }),
