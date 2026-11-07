@@ -45,6 +45,12 @@
     "onUri"
   ],
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "variant",
+        "label": "Variant Worktrees"
+      }
+    ],
     "commands": [
       {
         "command": "variant.probeCursorCommands",
