@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { log, setLogSink } from "variant-api";
 import * as vscode from "vscode";
-import { activate } from "./extension.ts";
+import { activate, deactivate } from "./extension.ts";
 
 const registerCommand = spyOn(vscode.commands, "registerCommand");
 const getCommands = spyOn(vscode.commands, "getCommands");
@@ -12,6 +13,40 @@ const createOutputChannel = spyOn(vscode.window, "createOutputChannel");
 const extensionContext: vscode.ExtensionContext = {
   subscriptions: [],
 } as unknown as vscode.ExtensionContext;
+
+interface StdioConfig {
+  name: string;
+  server: { command: string; args: string[]; env: Record<string, string> };
+}
+
+interface StdioDefinition {
+  label: string;
+  command: string;
+  args: string[];
+  env: Record<string, string | number | null>;
+  version?: string;
+  cwd?: { fsPath: string };
+}
+
+interface McpHost {
+  cursor: {
+    mcp: {
+      registerServer?: (config: StdioConfig) => void;
+      unregisterServer?: (name: string) => void;
+    };
+  };
+  lm: {
+    registerMcpServerDefinitionProvider?: (
+      id: string,
+      provider: { provideMcpServerDefinitions: () => StdioDefinition[] | Promise<StdioDefinition[]> },
+    ) => { dispose: () => void };
+  };
+}
+
+const host = vscode as unknown as McpHost;
+
+const mcpContext = (extensionPath: string): vscode.ExtensionContext =>
+  ({ subscriptions: [], extensionPath }) as unknown as vscode.ExtensionContext;
 
 const probeCallback = () => {
   activate(extensionContext);
@@ -54,6 +89,10 @@ describe("extension", () => {
     executeCommand.mockClear();
     createOutputChannel.mockClear();
     extensionContext.subscriptions.length = 0;
+    vscode.workspace.workspaceFolders = undefined;
+    host.cursor.mcp.registerServer = undefined;
+    host.cursor.mcp.unregisterServer = undefined;
+    host.lm.registerMcpServerDefinitionProvider = undefined;
   });
 
   describe("activation", () => {
@@ -215,5 +254,137 @@ describe("extension", () => {
       const ids = registerCommand.mock.calls.map((entry) => entry[0]);
       expect(ids).not.toContain("variant-worktrees.helloworld");
     });
+  });
+});
+
+/**
+ * Specification: openspec/specs/variant-vscode/mcp-registration/spec.md
+ */
+describe("mcp registration", () => {
+  const folders = [{ uri: { fsPath: "/repo" } }, { uri: { fsPath: "/other" } }];
+  const scriptArgs = (extensionPath: string, folder: string): string[] => [
+    join(extensionPath, "dist", "mcp.mjs"),
+    "--cwd",
+    folder,
+  ];
+
+  beforeEach(() => {
+    vscode.workspace.workspaceFolders = undefined;
+    host.cursor.mcp.registerServer = undefined;
+    host.cursor.mcp.unregisterServer = undefined;
+    host.lm.registerMcpServerDefinitionProvider = undefined;
+  });
+
+  it("registers one Cursor server for the first folder and unregisters it once", async () => {
+    const registered: StdioConfig[] = [];
+    const unregistered: string[] = [];
+    let providers = 0;
+    host.cursor.mcp.registerServer = (config) => {
+      registered.push(config);
+    };
+    host.cursor.mcp.unregisterServer = (name) => {
+      unregistered.push(name);
+    };
+    host.lm.registerMcpServerDefinitionProvider = () => {
+      providers += 1;
+      return { dispose: () => {} };
+    };
+    vscode.workspace.workspaceFolders = folders;
+
+    await activate(mcpContext("/ext"));
+    await deactivate();
+    await deactivate();
+
+    expect(registered).toEqual([
+      {
+        name: "variant",
+        server: {
+          command: process.execPath,
+          args: scriptArgs("/ext", "/repo"),
+          env: { ELECTRON_RUN_AS_NODE: "1" },
+        },
+      },
+    ]);
+    expect(providers).toBe(0);
+    expect(unregistered).toEqual(["variant"]);
+  });
+
+  it("registers the VS Code provider when Cursor's API is absent", async () => {
+    const extensionPath = mkdtempSync(join("/tmp", "variant-mcp-ext-"));
+    writeFileSync(join(extensionPath, "package.json"), JSON.stringify({ version: "9.9.9" }));
+    let providerId = "";
+    let definitions: StdioDefinition[] = [];
+    const seen: Array<{ provide: () => StdioDefinition[] | Promise<StdioDefinition[]> }> = [];
+    host.lm.registerMcpServerDefinitionProvider = (id, provider) => {
+      providerId = id;
+      const disposable = { dispose: () => {}, provide: () => provider.provideMcpServerDefinitions() };
+      seen.push(disposable);
+      return disposable;
+    };
+    vscode.workspace.workspaceFolders = [{ uri: { fsPath: "/repo" } }];
+    try {
+      await activate(mcpContext(extensionPath));
+      definitions = (await seen[0]?.provide()) ?? [];
+    } finally {
+      rmSync(extensionPath, { recursive: true, force: true });
+      vscode.workspace.workspaceFolders = undefined;
+    }
+
+    expect(providerId).toBe("variant");
+    expect(definitions).toEqual([
+      expect.objectContaining({
+        label: "variant",
+        command: process.execPath,
+        args: scriptArgs(extensionPath, "/repo"),
+        env: { ELECTRON_RUN_AS_NODE: "1" },
+        version: "9.9.9",
+        cwd: expect.objectContaining({ fsPath: "/repo" }),
+      }),
+    ]);
+  });
+
+  it("registers nothing without a workspace folder", async () => {
+    let cursorCalls = 0;
+    let providerCalls = 0;
+    host.cursor.mcp.registerServer = () => {
+      cursorCalls += 1;
+    };
+    host.lm.registerMcpServerDefinitionProvider = () => {
+      providerCalls += 1;
+      return { dispose: () => {} };
+    };
+
+    await activate(extensionContext);
+
+    expect(cursorCalls).toBe(0);
+    expect(providerCalls).toBe(0);
+  });
+
+  it("activates when the host has neither registration API", async () => {
+    vscode.workspace.workspaceFolders = folders;
+
+    await expect(activate(mcpContext("/ext"))).resolves.toBeUndefined();
+  });
+
+  it("registers in a workspace that has no mcp.json and leaves that file absent", async () => {
+    const directory = mkdtempSync(join("/tmp", "variant-mcp-ws-"));
+    const registered: StdioConfig[] = [];
+    host.cursor.mcp.registerServer = (config) => {
+      registered.push(config);
+    };
+    vscode.workspace.workspaceFolders = [{ uri: { fsPath: directory } }];
+    try {
+      await activate(mcpContext("/ext"));
+      expect(existsSync(join(directory, "mcp.json"))).toBe(false);
+      expect(registered).toHaveLength(1);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+      vscode.workspace.workspaceFolders = undefined;
+    }
+  });
+
+  it("does not import the bundled MCP entry", () => {
+    const source = readFileSync(new URL("./extension.ts", import.meta.url), "utf8");
+    expect(source).not.toContain("mcp-entry");
   });
 });

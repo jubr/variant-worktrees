@@ -4393,3 +4393,39 @@ export const window = {
     dispose: () => {},
   }),
 };
+
+export class McpStdioServerDefinition {
+  readonly label: string;
+  command: string;
+  args: string[];
+  env: Record<string, string | number | null>;
+  version?: string;
+  cwd?: Uri;
+
+  constructor(
+    label: string,
+    command: string,
+    args: string[] = [],
+    env: Record<string, string | number | null> = {},
+    version?: string,
+  ) {
+    this.label = label;
+    this.command = command;
+    this.args = args;
+    this.env = env;
+    this.version = version;
+  }
+}
+
+export const cursor = {
+  mcp: {
+    registerServer: undefined as ((config: unknown) => void) | undefined,
+    unregisterServer: undefined as ((name: string) => void) | undefined,
+  },
+};
+
+export const lm = {
+  registerMcpServerDefinitionProvider: undefined as
+    | ((id: string, provider: { provideMcpServerDefinitions: () => unknown }) => { dispose: () => void })
+    | undefined,
+};
