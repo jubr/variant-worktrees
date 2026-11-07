@@ -87,9 +87,17 @@ const checkedOutBranch = (context: OperationContext, worktree: string): string |
   return ref?.startsWith(HEADS) ? ref.slice(HEADS.length) : undefined;
 };
 
-/** The first existing `<prefix><slug>` local branch, in `variant.branchPrefixes` order. */
+/**
+ * The first existing `<prefix><slug>` local branch, in `variant.branchPrefixes` order.
+ * A directory that is not a git checkout has no branch to remove.
+ */
 const prefixedBranch = (context: OperationContext, slug: string): string | undefined => {
-  const primary = primaryWorktree(repositoryDirectory(context));
+  let primary: string;
+  try {
+    primary = primaryWorktree(repositoryDirectory(context));
+  } catch {
+    return undefined;
+  }
   return context.config.variant.branchPrefixes
     .map((prefix) => `${prefix}${slug}`)
     .find((name) => runGit(primary, ["show-ref", "--verify", "--quiet", `${HEADS}${name}`]).ok);
