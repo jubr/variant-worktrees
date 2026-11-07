@@ -19,8 +19,67 @@ describe("command line arguments", () => {
     expect(collectArgs(definition("implode"), { force: true }, "demo")).toEqual({ slug: "demo", force: true });
   });
 
+  it("passes branchRm yes and no and rejects other tokens", async () => {
+    expect(collectArgs(definition("implode"), { branchRm: "yes" }, "demo")).toEqual({
+      slug: "demo",
+      branchRm: "yes",
+    });
+    expect(collectArgs(definition("implode"), { branchRm: "no" }, "demo")).toEqual({ slug: "demo", branchRm: "no" });
+    expect(collectArgs(definition("implode"), {}, "demo")).toEqual({ slug: "demo" });
+    expect(() => collectArgs(definition("implode"), { branchRm: "true" }, "demo")).toThrow(/--branch-rm/);
+    expect(() => collectArgs(definition("implode"), { branchRm: "true" }, "demo")).toThrow(/yes, no/);
+    expect(() => collectArgs(definition("implode"), { branchRm: "maybe" }, "demo")).toThrow(/yes, no/);
+
+    const seen: unknown[] = [];
+    await definition("implode").execute(
+      {
+        implode: async (...args: unknown[]) => {
+          seen.push(args);
+          return {};
+        },
+      } as never,
+      { slug: "demo", branchRm: "no", force: true },
+    );
+    expect(seen).toEqual([["demo", { force: true, branchRm: "no" }]]);
+  });
+
   it("passes --verbose to provision", () => {
     expect(collectArgs(definition("provision"), { verbose: true })).toEqual({ verbose: true });
+  });
+
+  it("passes --pull-ff to create, provision, up, and watch", () => {
+    for (const name of ["create", "provision", "up", "watch"]) {
+      expect(collectArgs(definition(name), { slug: "demo", pullFf: true })).toEqual({ slug: "demo", pullFf: true });
+      expect(definition(name).args.find((arg) => arg.name === "pullFf")?.short).toBeUndefined();
+    }
+    for (const name of ["down", "implode"]) {
+      expect(definition(name).args.find((arg) => arg.name === "pullFf")).toBeUndefined();
+    }
+  });
+
+  it("passes --mise-install to create, provision, and watch", () => {
+    for (const name of ["create", "provision", "watch"]) {
+      expect(collectArgs(definition(name), { slug: "demo", miseInstall: "sync" })).toEqual({
+        slug: "demo",
+        miseInstall: "sync",
+      });
+      expect(definition(name).args.find((arg) => arg.name === "miseInstall")?.short).toBeUndefined();
+    }
+    for (const name of ["up", "down", "implode", "config"]) {
+      expect(definition(name).args.find((arg) => arg.name === "miseInstall")).toBeUndefined();
+    }
+  });
+
+  it("leaves pullFf off the arguments when the flag is omitted", async () => {
+    const seen: unknown[] = [];
+    const client = {
+      create: async (...args: unknown[]) => {
+        seen.push(args);
+        return {};
+      },
+    };
+    await definition("create").execute(client as never, { slug: "demo" });
+    expect(seen).toEqual([["demo", { miseInstall: "bg" }]]);
   });
 
   it("passes --from to create, provision, up, and watch", () => {
@@ -53,10 +112,10 @@ describe("command line arguments", () => {
     }
 
     expect(seen).toEqual([
-      ["create", "demo", { from: "abc123" }],
-      ["provision", "demo", { from: "abc123" }],
+      ["create", "demo", { from: "abc123", miseInstall: "bg" }],
+      ["provision", "demo", { from: "abc123", miseInstall: "bg" }],
       ["up", "demo", { from: "abc123" }],
-      ["watch", "demo", { from: "abc123" }],
+      ["watch", "demo", { from: "abc123", miseInstall: "bg" }],
     ]);
   });
 

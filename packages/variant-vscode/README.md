@@ -23,7 +23,7 @@ variant implode -s feature-forty-two   # stop everything, drop the database, rem
 - **`create`** makes the `_v-feature-forty-two` worktree on its own branch.
 - **`watch`** provisions it (install, migrate, seed) and keeps your dev servers running on free ports, so you can follow an agent's progress live in the browser.
 - **`up`** does the same with containers instead of host processes. **`down`** stops either one and keeps the data.
-- **`implode`** stops the variant, drops its database and storage, and removes the worktree. It refuses to run on `main` and on work that is not merged into your base branch, unless you pass `--force`. The branch itself stays.
+- **`implode`** stops the variant, drops its database and storage, removes the worktree, and then removes the local branch. It refuses to run on `main` and on work that is not merged into your base branch, unless you pass `--force`. `--branch-rm=no` keeps the branch.
 
 When you work inside a variant worktree yourself, the slug comes from the branch, so you can leave out `-s`.
 

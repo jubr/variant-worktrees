@@ -34,7 +34,12 @@ const renderFields = (fields: LogFields | undefined): string => {
 
 export const createLogger = (sink: LogSink, categories: readonly string[] = []): Logger => {
   const prefix = categories.length > 0 ? `[${categories.join(".")}] ` : "";
-  const line = (message: string, fields: LogFields | undefined): string => `${prefix}${message}${renderFields(fields)}`;
+  const line = (message: string, fields: LogFields | undefined): string => {
+    const slug = fields?.slug;
+    const rest = slug === undefined ? fields : { ...fields, slug: undefined };
+    const head = typeof slug === "string" && slug !== "" ? `<${slug}> ` : "";
+    return `${head}${prefix}${message}${renderFields(rest)}`;
+  };
   return {
     trace: (message, fields) => sink.trace(line(message, fields)),
     debug: (message, fields) => sink.debug(line(message, fields)),

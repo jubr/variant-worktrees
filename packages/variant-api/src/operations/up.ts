@@ -148,7 +148,7 @@ const startContainers = async (
 export const upVariant = async (
   context: OperationContext,
   requestedSlug?: string,
-  options: UpOptions & { from?: string } = {},
+  options: UpOptions & { from?: string; pullFf?: boolean } = {},
 ): Promise<UpResult> => {
   const { config } = context;
   const slug = resolveSlug(requestedSlug, context.cwd, config.variant.branchPrefixes, config.variant);

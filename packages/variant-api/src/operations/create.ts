@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import { formatLocalStamp, type Runtime, readRuntime, STATE_FILE, writeRuntime } from "variant-config";
 import { implodeWouldSucceed } from "../implode-clean.js";
+import { miseBinaryFor } from "../mise.js";
+import { installMiseInWorktree, parseMiseInstall } from "../mise-install.js";
 import { variantConfigDir } from "../runtime-state.js";
 import { resolveSlug } from "../slug.js";
 import { readState } from "../state.js";
@@ -40,8 +42,18 @@ const rememberCreated = (context: OperationContext, directory: string, slug: str
 export const createVariant = async (
   context: OperationContext,
   requestedSlug?: string,
-  options?: { from?: string },
+  options?: {
+    from?: string;
+    pullFf?: boolean;
+    command?: string;
+    detach?: boolean;
+    reprovision?: boolean;
+    miseInstall?: "bg" | "sync" | "no";
+  },
 ): Promise<VariantRecord> => {
+  const command = options?.command ?? "create";
+  const installs = command === "create" || command === "provision" || command === "watch";
+  const mode = installs ? parseMiseInstall(options?.miseInstall) : "no";
   await context.adapter.assertReachable?.();
   const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
   const existing = readState(context.stateDir, slug);
@@ -55,6 +67,12 @@ export const createVariant = async (
           context.config.variant,
           context.config.variant.main,
           options?.from,
+          {
+            pullFf: options?.pullFf,
+            command: options?.command ?? "create",
+            detach: options?.detach,
+            reprovision: options?.reprovision,
+          },
         )
       : undefined;
   const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
@@ -68,6 +86,7 @@ export const createVariant = async (
   if (variantDirectory !== undefined) {
     rememberCreated(context, variantDirectory, slug, target);
   }
+  await installMiseInWorktree(worktree, mode, () => miseBinaryFor(context.config, context.miseBinPath), command, slug);
   const state = existing ?? {
     slug,
     target,

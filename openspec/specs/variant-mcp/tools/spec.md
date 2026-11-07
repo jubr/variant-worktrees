@@ -86,17 +86,27 @@ The system SHALL expose a `variant_down` MCP tool accepting an optional slug tha
 
 ### Requirement: variant_implode tool
 
-The system SHALL expose a `variant_implode` MCP tool accepting an optional slug and an optional `force` flag that implodes the variant (see the implode capability) and returns the implode report and the removed worktree path. The tool `variant_destroy` SHALL NOT exist.
+The system SHALL expose a `variant_implode` MCP tool accepting an optional slug, an optional `force` flag, and an optional `branchRm` choice of `yes` or `no` that implodes the variant (see the implode capability) and returns the implode report, the removed worktree path, and whether the local branch was removed. Omitted `branchRm` SHALL remove the local branch. The tool SHALL reject a `branchRm` value other than `yes` or `no`. The tool `variant_destroy` SHALL NOT exist.
 
 #### Scenario: Implode a merged variant
 
-- **WHEN** an MCP client calls `variant_implode({ slug: "test-feature" })` for a merged variant
-- **THEN** the variant is dropped, state is cleared, the worktree is removed, and the result names it
+- **WHEN** an MCP client calls `variant_implode({ slug: "test-feature" })` for a merged variant on branch `feat/test-feature`
+- **THEN** the variant is dropped, state is cleared, the worktree is removed, the local branch is removed, and the result names the worktree and the branch
+
+#### Scenario: Branch kept
+
+- **WHEN** an MCP client calls `variant_implode({ slug: "test-feature", branchRm: "no" })` for a merged variant on branch `feat/test-feature`
+- **THEN** the worktree is removed and the local branch `feat/test-feature` still exists
 
 #### Scenario: Unmerged refused
 
 - **WHEN** an MCP client calls `variant_implode({ slug: "test-feature" })` for an unmerged variant without `force`
 - **THEN** the tool returns an error that names `force`
+
+#### Scenario: Boolean branchRm rejected
+
+- **WHEN** an MCP client calls `variant_implode({ slug: "test-feature", branchRm: true })`
+- **THEN** the tool returns an error and the variant is unchanged
 
 #### Scenario: Destroy tool is gone
 
@@ -116,3 +126,72 @@ The system SHALL expose a `variant_status` MCP tool accepting an optional slug t
 
 - **WHEN** an MCP client calls `variant_status({ slug: "ghost" })` and `ghost` is unknown
 - **THEN** the result is an error that names `ghost`
+
+### Requirement: pullFf on worktree-creating tools
+
+The tools `variant_create`, `variant_provision`, `variant_up`, and `variant_watch` SHALL accept an optional boolean `pullFf`. When `pullFf` is true and that call creates the variant branch, the start branch SHALL be fast-forwarded as the core capability specifies. No other variant tool SHALL accept `pullFf`.
+
+#### Scenario: Create with pullFf
+
+- **WHEN** an MCP client calls `variant_create({ slug: "test-feature", pullFf: true })` and the variant branch does not yet exist
+- **THEN** the start branch is fast-forwarded before the worktree exists
+- **AND** the new branch HEAD is that updated tip
+
+#### Scenario: Provision with pullFf
+
+- **WHEN** an MCP client calls `variant_provision({ slug: "test-feature", pullFf: true })` and the variant branch does not yet exist
+- **THEN** the start branch is fast-forwarded before the worktree exists
+- **AND** the new branch HEAD is that updated tip
+
+#### Scenario: Up with pullFf
+
+- **WHEN** an MCP client calls `variant_up({ slug: "test-feature", pullFf: true })` and the variant branch does not yet exist
+- **THEN** the start branch is fast-forwarded before the worktree exists
+- **AND** the new branch HEAD is that updated tip
+
+#### Scenario: Watch with pullFf
+
+- **WHEN** an MCP client calls `variant_watch({ slug: "test-feature", pullFf: true })` and the variant branch does not yet exist
+- **THEN** the start branch is fast-forwarded before the worktree exists
+- **AND** the new branch HEAD is that updated tip
+
+#### Scenario: Other tools reject pullFf
+
+- **WHEN** an MCP client calls `variant_down` or `variant_implode` with `pullFf`
+- **THEN** the tool rejects the argument
+
+### Requirement: miseInstall on create, provision, and watch
+
+The tools `variant_create`, `variant_provision`, and `variant_watch` SHALL accept an optional string `miseInstall` whose only values are `bg`, `sync`, and `no`. When `miseInstall` is omitted, the tool SHALL run as `bg` as the core capability specifies. When the value is `no`, the tool SHALL NOT run Mise. A value other than those three SHALL be rejected and SHALL NOT create a worktree. No other variant tool SHALL accept `miseInstall`.
+
+#### Scenario: Omitted means background
+
+- **WHEN** an MCP client calls `variant_create({ slug: "test-feature" })` for a worktree that contains `mise.toml` and `install` sleeps
+- **THEN** the call returns while `install` is still running
+
+#### Scenario: Explicit no
+
+- **WHEN** an MCP client calls `variant_create({ slug: "test-feature", miseInstall: "no" })` for a worktree that contains `mise.toml`
+- **THEN** Mise does not run
+
+#### Scenario: Sync on provision
+
+- **WHEN** an MCP client calls `variant_provision({ slug: "test-feature", miseInstall: "sync" })` for a worktree that contains `mise.toml` and both Mise commands exit 0
+- **THEN** the call returns only after `install` has exited
+- **AND** `trust --all` ran against that worktree before `install`
+
+#### Scenario: Watch accepts the argument
+
+- **WHEN** an MCP client calls `variant_watch({ slug: "test-feature", miseInstall: "no" })`
+- **THEN** the tool accepts `miseInstall`
+
+#### Scenario: Invalid value
+
+- **WHEN** an MCP client calls `variant_create({ slug: "test-feature", miseInstall: "later" })` and no worktree for `test-feature` exists
+- **THEN** the tool returns an error
+- **AND** no worktree for `test-feature` exists
+
+#### Scenario: Other tools reject miseInstall
+
+- **WHEN** an MCP client calls `variant_up`, `variant_down`, or `variant_implode` with `miseInstall`
+- **THEN** the tool rejects the argument

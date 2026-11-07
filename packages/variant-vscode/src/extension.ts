@@ -2,6 +2,7 @@ import { createExtensionLog, registerChatRenamer } from "chat-renamer";
 import { type LogLevel, setLogSink } from "variant-api";
 import * as vscode from "vscode";
 import { formatProbeReport } from "./cursor-command-probe.ts";
+import { formatVariantLog } from "./format-log.ts";
 import { registerExtensionMcp, unregisterExtensionMcp } from "./mcp-registration.ts";
 import { miseBinPathSetting, registerOnboardingFlow } from "./onboarding.ts";
 import { chatRenamerConfigFor } from "./renamer-config.ts";
@@ -19,7 +20,7 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
     warn: (message) => log.warn(message),
     error: (message) => log.error(message),
   };
-  setLogSink((event) => write[event.level](event.message));
+  setLogSink((event) => write[event.level](formatVariantLog(event)));
   log.info(`activating variant-worktrees (${vscode.env?.appName ?? "unknown host"} ${vscode.version ?? ""})`.trim());
   const probe = vscode.commands.registerCommand("variant.probeCursorCommands", async () => {
     const ids = await vscode.commands.getCommands(true);

@@ -31,16 +31,22 @@ console.log(result.file, result.gitignore.status, result.detected?.dialect);
 ```ts
 await client.create("preview-one"); // starts at variant.baseBranch
 await client.create("other", { from: "feat/other" });
+await client.create("fresh", { pullFf: true }); // fast-forward the start branch first
 await client.provision("preview-one");
 const variants = await client.list();
 
 await client.up("preview-one"); // watches as containers, on a fresh database
 const watched = await client.watch("preview-one", { detach: true }); // host processes
 await client.down("preview-one"); // stop what runs, keep the data
-await client.implode("preview-one"); // tear down and remove the worktree
+await client.implode("preview-one"); // tear down, remove the worktree, then the local branch
+await client.implode("preview-one", { branchRm: "no" }); // keep the local branch
 ```
 
 `create(slug, { from })`, and the `from` option of `provision`, `up`, and `watch`, start a new branch at that commit, tag, or branch. Omit `from` and the branch starts at `variant.baseBranch`. An existing worktree is not moved. `implode` still requires a merge into `variant.baseBranch`.
+
+`pullFf: true` on those four methods fast-forwards the start branch before a new variant branch is created. It does not pull the new branch. The start branch is `from` when that names a local branch, and `variant.baseBranch` otherwise. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error includes the command to run again. Omit `pullFf` and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network.
+
+`miseInstall` on `create`, `provision`, and `watch` is `"bg"`, `"sync"`, or `"no"`. Omit it and the value is `"bg"`. The install runs only when the worktree has a Mise config, and only from `create`; `provision` and `watch` pass the option through. `up` does not take it, and there is no configuration-file key. The run is `trust --all`, then `install`, in the worktree. `"bg"` returns immediately and writes `{worktree}/.cache/variant/mise-install.log`. `"sync"` waits and fails the call when Mise fails; the worktree stays. Slug `main` and a create that makes no worktree skip it.
 
 `create` is idempotent for isolated variants. `implode` replaces the former
 `destroy`: it refuses `main`, refuses work that is not merged into

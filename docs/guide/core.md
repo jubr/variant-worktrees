@@ -36,9 +36,15 @@ Create the git worktree and the state for a slug. This does not create a databas
 
 `--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there. Omit it and the branch starts at `variant.baseBranch`. An existing worktree for the slug, or a branch that already uses any configured prefix, is checked out as it is; `--from` does not move it. `implode` still requires a merge into `variant.baseBranch`. `provision`, `up`, and `watch` take the same flag, because each of them creates the worktree when it is missing.
 
+`--pull-ff` has no short flag. Before a new variant branch is created it fast-forwards the start branch: `from` when that names a local branch, otherwise `variant.baseBranch`. It does not pull the new branch. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error prints the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network. `provision`, `up`, and `watch` take the same flag.
+
+`--mise-install` has no short flag. The values are `bg`, `sync`, and `no`. Omit it and the value is `bg` on the library, the CLI, and MCP. The install runs only when the worktree has a Mise config (`mise.toml`, `.mise.toml`, `.config/mise/config.toml`, `mise/config.toml`, or `.tool-versions`), and only from `create`. `provision` and `watch` pass the flag through. `up` does not take it. There is no `variants.yaml` key. The run is `mise -C <worktree> trust --all`, then `mise install` in that worktree. `bg` returns immediately and replaces `{worktree}/.cache/variant/mise-install.log` with that run. `sync` waits and fails the command when Mise fails; the worktree stays. Slug `main` and a create that makes no worktree skip it.
+
 ```bash
 variant create -s feature-forty-two
 variant create -s feature-forty-two --from feat/other
+variant create -s feature-forty-two --pull-ff
+variant create -s feature-forty-two --mise-install=sync
 ```
 
 ## list
@@ -77,7 +83,7 @@ variant provision -s feature-forty-two
 variant provision -s feature-forty-two --from feat/other
 ```
 
-`--from` starts a new branch at that commit. See [create](#create).
+`--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first. `--mise-install` installs Mise tools in the new worktree. See [create](#create).
 
 ## up
 
@@ -88,7 +94,7 @@ variant up -s feature-forty-two
 variant up -s feature-forty-two --from feat/other
 ```
 
-`--from` starts a new branch at that commit. See [create](#create).
+`--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first. See [create](#create).
 
 ## down
 
@@ -109,7 +115,7 @@ variant watch -s feature-forty-two --reprovision
 variant watch -s feature-forty-two --from feat/other
 ```
 
-`--from` starts a new branch at that commit. See [create](#create).
+`--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first. `--mise-install` installs Mise tools in the new worktree. See [create](#create).
 
 `--reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again. Without it, `watch` does not drop a schema.
 
@@ -125,10 +131,11 @@ variant deprovision -s feature-forty-two
 
 ## implode
 
-Stop the variant, drop its schemas and storage, clear its state, and remove its worktree. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. The branch itself stays. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed and the old `variants.local.yaml` is not recreated.
+Stop the variant, drop its schemas and storage, clear its state, remove its worktree, and then remove its local branch. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. `--branch-rm=yes|no` chooses the branch step. The default is `yes`. `--branch-rm=no` keeps the branch. `true` and `false` are rejected. With `--log-level=debug`, stderr names the branch and whether it was removed or kept. The default log threshold hides that line. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed and the old `variants.local.yaml` is not recreated.
 
 ```bash
 variant implode -s feature-forty-two
+variant implode -s feature-forty-two --branch-rm=no
 variant implode -s feature-forty-two --force
 ```
 

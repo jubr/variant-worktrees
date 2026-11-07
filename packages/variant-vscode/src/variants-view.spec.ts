@@ -653,6 +653,7 @@ describe("inline actions", () => {
     ];
     expect(message).toContain("demo");
     expect(options.modal).toBe(true);
+    expect((options as { detail?: string }).detail).toContain("branch");
     expect(buttons).toEqual(["Implode"]);
     expect(fake.calls.map((call) => [call.name, call.slug])).toEqual([["implode", "demo"]]);
   });

@@ -247,3 +247,131 @@ The CLI SHALL accept `-v` as the short form of `--verbose` on every command that
 
 - **WHEN** a user runs `variant --version`
 - **THEN** the output is the version and not a verbose listing
+
+### Requirement: Start-branch fast-forward flag
+
+The commands `create`, `provision`, `up`, and `watch` SHALL accept an optional boolean `pullFf`. No other command SHALL take `pullFf`. The CLI, the MCP server, and the webview forms SHALL derive the flag, tool input, and field from that definition. The CLI flag SHALL be `--pull-ff` and SHALL have no short flag. When the flag is omitted, `execute()` SHALL NOT receive `pullFf`.
+
+#### Scenario: Create pull-ff flag
+
+- **WHEN** a user runs `variant create --pull-ff --slug demo`
+- **THEN** `execute()` receives `{ slug: "demo", pullFf: true }`
+
+#### Scenario: Implied commands take pull-ff
+
+- **WHEN** a user runs `variant watch --pull-ff --slug demo`, `variant up --pull-ff --slug demo`, or `variant provision --pull-ff --slug demo`
+- **THEN** `execute()` receives `{ slug: "demo", pullFf: true }` plus that command's other flags
+
+#### Scenario: Pull-ff on help
+
+- **WHEN** a user runs `variant create --help`, `variant provision --help`, `variant up --help`, or `variant watch --help`
+- **THEN** the help text lists `--pull-ff`
+- **AND** the help text lists no short flag for it
+
+#### Scenario: Other commands reject pull-ff
+
+- **WHEN** a user runs `variant down --pull-ff` or `variant implode --pull-ff`
+- **THEN** the CLI rejects the unknown flag
+
+#### Scenario: Omitted pull-ff
+
+- **WHEN** a user runs `variant create --slug demo`
+- **THEN** `execute()` receives `{ slug: "demo" }`
+- **AND** the arguments do not include `pullFf`
+
+### Requirement: Choice flags use yes and no
+
+A command argument that selects from a closed set of tokens SHALL be a choice of those tokens, and the allowed tokens SHALL be part of the command definition. A two-token choice SHALL use `yes` and `no`. It SHALL NOT be a boolean. The tokens `true` and `false` SHALL be rejected, and the error SHALL name the allowed tokens. An omitted choice SHALL apply the default recorded for that argument. Presence flags that mean on or off (`force`, `detach`, `verbose`, `reprovision`, and the init step flags) SHALL stay booleans.
+
+`implode` SHALL take a choice `branchRm` whose tokens are `yes` and `no` and whose default is `yes`. The CLI flag SHALL be `--branch-rm` and SHALL have no short flag. `--branch-rm=yes` and `--branch-rm=no` SHALL be accepted. A missing value, `true`, `false`, or any other token SHALL be rejected before `implode` runs, and the error SHALL name `--branch-rm`, `yes`, and `no`. `variant implode --help` SHALL list `--branch-rm` and SHALL name `yes` and `no`.
+
+#### Scenario: Yes is passed through
+
+- **WHEN** a user runs `variant implode --branch-rm=yes demo`
+- **THEN** `execute()` receives `{ slug: "demo", branchRm: "yes" }`
+
+#### Scenario: No is passed through
+
+- **WHEN** a user runs `variant implode --branch-rm=no demo`
+- **THEN** `execute()` receives `{ slug: "demo", branchRm: "no" }`
+
+#### Scenario: Omitted stays omitted
+
+- **WHEN** a user runs `variant implode demo`
+- **THEN** `execute()` receives `{ slug: "demo" }` and does not receive `branchRm`
+
+#### Scenario: Help lists the choice
+
+- **WHEN** a user runs `variant implode --help`
+- **THEN** the help text lists `--branch-rm` and names `yes` and `no`
+
+#### Scenario: Boolean tokens rejected
+
+- **WHEN** a user runs `variant implode --branch-rm=true demo` or `variant implode --branch-rm=false demo`
+- **THEN** the CLI rejects the flag, the error names `yes` and `no`, and `implode` does not run
+
+#### Scenario: Unknown token rejected
+
+- **WHEN** a user runs `variant implode --branch-rm=maybe demo`
+- **THEN** the CLI rejects the flag, the error names `yes` and `no`, and `implode` does not run
+
+#### Scenario: Force stays a boolean
+
+- **WHEN** a user runs `variant implode --force demo`
+- **THEN** `execute()` receives `{ slug: "demo", force: true }`
+
+### Requirement: Mise install flag
+
+The commands `create`, `provision`, and `watch` SHALL accept an optional string `miseInstall` whose only values are `bg`, `sync`, and `no`. No other command SHALL take `miseInstall`. The CLI, the MCP server, and the webview forms SHALL derive the flag, tool input, and field from that definition. The CLI flag SHALL be `--mise-install` and SHALL have no short flag. When the flag is omitted, the parsed arguments SHALL NOT include `miseInstall`, and the command SHALL run as `bg` as the core capability specifies. A value other than `bg`, `sync`, or `no` SHALL be rejected and SHALL NOT create a worktree.
+
+#### Scenario: Sync value
+
+- **WHEN** a user runs `variant create --mise-install=sync --slug demo`
+- **THEN** `execute()` receives `{ slug: "demo", miseInstall: "sync" }`
+
+#### Scenario: Spaced value
+
+- **WHEN** a user runs `variant create --mise-install bg --slug demo`
+- **THEN** `execute()` receives `{ slug: "demo", miseInstall: "bg" }`
+
+#### Scenario: Provision and watch take the flag
+
+- **WHEN** a user runs `variant provision --mise-install=no --slug demo` or `variant watch --mise-install=sync --slug demo`
+- **THEN** `execute()` receives `miseInstall` of `no` or `sync` for that command
+
+#### Scenario: Omitted flag runs in the background
+
+- **WHEN** a user runs `variant create --slug demo` in a worktree that contains `mise.toml` and `install` sleeps
+- **THEN** the parsed arguments do not include `miseInstall`
+- **AND** the command returns while `install` is still running
+
+#### Scenario: No skips install
+
+- **WHEN** a user runs `variant create --mise-install=no --slug demo` in a worktree that contains `mise.toml`
+- **THEN** `execute()` receives `{ slug: "demo", miseInstall: "no" }`
+- **AND** Mise does not run
+
+#### Scenario: Help lists the flag
+
+- **WHEN** a user runs `variant create --help`, `variant provision --help`, or `variant watch --help`
+- **THEN** the help text lists `--mise-install`
+- **AND** the help text names `bg`, `sync`, and `no`
+- **AND** the help text says that omitting the flag installs in the background
+- **AND** the help text lists no short flag for it
+
+#### Scenario: Invalid value
+
+- **WHEN** a user runs `variant create --mise-install=later --slug demo` and no worktree for `demo` exists
+- **THEN** the CLI rejects the value
+- **AND** no worktree for `demo` exists
+
+#### Scenario: Other commands reject the flag
+
+- **WHEN** a user runs `variant up --mise-install=no`, `variant down --mise-install=no`, `variant implode --mise-install=no`, or `variant config --mise-install=no`
+- **THEN** the CLI rejects the unknown flag
+
+#### Scenario: The CLI exits before a background install finishes
+
+- **WHEN** a user runs `variant create --slug demo` in a worktree that contains `mise.toml` and `install` writes a marker when it exits
+- **THEN** the process exits 0 before that marker exists
+- **AND** the marker is written afterwards

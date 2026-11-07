@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createClient } from "../src/index.js";
+import { type LogEvent, setLogSink } from "../src/log.js";
 import { isProcessAlive } from "../src/runtime-state.js";
 import type { ImplodeResult } from "../src/types.js";
 
@@ -41,7 +51,7 @@ interface Project {
   worktree: string;
   client: ReturnType<typeof createClient>;
   messages: string[];
-  implode: (options?: { force?: boolean }, slug?: string) => Promise<ImplodeResult>;
+  implode: (options?: { force?: boolean; branchRm?: "yes" | "no" }, slug?: string) => Promise<ImplodeResult>;
   /** Commits a file in the variant's worktree. */
   commit: (path: string, content: string) => void;
   database: string;
@@ -222,11 +232,148 @@ describe("implode teardown and worktree", () => {
       expect(existsSync(record.target)).toBe(false);
     }));
 
-  it("keeps the git branch", () =>
+  it("removes the local branch after the worktree", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      const events: LogEvent[] = [];
+      setLogSink((event) => events.push(event));
+      try {
+        const result = await implode();
+
+        expect(existsSync(worktree)).toBe(false);
+        expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
+        expect(result).toMatchObject({ branch: "feat/demo", branchRemoved: true });
+        expect(events).toContainEqual({ level: "debug", message: "removed branch feat/demo" });
+      } finally {
+        setLogSink(undefined);
+      }
+    }));
+
+  it("removes the local branch when branchRm is yes", () =>
     withProject(async ({ implode, repo }) => {
+      await implode({ branchRm: "yes" });
+
+      expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
+    }));
+
+  it("keeps the local branch when branchRm is no", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      const events: LogEvent[] = [];
+      setLogSink((event) => events.push(event));
+      try {
+        const result = await implode({ branchRm: "no" });
+
+        expect(existsSync(worktree)).toBe(false);
+        expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+        expect(result).toMatchObject({ branch: "feat/demo", branchRemoved: false });
+        expect(events).toContainEqual({ level: "debug", message: "kept branch feat/demo" });
+      } finally {
+        setLogSink(undefined);
+      }
+    }));
+
+  it("keeps the branch when unmerged work is refused", () =>
+    withProject(async ({ implode, commit, repo }) => {
+      commit("src/b.ts", "export const b = 2;\n");
+
+      await expect(implode()).rejects.toThrow(/force/);
+      expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+    }));
+
+  it("removes an unmerged branch when force is given", () =>
+    withProject(async ({ implode, commit, repo }) => {
+      commit("src/b.ts", "export const b = 2;\n");
+
+      await implode({ force: true });
+
+      expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
+    }));
+
+  it("removes a leftover branch when the worktree is already gone", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      git(repo, "worktree", "remove", worktree);
+
+      const result = await implode();
+
+      expect(result.worktreeRemoved).toBe(false);
+      expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
+    }));
+
+  it("succeeds when no local branch matches the slug", () =>
+    withProject(async ({ repo }) => {
+      const events: LogEvent[] = [];
+      setLogSink((event) => events.push(event));
+      const bare = createClient({
+        config: loadConfig({ cwd: repo, env: {} }),
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        worktree: false,
+      });
+      try {
+        await bare.implode("orphan");
+
+        expect(events).toContainEqual({ level: "debug", message: "no branch to remove for orphan" });
+      } finally {
+        setLogSink(undefined);
+      }
+    }));
+
+  it("rejects a branchRm other than yes or no before removing anything", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      await expect(implode({ branchRm: "true" as "yes" })).rejects.toThrow(/yes, no/);
+
+      expect(existsSync(worktree)).toBe(true);
+      expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+    }));
+
+  it("leaves the upstream branch in place", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      const remote = join(repo, "..", "origin.git");
+      execFileSync("git", ["init", "-q", "--bare", "-b", "main", remote]);
+      git(repo, "remote", "add", "origin", remote);
+      git(worktree, "push", "-q", "-u", "origin", "feat/demo");
+
       await implode();
 
-      expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+      expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
+      expect(git(remote, "branch", "--list", "feat/demo")).toContain("feat/demo");
+    }));
+
+  it("fails after the worktree is gone when the branch is checked out elsewhere", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      const bin = mkdtempSync(join("/tmp", "variant-git-shim-"));
+      const real = execFileSync("bash", ["-lc", "command -v git"], { encoding: "utf8" }).trim();
+      writeFileSync(
+        join(bin, "git"),
+        `#!/usr/bin/env bash
+real=${JSON.stringify(real)}
+if [[ "\${VARIANT_BRANCH_HOLD:-}" == 1 && "$*" == *"worktree remove"* ]]; then
+  wt="\${@: -1}"
+  branch="$("$real" -C "$wt" rev-parse --abbrev-ref HEAD)"
+  primary=""
+  args=("$@")
+  for ((i=0; i<\${#args[@]}; i++)); do
+    if [[ "\${args[$i]}" == "-C" ]]; then primary="\${args[$((i+1))]}"; fi
+  done
+  "$real" "$@"
+  "$real" -C "$primary" checkout -q "$branch"
+  exit 0
+fi
+exec "$real" "$@"
+`,
+      );
+      chmodSync(join(bin, "git"), 0o755);
+      const path = process.env.PATH;
+      process.env.PATH = `${bin}:${path}`;
+      process.env.VARIANT_BRANCH_HOLD = "1";
+      try {
+        await expect(implode()).rejects.toThrow(/feat\/demo/);
+        expect(existsSync(worktree)).toBe(false);
+        expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+      } finally {
+        process.env.PATH = path;
+        delete process.env.VARIANT_BRANCH_HOLD;
+        rmSync(bin, { recursive: true, force: true });
+      }
     }));
 
   it("reports the removed worktree and removes it last", () =>

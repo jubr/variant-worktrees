@@ -3,9 +3,11 @@ import type { VariantClient } from "./types.js";
 export interface ArgDefinition {
   name: string;
   description: string;
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "choice";
   required: boolean;
   short?: string;
+  /** Allowed tokens when `type` is `choice`. A two-token choice uses `yes` and `no`. */
+  values?: readonly string[];
 }
 
 export interface CommandDefinition {
@@ -32,6 +34,14 @@ const fromArg: ArgDefinition = {
   required: false,
 };
 
+const pullFfArg: ArgDefinition = {
+  name: "pullFf",
+  description:
+    "Fast-forward the start branch before a new variant branch is created. A conflict or other error leaves that checkout un-pulled",
+  type: "boolean",
+  required: false,
+};
+
 const verboseArg: ArgDefinition = {
   name: "verbose",
   description: "Print the full output of quiet provisioning steps; for list, all meta information of every variant",
@@ -45,6 +55,24 @@ const verbose = (args: Record<string, unknown>): { verbose?: boolean } =>
   args.verbose === undefined ? {} : { verbose: args.verbose === true };
 const fromOf = (args: Record<string, unknown>): { from?: string } =>
   typeof args.from === "string" ? { from: args.from } : {};
+const pullFfOf = (args: Record<string, unknown>): { pullFf?: boolean } =>
+  args.pullFf === true ? { pullFf: true } : {};
+
+const miseInstallArg: ArgDefinition = {
+  name: "miseInstall",
+  description:
+    "Install Mise tools in the worktree: bg, sync, or no. Omit to install in the background when the worktree has a Mise config",
+  type: "string",
+  required: false,
+};
+
+const miseInstallOf = (args: Record<string, unknown>): { miseInstall: "bg" | "sync" | "no" } => {
+  const value = args.miseInstall ?? "bg";
+  if (value !== "bg" && value !== "sync" && value !== "no") {
+    throw new Error(`miseInstall must be bg, sync, or no, not ${String(value)}`);
+  }
+  return { miseInstall: value };
+};
 
 const stepArg = (name: string, description: string): ArgDefinition => ({
   name,
@@ -89,8 +117,9 @@ export const commands: CommandDefinition[] = [
   {
     name: "create",
     description: "Create or refresh a database variant",
-    args: [slugArg, fromArg, verboseArg],
-    execute: (client, args) => client.create(slugString(args), fromOf(args)),
+    args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
+    execute: (client, args) =>
+      client.create(slugString(args), { ...fromOf(args), ...pullFfOf(args), ...miseInstallOf(args) }),
   },
   {
     name: "list",
@@ -107,14 +136,20 @@ export const commands: CommandDefinition[] = [
   {
     name: "provision",
     description: "Run configured variant runtime and seed commands",
-    args: [slugArg, fromArg, verboseArg],
-    execute: (client, args) => client.provision(slugString(args), { ...verbose(args), ...fromOf(args) }),
+    args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
+    execute: (client, args) =>
+      client.provision(slugString(args), {
+        ...verbose(args),
+        ...fromOf(args),
+        ...pullFfOf(args),
+        ...miseInstallOf(args),
+      }),
   },
   {
     name: "up",
     description: "Run the watches of a variant as containers",
-    args: [slugArg, fromArg, verboseArg],
-    execute: (client, args) => client.up(slugString(args), { ...verbose(args), ...fromOf(args) }),
+    args: [slugArg, fromArg, pullFfArg, verboseArg],
+    execute: (client, args) => client.up(slugString(args), { ...verbose(args), ...fromOf(args), ...pullFfOf(args) }),
   },
   {
     name: "down",
@@ -134,6 +169,8 @@ export const commands: CommandDefinition[] = [
     args: [
       slugArg,
       fromArg,
+      pullFfArg,
+      miseInstallArg,
       {
         name: "detach",
         description: "Start the processes in the background and return",
@@ -152,6 +189,8 @@ export const commands: CommandDefinition[] = [
       client.watch(slugString(args), {
         ...verbose(args),
         ...fromOf(args),
+        ...pullFfOf(args),
+        ...miseInstallOf(args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
         ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
       }),
@@ -168,9 +207,19 @@ export const commands: CommandDefinition[] = [
         type: "boolean",
         required: false,
       },
+      {
+        name: "branchRm",
+        description: "Remove the local branch after the worktree: yes or no. Default yes",
+        type: "choice",
+        values: ["yes", "no"],
+        required: false,
+      },
       verboseArg,
     ],
     execute: (client, args) =>
-      client.implode(slugString(args), args.force === undefined ? {} : { force: args.force === true }),
+      client.implode(slugString(args), {
+        ...(args.force === undefined ? {} : { force: args.force === true }),
+        ...(args.branchRm === undefined ? {} : { branchRm: args.branchRm as "yes" | "no" }),
+      }),
   },
 ];

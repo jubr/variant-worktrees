@@ -24,7 +24,7 @@ export interface CommandDefinition {
 
 Commands include `config`, `create`, `list`, `provision`, `up`, `down`,
 `watch`, and `implode`. Every command takes an optional boolean
-`verbose`; `watch` also takes `detach` and `implode` takes `force`. A command
+`verbose`; `watch` also takes `detach` and `implode` takes `force` and choice `branchRm` (`yes` or `no`, default `yes`). A command
 may set `mcpFixed` arguments (`watch` always passes `detach: true` to MCP). Adding
 a command updates CLI and MCP registration from the same source.
 

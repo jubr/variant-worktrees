@@ -18,12 +18,16 @@ import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from ".
 export interface ProvisionOptions {
   /** Git commit-ish a newly created variant branch starts at. Omitted, the branch starts at `variant.baseBranch`. */
   from?: string;
+  /** Fast-forward that start branch before a new variant branch is created. */
+  pullFf?: boolean;
   /** Print the full output of steps that set `filterLinesRegex`. */
   verbose?: boolean;
   /** Receives progress lines, such as the command about to run; the default writes to stderr. */
   log?: ProgressLog;
   /** `watch` only: drop the schemas before the provision phase creates them again. */
   reprovision?: boolean;
+  /** `bg` installs Mise in the background, `sync` waits, `no` skips. Omitted means `bg`. */
+  miseInstall?: "bg" | "sync" | "no";
 }
 
 export interface ProvisionResult {

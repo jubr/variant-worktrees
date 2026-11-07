@@ -54,6 +54,7 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
         cwd,
         useWorktree: options.worktree ?? true,
         adapter,
+        ...(options.miseBinPath ? { miseBinPath: options.miseBinPath } : {}),
         ...(options.now ? { now: options.now } : {}),
       });
     } finally {

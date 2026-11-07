@@ -36,7 +36,8 @@ const topLevel = (shell: Shell, script: string): string => {
 };
 
 /** How a script spells a long flag and a short alias. */
-const longFlag = (shell: Shell, name: string): string => (shell === "fish" ? `-l ${name}` : `--${name}`);
+const kebab = (name: string): string => name.replaceAll(/\B([A-Z])/g, "-$1").toLowerCase();
+const longFlag = (shell: Shell, name: string): string => (shell === "fish" ? `-l ${kebab(name)}` : `--${kebab(name)}`);
 const shortFlag = (shell: Shell, name: string): string => (shell === "fish" ? `-s ${name}` : `-${name}`);
 
 describe("describeCli", () => {
@@ -68,6 +69,8 @@ describe("describeCli", () => {
     expect(byName("create").flags.map((flag) => flag.long)).toEqual([
       "slug",
       "from",
+      "pull-ff",
+      "mise-install",
       "verbose",
       "json",
       "yaml",

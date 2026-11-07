@@ -27,7 +27,8 @@ export const ImplodeDialog = ({
       >
         <h2 id="implode-title">Implode {slug}?</h2>
         <p>
-          This removes the database target and the worktree of <strong>{slug}</strong>. It cannot be undone.
+          This removes the database target, the worktree, and the branch of <strong>{slug}</strong>. It cannot be
+          undone.
         </p>
         <div className="dialog-actions">
           <button type="button" ref={cancel} onClick={onCancel}>
