@@ -77,7 +77,7 @@ export const describeCli = (): CommandModel[] => [
       flags: [
         ...flagSpecsFor(definition).map(
           (flag): FlagModel => ({
-            long: flag.name,
+            long: flag.name.replaceAll(/\B([A-Z])/g, "-$1").toLowerCase(),
             ...(flag.short ? { short: flag.short } : {}),
             description: flag.description,
             takesValue: flag.type !== "boolean",

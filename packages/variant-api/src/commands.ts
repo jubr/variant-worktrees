@@ -32,6 +32,14 @@ const fromArg: ArgDefinition = {
   required: false,
 };
 
+const pullFfArg: ArgDefinition = {
+  name: "pullFf",
+  description:
+    "Fast-forward the start branch before a new variant branch is created. A conflict or other error leaves that checkout un-pulled",
+  type: "boolean",
+  required: false,
+};
+
 const verboseArg: ArgDefinition = {
   name: "verbose",
   description: "Print the full output of quiet provisioning steps; for list, all meta information of every variant",
@@ -45,6 +53,8 @@ const verbose = (args: Record<string, unknown>): { verbose?: boolean } =>
   args.verbose === undefined ? {} : { verbose: args.verbose === true };
 const fromOf = (args: Record<string, unknown>): { from?: string } =>
   typeof args.from === "string" ? { from: args.from } : {};
+const pullFfOf = (args: Record<string, unknown>): { pullFf?: boolean } =>
+  args.pullFf === true ? { pullFf: true } : {};
 
 const stepArg = (name: string, description: string): ArgDefinition => ({
   name,
@@ -89,8 +99,8 @@ export const commands: CommandDefinition[] = [
   {
     name: "create",
     description: "Create or refresh a database variant",
-    args: [slugArg, fromArg, verboseArg],
-    execute: (client, args) => client.create(slugString(args), fromOf(args)),
+    args: [slugArg, fromArg, pullFfArg, verboseArg],
+    execute: (client, args) => client.create(slugString(args), { ...fromOf(args), ...pullFfOf(args) }),
   },
   {
     name: "list",
@@ -107,14 +117,15 @@ export const commands: CommandDefinition[] = [
   {
     name: "provision",
     description: "Run configured variant runtime and seed commands",
-    args: [slugArg, fromArg, verboseArg],
-    execute: (client, args) => client.provision(slugString(args), { ...verbose(args), ...fromOf(args) }),
+    args: [slugArg, fromArg, pullFfArg, verboseArg],
+    execute: (client, args) =>
+      client.provision(slugString(args), { ...verbose(args), ...fromOf(args), ...pullFfOf(args) }),
   },
   {
     name: "up",
     description: "Run the watches of a variant as containers",
-    args: [slugArg, fromArg, verboseArg],
-    execute: (client, args) => client.up(slugString(args), { ...verbose(args), ...fromOf(args) }),
+    args: [slugArg, fromArg, pullFfArg, verboseArg],
+    execute: (client, args) => client.up(slugString(args), { ...verbose(args), ...fromOf(args), ...pullFfOf(args) }),
   },
   {
     name: "down",
@@ -134,6 +145,7 @@ export const commands: CommandDefinition[] = [
     args: [
       slugArg,
       fromArg,
+      pullFfArg,
       {
         name: "detach",
         description: "Start the processes in the background and return",
@@ -152,6 +164,7 @@ export const commands: CommandDefinition[] = [
       client.watch(slugString(args), {
         ...verbose(args),
         ...fromOf(args),
+        ...pullFfOf(args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
         ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
       }),
