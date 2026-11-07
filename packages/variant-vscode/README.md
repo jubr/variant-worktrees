@@ -57,7 +57,7 @@ A configuration that still uses `instances` (now `watches`) or `reservedPorts` (
 
 ## Let your agents drive
 
-The same operations are available as an MCP server, so Cursor, Claude, or any MCP client can create, watch, and implode variants itself:
+The Variant Worktrees extension registers the `variant` server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients. The same operations are available there, so Cursor, Claude, or any MCP client can create, watch, and implode variants itself:
 
 ```json
 {

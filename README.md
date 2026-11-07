@@ -234,6 +234,8 @@ The extension adds a **Variant Worktrees** section to the Explorer. It starts co
 
 ## MCP
 
+The Variant Worktrees extension registers the `variant` server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients.
+
 Configure an MCP client to run:
 
 ```json
