@@ -32,7 +32,7 @@ This applies to all command invocations in this file. Also note `mise` manages e
 
 ## Steps
 
-1. **Resolve** `$slug`**.** User supplies kebab name, or derive from the request. Announce: `Using change: $slug` (override: re-run with another slug).
+1. **Resolve** `$slug`**.** User supplies kebab name, or derive from the request. Announce: `Using change: $slug` (override: re-run with another slug). Use kebab name literally, do not prepend date.
 2. **Sync base.** From the main product checkout (not a dirty feature worktree): `git fetch` + `git pull --ff-only` on `main`.
 3. **Workspace.** `variant create -s $slug [--from {branch}]`. Omit `--from` to start from `variant.baseBranch`.
 
