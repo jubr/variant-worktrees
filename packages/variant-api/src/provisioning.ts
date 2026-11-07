@@ -26,6 +26,8 @@ export interface ProvisionOptions {
   log?: ProgressLog;
   /** `watch` only: drop the schemas before the provision phase creates them again. */
   reprovision?: boolean;
+  /** `bg` installs Mise in the background, `sync` waits, `no` skips. Omitted means `bg`. */
+  miseInstall?: "bg" | "sync" | "no";
 }
 
 export interface ProvisionResult {
