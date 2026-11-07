@@ -153,6 +153,7 @@ describe("implode confirmation", () => {
     expect(dialog.textContent).toContain("demo");
     expect(dialog.textContent).toMatch(/database target/);
     expect(dialog.textContent).toMatch(/worktree/);
+    expect(dialog.textContent).toMatch(/branch/);
     expect(transport.host.received).toEqual([]);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Implode demo permanently" }));
