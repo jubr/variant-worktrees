@@ -27,4 +27,19 @@ const config: BuildOptions = {
   logLevel: "info",
 };
 
+export const mcpBundle: BuildOptions = {
+  entryPoints: ["./src/mcp-entry.ts"],
+  bundle: true,
+  platform: "node",
+  target: "node22",
+  format: "esm",
+  outfile: "./dist/mcp.mjs",
+  external: ["bun:sqlite"],
+  // AIDEV-NOTE: yaml's CJS build calls require("process"). An ESM bundle has no require unless this banner creates one.
+  banner: {
+    js: 'import { createRequire as __mcpCreateRequire } from "node:module"; const require = __mcpCreateRequire(import.meta.url);',
+  },
+  logLevel: "info",
+};
+
 export default config;
