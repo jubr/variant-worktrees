@@ -182,6 +182,10 @@ publisher needs an existing extension. The workflow keeps the Marketplace Entra
 variant as commented-out lines; it needs `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
 `AZURE_SUBSCRIPTION_ID` as variables on `marketplace`.
 
+The release workflow calls `packslip.yaml` after it creates the release. The signing job has `contents: read`.
+A failed sign is retried by dispatching `packslip.yaml` from `main` with the tag, then `publish-extensions.yaml`
+if registry publication was skipped.
+
 ## Review and delivery
 
 - Use Conventional Commits (`type(scope): summary`) and keep commits focused.

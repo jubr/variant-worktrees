@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- A release created from `main` attaches `packslip.sigstore.json` for the six `variant` executables. The signing job has `contents: read`.
+
 ### Changed
 
 - `variant --version` prints the version and a parenthetical, then a cursive `Variant-Worktrees` banner, then the platform and the repository URL. On `main` the parenthetical is the UTC date. Off `main` it is the UTC date and time, and the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color. `task bleed:vsix` writes that version token into the unpacked extension `package.json`.
