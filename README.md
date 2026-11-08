@@ -204,13 +204,13 @@ flags in `variant --help` and `variant <command> --help`.
 | --- | --- |
 | `--json` | Print the result as JSON |
 | `--yaml` | Print the result as YAML |
-| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` is `warn`. Default `warn` |
+| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn` |
 | `--help`, `-h` | Show help |
-| `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then a cursive `Variant-Worktrees` banner, then the platform and `https://github.com/jubr/variant-worktrees` (top level only). Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
+| `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
 
-Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line is prefixed `trace:`, `debug:`, `info:`, `warning:`, or `error:`. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level.
+Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`. When the event has a step, that word follows the bracket. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, the step is cyan, and the message stays the default color. Otherwise those same characters have no color. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level.
 
-When PostgreSQL or MySQL cannot be contacted, `list` and `status` of a known variant still print the variants recorded in state files and worktrees, and one `warning:` names the database and host. `create` and other changes fail with that sentence, run no SQL, and `create` does not add a worktree. A missing SQLite file is not this case. The editor trees keep their rows, list `Database unreachable` first, and show one warning per outage.
+When PostgreSQL or MySQL cannot be contacted, `list` and `status` of a known variant still print the variants recorded in state files and worktrees, and one `[warn]` line names the database and host. `create` and other changes fail with that sentence, run no SQL, and `create` does not add a worktree. A missing SQLite file is not this case. The editor trees keep their rows, list `Database unreachable` first, and show one warning per outage.
 
 ### Shell completion
 
