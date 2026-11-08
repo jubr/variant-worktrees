@@ -34,24 +34,6 @@ All activity is logged to the **Chat Renamer** log channel, which **Developer: S
 
 A host extension can supply the same options from elsewhere (Variant reads the `chatRenamer` section of `variants.yaml`); an option you set explicitly in the editor settings wins over the host's value, which wins over the default.
 
-## Using it inside another extension
-
-Import `registerChatRenamer` from `chat-renamer` in `activate`:
-
-```ts
-import { registerChatRenamer } from "chat-renamer";
-
-registerChatRenamer(context, {
-  commandPrefix: "my-ext", // commands: my-ext.renameChat, my-ext.renameChatFromPrompt
-  configSection: "my-ext.chatRename", // settings: trigger, hookScope, activationPatterns, worktreePrefixes, renameExistingDays, titleEventPromptLines, awake.when, awake.what, awake.graceDelaySecs
-  log, // optional Logger; default is a "Chat Renamer" channel
-});
-```
-
-The host manifest must contribute those settings under `configSection`, including `awake.when` (`chatsActive` default), `awake.what` (`screen` default), and `awake.graceDelaySecs` (integer, minimum `0`, default `60`), and list `onStartupFinished` and `onUri` as activation events. The editor-independent logic lives in the `chat-renamer-api` package.
-
-If this extension and Variant Worktrees are both installed in one window, this one stays idle: it detects `variant-worktrees` and does not start the triggers. Otherwise, when two copies are installed, only the one that starts first runs the triggers (title listener, hook, URI handler). The other logs which extension owns renaming, removes any hook script it wrote earlier, and stays idle; its commands still work. Ownership passes on when the owner is disposed.
-
 ## Development
 
 ```bash
