@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { loggingData } from "../src/logging-data.ts";
 
 interface McpResult {
   lines: string[];
@@ -826,12 +827,28 @@ const withUnreachableMcp = async (run: (directory: string, configPath: string) =
 };
 
 describe("MCP logging", () => {
+  it("puts step and slug on the notification data", () => {
+    expect(loggingData({ level: "info", message: "+ mise install", step: "create", slug: "add-auth" })).toEqual({
+      message: "+ mise install",
+      step: "create",
+      slug: "add-auth",
+    });
+  });
+
+  it("imports the sink from variant-log", () => {
+    const source = readFileSync(new URL("../src/mcp.ts", import.meta.url), "utf8");
+    expect(source).toContain('from "variant-log"');
+  });
+
   it("sends warning and not info until the client sets a level", () =>
     withUnreachableMcp(async (directory, configPath) => {
       const result = await mcp([...initMessages(), call(2, "variant_list")], configPath, { cwd: directory });
       const notes = logging(result);
       expect(notes.some((note) => note.level === "warning")).toBe(true);
       expect(notes.some((note) => note.level === "info")).toBe(false);
+      const warning = notes.find((note) => note.level === "warning");
+      expect(warning?.data).toEqual({ message: (warning?.data as { message?: string } | undefined)?.message });
+      expect(typeof (warning?.data as { message?: unknown } | undefined)?.message).toBe("string");
       const listed = answer(result, 2);
       expect(listed.isError).not.toBe(true);
       expect(listed.text).not.toContain("SELECT");
