@@ -1,11 +1,13 @@
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  type AwakeProcess,
   activationPatternSources,
   type ChatRenamerNames,
   catalogTitleDecision,
   claimRenamer,
   compilePatterns,
+  createAwakeController,
   type FirstPrompt,
   type FirstPromptStoreProbe,
   handleChatRenameUri,
@@ -24,6 +26,7 @@ import {
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
+import { caffeinateOnPath, createActivityWatch, readComposerActivity, spawnCaffeinate } from "./awake-watch";
 import { resolveChatRenameDeps } from "./cursor-host";
 import type { ExistingChatsRunner, ExistingChatsTrigger } from "./existing-chats";
 import { type HostSettings, readSettings } from "./settings";
@@ -56,6 +59,12 @@ export type TriggerHost = {
   fileConfig?: HostSettings;
   /** Delay before the startup run and after the last title event. Default 3000 ms. */
   existingChatsDelayMs?: number;
+  /** Whether any chat is in a turn. Default: Cursor's composer rows in state.vscdb. */
+  readAwakeActivity?: () => Promise<boolean>;
+  /** Spawns `caffeinate`. Default: the macOS binary, not detached. */
+  awakeSpawn?: (args: string) => AwakeProcess;
+  /** Whether `caffeinate` can be run. Default: `/usr/bin/caffeinate` exists. */
+  caffeinateAvailable?: () => boolean;
 };
 
 const DEFAULT_EXISTING_CHATS_DELAY_MS = 3000;
@@ -93,6 +102,51 @@ export const startChatRenameTrigger = (
     log.info(`${variantHost} is installed; this instance stays idle`);
   } else if (!claim.owned) {
     log.info(`${claim.owner} already runs chat renaming; this instance stays idle`);
+  }
+
+  const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
+  const awake = claim.owned
+    ? (() => {
+        const settingsNow = () => readSettings(names.configSection, host.fileConfig);
+        const controller = createAwakeController({
+          spawn: host.awakeSpawn ?? spawnCaffeinate,
+          caffeinateAvailable: host.caffeinateAvailable ?? caffeinateOnPath,
+          log,
+          now,
+          schedule: (ms, run) => {
+            const timer = setTimeout(run, ms);
+            return { cancel: () => clearTimeout(timer) };
+          },
+        });
+        const watch = createActivityWatch({
+          read: host.readAwakeActivity ?? (() => readComposerActivity(dbPath)),
+          schedule: (ms, run) => {
+            const timer = setTimeout(run, ms);
+            return { cancel: () => clearTimeout(timer) };
+          },
+          shouldPoll: () => settingsNow().awakeWhen === "chatsActive",
+          onActive: (active) => {
+            const settings = settingsNow();
+            controller.update({
+              when: settings.awakeWhen,
+              what: settings.awakeWhat,
+              graceDelaySecs: settings.graceDelaySecs,
+              active,
+              owned: true,
+            });
+          },
+        });
+        return {
+          publish: (): Promise<void> => watch.sync().then(() => undefined),
+          dispose: (): void => {
+            watch.dispose();
+            controller.dispose();
+          },
+        };
+      })()
+    : undefined;
+  if (awake) {
+    context.subscriptions.push({ dispose: () => awake.dispose() });
   }
 
   if (claim.owned) {
@@ -238,6 +292,7 @@ export const startChatRenameTrigger = (
       if (claim.owned) {
         log.info(`chat renaming off: ${names.configSection}.enable=false`);
       }
+      await awake?.publish();
       return;
     }
 
@@ -268,7 +323,6 @@ export const startChatRenameTrigger = (
         return;
       }
 
-      const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
       const checked = new Set<string>();
       eventSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), (change) => {
         const decisionLog = log.child("title-event");
@@ -318,6 +372,7 @@ export const startChatRenameTrigger = (
     } finally {
       configureExisting(settings.renameExistingDays, firstApply ? "startup" : "setting changed");
       firstApply = false;
+      await awake?.publish();
     }
   };
 

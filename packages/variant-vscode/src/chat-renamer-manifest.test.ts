@@ -39,6 +39,9 @@ describe("embedded chat renamer manifest", () => {
     expect(Object.keys(properties).sort()).toEqual([
       "variant.activationPatterns",
       "variant.autoExpand",
+      "variant.awake.graceDelaySecs",
+      "variant.awake.what",
+      "variant.awake.when",
       "variant.enable",
       "variant.hookScope",
       "variant.mise.binPath",

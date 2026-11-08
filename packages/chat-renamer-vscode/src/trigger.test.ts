@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { activationPatternSources, DEFAULT_ACTIVATION_PATTERNS, installChatRenameHook } from "chat-renamer-api";
+import {
+  type AwakeProcess,
+  activationPatternSources,
+  DEFAULT_ACTIVATION_PATTERNS,
+  installChatRenameHook,
+} from "chat-renamer-api";
 import * as vscode from "vscode";
 
 import { captureLog, quiet } from "../test/log";
@@ -1367,6 +1372,108 @@ describe("trigger", () => {
       await new Promise((resolve) => setTimeout(resolve, 25));
 
       expect(renamed).toEqual([{ sessionId: "old", title: "abc" }]);
+    });
+  });
+
+  // openspec/specs/chat-renamer/awake/spec.md
+  describe("awake", () => {
+    type Child = { args: string; killed: NodeJS.Signals[] };
+
+    const fakeSpawn = (children: Child[]) => {
+      const awakeSpawn = (args: string): AwakeProcess => {
+        const child: Child = { args, killed: [] };
+        children.push(child);
+        return {
+          pid: 4242 + children.length,
+          kill: (signal: NodeJS.Signals = "SIGTERM") => {
+            child.killed.push(signal);
+            return true;
+          },
+          once: () => {},
+        };
+      };
+      return awakeSpawn;
+    };
+
+    it("holds the machine awake while a session generates even when enable is false", async () => {
+      const children: Child[] = [];
+      configure({ enable: false, renameExistingDays: 0 });
+
+      await registerChatRenamer(context("jubr.variant-worktrees"), {
+        commandPrefix: "variant",
+        configSection: "variant",
+        log: quiet,
+        readAwakeActivity: async () => true,
+        awakeSpawn: fakeSpawn(children),
+        caffeinateAvailable: () => true,
+      }).ready;
+
+      expect(children.map((child) => child.args)).toEqual(["-disu"]);
+    });
+
+    it("stops caffeinate without a reload when awake.when becomes never", async () => {
+      const children: Child[] = [];
+      const configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void> = [];
+      spyOn(vscode.workspace, "onDidChangeConfiguration").mockImplementation(((listener: never) => {
+        configListeners.push(listener);
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.workspace.onDidChangeConfiguration);
+      const values: Record<string, unknown> = { renameExistingDays: 0, "awake.when": "chatsActive" };
+      configure(values);
+
+      await registerChatRenamer(context("jubr.variant-worktrees"), {
+        commandPrefix: "variant",
+        configSection: "variant",
+        log: quiet,
+        readAwakeActivity: async () => true,
+        awakeSpawn: fakeSpawn(children),
+        caffeinateAvailable: () => true,
+      }).ready;
+      expect(children).toHaveLength(1);
+
+      values["awake.when"] = "never";
+      configure(values);
+      for (const listener of configListeners) {
+        listener({ affectsConfiguration: (section) => section === "variant" });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(children[0]?.killed).toContain("SIGTERM");
+      expect(children).toHaveLength(1);
+    });
+
+    it("does not start caffeinate from an idle instance", async () => {
+      const children: Child[] = [];
+      await registerChatRenamer(context("jubr.variant-worktrees"), { log: quiet }).ready;
+
+      await registerChatRenamer(context("jubr.chat-renamer"), {
+        log: quiet,
+        readAwakeActivity: async () => true,
+        awakeSpawn: fakeSpawn(children),
+        caffeinateAvailable: () => {
+          throw new Error("idle instance probed caffeinate");
+        },
+      }).ready;
+
+      expect(children).toEqual([]);
+    });
+
+    it("stops caffeinate when the owner is disposed", async () => {
+      const children: Child[] = [];
+      const ctx = context("jubr.variant-worktrees");
+      await registerChatRenamer(ctx, {
+        log: quiet,
+        readAwakeActivity: async () => true,
+        awakeSpawn: fakeSpawn(children),
+        caffeinateAvailable: () => true,
+      }).ready;
+      expect(children).toHaveLength(1);
+
+      for (const disposable of ctx.subscriptions) {
+        disposable.dispose();
+      }
+
+      expect(children[0]?.killed).toContain("SIGTERM");
     });
   });
 });

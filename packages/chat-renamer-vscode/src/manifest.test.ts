@@ -8,6 +8,9 @@ describe("extension manifest", () => {
   it("contributes the settings the trigger reads", () => {
     expect(Object.keys(manifest.contributes.configuration.properties).sort()).toEqual([
       "chat-renamer.activationPatterns",
+      "chat-renamer.awake.graceDelaySecs",
+      "chat-renamer.awake.what",
+      "chat-renamer.awake.when",
       "chat-renamer.hookScope",
       "chat-renamer.renameExistingDays",
       "chat-renamer.titleEventPromptLines",
@@ -29,9 +32,14 @@ describe("extension manifest", () => {
   });
 
   it("keeps the other defaults in step with the shared defaults", async () => {
-    const { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_TITLE_EVENT_PROMPT_LINES, DEFAULT_WORKTREE_PREFIXES } = await import(
-      "chat-renamer-api"
-    );
+    const {
+      DEFAULT_AWAKE_GRACE_DELAY_SECS,
+      DEFAULT_AWAKE_WHAT,
+      DEFAULT_AWAKE_WHEN,
+      DEFAULT_RENAME_EXISTING_DAYS,
+      DEFAULT_TITLE_EVENT_PROMPT_LINES,
+      DEFAULT_WORKTREE_PREFIXES,
+    } = await import("chat-renamer-api");
     const properties = manifest.contributes.configuration.properties;
 
     expect(properties["chat-renamer.worktreePrefixes"].default).toEqual([...DEFAULT_WORKTREE_PREFIXES]);
@@ -44,6 +52,21 @@ describe("extension manifest", () => {
       type: "integer",
       minimum: 1,
       default: DEFAULT_TITLE_EVENT_PROMPT_LINES,
+    });
+    expect(properties["chat-renamer.awake.when"]).toMatchObject({
+      type: "string",
+      enum: ["chatsActive", "never"],
+      default: DEFAULT_AWAKE_WHEN,
+    });
+    expect(properties["chat-renamer.awake.what"]).toMatchObject({
+      type: "string",
+      enum: ["screen", "cpu"],
+      default: DEFAULT_AWAKE_WHAT,
+    });
+    expect(properties["chat-renamer.awake.graceDelaySecs"]).toMatchObject({
+      type: "integer",
+      minimum: 0,
+      default: DEFAULT_AWAKE_GRACE_DELAY_SECS,
     });
   });
 

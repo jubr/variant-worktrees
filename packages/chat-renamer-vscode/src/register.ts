@@ -28,6 +28,12 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   now?: () => number;
   /** Delay before the startup run and after the last title event, in milliseconds. Default 3000. For tests. */
   existingChatsDelayMs?: number;
+  /** Whether any chat is in a turn. For tests. */
+  readAwakeActivity?: TriggerHost["readAwakeActivity"];
+  /** Spawns `caffeinate`. For tests. */
+  awakeSpawn?: TriggerHost["awakeSpawn"];
+  /** Whether `caffeinate` can be run. For tests. */
+  caffeinateAvailable?: TriggerHost["caffeinateAvailable"];
   /**
    * Option values from the host, such as the `chatRenamer` section of `variants.yaml`. An editor setting the user set
    * explicitly wins over them; they win over the defaults.
@@ -55,6 +61,9 @@ export const registerChatRenamer = (
     now,
     existingChatsDelayMs,
     fileConfig,
+    readAwakeActivity,
+    awakeSpawn,
+    caffeinateAvailable,
     ...nameInput
   }: RegisterChatRenamerOptions = {},
 ): { names: ChatRenamerNames; ready: Promise<void> } => {
@@ -81,6 +90,9 @@ export const registerChatRenamer = (
     existing,
     existingChatsDelayMs,
     fileConfig,
+    readAwakeActivity,
+    awakeSpawn,
+    caffeinateAvailable,
   });
   return { names, ready };
 };

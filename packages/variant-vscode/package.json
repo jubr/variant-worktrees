@@ -284,6 +284,38 @@
           "default": 10,
           "markdownDescription": "How many lines of a new chat's first prompt the title event tests for a rename request (default `10`, at least `1`). A slash command or activation pattern on a later line does not rename the chat. The lines read are written to the log channel at Trace level (select Trace in the channel's log level picker), and every decision is logged as a `[title-event]` line. Applies to the `titleEvent` trigger only. Changing it applies without a reload."
         },
+        "variant.awake.when": {
+          "type": "string",
+          "enum": [
+            "chatsActive",
+            "never"
+          ],
+          "default": "chatsActive",
+          "enumDescriptions": [
+            "Run caffeinate while a chat is taking a turn or generating, including tool work of that turn. An open, selected, or idle chat does not count.",
+            "Do not run caffeinate."
+          ],
+          "markdownDescription": "Hold this Mac awake while a chat session is in a turn. Default `chatsActive`. Changing it applies without a reload. The enable setting does not turn this off."
+        },
+        "variant.awake.what": {
+          "type": "string",
+          "enum": [
+            "screen",
+            "cpu"
+          ],
+          "default": "screen",
+          "enumDescriptions": [
+            "caffeinate -disu: keep the display, system, and user session awake.",
+            "caffeinate -dis: keep the system awake and let the display sleep."
+          ],
+          "markdownDescription": "Which `caffeinate` flags to use. `screen` passes `-disu`. `cpu` passes `-dis`. Default `screen`."
+        },
+        "variant.awake.graceDelaySecs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 60,
+          "markdownDescription": "Seconds to keep the machine awake after the last active chat goes idle. `0` stops immediately. Default `60`. Changing it applies without a reload."
+        },
         "variant.hookScope": {
           "type": "string",
           "enum": [
