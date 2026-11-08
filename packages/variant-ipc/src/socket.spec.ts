@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { createConnection } from "node:net";
 import { join } from "node:path";
+import { type LogEvent, setLogSink } from "variant-log";
 import { connect, createListener, socketPath } from "./index.ts";
 
 const tempDirectory = (): string => realpathSync(mkdtempSync(join("/tmp", "variant-ipc-")));
@@ -210,6 +211,98 @@ describe("unix socket", () => {
       const body = JSON.parse(line ?? "") as { error?: { message?: string } };
       expect(body.error?.message?.length).toBeGreaterThan(0);
     } finally {
+      await listener.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits one warn with step request for a line that is not JSON", async () => {
+    const root = tempDirectory();
+    const path = join(root, "variant-worktrees.sock");
+    const events: LogEvent[] = [];
+    const listener = createListener(path, () => ({ ok: true }));
+    setLogSink((event) => events.push(event));
+    try {
+      await listener.start();
+      const [invalid] = await exchange(path, ["not-json"]);
+      const invalidBody = JSON.parse(invalid ?? "") as { error?: { message?: string } };
+      expect(invalidBody.error?.message?.length).toBeGreaterThan(0);
+      expect(events).toEqual([{ level: "warn", step: "request", message: invalidBody.error?.message }]);
+    } finally {
+      setLogSink(undefined);
+      await listener.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits one warn with step request for an invalid request", async () => {
+    const root = tempDirectory();
+    const path = join(root, "variant-worktrees.sock");
+    const events: LogEvent[] = [];
+    const listener = createListener(path, () => ({ ok: true }));
+    setLogSink((event) => events.push(event));
+    try {
+      await listener.start();
+      const [invalid] = await exchange(path, ["{}"]);
+      const invalidBody = JSON.parse(invalid ?? "") as { error?: { message?: string } };
+      expect(events).toEqual([{ level: "warn", step: "request", message: invalidBody.error?.message }]);
+    } finally {
+      setLogSink(undefined);
+      await listener.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits one error with step listen when a second listener finds a live socket", async () => {
+    const root = tempDirectory();
+    const path = join(root, ".vscode", "variant-worktrees.sock");
+    const events: LogEvent[] = [];
+    const first = createListener(path, () => ({ ok: true }));
+    const second = createListener(path, () => ({ ok: false }));
+    setLogSink((event) => events.push(event));
+    try {
+      await first.start();
+      await expect(second.start()).rejects.toThrow();
+      expect(existsSync(path)).toBe(true);
+      expect(events).toEqual([{ level: "error", step: "listen", message: `socket already listening at ${path}` }]);
+    } finally {
+      setLogSink(undefined);
+      await first.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("emits nothing for a successful request", async () => {
+    const root = tempDirectory();
+    const path = join(root, "variant-worktrees.sock");
+    const events: LogEvent[] = [];
+    const listener = createListener(path, () => ({ ok: true }));
+    setLogSink((event) => events.push(event));
+    try {
+      await listener.start();
+      await exchange(path, [JSON.stringify({ name: "list", args: {} })]);
+      expect(events).toEqual([]);
+    } finally {
+      setLogSink(undefined);
+      await listener.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not add a log event when the handler fails", async () => {
+    const root = tempDirectory();
+    const path = join(root, "variant-worktrees.sock");
+    const events: LogEvent[] = [];
+    const listener = createListener(path, () => {
+      throw new Error("handler failed");
+    });
+    setLogSink((event) => events.push(event));
+    try {
+      await listener.start();
+      await exchange(path, [JSON.stringify({ name: "list", args: {} })]);
+      expect(events).toEqual([]);
+    } finally {
+      setLogSink(undefined);
       await listener.stop();
       rmSync(root, { recursive: true, force: true });
     }

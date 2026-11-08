@@ -1,5 +1,5 @@
 import type { DbConfig } from "variant-config";
-import { log } from "../log.js";
+import { logD, logW } from "../log.js";
 
 /** Specification: openspec/specs/variant-api/logging/spec.md */
 
@@ -173,13 +173,13 @@ export class QueryGuard {
     } catch (error) {
       const statement = statementOf(error);
       if (statement !== undefined && !this.quiet) {
-        log("debug", statement);
+        logD(statement);
       }
       if (this.target !== undefined && isContact(error)) {
         const message = contactWarning(this.target);
         if (!this.warned && !this.quiet) {
           this.warned = true;
-          log("warn", message);
+          logW(message);
         }
         throw new DatabaseContactError(message);
       }

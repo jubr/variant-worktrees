@@ -77,7 +77,7 @@ const parseEnv = (text: string): Record<string, string> =>
   );
 
 describe("step log", () => {
-  it("emits each step at info as it runs, as [slug] [step] cmd", () =>
+  it("emits each step at info with the operation as step and the variant as slug", () =>
     withProject(
       (d) =>
         lines(
@@ -97,11 +97,16 @@ describe("step log", () => {
         } finally {
           setLogSink(undefined);
         }
-        expect(events.filter((event) => event.level === "info").map((event) => event.message)).toEqual([
-          `[demo] [provision] create schema ${_directory}/.cache/variants/demo.db`,
-          `[demo] [one] echo one >> ${_directory}/order.log`,
-          `[demo] [two] echo two >> ${_directory}/order.log`,
-          `[demo] [seed] echo seed >> ${_directory}/order.log`,
+        expect(events.filter((event) => event.level === "info")).toEqual([
+          {
+            level: "info",
+            step: "provision",
+            slug: "demo",
+            message: `create schema ${_directory}/.cache/variants/demo.db`,
+          },
+          { level: "info", step: "one", slug: "demo", message: `echo one >> ${_directory}/order.log` },
+          { level: "info", step: "two", slug: "demo", message: `echo two >> ${_directory}/order.log` },
+          { level: "info", step: "seed", slug: "demo", message: `echo seed >> ${_directory}/order.log` },
         ]);
       },
     ));

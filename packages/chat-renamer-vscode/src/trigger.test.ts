@@ -1060,6 +1060,16 @@ describe("trigger", () => {
       ]);
     });
 
+    it("logs existing-chats activity at debug", async () => {
+      oldChats();
+
+      await start();
+
+      const activity = captured.entries.filter((entry) => entry.message.startsWith("[existing-chats]"));
+      expect(activity.length).toBeGreaterThan(0);
+      expect(activity.every((entry) => entry.level === "debug")).toBe(true);
+    });
+
     it("logs the trigger and the exact setting the run obeys", async () => {
       oldChats();
 
@@ -1131,7 +1141,7 @@ describe("trigger", () => {
       expect(renamed).toEqual([]);
     });
 
-    it("renames a chat the catalog only lists after the title events settle", async () => {
+    it("does not start an existing-chats run from one title event", async () => {
       await start();
       expect(renamed).toEqual([]);
       catalog = [{ sessionId: "late", title: "AI" }];
@@ -1140,10 +1150,8 @@ describe("trigger", () => {
       emit({ sessionId: "late", title: "AI" });
       await settle();
 
-      expect(renamed).toEqual([{ sessionId: "late", title: "abc" }]);
-      expect(captured.lines.some((line) => line.includes("run started") && line.includes("title events settled"))).toBe(
-        true,
-      );
+      expect(renamed).toEqual([]);
+      expect(captured.lines.some((line) => line.includes("title events settled"))).toBe(false);
     });
 
     it("lets only the active instance run", async () => {

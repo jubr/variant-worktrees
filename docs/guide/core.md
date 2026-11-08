@@ -195,9 +195,11 @@ These flags work on every command, before or after the command name. `variant --
 | --- | --- |
 | `--json` | Print the result as JSON, exactly what the command returned |
 | `--yaml` | Print the same result as YAML |
-| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` is `warn`. Default `warn`. Prefixes are `trace:`, `debug:`, `info:`, `warning:`, and `error:` |
+| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn`. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, then the step when the event has one. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, and the step is cyan |
 | `--help`, `-h` | Show help |
-| `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then a cursive `Variant-Worktrees` banner, then the platform and `https://github.com/jubr/variant-worktrees` (top level only). Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
+| `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
+
+The CLI also sends each log event to the editor on the project Unix socket. The connection starts at the first event. Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line. CLI end is one `[debug] cli end` line. A write waits at most one second. An event with no slug carries the autodetected slug of the working directory. Standard error does not print that slug. A missing editor does not change the command result. On the Variant Worktrees channel those lines end with ` [cli]`.
 
 Without a flag, commands print a text summary meant for people. Scripts should use `--json` or `--yaml`; the text layout can change. Giving both `--json` and `--yaml` fails before anything runs. Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.
 

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
+import { type LogEvent, setLogSink } from "../src/log.js";
 import { deprovisionVariant } from "../src/operations/deprovision.js";
 import { downVariant } from "../src/operations/down.js";
 import { prepareVariant } from "../src/operations/prepare.js";
@@ -64,11 +65,21 @@ describe("deprovision", () => {
       yaml("    tenantsCmd: exit 9\n"),
       ["v_demo-east", "v_demo-north", "v_other-east"],
       async ({ context, dropped, directory }) => {
-        const result = await deprovisionVariant(context, "demo", { log: () => {} });
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          const result = await deprovisionVariant(context, "demo", { log: () => {} });
 
-        expect(result.dropped).toEqual(["v_demo-east", "v_demo-north"]);
-        expect(dropped).toEqual(["v_demo-east", "v_demo-north"]);
-        expect(existsSync(join(directory, "cmd.out"))).toBe(false);
+          expect(result.dropped).toEqual(["v_demo-east", "v_demo-north"]);
+          expect(dropped).toEqual(["v_demo-east", "v_demo-north"]);
+          expect(existsSync(join(directory, "cmd.out"))).toBe(false);
+          expect(events.filter((event) => event.level === "info")).toEqual([
+            { level: "info", step: "deprovision", slug: "demo", message: "drop schema v_demo-east" },
+            { level: "info", step: "deprovision", slug: "demo", message: "drop schema v_demo-north" },
+          ]);
+        } finally {
+          setLogSink(undefined);
+        }
       },
     ));
 

@@ -1,5 +1,6 @@
 {
   "references": [
+    { "path": "packages/variant-log" },
     { "path": "packages/variant-api" },
     { "path": "packages/variant-cli" },
     { "path": "packages/variant-mcp" },

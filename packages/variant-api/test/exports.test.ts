@@ -10,6 +10,12 @@ describe("public exports", () => {
 
   it("exports the log sink a host attaches", () => {
     expect(api.setLogSink).toBeFunction();
+    expect(api.log).toBeFunction();
+    expect(api.logT).toBeFunction();
+    expect(api.logD).toBeFunction();
+    expect(api.logI).toBeFunction();
+    expect(api.logW).toBeFunction();
+    expect(api.logE).toBeFunction();
     expect(api.LOG_LEVELS).toEqual(["trace", "debug", "info", "warn", "error"]);
   });
 });

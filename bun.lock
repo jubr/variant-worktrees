@@ -54,6 +54,7 @@
         "smol-toml": "^1.8.0",
         "tinyglobby": "^0.2.17",
         "variant-config": "workspace:*",
+        "variant-log": "workspace:*",
         "yaml": "^2.9.1",
       },
     },
@@ -66,6 +67,7 @@
       "dependencies": {
         "cleye": "^2.6.0",
         "variant-api": "workspace:*",
+        "variant-ipc": "workspace:*",
         "yaml": "^2.9.1",
       },
       "devDependencies": {
@@ -88,8 +90,13 @@
       "version": "0.0.7",
       "dependencies": {
         "variant-config": "workspace:*",
+        "variant-log": "workspace:*",
         "zod": "^4.6.5",
       },
+    },
+    "packages/variant-log": {
+      "name": "variant-log",
+      "version": "0.0.7",
     },
     "packages/variant-mcp": {
       "name": "variant-mcp",
@@ -101,6 +108,8 @@
         "@modelcontextprotocol/sdk": "^1.27.1",
         "variant-api": "workspace:*",
         "variant-config": "workspace:*",
+        "variant-ipc": "workspace:*",
+        "variant-log": "workspace:*",
         "zod": "^4.3.6",
       },
     },
@@ -1132,6 +1141,8 @@
     "variant-config": ["variant-config@workspace:packages/variant-config"],
 
     "variant-ipc": ["variant-ipc@workspace:packages/variant-ipc"],
+
+    "variant-log": ["variant-log@workspace:packages/variant-log"],
 
     "variant-mcp": ["variant-mcp@workspace:packages/variant-mcp"],
 

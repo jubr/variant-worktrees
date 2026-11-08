@@ -1,5 +1,5 @@
 import { type FSWatcher, watch as fsWatch } from "node:fs";
-import { log } from "./log.js";
+import { logI } from "./log.js";
 import { MiseError } from "./mise.js";
 import type { MiseFailure, VariantRecord, VariantUpdate } from "./types.js";
 
@@ -221,7 +221,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
           broadcast({ records: next, ...(warning === undefined ? {} : { warning }) });
         }
         if (recovered) {
-          log("info", "database contact restored");
+          logI("database contact restored");
         }
         if (warning !== undefined) {
           armRetry();

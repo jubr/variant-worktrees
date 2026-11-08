@@ -11,6 +11,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { createListener, type IpcRequest, socketPath } from "variant-ipc";
+import { loggingData } from "../src/logging-data.ts";
 
 interface McpResult {
   lines: string[];
@@ -826,12 +828,52 @@ const withUnreachableMcp = async (run: (directory: string, configPath: string) =
 };
 
 describe("MCP logging", () => {
+  it("sends a log event to the editor socket marked mcp and leaves the notification unmarked", async () => {
+    const directory = realpathSync(tempDirectory());
+    const seen: IpcRequest[] = [];
+    const listener = createListener(socketPath(directory), (request) => {
+      seen.push(request);
+      return {};
+    });
+    await listener.start();
+    try {
+      const result = await mcp([...initMessages(), call(2, "variant_list")], configFile(directory), {
+        cwd: directory,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(seen).toContainEqual({
+        name: "log",
+        args: { level: "info", message: "listed variants", origin: "mcp" },
+      });
+      expect(logging(result).some((note) => JSON.stringify(note.data).includes("[mcp]"))).toBe(false);
+    } finally {
+      await listener.stop();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("puts step and slug on the notification data", () => {
+    expect(loggingData({ level: "info", message: "+ mise install", step: "create", slug: "add-auth" })).toEqual({
+      message: "+ mise install",
+      step: "create",
+      slug: "add-auth",
+    });
+  });
+
+  it("imports the sink from variant-log", () => {
+    const source = readFileSync(new URL("../src/mcp.ts", import.meta.url), "utf8");
+    expect(source).toContain('from "variant-log"');
+  });
+
   it("sends warning and not info until the client sets a level", () =>
     withUnreachableMcp(async (directory, configPath) => {
       const result = await mcp([...initMessages(), call(2, "variant_list")], configPath, { cwd: directory });
       const notes = logging(result);
       expect(notes.some((note) => note.level === "warning")).toBe(true);
       expect(notes.some((note) => note.level === "info")).toBe(false);
+      const warning = notes.find((note) => note.level === "warning");
+      expect(warning?.data).toEqual({ message: (warning?.data as { message?: string } | undefined)?.message });
+      expect(typeof (warning?.data as { message?: unknown } | undefined)?.message).toBe("string");
       const listed = answer(result, 2);
       expect(listed.isError).not.toBe(true);
       expect(listed.text).not.toContain("SELECT");

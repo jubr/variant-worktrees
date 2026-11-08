@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { createListener } from "variant-ipc";
 import * as vscode from "vscode";
 import { activate, deactivate } from "./extension.ts";
+import { bindSockets } from "./socket.ts";
 
 const tempDirectory = (): string => realpathSync(mkdtempSync(join("/tmp", "variant-vscode-ipc-")));
 
@@ -192,6 +193,113 @@ describe("extension socket", () => {
     const line = await exchange(layout.socketFile, JSON.stringify({ name, args: { slug: "test-feature" } }));
     const body = JSON.parse(line) as { error?: { message?: string } };
     expect(body.error?.message).toBe(`${name} is not handled on the extension socket`);
+  });
+
+  it("writes a log request on the Variant Worktrees channel", async () => {
+    const infos: string[] = [];
+    const original = vscode.window.createOutputChannel;
+    vscode.window.createOutputChannel = ((name: string) => ({
+      name,
+      trace: () => {},
+      debug: () => {},
+      info: (message: string) => {
+        if (name === "Variant Worktrees") {
+          infos.push(message);
+        }
+      },
+      warn: () => {},
+      error: () => {},
+      clear: () => {},
+      appendLine: () => {},
+      show: () => {},
+      dispose: () => {},
+    })) as typeof vscode.window.createOutputChannel;
+    vscode.env.appName = "Cursor";
+    const layout = singleRepoLayout();
+    roots.push(layout.root);
+    useFolders(layout.worktree);
+    try {
+      await activate({
+        subscriptions: [],
+        globalState: { get: () => undefined, update: async () => {} },
+        extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
+        globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+      } as unknown as vscode.ExtensionContext);
+      const line = await exchange(
+        layout.socketFile,
+        JSON.stringify({
+          name: "log",
+          args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth" },
+        }),
+      );
+      expect(JSON.parse(line)).not.toHaveProperty("error");
+      expect(infos).toContain('<add-auth> [create] cmd="mise install"');
+    } finally {
+      vscode.env.appName = undefined;
+      vscode.window.createOutputChannel = original;
+    }
+  });
+
+  it.each([
+    "cli",
+    "mcp",
+  ] as const)("appends [%s] on the channel when the log request names that origin", async (origin) => {
+    const infos: string[] = [];
+    const original = vscode.window.createOutputChannel;
+    vscode.window.createOutputChannel = ((name: string) => ({
+      name,
+      trace: () => {},
+      debug: () => {},
+      info: (message: string) => {
+        if (name === "Variant Worktrees") {
+          infos.push(message);
+        }
+      },
+      warn: () => {},
+      error: () => {},
+      clear: () => {},
+      appendLine: () => {},
+      show: () => {},
+      dispose: () => {},
+    })) as typeof vscode.window.createOutputChannel;
+    vscode.env.appName = "Cursor";
+    const layout = singleRepoLayout();
+    roots.push(layout.root);
+    useFolders(layout.worktree);
+    try {
+      await activate({
+        subscriptions: [],
+        globalState: { get: () => undefined, update: async () => {} },
+        extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
+        globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+      } as unknown as vscode.ExtensionContext);
+      const line = await exchange(
+        layout.socketFile,
+        JSON.stringify({ name: "log", args: { level: "info", message: "listed variants", origin } }),
+      );
+      expect(JSON.parse(line)).not.toHaveProperty("error");
+      expect(infos).toContain(`listed variants [${origin}]`);
+    } finally {
+      vscode.env.appName = undefined;
+      vscode.window.createOutputChannel = original;
+      await deactivate();
+    }
+  });
+
+  it("refuses a log request that has no message and writes no channel line", async () => {
+    const written: string[] = [];
+    const layout = singleRepoLayout();
+    roots.push(layout.root);
+    useFolders(layout.worktree);
+    await bindSockets(() => {
+      written.push("called");
+    });
+
+    const line = await exchange(layout.socketFile, JSON.stringify({ name: "log", args: {} }));
+    const body = JSON.parse(line) as { error?: { message?: string } };
+
+    expect(body.error?.message?.length).toBeGreaterThan(0);
+    expect(written).toEqual([]);
   });
 
   it("does not know destroy as a lifecycle command any more", async () => {
