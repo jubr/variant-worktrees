@@ -72,6 +72,7 @@ Phases: **Orient** (AGENTS.md / change artifacts) → **Implement** (skills `tdd
   - One commit per coherent unit (typically a completed `tasks.md` task-group if large enough, or single task, or a tightly related group that cannot stand alone).
   - **Never mix OpenSpec artifacts with product code.** Do not stage `openspec/changes/` or `openspec/specs/`. Checkbox edits stay dirty until `vw-spec-wrapup`. Stage explicit paths; never `git add -A` / `git add .`.
   - Format: `type(scope): summary` per `CONTRIBUTING.md`. Focused; no secrets; never `--no-verify`.
+8. **Bleed when asked.** When the user says `bleed`, run `task bleed:all` in this worktree. See [specs/meta/dev-bleeds](../../../openspec/specs/meta/dev-bleeds/spec.md).
 
 ## Done when
 
