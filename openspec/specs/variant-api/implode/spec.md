@@ -156,9 +156,17 @@ The branch SHALL be the one checked out in the variant worktree, read before tha
 
 The worktree removal SHALL complete before the branch is deleted. When the branch cannot be deleted, the implode SHALL fail, the error SHALL name the branch, and the branch SHALL still exist. The text summary SHALL contain `removed branch <name>` when the branch was removed, and SHALL NOT contain that line when the branch was kept or none existed. The result SHALL name the branch and whether it was removed.
 
-The branch step SHALL emit one debug log event. When the branch is removed, the message SHALL contain the branch name and `removed`. When `branchRm` is `no` and the branch exists, the message SHALL contain the branch name and `kept`. When no branch exists, the message SHALL contain the slug and say that no branch was removed. With the default log threshold the CLI SHALL NOT write that event. With `--log-level=debug` the CLI SHALL write it to standard error as a line that starts with `debug:`.
+A successful implode SHALL also emit one debug log event, and only that one finish event, whose message is `implode finished slug="<slug>"`. A refusal SHALL NOT emit it.
+
+The branch step SHALL emit one debug log event. When the branch is removed, the message SHALL contain the branch name and `removed`. When `branchRm` is `no` and the branch exists, the message SHALL contain the branch name and `kept`. When no branch exists, the message SHALL contain the slug and say that no branch was removed. With the default log threshold the CLI SHALL NOT write that event. With `--log-level=debug` the CLI SHALL write it to standard error as a line that starts with `[debug]`.
 
 A `branchRm` value other than `yes`, `no`, or omitted SHALL fail before any teardown, and the error SHALL name `yes` and `no`.
+
+#### Scenario: Finish is one debug line
+
+- **WHEN** implode of slug `demo` succeeds
+- **THEN** the log has exactly one debug event whose message is `implode finished slug="demo"`
+- **AND** a refused implode emits no such event
 
 #### Scenario: Default removes the branch
 
@@ -208,17 +216,17 @@ A `branchRm` value other than `yes`, `no`, or omitted SHALL fail before any tear
 #### Scenario: Debug names a removed branch
 
 - **WHEN** a user runs `variant implode -s demo --log-level=debug` for a merged variant on `feat/demo`
-- **THEN** standard error contains a line that starts with `debug:` and contains `feat/demo` and `removed`
+- **THEN** standard error contains a line that starts with `[debug]` and contains `feat/demo` and `removed`
 
 #### Scenario: Default log hides the branch line
 
 - **WHEN** a user runs `variant implode -s demo` with no log flag for that same variant
-- **THEN** standard error does not contain a line that starts with `debug:`
+- **THEN** standard error does not contain a line that starts with `[debug]`
 
 #### Scenario: Kept branch is debug
 
 - **WHEN** a user runs `variant implode -s demo --branch-rm=no --log-level=debug` for a merged variant on `feat/demo`
-- **THEN** standard error contains a line that starts with `debug:` and contains `feat/demo` and `kept`
+- **THEN** standard error contains a line that starts with `[debug]` and contains `feat/demo` and `kept`
 - **AND** the local branch `feat/demo` still exists
 
 #### Scenario: True and false are rejected
