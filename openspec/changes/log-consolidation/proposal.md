@@ -1,38 +1,47 @@
 ## Why
 
-CLI log lines are `level: message` with no color, so a step buried in the message (`[create] + mise install`) looks the same as the sentence after it. `variant --version` always prints the cursive drawing, including when stdout is a pipe and the drawing is only noise.
+CLI log lines are `level: message` with no color, and the step is buried in the message (`[create] + mise install`). The log stream lives inside `variant-api`, so `variant-ipc` and `variant-mcp` cannot emit the same events without depending on the lifecycle library. `variant --version` always prints the cursive drawing, including when stdout is a pipe.
 
 ## What Changes
 
-- **BREAKING** A library log line on the CLI is `[level] step message` when the message starts with `[step]`, and `[level] message` when it does not. The displayed level words stay `trace`, `debug`, `info`, `warning`, and `error` (`warn` still prints as `warning`). The old prefixes `trace:`, `debug:`, `info:`, `warning:`, and `error:` are gone for these lines. The slug field is still not printed.
-- When standard error is a terminal and `NO_COLOR` is unset, the brackets are dark gray, the level word has its own color, the step is cyan, and the message is the default terminal color. Otherwise the same characters are printed with no ANSI sequences.
-- **BREAKING** `variant --version` prints the cursive drawing only when standard output is a terminal. A pipe or a redirect omits the drawing and the blank line that followed it. The version line and the details line stay. On a terminal, orange coloring is unchanged: color when `NO_COLOR` is unset, plain glyphs when it is set.
-- The library gains `logT`, `logD`, `logI`, `logW`, and `logE`. Each emits the same event as `log` at one fixed level. `log` stays for a level chosen by the caller. Call sites that pass a literal level use the matching shorthand.
+- **BREAKING** The log stream moves to a new package, `variant-log`. An event is `level`, `message`, and optional `slug` and `step`. The message does not repeat the step in brackets. `logT`, `logD`, `logI`, `logW`, and `logE` emit one fixed level. `log` stays for a level chosen by the caller. No host attached drops the event. The package applies no color.
+- `variant-api`, `variant-ipc`, and `variant-mcp` emit through that package. `variant-ipc` does not depend on `variant-api` to do so. A leading `[step]` that today sits in a message becomes the `step` field, and a slug that today sits in the message becomes the `slug` field.
+- **BREAKING** A CLI log line is `[level] step message` when the event has a step, and `[level] message` when it does not. The displayed level words are `trace`, `debug`, `info`, `warn`, and `error`. `--log-level=warning` still selects `warn`. The slug is still not printed. When standard error is a terminal and `NO_COLOR` is unset, the brackets are dark gray, the level word has its own color, the step is cyan, and the message is the default terminal color. Otherwise the same characters have no ANSI sequences. Color stays in the CLI.
+- The MCP logging notification carries `message`, and `step` and `slug` when the event has them. Trace still names the library level.
+- The editor log channel reads `step` and `slug` from the event. It does not color the line.
+- **BREAKING** `variant --version` prints the cursive drawing only when standard output is a terminal. A pipe omits the drawing and the blank line that followed it. On a terminal, orange coloring is unchanged.
 
 ## Capabilities
 
 ### New Capabilities
 
-None.
+- `variant-log/events`: the shared event, the optional step, and the level shorthands. Hosts attach a sink and format the event themselves.
 
 ### Modified Capabilities
 
-- `variant-cli/logging`: log lines use `[level]`, an optional leading step, and the colors above. Threshold, stderr, and `-v` stay.
+- `variant-cli/logging`: the CLI line uses the event's `step` and the colors above. Threshold, stderr, and `-v` stay.
+- `variant-api/logging`: events the library emits may carry `step` and `slug` as fields. The message does not repeat them.
+- `variant-api/implode`: the debug branch line on the CLI starts with `[debug]`.
+- `variant-ipc/unix-socket`: invalid requests and a live-socket refusal emit log events. The socket replies stay as they are.
+- `variant-mcp/logging`: a notification's data includes `message`, `step`, and `slug`.
 - `variant-api/commands`: the cursive `--version` drawing is printed only when standard output is a terminal.
 - `variant-cli/package`: Node and Bun still print the same `--version` text, and that text includes the drawing only on a terminal.
-- `variant-api/logging`: `logT`, `logD`, `logI`, `logW`, and `logE` emit trace, debug, info, warn, and error.
 
 ## Impact
 
+- New `packages/variant-log`, built before `variant-api`, `variant-ipc`, `variant-mcp`, and `variant-cli`.
+- `packages/variant-api` call sites that pass a literal level, and messages that embed `[step]` or `[slug]`.
+- `packages/variant-ipc` and `packages/variant-mcp` depend on `variant-log` and emit.
 - `packages/variant-cli` log rendering and `variant --version`.
-- `packages/variant-api` log helpers and the call sites that pass a literal level (`log`, `emit`, `logEvent`).
-- Tests that match `warning:`, `trace:`, `debug:`, or the drawing on a piped `--version`.
-- `README.md`, `docs/guide/core.md`, and `CHANGELOG.md`, which describe the prefixes and the banner.
+- `packages/variant-vscode` log-channel text, which reads `step` and `slug`.
+- Tests that match `warning:` or `debug:` on a library log line, a bracketed step inside the message, or the drawing on a piped `--version`. Config lines that print `warning:` stay.
+- `README.md`, `docs/guide/core.md`, and `CHANGELOG.md`.
 
 ## Non-goals
 
-- Config and migration lines that already print `warning:` and are not library log events.
-- The editor's log-channel text, chat-renamer logs, timestamps, and printing the slug on the CLI.
-- Changing which events are emitted, the default threshold, or `-v` / `--verbose`.
-- Rewriting message text. A leading `[step]` is only how the CLI chooses the cyan word. A second bracket stays in the message.
-- An ANSI italic style on the drawing. "Italic" here is the existing cursive drawing, omitted when stdout is not a terminal.
+- Config and migration lines that already print `warning:` and are not log events.
+- Chat-renamer logs, timestamps, and printing the slug on the CLI.
+- ANSI color in `variant-log`, MCP, or the editor channel.
+- New log lines from `variant-server`.
+- Changing which lifecycle events are emitted, the default threshold, or `-v` / `--verbose`.
+- An ANSI italic style on the drawing. The cursive drawing is omitted when stdout is not a terminal.

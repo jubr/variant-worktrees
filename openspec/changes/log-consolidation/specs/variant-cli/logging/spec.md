@@ -4,14 +4,14 @@
 
 The CLI SHALL accept a global `--log-level` whose value is `trace`, `debug`, `info`, `warn`, `error`, or `warning`. `warning` SHALL select `warn`. The flag SHALL be accepted before and after the command name. The default threshold SHALL be `warn`. An event below the threshold SHALL NOT be written. An event at or above the threshold SHALL be written to standard error and SHALL NOT be written to standard output.
 
-A written line SHALL start with `[trace]`, `[debug]`, `[info]`, `[warning]`, or `[error]`, using `warning` for a `warn` event. When the message begins with `[`, a token that does not contain `]`, and `]`, that token SHALL be the step and SHALL be printed once, without those brackets, after the level bracket and one space. The rest of the message, without one leading space, SHALL follow the step after one space. When that rest is empty, the line SHALL end at the step. A message that does not begin that way SHALL have no step, and the whole message SHALL follow the level bracket after one space. A second `[token]` in the message SHALL stay in the message. The event's slug SHALL NOT be printed.
+A written line SHALL start with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, using `warn` for a `warn` event. When the event has a step, that step SHALL be printed once, after the level bracket and one space, and the message SHALL follow the step after one space. When the step is absent, the message SHALL follow the level bracket after one space. The CLI SHALL NOT invent a step by reading brackets in the message. The event's slug SHALL NOT be printed.
 
-When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be colored and SHALL otherwise be the same characters. `[` and `]` SHALL be dark gray (`ESC[90m`). The level word SHALL be gray-blue for `trace` (`ESC[38;5;67m`), yellow for `debug` (`ESC[33m`), green for `info` (`ESC[32m`), orange for `warning` (`ESC[38;5;208m`), and red for `error` (`ESC[31m`). The step SHALL be cyan (`ESC[36m`). `ESC` is the byte `0x1B`. The default color SHALL be restored (`ESC[0m`) after `]` and, when a step is present, again after the step, so the message uses the terminal default. When standard error is not a terminal, or `NO_COLOR` is set, the line SHALL contain no ANSI sequence.
+When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be colored and SHALL otherwise be the same characters. `[` and `]` SHALL be dark gray (`ESC[90m`). The level word SHALL be gray-blue for `trace` (`ESC[38;5;67m`), yellow for `debug` (`ESC[33m`), green for `info` (`ESC[32m`), orange for `warn` (`ESC[38;5;208m`), and red for `error` (`ESC[31m`). The step SHALL be cyan (`ESC[36m`). `ESC` is the byte `0x1B`. The default color SHALL be restored (`ESC[0m`) after `]` and, when a step is present, again after the step, so the message uses the terminal default. When standard error is not a terminal, or `NO_COLOR` is set, the line SHALL contain no ANSI sequence.
 
 #### Scenario: Default shows the warning
 
 - **WHEN** the configured database cannot be contacted and a user runs `variant list` with no log flag
-- **THEN** standard error contains a line that starts with `[warning]` and contains the contact warning
+- **THEN** standard error contains a line that starts with `[warn]` and contains the contact warning
 - **AND** standard output is the list text and does not contain that warning
 
 #### Scenario: Error threshold hides the warning
@@ -40,31 +40,31 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 - **WHEN** a user runs `variant list --log-level=loud`
 - **THEN** the process exits non-zero, standard error names `--log-level` and the allowed values, and the command does not run
 
-#### Scenario: Leading step
+#### Scenario: Step from the event
 
-- **WHEN** an info event is written whose message is `[create] + mise install` and whose slug is `add-auth`
+- **WHEN** an info event is written with message `+ mise install`, step `create`, and slug `add-auth`
 - **THEN** the line's text is `[info] create + mise install`
 - **AND** the line does not contain `add-auth`
 
 #### Scenario: No step
 
-- **WHEN** an info event is written whose message is `listed variants`
+- **WHEN** an info event is written whose message is `listed variants` and which has no step
 - **THEN** the line's text is `[info] listed variants`
 
-#### Scenario: Second bracket stays in the message
+#### Scenario: Brackets in the message are not a step
 
-- **WHEN** an info event is written whose message is `[demo] [provision] create schema app`
-- **THEN** the line's text is `[info] demo [provision] create schema app`
+- **WHEN** an info event is written with message `[provision] create schema app` and no step
+- **THEN** the line's text is `[info] [provision] create schema app`
 
 #### Scenario: Colored line
 
-- **WHEN** standard error is a terminal, `NO_COLOR` is unset, and an info event whose message is `[create] + mise install` is written
+- **WHEN** standard error is a terminal, `NO_COLOR` is unset, and an info event with step `create` and message `+ mise install` is written
 - **THEN** the line is dark-gray `[`, green `info`, dark-gray `]`, a reset, cyan `create`, a reset, then ` + mise install`
 
 #### Scenario: Plain line
 
 - **WHEN** standard error is not a terminal, or `NO_COLOR` is set, and a warn event whose message does not begin with `[` is written
-- **THEN** the line starts with `[warning]`, contains the message, and contains no ANSI sequence
+- **THEN** the line starts with `[warn]`, contains the message, and contains no ANSI sequence
 
 ### Requirement: Verbose is not a log level
 

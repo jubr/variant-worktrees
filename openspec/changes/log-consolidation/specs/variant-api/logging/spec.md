@@ -1,20 +1,15 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Level shorthands
+### Requirement: Log levels
 
-The library SHALL provide `logT`, `logD`, `logI`, `logW`, and `logE`. Each SHALL emit one event at `trace`, `debug`, `info`, `warn`, and `error` respectively, with the message and the optional slug given by the caller. The leveled `log` operation SHALL remain for a level chosen by the caller. With no host attached, a shorthand SHALL NOT throw and SHALL NOT write the event to standard output.
+The library SHALL emit log events at `trace`, `debug`, `info`, `warn`, and `error` through the shared log stream. An event MAY include a step and a slug as fields. The message SHALL NOT repeat that step or that slug inside brackets. A host SHALL be able to receive each event. Emitting an event with no host attached SHALL NOT throw and SHALL NOT write that event to standard output.
 
-#### Scenario: Info shorthand
+#### Scenario: Silent without a host
 
-- **WHEN** a host is receiving events and the info shorthand is called with message `ready` and slug `demo`
-- **THEN** the host receives one event at `info` with that message and that slug
-
-#### Scenario: Shorthand is silent without a host
-
-- **WHEN** the warn shorthand is called and no host is receiving events
+- **WHEN** the library logs a warning and no host is receiving events
 - **THEN** standard output is unchanged and the call does not throw
 
-#### Scenario: Chosen level still emits
+#### Scenario: Provision names the step
 
-- **WHEN** a host is receiving events and the caller emits `error` by passing that level
-- **THEN** the host receives one event at `error`
+- **WHEN** provisioning variant `demo` logs the schema creation for operation `provision`
+- **THEN** the event step is `provision`, the slug is `demo`, and the message does not contain `[demo]` or `[provision]`
