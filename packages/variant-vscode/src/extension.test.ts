@@ -195,8 +195,8 @@ describe("extension", () => {
           extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
           globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
         } as unknown as vscode.ExtensionContext);
-        log("info", "[create] + mise install", "add-auth");
-        log("info", "[demo] [provision] create schema app");
+        log("info", "+ mise install", { step: "create", slug: "add-auth" });
+        log("info", "create schema app", { step: "provision", slug: "demo" });
       } finally {
         vscode.env.appName = undefined;
         setLogSink(undefined);
