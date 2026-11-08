@@ -51,7 +51,7 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
       void stopSockets();
     },
   });
-  return bindSockets();
+  return bindSockets((event) => write[event.level](formatVariantLog(event)));
 };
 
 export const deactivate = (): Promise<void> => stopSockets();

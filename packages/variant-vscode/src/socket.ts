@@ -2,6 +2,29 @@ import { createListener, type SocketListener, socketPath } from "variant-ipc";
 import * as vscode from "vscode";
 
 const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provision", "up", "down", "watch", "implode"]);
+const LOG_LEVELS = new Set<string>(["trace", "debug", "info", "warn", "error"]);
+
+type SocketLogEvent = {
+  level: "trace" | "debug" | "info" | "warn" | "error";
+  message: string;
+  step?: string;
+  slug?: string;
+};
+
+const logEvent = (args: Record<string, unknown>): SocketLogEvent => {
+  const { level, message, step, slug } = args;
+  if (typeof level !== "string" || !LOG_LEVELS.has(level) || typeof message !== "string") {
+    throw new Error("invalid log event");
+  }
+  const event: SocketLogEvent = { level: level as SocketLogEvent["level"], message };
+  if (typeof step === "string") {
+    event.step = step;
+  }
+  if (typeof slug === "string") {
+    event.slug = slug;
+  }
+  return event;
+};
 
 const listeners = new Map<string, SocketListener>();
 
@@ -14,7 +37,7 @@ export const stopSockets = async (): Promise<void> => {
 /**
  * Specification: openspec/specs/variant-vscode/ipc-endpoint/spec.md
  */
-export const bindSockets = async (): Promise<void> => {
+export const bindSockets = async (onLog?: (event: SocketLogEvent) => void): Promise<void> => {
   const folders = vscode.workspace?.workspaceFolders ?? [];
   const paths = new Set(folders.map((folder) => socketPath(folder.uri.fsPath)));
   for (const path of paths) {
@@ -22,6 +45,11 @@ export const bindSockets = async (): Promise<void> => {
       continue;
     }
     const listener = createListener(path, (request) => {
+      if (request.name === "log") {
+        const event = logEvent(request.args);
+        onLog?.(event);
+        return {};
+      }
       if (LIFECYCLE_COMMANDS.has(request.name)) {
         throw new Error(`${request.name} is not handled on the extension socket`);
       }
