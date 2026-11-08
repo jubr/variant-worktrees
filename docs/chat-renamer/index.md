@@ -24,6 +24,10 @@ A pattern title with no trailing digits is numbered against the other open chats
 
 `chatRenamer.renameExistingDays` (default `7`, `0` turns it off) also renames chats created in that window before the editor started. Numbering follows creation order. Each chat is examined once, so a title you change by hand later stays. **Variant: Rename Existing Chats** runs that pass again and ignores the memory, still inside the day window.
 
+## Awake
+
+`chatRenamer.awake.when` is `chatsActive` by default. While a chat is taking a turn or generating, including tool work of that turn, one `caffeinate` process holds the Mac awake. An open, selected, or idle chat does not start it. `never` does not run it. `chatRenamer.awake.what` `screen` (default) passes `-disu`; `cpu` passes `-dis`. After the last turn, `chatRenamer.awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process. `variant.enable` does not turn this off.
+
 ## Triggers
 
 `chatRenamer.trigger` is `titleEvent` by default: the first title Cursor assigns while the editor is running is checked, and the prompt must be at most 30 seconds old. Only its first `chatRenamer.titleEventPromptLines` lines (default `10`) are tested for a request; the other triggers and the palette commands read the whole prompt. `hook` writes a `beforeSubmitPrompt` hook (`chatRenamer.hookScope`: `workspace` or `user`) so a lone slash command is blocked and the title is taken literally. A prompt that only matches a pattern still goes to the model.

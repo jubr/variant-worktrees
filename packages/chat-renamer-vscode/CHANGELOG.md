@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Added
+
+- Holds the Mac awake with one `caffeinate` process while a chat is taking a turn or generating, including tool work of that turn. `chat-renamer.awake.when` is `chatsActive` (default) or `never`. `chat-renamer.awake.what` `screen` (default) runs `caffeinate -disu`; `cpu` runs `caffeinate -dis`. `chat-renamer.awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process after the last turn. An open, selected, or idle chat does not count. The enable setting does not turn this off.
+
 ## [0.0.7] - 2026-11-06
 
 ### Release notes
