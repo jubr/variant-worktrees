@@ -88,19 +88,23 @@ export const platformToken = (platform: string, arch: string): string => `${OS_N
 
 const versionToken = (version: string, variant?: string): string => (variant ? `${version}-${variant}` : version);
 
-/** Version and parenthetical, the script drawing, a blank line, then platform and URL. */
+/** Version and parenthetical, then the script drawing and a blank line when `banner` is set, then platform and URL. */
 export const renderVersion = (input: {
   version: string;
   platform: string;
   date: string;
   variant?: string;
   color: boolean;
-}): string =>
-  `${versionToken(input.version, input.variant)} (${input.date})\n${renderBanner(input.color)}\n${input.platform}, ${REPOSITORY_URL}\n`;
+  banner: boolean;
+}): string => {
+  const head = `${versionToken(input.version, input.variant)} (${input.date})\n`;
+  const drawing = input.banner ? `${renderBanner(input.color)}\n` : "";
+  return `${head}${drawing}${input.platform}, ${REPOSITORY_URL}\n`;
+};
 
 export const formatVersionLine = (input: {
   version: string;
   platform: string;
   date: string;
   variant?: string;
-}): string => renderVersion({ ...input, color: false }).replace(/\n$/, "");
+}): string => renderVersion({ ...input, color: false, banner: true }).replace(/\n$/, "");

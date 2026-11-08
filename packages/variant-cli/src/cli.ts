@@ -120,6 +120,7 @@ try {
         platform: platformToken(process.platform, process.arch),
         date: facts.date,
         variant: facts.variant,
+        banner: process.stdout.isTTY === true,
         color: versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
       }),
     );
