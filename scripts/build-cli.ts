@@ -14,7 +14,7 @@ const result = await Bun.build({
   target: "node",
   format: "esm",
   sourcemap: "external",
-  external: ["cleye", "variant-api", "variant-config", "yaml"],
+  external: ["cleye", "variant-api", "variant-config", "variant-ipc", "yaml"],
   define: versionDefines(join(packageDir, "../..")),
 });
 

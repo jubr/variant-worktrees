@@ -37,6 +37,7 @@
   "dependencies": {
     "cleye": "^2.6.0",
     "variant-api": "workspace:*",
+    "variant-ipc": "workspace:*",
     "yaml": "^2.9.1"
   },
   "devDependencies": {

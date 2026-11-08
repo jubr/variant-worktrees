@@ -1,4 +1,5 @@
-import { LOG_LEVELS, type LogEvent, type LogLevel, setLogSink } from "variant-api";
+import { LOG_LEVELS, type LogEvent, type LogLevel, logD, setLogSink } from "variant-api";
+import { connect, type IpcClient, socketPath } from "variant-ipc";
 
 /** A global flag, accepted before or after the command name. `warning` selects `warn`. */
 export const LOG_LEVEL_FLAG = {
@@ -68,15 +69,83 @@ export const formatLogEvent = (event: LogEvent, output: { isTTY: boolean; NO_COL
   return `${head}${step} ${event.message}\n`;
 };
 
-/** Prints events at or above `level` to stderr. Lower events are dropped. */
-export const attachLogLevel = (level: LogLevel): void => {
+let editorClient: IpcClient | undefined;
+let connecting: Promise<void> | undefined;
+let sendChain = Promise.resolve();
+let reportedConnect = false;
+
+const reportConnect = (ok: boolean): void => {
+  if (reportedConnect) {
+    return;
+  }
+  reportedConnect = true;
+  logD(ok ? "connected" : "connect failed", { step: "ipc" });
+};
+
+const deliver = async (event: LogEvent, directory: string): Promise<void> => {
+  if (connecting === undefined) {
+    connecting = connect(socketPath(directory)).then(
+      (next) => {
+        editorClient = next;
+        reportConnect(true);
+      },
+      () => {
+        editorClient = undefined;
+        reportConnect(false);
+      },
+    );
+  }
+  await connecting;
+  if (editorClient === undefined) {
+    return;
+  }
+  const args: Record<string, unknown> = { level: event.level, message: event.message };
+  if (event.step !== undefined) {
+    args.step = event.step;
+  }
+  if (event.slug !== undefined) {
+    args.slug = event.slug;
+  }
+  await editorClient.request({ name: "log", args });
+};
+
+/**
+ * Prints events at or above `level` to stderr. Lower events are dropped.
+ * `editor` also sends every event on the project socket.
+ * Specification: openspec/specs/variant-cli/logging/spec.md
+ */
+export const attachLogLevel = (level: LogLevel, editor?: { directory: string }): void => {
   const minimum = RANK[level];
+  const directory = editor?.directory;
+  editorClient = undefined;
+  connecting = undefined;
+  sendChain = Promise.resolve();
+  reportedConnect = false;
   setLogSink((event: LogEvent) => {
-    if (RANK[event.level] < minimum) {
+    if (RANK[event.level] >= minimum) {
+      process.stderr.write(
+        formatLogEvent(event, { isTTY: process.stderr.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
+      );
+    }
+    if (directory === undefined) {
       return;
     }
-    process.stderr.write(
-      formatLogEvent(event, { isTTY: process.stderr.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
-    );
+    sendChain = sendChain.then(() => deliver(event, directory)).catch(() => undefined);
   });
+};
+
+/** Emits the CLI-end debug event, waits until queued editor sends have finished, then closes the socket. */
+export const finishCliLog = async (): Promise<void> => {
+  logD("end", { step: "cli" });
+  let pending = sendChain;
+  for (;;) {
+    await pending;
+    if (pending === sendChain) {
+      break;
+    }
+    pending = sendChain;
+  }
+  editorClient?.close();
+  editorClient = undefined;
+  connecting = undefined;
 };
