@@ -65,6 +65,20 @@ describe("readChatRenamerConfig titleEventPromptLines", () => {
     }));
 });
 
+describe("readChatRenamerConfig awake", () => {
+  it("returns when, what, and the grace delay", () =>
+    withDirectory((directory) => {
+      writeFileSync(
+        join(directory, "variants.yaml"),
+        "chatRenamer:\n  awake:\n    when: never\n    what: cpu\n    graceDelaySecs: 0\n",
+      );
+
+      expect(readChatRenamerConfig(directory)).toEqual({
+        awake: { when: "never", what: "cpu", graceDelaySecs: 0 },
+      });
+    }));
+});
+
 describe("loadConfig", () => {
   it("carries the chatRenamer section through", () =>
     withDirectory((directory) => {
