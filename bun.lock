@@ -108,6 +108,7 @@
         "@modelcontextprotocol/sdk": "^1.27.1",
         "variant-api": "workspace:*",
         "variant-config": "workspace:*",
+        "variant-ipc": "workspace:*",
         "variant-log": "workspace:*",
         "zod": "^4.3.6",
       },

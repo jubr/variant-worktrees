@@ -169,7 +169,12 @@ export const implodeVariant = async (
     if (located !== undefined && !present) {
       git(primaryWorktree(repositoryDirectory(context)), ["worktree", "prune"]);
     }
-    return { slug, removed, worktreeRemoved: false, ...removeLocalBranch(context, slug, branch, options.branchRm) };
+    return finish({
+      slug,
+      removed,
+      worktreeRemoved: false,
+      ...removeLocalBranch(context, slug, branch, options.branchRm),
+    });
   }
 
   const projectDir = variantConfigDir(config, removable);
@@ -184,12 +189,17 @@ export const implodeVariant = async (
   log(report);
   restoreTracked(removable, discard);
   removeWorktree(primaryWorktree(repositoryDirectory(context)), removable, options.force === true);
-  return {
+  return finish({
     slug,
     removed,
     worktreeRemoved: true,
     worktree: removable,
     report,
     ...removeLocalBranch(context, slug, branch, options.branchRm),
-  };
+  });
+};
+
+const finish = (result: ImplodeResult): ImplodeResult => {
+  emit(`implode finished slug=${JSON.stringify(result.slug)}`);
+  return result;
 };

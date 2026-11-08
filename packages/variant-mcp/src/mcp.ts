@@ -8,6 +8,7 @@ import { createClient, loadVariantConfig } from "variant-api";
 import { commands } from "variant-api/commands";
 import { type LogLevel, setLogSink } from "variant-log";
 import { z } from "zod/v4";
+import { finishEditorLog, sendEditorLog } from "./editor-log.js";
 import { loggingData } from "./logging-data.js";
 
 const require = createRequire(import.meta.url);
@@ -66,6 +67,7 @@ server.server.setRequestHandler(SetLevelRequestSchema, async (request) => {
 });
 
 setLogSink((event) => {
+  sendEditorLog(process.cwd(), event);
   if (!levelAllows(event.level)) {
     return;
   }
@@ -95,10 +97,12 @@ for (const command of commands) {
     async (params) => {
       try {
         const result = await command.execute(client, { ...params, ...command.mcpFixed });
+        await finishEditorLog();
         return {
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
+        await finishEditorLog();
         return {
           content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }],
           isError: true,

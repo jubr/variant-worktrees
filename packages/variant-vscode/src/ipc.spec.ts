@@ -240,6 +240,52 @@ describe("extension socket", () => {
     }
   });
 
+  it.each([
+    "cli",
+    "mcp",
+  ] as const)("appends [%s] on the channel when the log request names that origin", async (origin) => {
+    const infos: string[] = [];
+    const original = vscode.window.createOutputChannel;
+    vscode.window.createOutputChannel = ((name: string) => ({
+      name,
+      trace: () => {},
+      debug: () => {},
+      info: (message: string) => {
+        if (name === "Variant Worktrees") {
+          infos.push(message);
+        }
+      },
+      warn: () => {},
+      error: () => {},
+      clear: () => {},
+      appendLine: () => {},
+      show: () => {},
+      dispose: () => {},
+    })) as typeof vscode.window.createOutputChannel;
+    vscode.env.appName = "Cursor";
+    const layout = singleRepoLayout();
+    roots.push(layout.root);
+    useFolders(layout.worktree);
+    try {
+      await activate({
+        subscriptions: [],
+        globalState: { get: () => undefined, update: async () => {} },
+        extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
+        globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+      } as unknown as vscode.ExtensionContext);
+      const line = await exchange(
+        layout.socketFile,
+        JSON.stringify({ name: "log", args: { level: "info", message: "listed variants", origin } }),
+      );
+      expect(JSON.parse(line)).not.toHaveProperty("error");
+      expect(infos).toContain(`listed variants [${origin}]`);
+    } finally {
+      vscode.env.appName = undefined;
+      vscode.window.createOutputChannel = original;
+      await deactivate();
+    }
+  });
+
   it("refuses a log request that has no message and writes no channel line", async () => {
     const written: string[] = [];
     const layout = singleRepoLayout();

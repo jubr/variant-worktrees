@@ -9,10 +9,11 @@ type SocketLogEvent = {
   message: string;
   step?: string;
   slug?: string;
+  origin?: "cli" | "mcp";
 };
 
 const logEvent = (args: Record<string, unknown>): SocketLogEvent => {
-  const { level, message, step, slug } = args;
+  const { level, message, step, slug, origin } = args;
   if (typeof level !== "string" || !LOG_LEVELS.has(level) || typeof message !== "string") {
     throw new Error("invalid log event");
   }
@@ -22,6 +23,9 @@ const logEvent = (args: Record<string, unknown>): SocketLogEvent => {
   }
   if (typeof slug === "string") {
     event.slug = slug;
+  }
+  if (origin === "cli" || origin === "mcp") {
+    event.origin = origin;
   }
   return event;
 };

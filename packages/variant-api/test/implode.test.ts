@@ -243,6 +243,9 @@ describe("implode teardown and worktree", () => {
         expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
         expect(result).toMatchObject({ branch: "feat/demo", branchRemoved: true });
         expect(events).toContainEqual({ level: "debug", message: "removed branch feat/demo" });
+        expect(events.filter((event) => event.message.startsWith("implode finished"))).toEqual([
+          { level: "debug", message: 'implode finished slug="demo"' },
+        ]);
       } finally {
         setLogSink(undefined);
       }

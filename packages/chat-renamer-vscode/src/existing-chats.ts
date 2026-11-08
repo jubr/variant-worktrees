@@ -18,7 +18,7 @@ const EXISTING_CHATS_CATEGORY = "existing-chats";
 
 const DAY_MS = 86_400_000;
 
-export type ExistingChatsTrigger = "startup" | "title events settled" | "setting changed" | "command";
+export type ExistingChatsTrigger = "startup" | "setting changed" | "command";
 
 export type ExistingChatsOutcome =
   /** `renameExistingDays` is 0. `setting` reads like `<section>.renameExistingDays=0`. */
@@ -73,12 +73,12 @@ export const createExistingChatsRunner = ({
     const windowDays = days();
     const setting = `${settingName}=${windowDays}`;
     if (windowDays === 0) {
-      existingLog.info(`off, nothing to do for ${trigger}: ${setting}`);
+      existingLog.debug(`off, nothing to do for ${trigger}: ${setting}`);
       return { kind: "off", setting };
     }
 
     const notBeforeMs = startedAtMs - windowDays * DAY_MS;
-    existingLog.info(
+    existingLog.debug(
       `run started by ${trigger}, obeying ${setting}: chats created ${stamp(notBeforeMs)} to ${stamp(startedAtMs)}, ` +
         `record ${ignoreRecord ? "ignored" : "honoured"}`,
     );
@@ -98,7 +98,7 @@ export const createExistingChatsRunner = ({
         },
       });
       for (const chat of result.renamed) {
-        existingLog.info(
+        existingLog.debug(
           `renamed ${chat.sessionId}: ${JSON.stringify(chat.previousTitle ?? null)} -> ${JSON.stringify(chat.title)} ` +
             `(existing chats plan) (created ${stamp(chat.createdAtMs)})`,
         );
@@ -106,7 +106,7 @@ export const createExistingChatsRunner = ({
       for (const failure of result.failed) {
         existingLog.warn(`could not rename ${failure.sessionId}: ${failure.error}`);
       }
-      existingLog.info(
+      existingLog.debug(
         `run finished (${trigger}, ${setting}): listed ${result.listed}, examined ${result.examined}, ` +
           `renamed ${result.renamed.length}, failed ${result.failed.length}`,
       );

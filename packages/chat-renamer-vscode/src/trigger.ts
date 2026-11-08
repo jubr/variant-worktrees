@@ -165,16 +165,13 @@ export const startChatRenameTrigger = (
   let eventSubscription: { dispose(): void } | undefined;
   let queue: Promise<void> = Promise.resolve();
 
-  // Existing chats: one run shortly after startup, and another each time the burst of title events Cursor emits while
-  // it loads old chats has died down. All of it follows `renameExistingDays`; 0 schedules nothing.
+  // Existing chats: one delayed run after startup, and again when the setting changes. A title event does not
+  // start a run. `renameExistingDays` 0 schedules nothing.
   let existingTimer: ReturnType<typeof setTimeout> | undefined;
-  let existingSubscription: { dispose(): void } | undefined;
   let firstApply = true;
   const stopExisting = (): void => {
     clearTimeout(existingTimer);
     existingTimer = undefined;
-    existingSubscription?.dispose();
-    existingSubscription = undefined;
   };
   const configureExisting = (days: number, trigger: ExistingChatsTrigger): void => {
     stopExisting();
@@ -183,32 +180,16 @@ export const startChatRenameTrigger = (
       return;
     }
     if (days === 0) {
-      log.child("existing-chats").info(`off: ${existing.settingName}=0, so no startup, title-event or automatic runs`);
+      log.child("existing-chats").debug(`off: ${existing.settingName}=0, so no startup or automatic runs`);
       return;
     }
     const delay = host.existingChatsDelayMs ?? DEFAULT_EXISTING_CHATS_DELAY_MS;
-    log
-      .child("existing-chats")
-      .info(
-        `on: ${existing.settingName}=${days}; first run (${trigger}) in ${delay}ms, again after title events settle`,
-      );
-    const runAfterDelay = (reason: ExistingChatsTrigger): void => {
-      clearTimeout(existingTimer);
-      existingTimer = setTimeout(() => {
-        existingTimer = undefined;
-        void existing.run(reason);
-      }, delay);
-    };
-    runAfterDelay(trigger);
-    try {
-      existingSubscription = subscribeCatalogTitleChanges(resolveChatRenameDeps(context), () =>
-        runAfterDelay("title events settled"),
-      );
-    } catch (error) {
-      log
-        .child("existing-chats")
-        .warn(`not listening for title events: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    log.child("existing-chats").debug(`on: ${existing.settingName}=${days}; run (${trigger}) in ${delay}ms`);
+    clearTimeout(existingTimer);
+    existingTimer = setTimeout(() => {
+      existingTimer = undefined;
+      void existing.run(trigger);
+    }, delay);
   };
 
   const apply = async (): Promise<void> => {

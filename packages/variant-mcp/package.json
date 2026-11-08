@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:types && chmod +x dist/mcp.js",
-    "build:js": "bun build ./src/mcp.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external @modelcontextprotocol/sdk --external variant-api --external variant-config --external variant-log",
+    "build:js": "bun build ./src/mcp.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external @modelcontextprotocol/sdk --external variant-api --external variant-config --external variant-ipc --external variant-log",
     "build:types": "tsc --emitDeclarationOnly",
     "mcp": "bun run src/mcp.ts",
     "mcp:inspect": "npx @modelcontextprotocol/inspector node dist/mcp.js",
@@ -49,6 +49,7 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "variant-api": "workspace:*",
     "variant-config": "workspace:*",
+    "variant-ipc": "workspace:*",
     "variant-log": "workspace:*",
     "zod": "^4.3.6"
   }
