@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { join } from "node:path";
@@ -57,12 +58,55 @@ describe("editor log stream", () => {
     expect(seen).toEqual([
       {
         name: "log",
-        args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth" },
+        args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth", origin: "cli" },
       },
-      { name: "log", args: { level: "debug", message: "end", step: "cli" } },
-      { name: "log", args: { level: "debug", message: "connected", step: "ipc" } },
+      { name: "log", args: { level: "debug", message: "end", step: "cli", origin: "cli" } },
+      { name: "log", args: { level: "debug", message: "connected", step: "ipc", origin: "cli" } },
     ]);
     expect(stdout.join("")).not.toContain("+ mise install");
+  });
+
+  it("sends the autodetected slug when the event has none and keeps an explicit slug", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    roots.push(directory);
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    const seen: IpcRequest[] = [];
+    const listener = createListener(socketPath(directory), (request) => {
+      seen.push(request);
+      return {};
+    });
+    await listener.start();
+    const stderr: string[] = [];
+    const write = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderr.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      attachLogLevel("debug", { directory });
+      log("info", "listed variants");
+      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      await finishCliLog();
+      await waitFor(() => seen.some((request) => request.args.message === "end"));
+    } finally {
+      process.stderr.write = write;
+      setLogSink(undefined);
+      await listener.stop();
+    }
+
+    expect(seen).toContainEqual({
+      name: "log",
+      args: { level: "info", message: "listed variants", origin: "cli", slug: "main" },
+    });
+    expect(seen).toContainEqual({
+      name: "log",
+      args: { level: "debug", message: "end", step: "cli", origin: "cli", slug: "main" },
+    });
+    expect(seen).toContainEqual({
+      name: "log",
+      args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth", origin: "cli" },
+    });
+    expect(stderr.join("")).not.toContain("main");
   });
 
   it("logs connect failure once at debug and does not create the socket", async () => {
@@ -84,7 +128,9 @@ describe("editor log stream", () => {
       setLogSink(undefined);
     }
 
-    expect(lines.filter((line) => line.includes("connect failed"))).toEqual(["[debug] ipc connect failed\n"]);
+    expect(lines.filter((line) => line.includes("connect failed"))).toEqual([
+      "[debug] ipc connect failed: file not found\n",
+    ]);
     expect(existsSync(socketPath(directory))).toBe(false);
   });
 
@@ -126,8 +172,8 @@ describe("editor log stream", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("alpha");
-      expect(result.stderr.split("\n").filter((line) => line === "[debug] ipc connect failed")).toEqual([
-        "[debug] ipc connect failed",
+      expect(result.stderr.split("\n").filter((line) => line.startsWith("[debug] ipc connect failed"))).toEqual([
+        "[debug] ipc connect failed: file not found",
       ]);
       expect(result.stderr.split("\n").filter((line) => line === "[debug] cli end")).toEqual(["[debug] cli end"]);
       expect(existsSync(socketPath(directory))).toBe(false);
@@ -151,7 +197,10 @@ describe("editor log stream", () => {
         ]);
         expect(result.stderr.split("\n").filter((line) => line === "[debug] cli end")).toEqual(["[debug] cli end"]);
         expect(result.stderr).not.toContain("connect failed");
-        expect(seen).toContainEqual({ name: "log", args: { level: "debug", message: "end", step: "cli" } });
+        expect(seen).toContainEqual({
+          name: "log",
+          args: { level: "debug", message: "end", step: "cli", origin: "cli" },
+        });
       } finally {
         await listener.stop();
       }
@@ -233,7 +282,7 @@ describe("editor log stream", () => {
     }
 
     expect(lines.join("")).not.toContain("listed variants");
-    expect(seen).toContainEqual({ name: "log", args: { level: "info", message: "listed variants" } });
+    expect(seen).toContainEqual({ name: "log", args: { level: "info", message: "listed variants", origin: "cli" } });
   });
 
   it("does not fail or reconnect when the editor rejects the log request", async () => {
@@ -265,6 +314,43 @@ describe("editor log stream", () => {
       log("warn", "two");
       await finishCliLog();
       expect(accepts).toBe(1);
+    } finally {
+      process.stderr.write = write;
+      setLogSink(undefined);
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      await closeServer(server);
+    }
+  });
+
+  it("warns once and stops when a write is not answered within one second", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    roots.push(directory);
+    mkdirSync(join(directory, ".vscode"), { recursive: true });
+    const sockets: Socket[] = [];
+    const server = createServer((socket) => {
+      sockets.push(socket);
+    });
+    await listen(server, socketPath(directory));
+    const lines: string[] = [];
+    const write = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+      return true;
+    }) as typeof process.stderr.write;
+    const started = Date.now();
+    try {
+      attachLogLevel("warn", { directory });
+      log("info", "one");
+      log("info", "two");
+      const outcome = await Promise.race([
+        finishCliLog().then(() => "done" as const),
+        Bun.sleep(1800).then(() => "hung" as const),
+      ]);
+      expect(outcome).toBe("done");
+      expect(Date.now() - started).toBeLessThan(1800);
+      expect(lines.filter((line) => line.includes("write failed"))).toEqual(["[warn] ipc write failed\n"]);
     } finally {
       process.stderr.write = write;
       setLogSink(undefined);

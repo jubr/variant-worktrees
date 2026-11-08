@@ -1,4 +1,4 @@
-import { LOG_LEVELS, type LogEvent, type LogLevel, logD, setLogSink } from "variant-api";
+import { LOG_LEVELS, type LogEvent, type LogLevel, loadConfig, logD, logW, resolveSlug, setLogSink } from "variant-api";
 import { connect, type IpcClient, socketPath } from "variant-ipc";
 
 /** A global flag, accepted before or after the command name. `warning` selects `warn`. */
@@ -69,44 +69,114 @@ export const formatLogEvent = (event: LogEvent, output: { isTTY: boolean; NO_COL
   return `${head}${step} ${event.message}\n`;
 };
 
+const WRITE_MS = 1000;
+
 let editorClient: IpcClient | undefined;
 let connecting: Promise<void> | undefined;
 let sendChain = Promise.resolve();
 let reportedConnect = false;
+let socketDropped = false;
+let warnedWrite = false;
 
-const reportConnect = (ok: boolean): void => {
+const limitedWrite = (work: Promise<unknown>): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("socket write timed out")), WRITE_MS);
+    work.then(
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error("socket write failed"));
+      },
+    );
+  });
+
+const dropSocket = (): void => {
+  if (socketDropped) {
+    return;
+  }
+  socketDropped = true;
+  const client = editorClient;
+  editorClient = undefined;
+  client?.close();
+  if (warnedWrite) {
+    return;
+  }
+  warnedWrite = true;
+  logW("write failed", { step: "ipc" });
+};
+
+const connectReason = (error: unknown): string => {
+  const code =
+    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : "";
+  if (code === "ENOENT") {
+    return "file not found";
+  }
+  if (code === "ECONNREFUSED") {
+    return "connection refused";
+  }
+  if (code === "EACCES" || code === "EPERM") {
+    return "permission denied";
+  }
+  if (error instanceof Error && error.message !== "") {
+    return error.message.split("\n")[0] ?? error.message;
+  }
+  return code === "" ? "unknown" : code;
+};
+
+const reportConnect = (ok: boolean, error?: unknown): void => {
   if (reportedConnect) {
     return;
   }
   reportedConnect = true;
-  logD(ok ? "connected" : "connect failed", { step: "ipc" });
+  logD(ok ? "connected" : `connect failed: ${connectReason(error)}`, { step: "ipc" });
 };
 
-const deliver = async (event: LogEvent, directory: string): Promise<void> => {
+const detectedSlug = (directory: string): string | undefined => {
+  try {
+    const config = loadConfig({ cwd: directory });
+    return resolveSlug(undefined, directory, config.variant.branchPrefixes, config.variant);
+  } catch {
+    return undefined;
+  }
+};
+
+const deliver = async (event: LogEvent, directory: string, slug: string | undefined): Promise<void> => {
   if (connecting === undefined) {
     connecting = connect(socketPath(directory)).then(
       (next) => {
         editorClient = next;
         reportConnect(true);
       },
-      () => {
+      (error: unknown) => {
         editorClient = undefined;
-        reportConnect(false);
+        reportConnect(false, error);
       },
     );
   }
   await connecting;
-  if (editorClient === undefined) {
+  if (socketDropped || editorClient === undefined) {
     return;
   }
-  const args: Record<string, unknown> = { level: event.level, message: event.message };
+  const args: Record<string, unknown> = { level: event.level, message: event.message, origin: "cli" };
   if (event.step !== undefined) {
     args.step = event.step;
   }
-  if (event.slug !== undefined) {
-    args.slug = event.slug;
+  const eventSlug = event.slug ?? slug;
+  if (eventSlug !== undefined) {
+    args.slug = eventSlug;
   }
-  await editorClient.request({ name: "log", args });
+  const pending = editorClient.request({ name: "log", args });
+  void pending.catch(() => undefined);
+  try {
+    await limitedWrite(pending);
+  } catch (error) {
+    if (error instanceof Error && error.message === "socket write timed out") {
+      dropSocket();
+    }
+  }
 };
 
 /**
@@ -117,10 +187,13 @@ const deliver = async (event: LogEvent, directory: string): Promise<void> => {
 export const attachLogLevel = (level: LogLevel, editor?: { directory: string }): void => {
   const minimum = RANK[level];
   const directory = editor?.directory;
+  const slug = directory === undefined ? undefined : detectedSlug(directory);
   editorClient = undefined;
   connecting = undefined;
   sendChain = Promise.resolve();
   reportedConnect = false;
+  socketDropped = false;
+  warnedWrite = false;
   setLogSink((event: LogEvent) => {
     if (RANK[event.level] >= minimum) {
       process.stderr.write(
@@ -130,7 +203,7 @@ export const attachLogLevel = (level: LogLevel, editor?: { directory: string }):
     if (directory === undefined) {
       return;
     }
-    sendChain = sendChain.then(() => deliver(event, directory)).catch(() => undefined);
+    sendChain = sendChain.then(() => deliver(event, directory, slug)).catch(() => undefined);
   });
 };
 
