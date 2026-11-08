@@ -8,7 +8,7 @@ import { createClient, loadVariantConfig } from "variant-api";
 import { commands } from "variant-api/commands";
 import { type LogLevel, setLogSink } from "variant-log";
 import { z } from "zod/v4";
-import { loggingData } from "./logging-data.ts";
+import { loggingData } from "./logging-data.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
