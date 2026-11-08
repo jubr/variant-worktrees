@@ -24,6 +24,15 @@
 
 - [ ] 5.1 Update `--log-level` and `--version` in `README.md` and `docs/guide/core.md`. Log lines are `[trace]`, `[debug]`, `[info]`, `[warn]`, and `[error]`. `--log-level=warning` still selects `warn`. The step is a field, printed after the level when set. On a terminal, with `NO_COLOR` unset, brackets are dark gray, the level word is colored, the step is cyan, and the message is the default color. The cursive drawing is printed only when stdout is a terminal. Record `variant-log` and both behavior changes under `## Unreleased` in `CHANGELOG.md`. Verify `task docs:build` passes.
 
+
+## 7. Editor log stream
+
+- [ ] 7.1 Add failing tests in `packages/variant-cli` for [specs/variant-cli/logging | Editor log stream](../../specs/variant-cli/logging/spec.md#requirement-editor-log-stream). A listener on the project socket receives `{"name":"log","args"}` for an info event with message `+ mise install`, step `create`, and slug `add-auth`, and that message stays off stdout. Attaching the sink does not connect before the first event. With no listener, `variant list` still exits 0, stdout is the list, and the socket file is not created. `--log-level=debug` prints one `[debug] ipc connect failed` and one `[debug] cli end`. With a listener, `--log-level=debug` prints one `[debug] ipc connected` and one `[debug] cli end`, and not `connect failed`. The default threshold hides `[debug]`. An info event under threshold `warn` is absent from stderr and still arrives as a `log` request. A failed request does not fail the command and does not open a second connection. Verify the new assertions fail first. Send from the CLI sink on `socketPath` of the working directory, one lazy attempt, and emit the end debug when the sink is attached and the process finishes. Verify `bun test` on the CLI editor-log tests passes.
+
+- [ ] 7.2 Add failing tests in `packages/variant-vscode` for [specs/variant-vscode/ipc-endpoint | Log request writes the channel](../../specs/variant-vscode/ipc-endpoint/spec.md#requirement-log-request-writes-the-channel). A `log` request with level `info`, message `+ mise install`, step `create`, and slug `add-auth` writes `<add-auth> [create] cmd="mise install"` on the Variant Worktrees channel at info, and the response has no error. `{"name":"log","args":{}}` returns a non-empty error and writes no channel line. `log` is not refused as a lifecycle command. Verify the test fails first. Handle `log` in the extension socket. Verify `bun test packages/variant-vscode/src/ipc.spec.ts` passes.
+
+- [ ] 7.3 Say in `README.md` and `docs/guide/core.md` that the CLI sends the log stream to the editor socket, that connect success and failure are one debug line each, and that CLI end is one debug line. Record it under `## Unreleased` in `CHANGELOG.md`.
+
 ## 6. Check
 
 - [ ] 6.1 Verify `task lint`, `task test`, `task build`, and `mise x -- openspec validate --all --strict --no-interactive` pass.
