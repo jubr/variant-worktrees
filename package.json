@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
-    "build": "bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-log build && bun run --filter variant-api build && bun run --filter variant-server build && bun run --filter variant-cli build && bun run --filter chat-renamer-api build && bun run --filter variant-mcp build && bun run --filter variant-ipc build && bun run --filter variant-ui build && bun run --filter ./packages/chat-renamer-vscode build && bun run --filter ./packages/variant-vscode build",
+    "build": "bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-log build && bun run --filter variant-ipc build && bun run --filter variant-api build && bun run --filter variant-server build && bun run --filter variant-cli build && bun run --filter chat-renamer-api build && bun run --filter variant-mcp build && bun run --filter variant-ui build && bun run --filter ./packages/chat-renamer-vscode build && bun run --filter ./packages/variant-vscode build",
     "lint": "biome check packages/",
     "lint:fix": "biome check --write packages/",
     "test": "VARIANT_OPEN=0 bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-log build && bun run --filter variant-api build && bun run --filter variant-server build && bun run --filter variant-cli build && bun run --filter variant-ipc build && bun run --filter chat-renamer-api build && bun run --filter '*' test && bun test scripts",
