@@ -149,6 +149,12 @@ describe("text output of each command", () => {
     expect(parseYaml(out)).toEqual({ db: { url: null, filename: null, ssl: null }, tags: [null] });
   });
 
+  it("prints a redacted password as YAML", () => {
+    const out = text("config", { db: { password: "hunter2" } });
+
+    expect(parseYaml(out)).toEqual({ db: { password: "***" } });
+  });
+
   it("falls back to an outline for a command without a layout", () => {
     expect(text("future", { a: 1, nested: { b: [1, 2] } })).toBe("a: 1\nnested:\n  b:\n    - 1\n    - 2");
   });
@@ -216,7 +222,7 @@ describe("status text", () => {
     expect(out).toContain("runtime:");
     expect(out).toContain("file: /work/_v-demo/variants.local.yaml");
     expect(out).toContain("schema: v_demo");
-    expect(out).toContain("password: ***");
+    expect(out).toContain('password: "***"');
     expect(out).not.toContain("hunter2");
   });
 

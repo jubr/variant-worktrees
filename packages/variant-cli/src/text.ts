@@ -8,6 +8,7 @@ import type {
   WatchReport,
   WatchResult,
 } from "variant-api";
+import { stringify } from "yaml";
 import { formatDuration } from "./duration.js";
 import { formatTable } from "./table.js";
 
@@ -24,7 +25,11 @@ const isScalar = (value: unknown): boolean => value === null || typeof value !==
 const isEmpty = (value: unknown): boolean =>
   Array.isArray(value) ? value.length === 0 : typeof value === "object" && Object.keys(value as object).length === 0;
 
-const scalarText = (value: unknown): string => (value == null ? "null" : String(value));
+const scalarText = (value: unknown): string => {
+  if (value == null) return "null";
+  if (typeof value === "string") return stringify(value).trim();
+  return String(value);
+};
 
 const scalarLines = (value: unknown, pad: string): string[] =>
   typeof value === "string" && value.includes("\n")
