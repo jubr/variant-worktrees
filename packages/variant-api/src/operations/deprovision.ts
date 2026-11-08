@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { groupDatabaseSchemas } from "variant-config";
 import { echoCommand, type ProgressLog } from "../echo.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
-import { log as logEvent } from "../log.js";
+import { logI as logEvent } from "../log.js";
 import { execute } from "../provisioning.js";
 import { logToStderr } from "../ready.js";
 import { commandEnvironment, expandSetting, prepareRun, type VariantRun } from "../run-context.js";
@@ -39,7 +39,7 @@ export const deprovisionPhase = async (
   }
   if (step && !builtinCommand.test(step.cmd)) {
     const command = expandSetting(context.config, run, step.cmd, "variant.steps.deprovision.cmd");
-    logEvent("info", `[${run.slug}] [deprovision] ${command}`);
+    logEvent(command, { slug: run.slug, step: "deprovision" });
     echoCommand(command, log);
     const result = execute(
       command,
@@ -60,18 +60,18 @@ export const deprovisionPhase = async (
   if (run.multi) {
     const names = [...new Set([...(await context.adapter.matchingSchemas(run.multi.prefix)), ...grouped])].sort();
     for (const name of names) {
-      logEvent("info", `[${run.slug}] [deprovision] drop schema ${name}`);
+      logEvent(`drop schema ${name}`, { slug: run.slug, step: "deprovision" });
       await context.adapter.dropSchema(name);
     }
     return { commands: [], output: "", dropped: names };
   }
   for (const name of grouped) {
-    logEvent("info", `[${run.slug}] [deprovision] drop schema ${name}`);
+    logEvent(`drop schema ${name}`, { slug: run.slug, step: "deprovision" });
     await context.adapter.dropSchema(name);
   }
   const removed = await context.adapter.destroy(run.slug);
   if (removed) {
-    logEvent("info", `[${run.slug}] [deprovision] drop schema ${run.target}`);
+    logEvent(`drop schema ${run.target}`, { slug: run.slug, step: "deprovision" });
   }
   return { commands: [], output: "", dropped: removed ? [...grouped, run.target] : grouped };
 };

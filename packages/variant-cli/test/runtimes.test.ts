@@ -39,9 +39,9 @@ const expectBakedVersion = (stdout: string): void => {
   const lines = stdout.trimEnd().split("\n");
   const token = bakedToken().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   expect(lines[0]).toMatch(new RegExp(`^${token} \\(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\)$`));
-  expect(lines.slice(1, 6).join("\n")).toBe(VERSION_BANNER);
-  expect(lines[6]).toBe("");
-  expect(lines[7]).toBe(detailsLine);
+  expect(lines).toHaveLength(2);
+  expect(lines[1]).toBe(detailsLine);
+  expect(stdout).not.toContain(VERSION_BANNER);
 };
 
 let compiledDirectory: string;

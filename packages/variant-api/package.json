@@ -17,7 +17,7 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/commands.ts --outdir dist --target node --format esm --sourcemap=external --external yaml --external drizzle-orm --external postgres --external mysql2 --external tinyglobby --external variant-config --external smol-toml",
+    "build:js": "bun build ./src/index.ts ./src/commands.ts --outdir dist --target node --format esm --sourcemap=external --external yaml --external drizzle-orm --external postgres --external mysql2 --external tinyglobby --external variant-config --external variant-log --external smol-toml",
     "build:types": "tsc --emitDeclarationOnly",
     "prepublishOnly": "bun run build",
     "test": "VARIANT_OPEN=0 bun test"
@@ -48,6 +48,7 @@
     "smol-toml": "^1.8.0",
     "tinyglobby": "^0.2.17",
     "variant-config": "workspace:*",
+    "variant-log": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { join } from "node:path";
 import { log, setLogSink } from "variant-api";
 import * as vscode from "vscode";
+import { platformToken } from "../../variant-cli/src/version-line.ts";
 import { activate, deactivate } from "./extension.ts";
 
 const registerCommand = spyOn(vscode.commands, "registerCommand");
@@ -184,6 +185,41 @@ describe("extension", () => {
       expect(createOutputChannel.mock.calls).toEqual([["Variant Worktrees", { log: true }]]);
     });
 
+    it("lists the long version after the activation line", () => {
+      const infos: string[] = [];
+      const noop = () => {};
+      createOutputChannel.mockImplementation((() => ({
+        trace: noop,
+        debug: noop,
+        info: (message: string) => infos.push(message),
+        warn: noop,
+        error: noop,
+        dispose: noop,
+      })) as unknown as typeof vscode.window.createOutputChannel);
+      vscode.env.appName = "Cursor";
+      try {
+        activate({
+          subscriptions: [],
+          globalState: { get: () => undefined, update: async () => {} },
+          extension: {
+            id: "jubr.variant-worktrees",
+            packageJSON: { version: "0.0.7", identifier: { value: "jubr.variant-worktrees" } },
+          },
+          globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
+        } as unknown as vscode.ExtensionContext);
+      } finally {
+        vscode.env.appName = undefined;
+      }
+
+      expect(infos[0]).toBe(`activating variant-worktrees (Cursor ${vscode.version ?? ""})`.trim());
+      expect(infos[1]?.startsWith("0.0.7")).toBe(true);
+      expect(infos[1]).toContain(" _ ");
+      expect(infos[1]).toContain(
+        `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`,
+      );
+      expect(infos[1]).not.toContain("\u001b");
+    });
+
     it("writes a contact warning to the Variant Worktrees channel and opens no second channel", () => {
       const warnings: string[] = [];
       const noop = () => {};
@@ -234,8 +270,8 @@ describe("extension", () => {
           extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
           globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
         } as unknown as vscode.ExtensionContext);
-        log("info", "[create] + mise install", "add-auth");
-        log("info", "[demo] [provision] create schema app");
+        log("info", "+ mise install", { step: "create", slug: "add-auth" });
+        log("info", "create schema app", { step: "provision", slug: "demo" });
       } finally {
         vscode.env.appName = undefined;
         setLogSink(undefined);

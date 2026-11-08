@@ -11,7 +11,7 @@ import {
   type VariantWatch,
 } from "variant-config";
 import { echoCommand, type ProgressLog } from "./echo.js";
-import { log } from "./log.js";
+import { logI } from "./log.js";
 import type { OperationContext } from "./operations/types.js";
 import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from "./run-context.js";
 
@@ -167,11 +167,11 @@ export const runProvisioning = async (
         if (run.multi) {
           for (const tenant of run.multi.tenants()) {
             const schema = multiSchemaName(run.multi.prefix, run.slug, tenant);
-            log("info", `[${run.slug}] [${name}] create schema ${schema}`);
+            logI(`create schema ${schema}`, { slug: run.slug, step: name });
             await context.adapter.createSchema(schema);
           }
         } else {
-          log("info", `[${run.slug}] [${name}] create schema ${context.adapter.target(run.slug)}`);
+          logI(`create schema ${context.adapter.target(run.slug)}`, { slug: run.slug, step: name });
           await context.adapter.create(run.slug);
         }
       }
@@ -183,7 +183,7 @@ export const runProvisioning = async (
       continue;
     }
     const stepCommand = expandSetting(config, run, step.cmd, `variant.steps.${name}.cmd`);
-    log("info", `[${run.slug}] [${name}] ${stepCommand}`);
+    logI(stepCommand, { slug: run.slug, step: name });
     commands.push(stepCommand);
     echoCommand(stepCommand, options.log);
     const result = execute(
@@ -210,7 +210,7 @@ export const runProvisioning = async (
   const seed = seedCommandFor(config, run.slug);
   if (seed) {
     const seedCommand = expandSetting(config, run, seed, "seed");
-    log("info", `[${run.slug}] [seed] ${seedCommand}`);
+    logI(seedCommand, { slug: run.slug, step: "seed" });
     command(seedCommand, run.projectDir, plainEnv);
   }
   return { commands, output };

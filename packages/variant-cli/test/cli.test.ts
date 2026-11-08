@@ -30,9 +30,9 @@ const expectVersionOutput = (stdout: string, token: string): void => {
   expect(lines[0]).toMatch(
     new RegExp(`^${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\)$`),
   );
-  expect(lines.slice(1, 6).join("\n")).toBe(VERSION_BANNER);
-  expect(lines[6]).toBe("");
-  expect(lines[7]).toBe(detailsLine);
+  expect(lines).toHaveLength(2);
+  expect(lines[1]).toBe(detailsLine);
+  expect(stdout).not.toContain(VERSION_BANNER);
 };
 
 describe("variant CLI", () => {
@@ -267,7 +267,7 @@ describe("variant CLI", () => {
       const quiet = await variant(["implode", "-s", "test-feature"]);
       expect(quiet.exitCode).toBe(0);
       expect(quiet.stdout).toContain("removed branch feat/test-feature");
-      expect(quiet.stderr).not.toContain("debug:");
+      expect(quiet.stderr).not.toContain("[debug]");
       expect(
         execFileSync("git", ["-C", directory, "branch", "--list", "feat/test-feature"], { encoding: "utf8" }),
       ).toBe("");
@@ -275,12 +275,12 @@ describe("variant CLI", () => {
       expect((await variant(["create", "-s", "other"])).exitCode).toBe(0);
       const kept = await variant(["implode", "-s", "other", "--branch-rm=no", "--log-level=debug"]);
       expect(kept.exitCode).toBe(0);
-      expect(kept.stderr).toContain("debug: kept branch feat/other");
+      expect(kept.stderr).toContain("[debug] kept branch feat/other");
       expect(execFileSync("git", ["-C", directory, "branch", "--list", "feat/other"], { encoding: "utf8" })).toContain(
         "feat/other",
       );
       const removed = await variant(["implode", "-s", "other", "--log-level=debug"]);
-      expect(removed.stderr).toContain("debug: removed branch feat/other");
+      expect(removed.stderr).toContain("[debug] removed branch feat/other");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

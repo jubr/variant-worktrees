@@ -8,6 +8,7 @@ import {
   platformToken,
   readVariant,
   renderBanner,
+  renderVersion,
   resolveVersionFacts,
   variantString,
   versionColor,
@@ -62,6 +63,30 @@ describe("version line", () => {
         commit: "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
       }),
     ).toBe("watch-log-2-abcd");
+  });
+
+  it("prints the drawing and a blank line when the banner is requested", () => {
+    expect(
+      renderVersion({
+        version: "1.2.3",
+        platform: "macos-arm64",
+        date: "2001-02-03",
+        color: false,
+        banner: true,
+      }),
+    ).toBe(`1.2.3 (2001-02-03)\n${DRAWING}\n\nmacos-arm64, https://github.com/jubr/variant-worktrees\n`);
+  });
+
+  it("omits the drawing and the blank line when the banner is off", () => {
+    expect(
+      renderVersion({
+        version: "1.2.3",
+        platform: "macos-arm64",
+        date: "2001-02-03",
+        color: true,
+        banner: false,
+      }),
+    ).toBe("1.2.3 (2001-02-03)\nmacos-arm64, https://github.com/jubr/variant-worktrees\n");
   });
 
   it("prints the cursive variant-worktrees drawing", () => {
