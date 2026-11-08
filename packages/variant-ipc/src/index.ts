@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { createConnection, createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
 import { resolveMainVscodeDir } from "variant-config";
+import { logE, logW } from "variant-log";
 import { z } from "zod";
 
 /**
@@ -52,11 +53,13 @@ const handleLine = async (socket: Socket, line: string, handler: IpcHandler): Pr
   try {
     parsed = JSON.parse(line);
   } catch {
+    logW("invalid JSON", { step: "request" });
     errorLine(socket, "invalid JSON");
     return;
   }
   const request = requestSchema.safeParse(parsed);
   if (!request.success) {
+    logW("invalid request", { step: "request" });
     errorLine(socket, "invalid request");
     return;
   }
@@ -93,7 +96,9 @@ export const createListener = (path: string, handler: IpcHandler): SocketListene
       }
       if (existsSync(path)) {
         if (await acceptsConnections(path)) {
-          throw new Error(`socket already listening at ${path}`);
+          const message = `socket already listening at ${path}`;
+          logE(message, { step: "listen" });
+          throw new Error(message);
         }
         unlinkSync(path);
       }

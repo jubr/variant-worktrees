@@ -89,6 +89,7 @@
       "version": "0.0.7",
       "dependencies": {
         "variant-config": "workspace:*",
+        "variant-log": "workspace:*",
         "zod": "^4.6.5",
       },
     },
