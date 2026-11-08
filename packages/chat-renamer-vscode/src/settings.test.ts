@@ -30,6 +30,9 @@ describe("readSettings", () => {
       worktreePrefixes: [],
       renameExistingDays: 7,
       titleEventPromptLines: 10,
+      awakeWhen: "chatsActive",
+      awakeWhat: "screen",
+      graceDelaySecs: 60,
       enabled: true,
     });
   });
@@ -90,6 +93,25 @@ describe("readSettings", () => {
 
     configure({ enable: { globalValue: "no" } });
     expect(readSettings("variant").enabled).toBe(true);
+  });
+
+  it("layers awake editor over host over default", () => {
+    configure({});
+    expect(readSettings("chat-renamer")).toMatchObject({
+      awakeWhen: "chatsActive",
+      awakeWhat: "screen",
+      graceDelaySecs: 60,
+    });
+
+    configure({}, {});
+    expect(readSettings("chat-renamer", { awake: { when: "never", what: "cpu", graceDelaySecs: 0 } })).toMatchObject({
+      awakeWhen: "never",
+      awakeWhat: "cpu",
+      graceDelaySecs: 0,
+    });
+
+    configure({ "awake.when": { globalValue: "chatsActive" } }, { "awake.when": "chatsActive" });
+    expect(readSettings("chat-renamer", { awake: { when: "never" } }).awakeWhen).toBe("chatsActive");
   });
 
   it("asks the editor for the section it was given", () => {
