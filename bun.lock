@@ -91,6 +91,10 @@
         "zod": "^4.6.5",
       },
     },
+    "packages/variant-log": {
+      "name": "variant-log",
+      "version": "0.0.7",
+    },
     "packages/variant-mcp": {
       "name": "variant-mcp",
       "version": "0.0.7",
@@ -1132,6 +1136,8 @@
     "variant-config": ["variant-config@workspace:packages/variant-config"],
 
     "variant-ipc": ["variant-ipc@workspace:packages/variant-ipc"],
+
+    "variant-log": ["variant-log@workspace:packages/variant-log"],
 
     "variant-mcp": ["variant-mcp@workspace:packages/variant-mcp"],
 
