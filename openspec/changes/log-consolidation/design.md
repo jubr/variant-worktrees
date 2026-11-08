@@ -28,12 +28,16 @@ See proposal.md for why. `LogEvent` and `setLogSink` live in `variant-api`. The 
 
 **Banner and color stay separate inputs.** `renderVersion` takes `banner` as well as `color`. `banner` false omits the drawing and the blank line. The CLI passes `banner: stdout.isTTY === true` and the existing `versionColor` result.
 
+**The CLI forwards the stream on the editor socket.** `attachLogLevel` still filters stderr. When the CLI attaches it, every event, including one under the stderr threshold, is also sent as `{"name":"log","args":{level,message,step?,slug?}}` to `socketPath(process.cwd())`. The first event starts the only connection attempt. Success emits debug step `ipc` message `connected`. Failure emits debug step `ipc` message `connect failed`. That outcome is emitted once. A failure does not fail the command, does not write standard output, and does not create the socket file. Events wait for the attempt, then send in order. A later request error does not open a second connection and does not fail the command. When `cli.ts` finishes and the sink is attached, it emits debug step `cli` message `end` and waits until that event is sent or the attempt has failed. The extension accepts `log` and writes `formatVariantLog` on the Variant Worktrees channel at the event level. A bad `log` args object is an error and writes nothing. Alternative: connect when the process starts. Rejected: the attempt waits for the first event. Alternative: retry after a failure. Rejected: the outcome is logged once.
+
 ## Risks / Trade-offs
 
 - [A script matches `^warning:` or `^debug:` for a log line] → Library lines now start with `[warn]` and `[debug]`. Config `warning:` lines still match. README, the guide, and the changelog say so.
 - [MCP clients read `data` as a string] → `data` becomes an object with `message`. Trace still carries `level: "trace"`.
 - [The editor formatter still parses brackets] → It reads the fields. The channel text stays the same shape.
 - [Piped `--version` loses the drawing] → Spawned CLI tests assert the two-line form. `renderVersion` with `banner` true covers the drawing.
+- [The editor is not running] → Connect fails once, a single debug line says `connect failed`, and the command result stays. The socket file is not created.
+- [A `log` request arrives before the extension knows the name] → The CLI ignores a failed request. The command still exits as it did.
 
 ## Migration Plan
 

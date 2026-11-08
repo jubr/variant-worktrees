@@ -75,3 +75,58 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 - **WHEN** a user runs `variant list -v` and the library emits a debug event during that command
 - **THEN** standard output is the verbose list text
 - **AND** standard error does not contain a line that starts with `[debug]`
+
+## ADDED Requirements
+
+### Requirement: Editor log stream
+
+The CLI SHALL send each log event to the editor on the project Unix socket. The socket path SHALL be the path resolved for the process working directory. The CLI SHALL NOT connect while attaching the log sink. The first event SHALL start the only connection attempt. A later event SHALL NOT open a second connection.
+
+When the attempt succeeds, the CLI SHALL emit one debug event whose step is `ipc` and whose message is `connected`. When the attempt fails, the CLI SHALL emit one debug event whose step is `ipc` and whose message is `connect failed`. The CLI SHALL NOT emit that outcome again. A failed attempt SHALL NOT fail the command, SHALL NOT write a log event to standard output, and SHALL NOT create the socket file.
+
+Each event SHALL be one request line whose `name` is `log` and whose `args` carry `level`, `message`, `step` when the event has a step, and `slug` when the event has a slug. Events emitted before the attempt settles SHALL be sent, in that order, after a successful connect. When the attempt fails, those events SHALL NOT be sent. A request that fails after a successful connect SHALL NOT fail the command and SHALL NOT start another attempt.
+
+When the CLI finishes and the log sink is attached, including when the command fails, the CLI SHALL emit one debug event whose step is `cli` and whose message is `end`, and SHALL wait until that event has been sent or the attempt has failed before the process exits. The stderr threshold SHALL still apply. An event below the threshold SHALL still be sent on the socket. The slug SHALL NOT be printed on stderr for these debug events.
+
+#### Scenario: Event reaches a listening editor
+
+- **WHEN** a listener is accepting connections on the project socket and the CLI emits an info event with message `+ mise install`, step `create`, and slug `add-auth`
+- **THEN** the listener receives a request named `log` whose args are level `info`, that message, step `create`, and slug `add-auth`
+- **AND** standard output does not contain `+ mise install`
+
+#### Scenario: Connect waits for the first event
+
+- **WHEN** the CLI has attached the log sink and no event has been emitted
+- **THEN** no connection to the project socket has been attempted
+
+#### Scenario: No socket leaves the command result
+
+- **WHEN** no listener is bound and a user runs `variant list` for a project whose list exits 0
+- **THEN** the process exits 0
+- **AND** standard output is the list
+- **AND** the CLI does not create the socket file
+
+#### Scenario: Connect failure is one debug line
+
+- **WHEN** no listener is bound and a user runs `variant list --log-level=debug` for that project
+- **THEN** standard error contains one line whose text is `[debug] ipc connect failed`
+- **AND** standard error contains one line whose text is `[debug] cli end`
+- **AND** standard error does not contain a second `connect failed`
+
+#### Scenario: Connect success is one debug line
+
+- **WHEN** a listener is accepting connections and a user runs `variant list --log-level=debug` for that project
+- **THEN** standard error contains one line whose text is `[debug] ipc connected`
+- **AND** standard error contains one line whose text is `[debug] cli end`
+- **AND** standard error does not contain `connect failed`
+
+#### Scenario: Default threshold hides the socket debug
+
+- **WHEN** no listener is bound and a user runs `variant list` with no log flag
+- **THEN** standard error does not contain a line that starts with `[debug]`
+
+#### Scenario: Below the threshold still goes to the socket
+
+- **WHEN** the threshold is `warn`, a listener is accepting connections, and an info event is emitted
+- **THEN** standard error does not contain that event's message
+- **AND** the listener receives a `log` request for that info event
