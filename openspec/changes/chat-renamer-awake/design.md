@@ -43,7 +43,7 @@ Alternative considered: a `beforeSubmitPrompt` / `stop` hook. That writes `hooks
 
 ### Logs use the existing category logger
 
-The controller logs through `logger.child("awake")`, so lines start with `[awake]`. Start and stop are info with fields `pid`, `args`, and `reason` (`activity`, `idle`, `never`, `disposed`, `not owner`, `mode changed`). An early exit is warn. A failed start is error. The startup probe is the one info line about the binary. Delay start, cancel, and elapse are trace, with `delaySecs` on the start line, and are not info.
+The controller logs through `logger.child("awake")`, so lines start with `[awake]`. Start and kill are trace. The message is the full command line, `+ caffeinate -disu` or `+ caffeinate -dis`, with fields `pid` and `reason` (`activity`, `idle`, `never`, `disposed`, `not owner`, `mode changed`). An early exit is warn. A failed start is error. The startup probe is the one info line about the binary. Delay start, cancel, and elapse are trace, with `delaySecs` on the start line, and are not info.
 
 ## Risks / Trade-offs
 
