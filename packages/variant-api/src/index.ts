@@ -132,7 +132,20 @@ export const createClient = (options: VariantClientOptions = {}): VariantClient 
 export { loadConfig } from "variant-config";
 export { worktreeReport } from "./cleanup.js";
 export { listSlugs } from "./list-slugs.js";
-export { LOG_LEVELS, type LogEvent, type LogLevel, type LogSink, log, setLogSink } from "./log.js";
+export {
+  LOG_LEVELS,
+  type LogEvent,
+  type LogFields,
+  type LogLevel,
+  type LogSink,
+  log,
+  logD,
+  logE,
+  logI,
+  logT,
+  logW,
+  setLogSink,
+} from "./log.js";
 export {
   type LoadVariantConfigOptions,
   loadVariantConfig,

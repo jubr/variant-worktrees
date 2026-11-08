@@ -54,6 +54,7 @@
         "smol-toml": "^1.8.0",
         "tinyglobby": "^0.2.17",
         "variant-config": "workspace:*",
+        "variant-log": "workspace:*",
         "yaml": "^2.9.1",
       },
     },

@@ -4,7 +4,7 @@ import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
 import { git, runGit } from "../git.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
-import { log as emit } from "../log.js";
+import { logD as emit } from "../log.js";
 import { logToStderr } from "../ready.js";
 import { prepareRun } from "../run-context.js";
 import { removeVariantRuntime, variantConfigDir } from "../runtime-state.js";
@@ -120,15 +120,15 @@ const removeLocalBranch = (
   branchRm: ImplodeOptions["branchRm"],
 ): Pick<ImplodeResult, "branch" | "branchRemoved"> => {
   if (branchRm === "no") {
-    emit("debug", branch ? `kept branch ${branch}` : `no branch to remove for ${slug}`);
+    emit(branch ? `kept branch ${branch}` : `no branch to remove for ${slug}`);
     return { ...(branch ? { branch } : {}), branchRemoved: false };
   }
   if (!branch) {
-    emit("debug", `no branch to remove for ${slug}`);
+    emit(`no branch to remove for ${slug}`);
     return { branchRemoved: false };
   }
   git(primaryWorktree(repositoryDirectory(context)), ["branch", "-D", branch]);
-  emit("debug", `removed branch ${branch}`);
+  emit(`removed branch ${branch}`);
   return { branch, branchRemoved: true };
 };
 

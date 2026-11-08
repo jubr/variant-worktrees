@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { log } from "./log.js";
+import { logI } from "./log.js";
 import { logToStderr } from "./ready.js";
 
 /**
@@ -42,7 +42,7 @@ const writeOutput = (output: string): void => {
 };
 
 const announceMise = (action: string, command: string, slug: string): void => {
-  log("info", `[${action}] + ${command}`, slug === "" ? undefined : slug);
+  logI(`+ ${command}`, slug === "" ? { step: action } : { step: action, slug });
 };
 
 /** `mise -C <directory> trust --all`, then `install` when trust exits 0. The caller waits. */
