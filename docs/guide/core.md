@@ -199,6 +199,8 @@ These flags work on every command, before or after the command name. `variant --
 | `--help`, `-h` | Show help |
 | `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
 
+The CLI also sends each log event to the editor on the project Unix socket. The connection starts at the first event. Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed` line. CLI end is one `[debug] cli end` line. A missing editor does not change the command result.
+
 Without a flag, commands print a text summary meant for people. Scripts should use `--json` or `--yaml`; the text layout can change. Giving both `--json` and `--yaml` fails before anything runs. Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.
 
 ```bash

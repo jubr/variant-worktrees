@@ -16,6 +16,7 @@
 - Feature-branch CI no longer builds a macOS `variant` executable. Release still builds every platform executable.
 - `variant --version` prints the version and a parenthetical, then, only when stdout is a terminal, a cursive `Variant-Worktrees` banner and a blank line, then the platform and the repository URL. A pipe omits the banner and the blank line. On `main` the parenthetical is the UTC date. Off `main` it is the UTC date and time, and the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color. `task bleed:vsix` writes that version token into the unpacked extension `package.json`.
 - A library log line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`. `warning` still selects `warn`. The step, when the event has one, follows the bracket. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, and the step is cyan. Configuration lines that print `warning:` are unchanged.
+- The CLI sends each log event to the editor on the project Unix socket. Connect success and failure are one `[debug]` line each. CLI end is one `[debug]` line. A missing editor does not change the command result.
 - `task package:vsix:unpacked` is removed. `task bleed:vsix`, `task bleed:cli`, and `task bleed:mcp` publish the extension, the host `variant` executable, and the host `variant-mcp` executable into `vw-bleeds` beside the checkout. `task bleed:all` runs the three.
 
 ## [0.0.7] - 2026-11-06
