@@ -10,13 +10,21 @@ const NAMES = [...LOG_LEVELS, "warning"] as const;
 
 const RANK: Record<LogLevel, number> = { trace: 0, debug: 1, info: 2, warn: 3, error: 4 };
 
-const PREFIX: Record<LogLevel, string> = {
-  trace: "trace",
-  debug: "debug",
-  info: "info",
-  warn: "warning",
-  error: "error",
+const ESC = "\u001b";
+const RESET = `${ESC}[0m`;
+const DARK = `${ESC}[90m`;
+const CYAN = `${ESC}[36m`;
+
+const LEVEL_COLOR: Record<LogLevel, string> = {
+  trace: `${ESC}[38;5;67m`,
+  debug: `${ESC}[33m`,
+  info: `${ESC}[32m`,
+  warn: `${ESC}[38;5;208m`,
+  error: `${ESC}[31m`,
 };
+
+const useColor = (output: { isTTY: boolean; NO_COLOR?: string }): boolean =>
+  output.isTTY && output.NO_COLOR === undefined;
 
 const normalize = (value: string | undefined): LogLevel | undefined => {
   if (value === "warning") {
@@ -52,6 +60,14 @@ export const takeLogLevel = (argv: string[]): { args: string[]; level: LogLevel 
   return { args, level };
 };
 
+/** One stderr line. Color follows a terminal and an unset `NO_COLOR`. The slug is not printed. */
+export const formatLogEvent = (event: LogEvent, output: { isTTY: boolean; NO_COLOR?: string }): string => {
+  const word = event.level;
+  const head = useColor(output) ? `${DARK}[${LEVEL_COLOR[event.level]}${word}${DARK}]${RESET}` : `[${word}]`;
+  const step = event.step === undefined ? "" : useColor(output) ? ` ${CYAN}${event.step}${RESET}` : ` ${event.step}`;
+  return `${head}${step} ${event.message}\n`;
+};
+
 /** Prints events at or above `level` to stderr. Lower events are dropped. */
 export const attachLogLevel = (level: LogLevel): void => {
   const minimum = RANK[level];
@@ -59,6 +75,8 @@ export const attachLogLevel = (level: LogLevel): void => {
     if (RANK[event.level] < minimum) {
       return;
     }
-    process.stderr.write(`${PREFIX[event.level]}: ${event.message}\n`);
+    process.stderr.write(
+      formatLogEvent(event, { isTTY: process.stderr.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
+    );
   });
 };
