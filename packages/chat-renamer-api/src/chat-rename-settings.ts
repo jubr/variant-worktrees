@@ -25,7 +25,15 @@ import {
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
 /** The defaults live in chat-renamer-config, which owns the full set of options. */
-export { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_TITLE_EVENT_PROMPT_LINES, DEFAULT_WORKTREE_PREFIXES, type HookScope };
+export {
+  DEFAULT_AWAKE_GRACE_DELAY_SECS,
+  DEFAULT_AWAKE_WHAT,
+  DEFAULT_AWAKE_WHEN,
+  DEFAULT_RENAME_EXISTING_DAYS,
+  DEFAULT_TITLE_EVENT_PROMPT_LINES,
+  DEFAULT_WORKTREE_PREFIXES,
+  type HookScope,
+};
 
 export type ChatRenameTrigger = Trigger;
 
