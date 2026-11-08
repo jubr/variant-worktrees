@@ -97,7 +97,7 @@ describe("version line", () => {
     const colored = renderBanner(true);
     const orange = "\u001b[38;5;208m";
     const reset = "\u001b[0m";
-    const plainHyphen = `${reset}-${orange}${reset}-${orange}${reset}-${orange}${reset}-${orange}${reset}-${orange}`;
+    const plainHyphen = ` ${reset}-${orange}${reset}-${orange}${reset}-${orange} `;
 
     expect(colored.startsWith(orange)).toBe(true);
     expect(colored.endsWith(reset)).toBe(true);
@@ -151,6 +151,6 @@ const DRAWING = [
   " _                                       _                     _",
   "(_|   |_/          o                    (_|   |   |_/         | |",
   "  |   | __,   ,_       __,   _  _  _|_    |   |   | __   ,_   | | _|_  ,_    _   _   ,",
-  "  |   |/  |  /  |  |  /  |  / |/ |  |-----|   |   |/  \\_/  |  |/_) |  /  |  |/  |/  / \\_",
+  "  |   |/  |  /  |  |  /  |  / |/ |  | --- |   |   |/  \\_/  |  |/_) |  /  |  |/  |/  / \\_",
   "   \\_/ \\_/|_/   |_/|_/\\_/|_/  |  |_/|_/    \\_/ \\_/ \\__/    |_/| \\_/|_/   |_/|__/|__/ \\/",
 ].join("\n");
