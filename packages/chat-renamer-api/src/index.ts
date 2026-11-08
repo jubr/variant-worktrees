@@ -4,6 +4,7 @@
  * Nothing here imports `vscode`; chat-renamer wires it into an extension.
  */
 
+export * from "./awake";
 export * from "./chat-existing-plan";
 export * from "./chat-existing-rename";
 export * from "./chat-first-prompt";
