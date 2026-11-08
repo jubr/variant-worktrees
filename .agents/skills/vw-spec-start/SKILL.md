@@ -37,9 +37,7 @@ This applies to all command invocations in this file. Also note `mise` manages e
    Continue in the worktree path the command prints.
 3. **GitHub CLI.** Ensure `gh` is authenticated before later PR/pipeline work: `gh auth status`. Do not commit tokens.
 4. **Watch, only when asked.** When the user explicitly asks for a watch, run `variant watch --detach`. Report each watch URL in the chat.
-5. **Read openspec-propose skill.** Read in FULL `.agents/skills/openspec-propose/SKILL.md`.
-
-   Change creation protocol — do not duplicate its steps.
+5. **Read openspec-propose skill.** Read in FULL `.agents/skills/openspec-propose/SKILL.md` change creation protocol — do not duplicate its steps.
 6. **Propose.** Follow skill `openspec-propose` with change name `$slug`. Wait for an explicit apply/iterate request before coding.
 7. **Commit the change.** One Conventional Commit containing only `openspec/changes/$slug/` (proposal, design, delta specs, `tasks.md` as planned). No product code. This is the first OpenSpec commit. Wrapup later commits leftover `tasks.md` checkboxes if needed, then a separate **sync-archive** commit on this **same** feature branch.
 
