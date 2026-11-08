@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 import { platformToken, renderVersion, resolveVersionFacts } from "../../variant-cli/src/version-line.ts";
 import { formatProbeReport } from "./cursor-command-probe.ts";
 import { formatVariantLog } from "./format-log.ts";
+import { registerExtensionMcp, unregisterExtensionMcp } from "./mcp-registration.ts";
 import { miseBinPathSetting, registerOnboardingFlow } from "./onboarding.ts";
 import { chatRenamerConfigFor } from "./renamer-config.ts";
 import { bindSockets, stopSockets } from "./socket.ts";
@@ -75,6 +76,7 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
     log,
   });
   if (workspaceRoot !== undefined) {
+    registerExtensionMcp(context, workspaceRoot);
     const view = registerVariantsView(context, { root: workspaceRoot, log, miseBinPath: miseBinPathSetting });
     registerOnboardingFlow(context, { root: workspaceRoot, view, log });
   }
@@ -90,4 +92,7 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
   );
 };
 
-export const deactivate = (): Promise<void> => stopSockets();
+export const deactivate = (): Promise<void> => {
+  unregisterExtensionMcp();
+  return stopSockets();
+};
