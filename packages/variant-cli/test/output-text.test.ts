@@ -137,6 +137,18 @@ describe("text output of each command", () => {
     expect(out).not.toContain("hunter2");
   });
 
+  it("prints an empty list as YAML", () => {
+    const out = text("config", { warnings: [] });
+
+    expect(parseYaml(out)).toEqual({ warnings: [] });
+  });
+
+  it("prints null as YAML", () => {
+    const out = text("config", { db: { url: null, filename: null, ssl: null }, tags: [null] });
+
+    expect(parseYaml(out)).toEqual({ db: { url: null, filename: null, ssl: null }, tags: [null] });
+  });
+
   it("falls back to an outline for a command without a layout", () => {
     expect(text("future", { a: 1, nested: { b: [1, 2] } })).toBe("a: 1\nnested:\n  b:\n    - 1\n    - 2");
   });

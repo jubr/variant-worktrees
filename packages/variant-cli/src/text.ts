@@ -24,6 +24,8 @@ const isScalar = (value: unknown): boolean => value === null || typeof value !==
 const isEmpty = (value: unknown): boolean =>
   Array.isArray(value) ? value.length === 0 : typeof value === "object" && Object.keys(value as object).length === 0;
 
+const scalarText = (value: unknown): string => (value == null ? "null" : String(value));
+
 const scalarLines = (value: unknown, pad: string): string[] =>
   typeof value === "string" && value.includes("\n")
     ? value
@@ -36,19 +38,21 @@ const scalarLines = (value: unknown, pad: string): string[] =>
 export const outline = (value: unknown, indent = 0): string[] => {
   const pad = "  ".repeat(indent);
   if (isScalar(value)) {
-    return [`${pad}${String(value ?? "-")}`];
+    return [`${pad}${scalarText(value)}`];
   }
   if (Array.isArray(value)) {
     return value.flatMap((item) =>
-      isScalar(item) ? [`${pad}- ${String(item ?? "-")}`] : [`${pad}-`, ...outline(item, indent + 1)],
+      isScalar(item) ? [`${pad}- ${scalarText(item)}`] : [`${pad}-`, ...outline(item, indent + 1)],
     );
   }
   return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => {
     if (isScalar(child)) {
       const multiline = scalarLines(child, pad);
-      return multiline.length > 0 ? [`${pad}${key}:`, ...multiline] : [`${pad}${key}: ${String(child ?? "-")}`];
+      return multiline.length > 0 ? [`${pad}${key}:`, ...multiline] : [`${pad}${key}: ${scalarText(child)}`];
     }
-    return isEmpty(child) ? [`${pad}${key}: -`] : [`${pad}${key}:`, ...outline(child, indent + 1)];
+    return isEmpty(child)
+      ? [`${pad}${key}: ${Array.isArray(child) ? "[]" : "{}"}`]
+      : [`${pad}${key}:`, ...outline(child, indent + 1)];
   });
 };
 
