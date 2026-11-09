@@ -26,8 +26,8 @@ interface Manifest {
   };
 }
 
-const manifest: Manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-const build = readFileSync(new URL("../scripts/esbuild.config.ts", import.meta.url), "utf8");
+const manifest: Manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+const build = readFileSync(new URL("../../scripts/esbuild.config.ts", import.meta.url), "utf8");
 
 describe("variants view manifest", () => {
   describe("host requirement", () => {
@@ -132,10 +132,10 @@ describe("activity bar manifest", () => {
   });
 
   it("ships the view icon and whitelists it for the package", () => {
-    const packaged = new URL("../media/vw-mini-icon.svg", import.meta.url);
+    const packaged = new URL("../../media/vw-mini-icon.svg", import.meta.url);
 
     expect(readFileSync(packaged, "utf8")).toContain("<svg");
-    expect(readFileSync(new URL("../.vscodeignore", import.meta.url), "utf8").split("\n")).toContain(
+    expect(readFileSync(new URL("../../.vscodeignore", import.meta.url), "utf8").split("\n")).toContain(
       "!media/vw-mini-icon.svg",
     );
   });

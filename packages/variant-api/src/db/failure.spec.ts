@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { contactTarget, QueryGuard } from "./db/failure.js";
-import { MysqlAdapter } from "./db/mysql.js";
-import { PostgresAdapter } from "./db/postgres.js";
-import { createClient } from "./index.js";
-import { type LogEvent, setLogSink } from "./log.js";
+import { createClient } from "../index.js";
+import { type LogEvent, setLogSink } from "../log.js";
+import { contactTarget, QueryGuard } from "./failure.js";
+import { MysqlAdapter } from "./mysql.js";
+import { PostgresAdapter } from "./postgres.js";
 
 const target = {
   dialect: "postgres" as const,

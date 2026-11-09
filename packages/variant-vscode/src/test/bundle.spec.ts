@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import esbuild from "esbuild";
-import config from "../scripts/esbuild.config.ts";
+import config from "../../scripts/esbuild.config.ts";
 
 /**
  * Specification: openspec/changes/vscode-view/specs/variant-vscode/variants-tree/spec.md
@@ -23,7 +23,7 @@ describe("the extension bundle", () => {
             const records = await m.createClient({ cwd: ${JSON.stringify(directory)}, worktree: false }).list();
             console.log(Array.isArray(records) ? typeof m.createClient : "no list");
           });`,
-          resolveDir: join(import.meta.dir, ".."),
+          resolveDir: join(import.meta.dir, "..", ".."),
           loader: "ts",
         },
         outfile,

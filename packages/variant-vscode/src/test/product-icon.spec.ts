@@ -3,13 +3,13 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import docsConfig from "../../../docs/.vitepress/config.ts";
+import docsConfig from "../../../../docs/.vitepress/config.ts";
 
 /**
  * Specification: openspec/specs/variant-vscode/product-icon/spec.md
  */
 
-const repoRoot = join(import.meta.dirname, "../../..");
+const repoRoot = join(import.meta.dirname, "../../../..");
 
 const published = [
   { file: "packages/variant-vscode/media/icon-256.png", size: 256 },

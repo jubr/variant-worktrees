@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const manifest = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8"));
+const manifest = JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "package.json"), "utf8"));
 
 describe("extension manifest", () => {
   it("contributes the settings the trigger reads", () => {
@@ -93,7 +93,7 @@ describe("extension manifest", () => {
 
   it("ships the files a Marketplace package needs", () => {
     for (const file of ["LICENSE.txt", "README.md", ".vscodeignore"]) {
-      expect(existsSync(join(import.meta.dir, "..", file))).toBe(true);
+      expect(existsSync(join(import.meta.dir, "..", "..", file))).toBe(true);
     }
   });
 });

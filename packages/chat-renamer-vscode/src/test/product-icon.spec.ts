@@ -8,7 +8,7 @@ import sharp from "sharp";
  * Specification: openspec/specs/chat-renamer/product-icon/spec.md
  */
 
-const repoRoot = join(import.meta.dirname, "../../..");
+const repoRoot = join(import.meta.dirname, "../../../..");
 
 const published = [
   { file: "packages/chat-renamer-vscode/media/icon-256.png", size: 256 },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { createDatabaseAdapter } from "./index.js";
 import { loadDatabase, SqliteAdapter } from "./sqlite.js";
 
 describe("sqlite driver selection", () => {
@@ -31,9 +32,20 @@ describe("SqliteAdapter", () => {
       const target = await adapter.create("test-feature");
       expect(existsSync(target)).toBe(true);
       expect(target).toBe(join(directory, "test-feature.db"));
+      expect(await adapter.list()).toEqual(["test-feature"]);
+      expect(await adapter.destroy("test-feature")).toBe(true);
+      expect(existsSync(target)).toBe(false);
     } finally {
       await adapter.close();
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+});
+
+describe("createDatabaseAdapter", () => {
+  it("rejects unknown database dialects", () => {
+    expect(() => createDatabaseAdapter({ dialect: "oracle" as never }, "/tmp")).toThrow(
+      "Unsupported database dialect: oracle",
+    );
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { bundleWebview } from "../scripts/bundle-webview.ts";
+import { bundleWebview } from "../../scripts/bundle-webview.ts";
 
 describe("webview bundle", () => {
   it("builds the variants app, with its script and styles, into the directory the panel loads from", async () => {
@@ -19,7 +19,7 @@ describe("webview bundle", () => {
   });
 
   it("is listed in .vscodeignore, so the packaged file contains it", () => {
-    const ignore = readFileSync(new URL("../.vscodeignore", import.meta.url), "utf8");
+    const ignore = readFileSync(new URL("../../.vscodeignore", import.meta.url), "utf8");
 
     expect(ignore.split("\n")).toContain("!dist/webview/*");
   });

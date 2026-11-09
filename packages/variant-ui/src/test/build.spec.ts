@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { buildApp } from "../scripts/build.js";
+import { buildApp } from "../../scripts/build.js";
 
 describe("the app build", () => {
   it("produces a static index.html with its script and styles", async () => {

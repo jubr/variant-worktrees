@@ -22,8 +22,8 @@ const toVariantKeys = (properties: Record<string, unknown>): Record<string, unkn
   );
 
 describe("embedded chat renamer manifest", () => {
-  const variant = read("../package.json");
-  const renamer = read("../../chat-renamer-vscode/package.json");
+  const variant = read("../../package.json");
+  const renamer = read("../../../chat-renamer-vscode/package.json");
 
   // VS Code reads contributions only from this extension's own manifest, so they are copied. This keeps the copy honest.
   it("contributes the same settings as chat-renamer under the variant section", () => {
@@ -34,7 +34,7 @@ describe("embedded chat renamer manifest", () => {
 
   it("contributes variant.enable and reads settings from section variant", () => {
     const properties = variant.contributes.configuration.properties;
-    const extension = readFileSync(new URL("./extension.ts", import.meta.url), "utf8");
+    const extension = readFileSync(new URL("../extension.ts", import.meta.url), "utf8");
 
     expect(Object.keys(properties).sort()).toEqual([
       "variant.activationPatterns",

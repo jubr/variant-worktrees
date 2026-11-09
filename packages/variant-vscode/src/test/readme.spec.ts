@@ -6,7 +6,7 @@ import { join } from "node:path";
  * Specification: openspec/specs/docs/readmes/spec.md
  */
 
-const repoRoot = join(import.meta.dirname, "../../..");
+const repoRoot = join(import.meta.dirname, "../../../..");
 const read = (file: string): string => readFileSync(join(repoRoot, file), "utf8");
 
 const description = "Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode";

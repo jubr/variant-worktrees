@@ -47,6 +47,11 @@ const sourceStem = (file: string): string | undefined => {
   return undefined;
 };
 
+const moduleSourceStem = (file: string): string | undefined => {
+  if (file.endsWith(".d.ts")) return undefined;
+  return sourceStem(file);
+};
+
 const specStem = (file: string): string | undefined => {
   const pkg = packageName(file);
   if (pkg === undefined || !file.startsWith(`packages/${pkg}/`)) return undefined;
@@ -91,6 +96,19 @@ const uniqueStemViolations = (files: readonly string[]): ColocatedTestViolation[
   return violations;
 };
 
+const hasMatchingModule = (files: readonly string[], spec: string): boolean => {
+  const pkg = packageName(spec);
+  const stem = specStem(spec);
+  if (pkg === undefined || stem === undefined) return false;
+  return files.some((file) => packageName(file) === pkg && moduleSourceStem(file) === stem);
+};
+
+const blockedInTestDirectory = (file: string, files: readonly string[]): boolean => {
+  if (!hasTestDirectoryUnderSrc(file) || !isTestFile(file)) return false;
+  if (!file.endsWith(".spec.ts") && !file.endsWith(".spec.tsx")) return true;
+  return hasMatchingModule(files, file);
+};
+
 export const colocatedTestViolations = (
   files: readonly string[],
   packageTestDirectories: readonly string[],
@@ -99,7 +117,7 @@ export const colocatedTestViolations = (
   const named = new Set<string>();
 
   for (const file of files) {
-    const violates = (hasTestDirectoryUnderSrc(file) && isTestFile(file)) || isLegacyTestSuffix(file);
+    const violates = blockedInTestDirectory(file, files) || isLegacyTestSuffix(file);
     if (!violates || named.has(file)) continue;
     named.add(file);
     violations.push({ paths: [file] });

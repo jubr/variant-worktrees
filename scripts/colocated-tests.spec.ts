@@ -57,11 +57,13 @@ describe("package test directories are absent", () => {
   });
 });
 
-describe("source test directories hold helpers only", () => {
+describe("source test directories hold helpers and specs with no source module", () => {
   test("names packages/variant-api/src/test/slug.spec.ts", () => {
-    const violations = colocatedTestViolations(["packages/variant-api/src/test/slug.spec.ts"], []);
+    const source = "packages/variant-api/src/slug.ts";
+    const spec = "packages/variant-api/src/test/slug.spec.ts";
+    const violations = colocatedTestViolations([source, spec], []);
 
-    expect(violations).toEqual([{ paths: ["packages/variant-api/src/test/slug.spec.ts"] }]);
+    expect(violations).toEqual([{ paths: [spec] }, { paths: [source, spec] }]);
   });
 
   test("does not fail for packages/variant-api/src/test/setup.ts", () => {
@@ -77,10 +79,33 @@ describe("source test directories hold helpers only", () => {
   });
 
   test("names packages/variant-api/src/operations/test/implode.spec.ts", () => {
-    const file = "packages/variant-api/src/operations/test/implode.spec.ts";
-    const violations = colocatedTestViolations([file], []);
+    const source = "packages/variant-api/src/operations/implode.ts";
+    const spec = "packages/variant-api/src/operations/test/implode.spec.ts";
+    const violations = colocatedTestViolations([source, spec], []);
 
-    expect(violations).toEqual([{ paths: [file] }]);
+    expect(violations).toEqual([{ paths: [spec] }, { paths: [source, spec] }]);
+  });
+
+  test("names src/test/index.spec.ts when index.ts exists twice", () => {
+    const spec = "packages/variant-api/src/test/index.spec.ts";
+
+    expect(
+      colocatedTestViolations(
+        ["packages/variant-api/src/index.ts", "packages/variant-api/src/db/index.ts", spec],
+        [],
+      ),
+    ).toEqual([{ paths: [spec] }]);
+  });
+
+  test("names a spec in src/test when a .tsx source has that stem", () => {
+    const source = "packages/variant-ui/src/panel.tsx";
+    const spec = "packages/variant-ui/src/test/panel.spec.tsx";
+
+    expect(colocatedTestViolations([source, spec], [])).toEqual([{ paths: [spec] }, { paths: [source, spec] }]);
+  });
+
+  test("does not fail for a spec in src/test when no source has that stem", () => {
+    expect(colocatedTestViolations(["packages/variant-vscode/src/test/bundle.spec.ts"], [])).toEqual([]);
   });
 });
 
