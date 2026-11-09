@@ -119,7 +119,7 @@ packages/
     src/mcp.ts        — MCP server entry point
     src/mcp.spec.ts   — MCP server tests
   variant-ui/
-    src/              — React app, transports (memory, HTTP, webview messages), sibling *.spec.ts; helpers such as setup.ts live in src/test
+    src/              — React app, transports (memory, HTTP, webview messages), sibling *.spec.ts; src/test holds helpers such as setup.ts and specs that cover no source module
   variant-server/
     src/              — HTTP API, event stream, static files, `variant ui` core
   variant-vscode/    — VS Code extension (workspace member and root build target)

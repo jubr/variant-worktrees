@@ -1,6 +1,6 @@
 ## Purpose
 
-Keep each package test next to the module it covers. Fail the workspace test run when `packages/*/test` exists, and when a test file sits under `src/test`. Allow setup and similar helpers in `src/test`.
+Keep each package test next to the module it covers. Fail the workspace test run when `packages/*/test` exists, and when a spec under `src/test` covers a `.ts` or `.tsx` source in that package. Allow setup and similar helpers in `src/test`, and allow a spec there when the package has no `.ts` or `.tsx` source with that stem.
 
 ## ADDED Requirements
 
@@ -30,21 +30,32 @@ The directory `packages/<package>/test` SHALL NOT exist. The workspace test run 
 - **WHEN** `scripts/docs-coverage.spec.ts` exists
 - **THEN** the workspace test run does not fail for that file's location
 
-### Requirement: Source test directories hold helpers only
+### Requirement: Source test directories hold helpers and specs with no source module
 
-A file under `packages/<package>/src` whose name ends in `.spec.ts`, `.spec.tsx`, `.test.ts`, or `.test.tsx` SHALL NOT have a path segment named `test`. The workspace test run SHALL fail when such a file exists, and the failure SHALL name that file relative to the workspace root. A file under `packages/<package>/src` that has a path segment named `test` and does not use one of those four suffixes SHALL NOT fail this check. That includes `setup.ts` and similar helpers.
+A `.spec.ts` or `.spec.tsx` file under `packages/<package>/src` whose path has a segment named `test` SHALL NOT exist when that package also has a non-test `.ts` or `.tsx` file under `src/` with the same basename stem. The workspace test run SHALL fail when such a spec exists, and the failure SHALL name that spec relative to the workspace root. This includes a stem shared by more than one source file. A `.test.ts` or `.test.tsx` file under that path SHALL fail this check. A `.spec.ts` or `.spec.tsx` file under that path SHALL NOT fail this check when the package has no matching `.ts` or `.tsx` source. A file under that path that does not use one of those four suffixes SHALL NOT fail this check. That includes `setup.ts` and similar helpers.
 
-#### Scenario: Spec inside src/test
+#### Scenario: Spec inside src/test for an existing module
 
-- **WHEN** `packages/variant-api/src/test/slug.spec.ts` exists
+- **WHEN** `packages/variant-api/src/slug.ts` exists and `packages/variant-api/src/test/slug.spec.ts` exists
 - **THEN** the workspace test run fails
 - **AND** the failure names `packages/variant-api/src/test/slug.spec.ts`
 
 #### Scenario: Nested spec inside a test directory
 
-- **WHEN** `packages/variant-api/src/operations/test/implode.spec.ts` exists
+- **WHEN** `packages/variant-api/src/operations/implode.ts` exists and `packages/variant-api/src/operations/test/implode.spec.ts` exists
 - **THEN** the workspace test run fails
 - **AND** the failure names `packages/variant-api/src/operations/test/implode.spec.ts`
+
+#### Scenario: Spec in src/test with no source module
+
+- **WHEN** `packages/variant-vscode/src/test/bundle.spec.ts` exists and the package has no `bundle.ts` or `bundle.tsx` under `src/`
+- **THEN** the workspace test run does not fail for that file
+
+#### Scenario: Shared stem still blocks src/test
+
+- **WHEN** a package has both `src/index.ts` and `src/db/index.ts` and `src/test/index.spec.ts`
+- **THEN** the workspace test run fails
+- **AND** the failure names `packages/<package>/src/test/index.spec.ts`
 
 #### Scenario: setup.ts inside src/test
 

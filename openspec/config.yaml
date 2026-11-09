@@ -24,8 +24,8 @@ context: |
   requirements.
 
   Use TypeScript for package code, outside-in red-green-refactor TDD for behavior
-  changes, and sibling *.spec.ts files beside the module they cover, with helpers
-  such as setup.ts under src/test.
+  changes, and sibling *.spec.ts files beside the module they cover. Helpers such
+  as setup.ts, and specs that cover no .ts or .tsx source, live under src/test.
   Preserve conventional commit formatting and the existing human-reviewed GitHub
   pull-request workflow.
 
