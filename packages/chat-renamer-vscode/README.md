@@ -1,8 +1,10 @@
 # Chat Renamer
 
+![Chat Renamer](./media/icon-128.png)
+
 Renames Cursor chats from their first prompt. Runs `caffeinate` to keep awake during agent activity.
 
-**Experimental.** For renaming relies on private Cursor 3.23 internals and borrows the built-in `anysphere.cursor-agent-host` identity for one synchronous call, so it can break on any Cursor update.
+**Experimental.** Renaming relies on private Cursor 3.23 internals and borrows the built-in `anysphere.cursor-agent-host` identity for one synchronous call, so it can break on any Cursor update.
 
 ## What it does
 
