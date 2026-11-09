@@ -1,5 +1,5 @@
-import { LOG_LEVELS, type LogLevel } from "variant-api";
 import { createListener, type SocketListener, socketPath } from "variant-ipc";
+import { LOG_LEVELS, type LogLevel } from "variant-log";
 import * as vscode from "vscode";
 
 const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provision", "up", "down", "watch", "implode"]);

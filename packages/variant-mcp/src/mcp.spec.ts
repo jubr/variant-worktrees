@@ -10,6 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
 import { LogLevel } from "variant-log";
@@ -812,8 +813,11 @@ const setLevel = (id: number, level: string): object => ({
 });
 
 /** PostgreSQL on a closed port, with variant `demo` known from its state file. */
-const withUnreachableMcp = async (run: (directory: string, configPath: string) => Promise<void>): Promise<void> => {
-  const directory = realpathSync(tempDirectory());
+const withUnreachableMcp = async (
+  run: (directory: string, configPath: string) => Promise<void>,
+  parent = "/tmp",
+): Promise<void> => {
+  const directory = realpathSync(mkdtempSync(join(parent, "variant-mcp-")));
   try {
     const configPath = join(directory, "variants.yaml");
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
@@ -892,18 +896,37 @@ describe("MCP logging", () => {
       const listed = answer(result, 2);
       expect(listed.isError).not.toBe(true);
       expect(listed.text).not.toContain("SELECT");
-    }));
+    }, tmpdir()));
 
-  it("sends info and warning but not debug when the client asks for info", () =>
+  it("sends the contact warning and not the statement when the client asks for info", () =>
     withUnreachableMcp(async (directory, configPath) => {
       const result = await mcp([...initMessages(), setLevel(2, "info"), call(3, "variant_list")], configPath, {
         cwd: directory,
       });
       const notes = logging(result);
-      expect(notes.some((note) => note.level === "info")).toBe(true);
       expect(notes.some((note) => note.level === "warning")).toBe(true);
+      expect(notes.some((note) => note.level === "info")).toBe(false);
       expect(notes.some((note) => note.level === "debug")).toBe(false);
-    }));
+    }, tmpdir()));
+
+  it("sends a schema create at info when the client asks for info", async () => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "variant-mcp-info-")));
+    try {
+      const result = await mcp(
+        [...initMessages(), setLevel(2, "info"), call(3, "variant_provision", { slug: "test-feature" })],
+        configFile(directory, true),
+        { cwd: directory },
+      );
+      const messages = logging(result)
+        .filter((note) => note.level === "info")
+        .map((note) => (note.data as { message?: string }).message ?? "");
+      expect(messages.some((message) => message.includes("create schema"))).toBe(true);
+      expect(messages).toContain('+"printf seeded"');
+      expect(messages.join("\n")).not.toContain("cmd=");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 
   it("sends trace as a debug notification whose data names trace", () =>
     withUnreachableMcp(async (directory, configPath) => {
@@ -922,7 +945,7 @@ describe("MCP logging", () => {
         cwd: directory,
       });
       expect(logging(result).some((note) => note.level === "warning")).toBe(false);
-    }));
+    }, tmpdir()));
 
   it("returns variant_create as an error whose text is the contact warning", () =>
     withUnreachableMcp(async (directory, configPath) => {
