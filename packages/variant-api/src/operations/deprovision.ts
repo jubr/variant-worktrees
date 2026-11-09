@@ -3,7 +3,7 @@ import { groupDatabaseSchemas } from "variant-config";
 import { commandMessage } from "../command-message.js";
 import { echoCommand, type ProgressLog } from "../echo.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
-import { LogLevel, log } from "../log.js";
+import { LogLevel, log as logEvent } from "../log.js";
 import { levelForDirectory } from "../log-directory.js";
 import { execute } from "../provisioning.js";
 import { logToStderr } from "../ready.js";
@@ -14,7 +14,7 @@ import { downVariant } from "./down.js";
 import type { OperationContext } from "./types.js";
 
 const logDrop = (message: string, run: VariantRun): void => {
-  log(levelForDirectory(LogLevel.info, run.projectDir), message, { slug: run.slug, step: "deprovision" });
+  logEvent(levelForDirectory(LogLevel.info, run.projectDir), message, { slug: run.slug, step: "deprovision" });
 };
 
 const builtinCommand = /^\$\{builtin\.step\.[A-Za-z0-9_-]+\}$/;
@@ -45,7 +45,7 @@ export const deprovisionPhase = async (
   }
   if (step && !builtinCommand.test(step.cmd)) {
     const command = expandSetting(context.config, run, step.cmd, "variant.steps.deprovision.cmd");
-    log(levelForDirectory(LogLevel.info, run.projectDir), commandMessage(command), {
+    logEvent(levelForDirectory(LogLevel.info, run.projectDir), commandMessage(command), {
       slug: run.slug,
       step: "deprovision",
     });
