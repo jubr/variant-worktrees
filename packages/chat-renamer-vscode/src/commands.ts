@@ -1,4 +1,3 @@
-import { dirname, join } from "node:path";
 import {
   type ChatRenamerNames,
   catalogTitleDecision,
@@ -14,8 +13,10 @@ import {
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
-import { chooseActiveChat, selectionType } from "./active-chat";
+import { chooseActiveChat, selectionType } from "./cursor/active-chat";
 import { resolveChatRenameDeps } from "./cursor/cursor-host";
+import { orderedSelectedComposers } from "./cursor/selected-composers";
+import { cursorStateDbPath } from "./cursor/state-db";
 import type { ExistingChatsRunner } from "./existing-chats";
 import { readSettings } from "./settings";
 
@@ -56,7 +57,7 @@ export const registerRenameChatCommands = (
       if (readFirstPrompt) {
         return readFirstPrompt(sessionId);
       }
-      const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
+      const dbPath = cursorStateDbPath(context.globalStorageUri.fsPath);
       return readStoredFirstPrompt({ dbPath, sessionId });
     });
 
@@ -109,7 +110,7 @@ export const registerRenameChatCommands = (
           return false;
         }
         const active = log.child("active-chat");
-        const selected = await vscode.commands.executeCommand<unknown>("composer.getOrderedSelectedComposerIds");
+        const selected = await orderedSelectedComposers();
         const deps = resolveChatRenameDeps(context);
         const sessions = await listChatCatalog(deps).then(
           (listed) => listed ?? [],
