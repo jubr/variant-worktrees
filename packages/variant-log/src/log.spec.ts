@@ -1,5 +1,32 @@
 import { describe, expect, it } from "bun:test";
-import { type LogEvent, log, logD, logE, logI, logT, logW, setLogSink } from "./index.js";
+import { LOG_LEVELS, type LogEvent, LogLevel, log, logD, logE, logI, logT, logW, setLogSink } from "./index.js";
+
+describe("level enum", () => {
+  it("exposes one enum of the five levels in order", () => {
+    expect([LogLevel.trace, LogLevel.debug, LogLevel.info, LogLevel.warn, LogLevel.error]).toEqual([
+      "trace",
+      "debug",
+      "info",
+      "warn",
+      "error",
+    ]);
+    expect(Object.values(LogLevel)).toEqual(["trace", "debug", "info", "warn", "error"]);
+    expect(LOG_LEVELS).toEqual([LogLevel.trace, LogLevel.debug, LogLevel.info, LogLevel.warn, LogLevel.error]);
+  });
+
+  it("emits the info member from the info shorthand", () => {
+    const events: LogEvent[] = [];
+    setLogSink((event) => {
+      events.push(event);
+    });
+    try {
+      logI("ready");
+    } finally {
+      setLogSink(undefined);
+    }
+    expect(events[0]?.level).toBe(LogLevel.info);
+  });
+});
 
 describe("shared log event", () => {
   it("delivers step and slug as fields and keeps them out of the message", () => {
@@ -8,7 +35,7 @@ describe("shared log event", () => {
       events.push(event);
     });
     try {
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
     } finally {
       setLogSink(undefined);
     }
@@ -54,7 +81,7 @@ describe("shared log event", () => {
       events.push(event);
     });
     try {
-      log("error", "socket already listening", { step: "listen" });
+      log(LogLevel.error, "socket already listening", { step: "listen" });
     } finally {
       setLogSink(undefined);
     }

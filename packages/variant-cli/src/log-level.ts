@@ -1,4 +1,4 @@
-import { LOG_LEVELS, type LogEvent, type LogLevel, loadConfig, logD, logW, resolveSlug, setLogSink } from "variant-api";
+import { LOG_LEVELS, type LogEvent, LogLevel, loadConfig, logD, logW, resolveSlug, setLogSink } from "variant-api";
 import { connect, type IpcClient, socketPath } from "variant-ipc";
 
 /** A global flag, accepted before or after the command name. `warning` selects `warn`. */
@@ -9,7 +9,13 @@ export const LOG_LEVEL_FLAG = {
 
 const NAMES = [...LOG_LEVELS, "warning"] as const;
 
-const RANK: Record<LogLevel, number> = { trace: 0, debug: 1, info: 2, warn: 3, error: 4 };
+const RANK: Record<LogLevel, number> = {
+  [LogLevel.trace]: 0,
+  [LogLevel.debug]: 1,
+  [LogLevel.info]: 2,
+  [LogLevel.warn]: 3,
+  [LogLevel.error]: 4,
+};
 
 const ESC = "\u001b";
 const RESET = `${ESC}[0m`;
@@ -17,11 +23,11 @@ const DARK = `${ESC}[90m`;
 const CYAN = `${ESC}[36m`;
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
-  trace: `${ESC}[38;5;67m`,
-  debug: `${ESC}[33m`,
-  info: `${ESC}[32m`,
-  warn: `${ESC}[38;5;208m`,
-  error: `${ESC}[31m`,
+  [LogLevel.trace]: `${ESC}[38;5;67m`,
+  [LogLevel.debug]: `${ESC}[33m`,
+  [LogLevel.info]: `${ESC}[32m`,
+  [LogLevel.warn]: `${ESC}[38;5;208m`,
+  [LogLevel.error]: `${ESC}[31m`,
 };
 
 const useColor = (output: { isTTY: boolean; NO_COLOR?: string }): boolean =>
@@ -29,7 +35,7 @@ const useColor = (output: { isTTY: boolean; NO_COLOR?: string }): boolean =>
 
 const normalize = (value: string | undefined): LogLevel | undefined => {
   if (value === "warning") {
-    return "warn";
+    return LogLevel.warn;
   }
   return (LOG_LEVELS as readonly string[]).includes(value ?? "") ? (value as LogLevel) : undefined;
 };
@@ -40,7 +46,7 @@ const normalize = (value: string | undefined): LogLevel | undefined => {
  */
 export const takeLogLevel = (argv: string[]): { args: string[]; level: LogLevel } => {
   const args: string[] = [];
-  let level: LogLevel = "warn";
+  let level: LogLevel = LogLevel.warn;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? "";
     const inline = arg.startsWith("--log-level=") ? arg.slice("--log-level=".length) : undefined;

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExtensionLog, registerChatRenamer } from "chat-renamer";
-import { type LogLevel, setLogSink } from "variant-api";
+import { LogLevel, setLogSink } from "variant-api";
 import * as vscode from "vscode";
 import { platformToken, renderVersion, resolveVersionFacts } from "../../variant-cli/src/version-line.ts";
 import { formatProbeReport } from "./cursor/cursor-command-probe.ts";
@@ -45,11 +45,11 @@ const longVersion = (context: vscode.ExtensionContext): string => {
 export const activate = (context: vscode.ExtensionContext): Promise<void> => {
   const log = createExtensionLog(context, LOG_CHANNEL_NAME);
   const write: Record<LogLevel, (message: string) => void> = {
-    trace: (message) => log.trace(message),
-    debug: (message) => log.debug(message),
-    info: (message) => log.info(message),
-    warn: (message) => log.warn(message),
-    error: (message) => log.error(message),
+    [LogLevel.trace]: (message) => log.trace(message),
+    [LogLevel.debug]: (message) => log.debug(message),
+    [LogLevel.info]: (message) => log.info(message),
+    [LogLevel.warn]: (message) => log.warn(message),
+    [LogLevel.error]: (message) => log.error(message),
   };
   setLogSink((event) => write[event.level](formatVariantLog(event)));
   log.info(`activating variant-worktrees (${vscode.env?.appName ?? "unknown host"} ${vscode.version ?? ""})`.trim());

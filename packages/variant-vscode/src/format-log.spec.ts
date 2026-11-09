@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { LogEvent } from "variant-api";
+import { type LogEvent, LogLevel } from "variant-api";
 import { formatVariantLog } from "./format-log.ts";
 
 const event = (message: string, fields?: { slug?: string; step?: string }): LogEvent => ({
-  level: "info",
+  level: LogLevel.info,
   message,
   ...fields,
 });

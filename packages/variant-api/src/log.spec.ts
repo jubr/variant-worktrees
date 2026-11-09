@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type LogEvent, log, setLogSink } from "./log.js";
+import { type LogEvent, LogLevel, log, setLogSink } from "./log.js";
 
 describe("log levels", () => {
   it("delivers trace, debug, info, warn, and error to the attached host", () => {
@@ -8,11 +8,11 @@ describe("log levels", () => {
       events.push(event);
     });
     try {
-      log("trace", "enter");
-      log("debug", "branch");
-      log("info", "ready");
-      log("warn", "degraded");
-      log("error", "failed");
+      log(LogLevel.trace, "enter");
+      log(LogLevel.debug, "branch");
+      log(LogLevel.info, "ready");
+      log(LogLevel.warn, "degraded");
+      log(LogLevel.error, "failed");
     } finally {
       setLogSink(undefined);
     }
@@ -35,7 +35,7 @@ describe("log levels", () => {
       return true;
     }) as typeof process.stdout.write;
     try {
-      expect(() => log("warn", "database down")).not.toThrow();
+      expect(() => log(LogLevel.warn, "database down")).not.toThrow();
     } finally {
       process.stdout.write = original;
     }

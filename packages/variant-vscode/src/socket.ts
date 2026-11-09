@@ -1,11 +1,12 @@
+import { LOG_LEVELS, type LogLevel } from "variant-api";
 import { createListener, type SocketListener, socketPath } from "variant-ipc";
 import * as vscode from "vscode";
 
 const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provision", "up", "down", "watch", "implode"]);
-const LOG_LEVELS = new Set<string>(["trace", "debug", "info", "warn", "error"]);
+const LEVELS = new Set<string>(LOG_LEVELS);
 
 type SocketLogEvent = {
-  level: "trace" | "debug" | "info" | "warn" | "error";
+  level: LogLevel;
   message: string;
   step?: string;
   slug?: string;
@@ -14,10 +15,10 @@ type SocketLogEvent = {
 
 const logEvent = (args: Record<string, unknown>): SocketLogEvent => {
   const { level, message, step, slug, origin } = args;
-  if (typeof level !== "string" || !LOG_LEVELS.has(level) || typeof message !== "string") {
+  if (typeof level !== "string" || !LEVELS.has(level) || typeof message !== "string") {
     throw new Error("invalid log event");
   }
-  const event: SocketLogEvent = { level: level as SocketLogEvent["level"], message };
+  const event: SocketLogEvent = { level: level as LogLevel, message };
   if (typeof step === "string") {
     event.step = step;
   }

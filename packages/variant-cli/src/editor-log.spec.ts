@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:f
 import { createServer, type Server, type Socket } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { log, setLogSink } from "variant-api";
+import { LogLevel, log, setLogSink } from "variant-api";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
 import { attachLogLevel, finishCliLog } from "./log-level.ts";
 import { runCommand, withVariants } from "./test/cli.js";
@@ -45,8 +45,8 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stdout.write;
     try {
-      attachLogLevel("warn", { directory });
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
       await finishCliLog();
       await waitFor(() => seen.length > 0);
     } finally {
@@ -83,9 +83,9 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "listed variants");
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
       await finishCliLog();
       await waitFor(() => seen.some((request) => request.args.message === "end"));
     } finally {
@@ -119,9 +119,9 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "listed variants");
-      log("warn", "still going");
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.warn, "still going");
       await finishCliLog();
     } finally {
       process.stderr.write = write;
@@ -150,9 +150,9 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "listed variants");
-      log("warn", "still going");
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.warn, "still going");
       await finishCliLog();
     } finally {
       process.stderr.write = write;
@@ -239,11 +239,11 @@ describe("editor log stream", () => {
     const write = process.stderr.write.bind(process.stderr);
     process.stderr.write = (() => true) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
+      attachLogLevel(LogLevel.debug, { directory });
       await Bun.sleep(30);
       expect(accepts).toBe(0);
-      log("info", "listed variants");
-      log("warn", "still going");
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.warn, "still going");
       await finishCliLog();
       expect(accepts).toBe(1);
     } finally {
@@ -272,8 +272,8 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("warn", { directory });
-      log("info", "listed variants");
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.info, "listed variants");
       await finishCliLog();
     } finally {
       process.stderr.write = write;
@@ -309,9 +309,9 @@ describe("editor log stream", () => {
     const write = process.stderr.write.bind(process.stderr);
     process.stderr.write = (() => true) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "one");
-      log("warn", "two");
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "one");
+      log(LogLevel.warn, "two");
       await finishCliLog();
       expect(accepts).toBe(1);
     } finally {
@@ -341,9 +341,9 @@ describe("editor log stream", () => {
     }) as typeof process.stderr.write;
     const started = Date.now();
     try {
-      attachLogLevel("warn", { directory });
-      log("info", "one");
-      log("info", "two");
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.info, "one");
+      log(LogLevel.info, "two");
       const outcome = await Promise.race([
         finishCliLog().then(() => "done" as const),
         Bun.sleep(1800).then(() => "hung" as const),

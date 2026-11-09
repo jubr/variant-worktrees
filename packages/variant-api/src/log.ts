@@ -4,7 +4,7 @@ export {
   LOG_LEVELS,
   type LogEvent,
   type LogFields,
-  type LogLevel,
+  LogLevel,
   type LogSink,
   log,
   logD,

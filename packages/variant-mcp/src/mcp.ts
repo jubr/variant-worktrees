@@ -6,7 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { SetLevelRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createClient, loadVariantConfig } from "variant-api";
 import { commands } from "variant-api/commands";
-import { type LogLevel, setLogSink } from "variant-log";
+import { LogLevel, setLogSink } from "variant-log";
 import { z } from "zod/v4";
 import { finishEditorLog, sendEditorLog } from "./editor-log.js";
 import { loggingData } from "./logging-data.js";
@@ -37,13 +37,13 @@ type McpLevel = (typeof MCP_LEVELS)[number];
 let clientLevel: McpLevel | undefined;
 
 const libraryAsMcp = (level: LogLevel): McpLevel => {
-  if (level === "trace" || level === "debug") {
+  if (level === LogLevel.trace || level === LogLevel.debug) {
     return "debug";
   }
-  if (level === "info") {
+  if (level === LogLevel.info) {
     return "info";
   }
-  if (level === "warn") {
+  if (level === LogLevel.warn) {
     return "warning";
   }
   return "error";
@@ -52,7 +52,7 @@ const libraryAsMcp = (level: LogLevel): McpLevel => {
 /** Trace is delivered only at client `debug`. Other library levels follow the MCP ordering. */
 const levelAllows = (level: LogLevel): boolean => {
   const selected = clientLevel ?? "warning";
-  if (level === "trace") {
+  if (level === LogLevel.trace) {
     return selected === "debug";
   }
   return MCP_LEVELS.indexOf(libraryAsMcp(level)) >= MCP_LEVELS.indexOf(selected);
