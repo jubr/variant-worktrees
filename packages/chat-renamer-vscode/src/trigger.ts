@@ -29,6 +29,7 @@ import * as vscode from "vscode";
 import { caffeinateOnPath, createActivityWatch, readComposerActivity, spawnCaffeinate } from "./awake-watch";
 import { resolveChatRenameDeps } from "./cursor-host";
 import type { ExistingChatsRunner, ExistingChatsTrigger } from "./existing-chats";
+import { newestSessionAgeMs, PROJECT_SESSION_FRESH_MS, projectSessionsDir } from "./session-activity";
 import { type HostSettings, readSettings } from "./settings";
 
 /**
@@ -119,12 +120,39 @@ export const startChatRenameTrigger = (
           },
         });
         const watch = createActivityWatch({
-          read: host.readAwakeActivity ?? (() => readComposerActivity(dbPath)),
+          read:
+            host.readAwakeActivity ??
+            (async () => {
+              let openIds: string[] = [];
+              try {
+                const selected = await vscode.commands.executeCommand<unknown>(
+                  "composer.getOrderedSelectedComposerIds",
+                );
+                if (Array.isArray(selected)) {
+                  openIds = selected.filter((id): id is string => typeof id === "string");
+                }
+              } catch {
+                openIds = [];
+              }
+              const composerActive = await readComposerActivity(dbPath, openIds);
+              // AIDEV-NOTE: composer status drops mid-turn. A recent session file resets the grace timer.
+              const folders = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? [];
+              let sessionAgeMs: number | undefined;
+              for (const folder of folders) {
+                const age = newestSessionAgeMs(projectSessionsDir(folder));
+                if (age !== undefined && (sessionAgeMs === undefined || age < sessionAgeMs)) {
+                  sessionAgeMs = age;
+                }
+              }
+              const sessionActive = sessionAgeMs !== undefined && sessionAgeMs <= PROJECT_SESSION_FRESH_MS;
+              return composerActive || sessionActive;
+            }),
           schedule: (ms, run) => {
             const timer = setTimeout(run, ms);
             return { cancel: () => clearTimeout(timer) };
           },
           shouldPoll: () => settingsNow().awakeWhen === "chatsActive",
+          trace: (message, fields) => log.child("awake").trace(message, fields),
           onActive: (active) => {
             const settings = settingsNow();
             controller.update({
@@ -145,6 +173,9 @@ export const startChatRenameTrigger = (
         };
       })()
     : undefined;
+  if (!awake) {
+    log.child("awake").trace("activity", { active: false, reason: "not owner" });
+  }
   if (awake) {
     context.subscriptions.push({ dispose: () => awake.dispose() });
   }
