@@ -4,7 +4,8 @@ import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { isMerged, removeMatching, removeWorktree, restoreTracked, worktreeReport } from "../cleanup.js";
 import { git, runGit } from "../git.js";
 import { checkoutRoot, locateWorktree, repositoryDirectory } from "../locate.js";
-import { logD as emit } from "../log.js";
+import { LogLevel, log } from "../log.js";
+import { levelForDirectory } from "../log-directory.js";
 import { logToStderr } from "../ready.js";
 import { prepareRun } from "../run-context.js";
 import { removeVariantRuntime, variantConfigDir } from "../runtime-state.js";
@@ -103,6 +104,10 @@ const prefixedBranch = (context: OperationContext, slug: string): string | undef
     .find((name) => runGit(primary, ["show-ref", "--verify", "--quiet", `${HEADS}${name}`]).ok);
 };
 
+const emit = (message: string, slug: string, directory: string): void => {
+  log(levelForDirectory(LogLevel.debug, directory), message, { slug });
+};
+
 const assertBranchRm = (value: ImplodeOptions["branchRm"]): void => {
   if (value !== undefined && value !== "yes" && value !== "no") {
     throw new Error("branchRm must be one of yes, no");
@@ -118,17 +123,18 @@ const removeLocalBranch = (
   slug: string,
   branch: string | undefined,
   branchRm: ImplodeOptions["branchRm"],
+  directory: string,
 ): Pick<ImplodeResult, "branch" | "branchRemoved"> => {
   if (branchRm === "no") {
-    emit(branch ? `kept branch ${branch}` : `no branch to remove for ${slug}`);
+    emit(branch ? `kept branch ${branch}` : `no branch to remove for ${slug}`, slug, directory);
     return { ...(branch ? { branch } : {}), branchRemoved: false };
   }
   if (!branch) {
-    emit(`no branch to remove for ${slug}`);
+    emit(`no branch to remove for ${slug}`, slug, directory);
     return { branchRemoved: false };
   }
   git(primaryWorktree(repositoryDirectory(context)), ["branch", "-D", branch]);
-  emit(`removed branch ${branch}`);
+  emit(`removed branch ${branch}`, slug, directory);
   return { branch, branchRemoved: true };
 };
 
@@ -164,17 +170,21 @@ export const implodeVariant = async (
   }
 
   const branch = removable ? checkedOutBranch(context, removable) : present ? undefined : prefixedBranch(context, slug);
+  const logDir = present && located !== undefined ? variantConfigDir(config, located) : context.cwd;
   const removed = await teardownVariant(context, slug, present ? located : undefined, options.log);
   if (!removable) {
     if (located !== undefined && !present) {
       git(primaryWorktree(repositoryDirectory(context)), ["worktree", "prune"]);
     }
-    return finish({
-      slug,
-      removed,
-      worktreeRemoved: false,
-      ...removeLocalBranch(context, slug, branch, options.branchRm),
-    });
+    return finish(
+      {
+        slug,
+        removed,
+        worktreeRemoved: false,
+        ...removeLocalBranch(context, slug, branch, options.branchRm, logDir),
+      },
+      logDir,
+    );
   }
 
   const projectDir = variantConfigDir(config, removable);
@@ -189,17 +199,20 @@ export const implodeVariant = async (
   log(report);
   restoreTracked(removable, discard);
   removeWorktree(primaryWorktree(repositoryDirectory(context)), removable, options.force === true);
-  return finish({
-    slug,
-    removed,
-    worktreeRemoved: true,
-    worktree: removable,
-    report,
-    ...removeLocalBranch(context, slug, branch, options.branchRm),
-  });
+  return finish(
+    {
+      slug,
+      removed,
+      worktreeRemoved: true,
+      worktree: removable,
+      report,
+      ...removeLocalBranch(context, slug, branch, options.branchRm, projectDir),
+    },
+    projectDir,
+  );
 };
 
-const finish = (result: ImplodeResult): ImplodeResult => {
-  emit(`implode finished slug=${JSON.stringify(result.slug)}`);
+const finish = (result: ImplodeResult, directory: string): ImplodeResult => {
+  emit(`implode finished slug=${JSON.stringify(result.slug)}`, result.slug, directory);
   return result;
 };
