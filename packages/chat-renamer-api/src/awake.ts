@@ -86,7 +86,7 @@ export const createAwakeController = ({
     }
     const child = tracked;
     child.stopRequested = true;
-    awake.trace(`+ "kill ${child.pid}"`, { reason });
+    awake.debug(`+ "kill ${child.pid}"`, { reason });
     signal(child.process, "SIGTERM");
     // Exit is asynchronous. SIGKILL covers a child that ignored SIGTERM.
     if (tracked === child) {
