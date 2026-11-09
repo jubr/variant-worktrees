@@ -1262,7 +1262,20 @@ const project = () => {
   };
 };
 
-const focused = (): boolean => executeCommand.mock.calls.some((call) => call[0] === "variant.variants.focus");
+const FOCUS_COMMANDS = ["variant.variants.focus", "variant.worktrees.focus", "workbench.action.focusActiveEditorGroup"];
+
+const focused = (): boolean => executeCommand.mock.calls.some((call) => FOCUS_COMMANDS.includes(String(call[0])));
+
+interface Revealed {
+  element: unknown;
+  options?: { select?: boolean; focus?: boolean };
+}
+
+const revealed = (id: string): Revealed[] => {
+  const index = createTreeView.mock.calls.findIndex((call) => call[0] === id);
+  const tree = createTreeView.mock.results[index]?.value as { revealed?: Revealed[] } | undefined;
+  return tree?.revealed ?? [];
+};
 
 const settle = (): Promise<void> => Promise.resolve();
 
@@ -1283,8 +1296,9 @@ describe("section startup", () => {
       });
       await settle();
 
-      expect(focused()).toBe(true);
-      expect(executeCommand).toHaveBeenCalledWith("workbench.action.focusActiveEditorGroup");
+      expect(revealed("variant.variants")).toEqual([{ element: undefined, options: { select: false, focus: false } }]);
+      expect(revealed("variant.worktrees")).toEqual([]);
+      expect(focused()).toBe(false);
       expect(reads).toBe(0);
     } finally {
       folder.remove();
@@ -1303,9 +1317,8 @@ describe("section startup", () => {
       });
       await settle();
 
-      expect(executeCommand.mock.calls.map((call) => call[0])).toEqual(
-        expect.arrayContaining(["variant.variants.focus", "workbench.action.focusActiveEditorGroup"]),
-      );
+      expect(revealed("variant.variants")).toEqual([{ element: undefined, options: { select: false, focus: false } }]);
+      expect(focused()).toBe(false);
     } finally {
       folder.remove();
     }
@@ -1325,6 +1338,7 @@ describe("section startup", () => {
       });
       await settle();
 
+      expect(revealed("variant.variants")).toEqual([]);
       expect(focused()).toBe(false);
     } finally {
       get.mockRestore();
@@ -1348,7 +1362,9 @@ describe("section startup", () => {
       });
       await settle();
 
-      expect(focused()).toBe(true);
+      expect(revealed("variant.variants")).toEqual([{ element: undefined, options: { select: false, focus: false } }]);
+      expect(revealed("variant.worktrees")).toEqual([]);
+      expect(focused()).toBe(false);
       expect(reads).toBe(1);
     } finally {
       folder.remove();
@@ -1371,6 +1387,7 @@ describe("section startup", () => {
       });
       await settle();
 
+      expect(revealed("variant.variants")).toEqual([]);
       expect(focused()).toBe(false);
       expect(reads).toBe(1);
     } finally {

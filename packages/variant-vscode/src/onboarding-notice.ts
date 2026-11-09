@@ -24,6 +24,8 @@ export interface NoticeDeps {
   adoption: () => Promise<VariantsAdoption>;
   showInfo: (message: string, ...buttons: string[]) => PromiseLike<string | undefined>;
   runCommand: (id: string) => PromiseLike<unknown>;
+  /** Focuses the Explorer section when the notification is shown. */
+  focusSection?: () => PromiseLike<unknown>;
   guard: MiseGuard;
   log?: ActivityLog;
 }
@@ -59,6 +61,7 @@ export const createOnboardingNotice = (deps: NoticeDeps): OnboardingNotice => {
       await deps.state.update(SHOWN_KEY, true);
       deps.log?.info("onboarding notification", { detected: adoption.label });
       running = false;
+      await deps.focusSection?.();
       const choice = await deps.showInfo(
         `Detected ${adoption.label}, want to bootstrap Variant in this repo?`,
         BOOTSTRAP_BUTTON,

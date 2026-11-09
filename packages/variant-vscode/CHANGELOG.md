@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Startup expands the Explorer **Variant Worktrees** section without taking focus. The one-time onboarding notification focuses that section.
 - Onboarding initializes the main checkout when the opened workspace folder has no `.git` directory.
 
 ## [0.0.7] - 2026-11-06

@@ -4341,7 +4341,23 @@ export const window = {
   showErrorMessage: async (..._args: unknown[]): Promise<unknown> => undefined,
   showTextDocument: async (..._args: unknown[]): Promise<unknown> => undefined,
   registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
-  createTreeView: (_viewId: string, _options: unknown): Disposable & { message?: string } => ({ dispose: () => {} }),
+  createTreeView: (
+    _viewId: string,
+    _options: unknown,
+  ): Disposable & {
+    message?: string;
+    revealed: Array<{ element: unknown; options?: { select?: boolean; focus?: boolean } }>;
+    reveal: (element: unknown, options?: { select?: boolean; focus?: boolean }) => Promise<void>;
+  } => {
+    const revealed: Array<{ element: unknown; options?: { select?: boolean; focus?: boolean } }> = [];
+    return {
+      dispose: () => {},
+      revealed,
+      reveal: async (element, options) => {
+        revealed.push({ element, options });
+      },
+    };
+  },
   registerWebviewViewProvider: (
     _viewType: string,
     _provider: { resolveWebviewView: (view: WebviewViewStub) => unknown },
