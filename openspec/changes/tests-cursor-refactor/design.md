@@ -37,7 +37,7 @@ Alternatives: strip the `cursor-` prefix (rejected: extra rename on top of the d
 - a `.test.ts` or `.test.tsx` anywhere under `packages/`
 - a unique source stem whose spec is not in that source file's directory
 
-`src/test/setup.ts`, `src/test/fake-mise.ts`, and any other non-test file under `src/**/test/` are not violations. `scripts/colocated-tests.spec.ts` feeds fixture lists for the failing and passing cases, then feeds the real `packages/` tree. The script does not import package code. `scripts/` is outside the check, which matches the repository-scripts scenario.
+`src/test/setup.ts`, `src/test/mise-mock.ts`, and any other non-test file under `src/**/test/` are not violations. `scripts/colocated-tests.spec.ts` feeds fixture lists for the failing and passing cases, then feeds the real `packages/` tree. The script does not import package code. `scripts/` is outside the check, which matches the repository-scripts scenario.
 
 Alternatives: a Biome plugin or `hk` linter (rejected: the repo's executable check for this kind of rule is already a `scripts/*.spec.ts`, as with docs coverage); one assertion per package (rejected: a new package would be unchecked); treating `src/test` like `packages/*/test` (rejected: preload and support files belong there).
 
@@ -51,7 +51,7 @@ Many current tests have no same-stem source (`product-icon.spec.ts`, `implode-te
 
 `packages/*/test` goes away. Non-test files move to `src/test/` in the same package:
 
-- `packages/variant-api/test/support/` → `packages/variant-api/src/test/`
+- `packages/variant-api/test/support/` → `packages/variant-api/src/test/`, and `fake-mise.ts` becomes `mise-mock.ts`
 - `packages/variant-cli/test/support/` → `packages/variant-cli/src/test/`
 - `packages/variant-vscode/test/setup.ts` → `packages/variant-vscode/src/test/setup.ts`
 - `packages/variant-ui/test/setup.ts` → `packages/variant-ui/src/test/setup.ts`

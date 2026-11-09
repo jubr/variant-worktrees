@@ -53,7 +53,7 @@ A file under `packages/<package>/src` whose name ends in `.spec.ts`, `.spec.tsx`
 
 #### Scenario: Similar helper inside src/test
 
-- **WHEN** `packages/variant-api/src/test/fake-mise.ts` exists
+- **WHEN** `packages/variant-api/src/test/mise-mock.ts` exists
 - **THEN** the workspace test run does not fail for that file
 
 ### Requirement: Package tests use the spec suffix
