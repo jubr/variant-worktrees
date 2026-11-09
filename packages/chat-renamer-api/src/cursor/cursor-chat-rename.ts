@@ -1,7 +1,7 @@
-import type { FirstPrompt } from "../chat-first-prompt";
 import { findRenameRequest, firstLines, matchRenameRequest, type RenameRequest } from "../chat-rename-patterns";
 import { hasSameBase, numberedTitle, titleBase } from "../chat-title-numbering";
 import type { Logger } from "../log";
+import type { FirstPrompt } from "./chat-first-prompt";
 
 export const BUILTIN_AGENT_HOST_ID = "anysphere.cursor-agent-host";
 

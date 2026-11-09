@@ -1,6 +1,6 @@
 import { type ExistingChat, planExistingRenames } from "./chat-existing-plan";
-import type { FirstPrompt } from "./chat-first-prompt";
 import { findRenameRequest } from "./chat-rename-patterns";
+import type { FirstPrompt } from "./cursor/chat-first-prompt";
 import { type ChatRenameDeps, listChatCatalog, renameChat } from "./cursor/cursor-chat-rename";
 
 export type ExistingChatsOptions = {

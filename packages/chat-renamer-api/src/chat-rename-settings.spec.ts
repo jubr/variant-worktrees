@@ -2,9 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as shared from "chat-renamer-config";
 
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
-import { DEFAULT_WORKTREE_PREFIXES, hookCommand, readTriggerSettings, resolveCursorDir } from "./chat-rename-settings";
+import { DEFAULT_WORKTREE_PREFIXES, readTriggerSettings } from "./chat-rename-settings";
 
-const HOOK_SCRIPT_NAME = "demo-chat-rename.sh";
 const settings = (values: Record<string, unknown>) => (key: string) => values[key];
 
 describe("shared defaults", () => {
@@ -111,31 +110,5 @@ describe("readTriggerSettings", () => {
     ]);
     expect(readTriggerSettings(settings({ worktreePrefixes: [] })).worktreePrefixes).toEqual([]);
     expect(readTriggerSettings(settings({ worktreePrefixes: "_work" })).worktreePrefixes).toEqual([]);
-  });
-});
-
-describe("resolveCursorDir", () => {
-  it("uses the workspace .cursor folder for the workspace scope", () => {
-    expect(resolveCursorDir("workspace", "/repo", "/home/me")).toBe("/repo/.cursor");
-  });
-
-  it("uses ~/.cursor for the user scope", () => {
-    expect(resolveCursorDir("user", "/repo", "/home/me")).toBe("/home/me/.cursor");
-  });
-
-  it("falls back to ~/.cursor when no workspace folder is open", () => {
-    expect(resolveCursorDir("workspace", undefined, "/home/me")).toBe("/home/me/.cursor");
-  });
-});
-
-describe("hookCommand", () => {
-  it("is relative to the project root for workspace hooks", () => {
-    expect(hookCommand("/repo/.cursor", "/repo", HOOK_SCRIPT_NAME)).toBe(`.cursor/hooks/${HOOK_SCRIPT_NAME}`);
-  });
-
-  it("is absolute for user hooks", () => {
-    expect(hookCommand("/home/me/.cursor", undefined, HOOK_SCRIPT_NAME)).toBe(
-      `/home/me/.cursor/hooks/${HOOK_SCRIPT_NAME}`,
-    );
   });
 });
