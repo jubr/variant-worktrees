@@ -80,8 +80,8 @@ tasks:
     cmds:
       - task: build
       - node --version
-      - bun run --filter variant-api test test/node-runtime.test.ts
-      - bun run --filter variant-cli test test/runtimes.test.ts
+      - bun run --filter variant-api test src/node-runtime.spec.ts
+      - bun run --filter variant-cli test src/runtimes.spec.ts
 
   package:vsix:
     desc: "Build, then package variant-worktrees and chat-renamer into out/*.vsix"

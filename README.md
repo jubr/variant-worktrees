@@ -268,6 +268,9 @@ detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/var
 
 - [`variant-config`](./packages/variant-config) — `variants.yaml` schema and
   mise/environment autodetection.
+- [`variant-log`](./packages/variant-log) — shared log events and the process
+  sink.
+- [`variant-ipc`](./packages/variant-ipc) — Unix socket for editor requests.
 - [`variant-api`](./packages/variant-api) — lifecycle library for Node.js and
   Bun.
 - [`variant-cli`](./packages/variant-cli) — the `variant` command.

@@ -1,10 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as vscode from "vscode";
+import { registerCursorMcp, unregisterCursorMcp } from "./cursor/cursor-mcp-server.ts";
 
 const SERVER_NAME = "variant";
-
-let registeredWithCursor = false;
 
 const launch = (
   extensionPath: string,
@@ -24,10 +23,7 @@ const extensionVersion = (extensionPath: string): string => {
  * Specification: openspec/specs/variant-vscode/mcp-registration/spec.md
  */
 export const registerExtensionMcp = (context: vscode.ExtensionContext, folder: string): void => {
-  const registerServer = vscode.cursor?.mcp?.registerServer;
-  if (typeof registerServer === "function") {
-    registerServer({ name: SERVER_NAME, server: launch(context.extensionPath, folder) });
-    registeredWithCursor = true;
+  if (registerCursorMcp(SERVER_NAME, () => launch(context.extensionPath, folder))) {
     return;
   }
   const registerProvider = vscode.lm?.registerMcpServerDefinitionProvider;
@@ -51,12 +47,5 @@ export const registerExtensionMcp = (context: vscode.ExtensionContext, folder: s
 };
 
 export const unregisterExtensionMcp = (): void => {
-  if (!registeredWithCursor) {
-    return;
-  }
-  registeredWithCursor = false;
-  const unregisterServer = vscode.cursor?.mcp?.unregisterServer;
-  if (typeof unregisterServer === "function") {
-    unregisterServer(SERVER_NAME);
-  }
+  unregisterCursorMcp();
 };

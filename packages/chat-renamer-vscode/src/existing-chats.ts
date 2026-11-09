@@ -1,4 +1,3 @@
-import { dirname, join } from "node:path";
 import {
   type ChatRenamerNames,
   type ExistingChatsResult,
@@ -10,7 +9,8 @@ import {
 } from "chat-renamer-api";
 import type * as vscode from "vscode";
 
-import { resolveChatRenameDeps } from "./cursor-host";
+import { resolveChatRenameDeps } from "./cursor/cursor-host";
+import { cursorStateDbPath } from "./cursor/state-db";
 import { type HostSettings, readSettings } from "./settings";
 
 /** Category of every log line of this feature, so it can be told apart from the realtime trigger. */
@@ -64,7 +64,7 @@ export const createExistingChatsRunner = ({
   const existingLog = log.child(EXISTING_CHATS_CATEGORY);
   const settingName = `${names.configSection}.renameExistingDays`;
   const recordKey = `${names.configSection}.examinedChats`;
-  const dbPath = (): string => join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
+  const dbPath = (): string => cursorStateDbPath(context.globalStorageUri.fsPath);
   const days = (): number => readSettings(names.configSection, fileConfig).renameExistingDays;
   const stamp = (epochMs: number): string => new Date(epochMs).toISOString();
   let queue: Promise<unknown> = Promise.resolve();

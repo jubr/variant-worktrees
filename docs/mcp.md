@@ -54,5 +54,5 @@ slugs always take precedence.
 ## Testing
 
 ```bash
-mise x -- bun test packages/variant-mcp/test/mcp.test.ts
+mise x -- bun test packages/variant-mcp/src/mcp.spec.ts
 ```

@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import {
   type AwakeProcess,
   activationPatternSources,
@@ -26,10 +26,13 @@ import {
 } from "chat-renamer-api";
 import * as vscode from "vscode";
 
-import { caffeinateOnPath, createActivityWatch, readComposerActivity, spawnCaffeinate } from "./awake-watch";
-import { resolveChatRenameDeps } from "./cursor-host";
+import { caffeinateOnPath, createActivityWatch, spawnCaffeinate } from "./awake-watch";
+import { readComposerActivity } from "./cursor/composer-activity";
+import { resolveChatRenameDeps } from "./cursor/cursor-host";
+import { orderedSelectedComposers } from "./cursor/selected-composers";
+import { newestSessionAgeMs, PROJECT_SESSION_FRESH_MS, projectSessionsDir } from "./cursor/session-activity";
+import { cursorStateDbPath } from "./cursor/state-db";
 import type { ExistingChatsRunner, ExistingChatsTrigger } from "./existing-chats";
-import { newestSessionAgeMs, PROJECT_SESSION_FRESH_MS, projectSessionsDir } from "./session-activity";
 import { type HostSettings, readSettings } from "./settings";
 
 /**
@@ -105,7 +108,7 @@ export const startChatRenameTrigger = (
     log.info(`${claim.owner} already runs chat renaming; this instance stays idle`);
   }
 
-  const dbPath = join(dirname(context.globalStorageUri.fsPath), "state.vscdb");
+  const dbPath = cursorStateDbPath(context.globalStorageUri.fsPath);
   const awake = claim.owned
     ? (() => {
         const settingsNow = () => readSettings(names.configSection, host.fileConfig);
@@ -125,9 +128,7 @@ export const startChatRenameTrigger = (
             (async () => {
               let openIds: string[] = [];
               try {
-                const selected = await vscode.commands.executeCommand<unknown>(
-                  "composer.getOrderedSelectedComposerIds",
-                );
+                const selected = await orderedSelectedComposers();
                 if (Array.isArray(selected)) {
                   openIds = selected.filter((id): id is string => typeof id === "string");
                 }
@@ -203,7 +204,7 @@ export const startChatRenameTrigger = (
   }
 
   options.peerTitles = async (sessionId) => {
-    const openIds = await vscode.commands.executeCommand<string[]>("composer.getOrderedSelectedComposerIds");
+    const openIds = await orderedSelectedComposers<string[]>();
     try {
       return await listPeerTitles(resolveChatRenameDeps(context), Array.isArray(openIds) ? openIds : [], sessionId);
     } catch (error) {

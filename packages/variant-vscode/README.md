@@ -21,11 +21,14 @@ cd ../_v-feature-forty-two
 variant implode                        # detect slug from dir, stop everything, drop the database, remove clean worktree
 ```
 
-- **`create`** makes the `_v-feature-forty-two` worktree on its own branch.
-- **`watch`** provisions it (install, seed) and keeps your dev servers running on free ports, so you can follow an agent's progress live in the browser.
-- **`down`** stops watches and keeps the data.
-- **`implode`** stops the variant, drops its database and storage, removes the worktree, and then removes the local branch. It refuses to run on `main` and on work that is not merged into your base branch, unless you pass `--force`. `--branch-rm=no` keeps the branch.
+- `variant create -s $slug [--from {branch}] [--pull-ff] [--mise-install=bg|sync|no]` creates the feature worktree and its state. Omit `--from` to start at `variant.baseBranch`. `--pull-ff` fast-forwards that start branch before a new variant branch is created. `--mise-install` defaults to `bg`: when the worktree has a Mise config, `create` runs `mise trust --all` and `mise install` in the background. Schema creation is `provision`.
+- `variant provision` creates the schema and runs install, env, up, and seed. Creates the worktree when it is missing.
+- `variant watch [--detach] [--reprovision]` runs the watches on the host when UI or tests need them. Creates and provisions when those are missing. `--reprovision` drops the schemas before provisioning again.
+- `variant down` stops the watches and containers and leaves schemas, data, and the worktree.
+- `variant deprovision` stops the watches and drops that slug's schemas. The worktree stays.
+- `variant implode [--force] [--branch-rm=yes|no]` deprovisions, drops storage, and removes the worktree when the branch is merged, then removes the local branch. `--branch-rm=no` keeps it. The default is `yes`.
 
+Ports, pids, URLs are in `{worktree}/.cache/variant/state.yaml`. Logs in `{worktree}/.cache/variant/watch.log`.
 When you work inside a variant worktree yourself, the slug comes from the branch, so you can leave out `-s`.
 
 Install the `variant` CLI into a project with [mise](https://mise.jdx.dev):

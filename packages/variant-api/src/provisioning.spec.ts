@@ -1,0 +1,671 @@
+import { afterEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
+import { loadConfig } from "variant-config";
+import { createClient } from "./index.js";
+import { type LogEvent, setLogSink } from "./log.js";
+
+const saved: Record<string, string | undefined> = {};
+const setEnv = (name: string, value: string | undefined): void => {
+  if (!(name in saved)) {
+    saved[name] = process.env[name];
+  }
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+};
+afterEach(() => {
+  for (const [name, value] of Object.entries(saved)) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+    delete saved[name];
+  }
+});
+
+const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
+
+/** A project directory (not a git repository) with a variants.yaml built from its path. */
+const withProject = async (
+  yaml: (directory: string) => string,
+  run: (
+    directory: string,
+    provision: (verbose?: boolean) => Promise<{ commands: string[]; output: string }>,
+  ) => Promise<void> | void,
+  files: Record<string, string> = {},
+): Promise<void> => {
+  const directory = realpathSync(mkdtempSync(join("/tmp", "variant-provisioning-")));
+  try {
+    for (const [path, content] of Object.entries(files)) {
+      mkdirSync(join(directory, path, ".."), { recursive: true });
+      writeFileSync(join(directory, path), content);
+    }
+    writeFileSync(join(directory, "variants.yaml"), yaml(directory));
+    const client = createClient({
+      config: loadConfig({ cwd: directory, env: process.env }),
+      cwd: directory,
+      stateDir: join(directory, ".cache", "variants"),
+      worktree: false,
+    });
+    await run(directory, (verbose) => client.provision("demo", { verbose }));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
+const read = (directory: string, path: string): string => readFileSync(join(directory, path), "utf8");
+const parseEnv = (text: string): Record<string, string> =>
+  Object.fromEntries(
+    text
+      .split("\n")
+      .filter((line) => line.includes("="))
+      .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]),
+  );
+
+describe("step log", () => {
+  it("emits each step at info with the operation as step and the variant as slug", () =>
+    withProject(
+      (d) =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          `  seed: echo seed >> ${d}/order.log`,
+          "  steps:",
+          `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
+          `    two: { cmd: "echo two >> ${d}/order.log", runBefore: seed }`,
+        ),
+      async (_directory, provision) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await provision();
+        } finally {
+          setLogSink(undefined);
+        }
+        expect(events.filter((event) => event.level === "info")).toEqual([
+          {
+            level: "info",
+            step: "provision",
+            slug: "demo",
+            message: `create schema ${_directory}/.cache/variants/demo.db`,
+          },
+          { level: "info", step: "one", slug: "demo", message: `echo one >> ${_directory}/order.log` },
+          { level: "info", step: "two", slug: "demo", message: `echo two >> ${_directory}/order.log` },
+          { level: "info", step: "seed", slug: "demo", message: `echo seed >> ${_directory}/order.log` },
+        ]);
+      },
+    ));
+});
+
+describe("provisioning order", () => {
+  it("runs the up commands, the steps in order, then the seed command", () =>
+    withProject(
+      (d) =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          `  seed: echo seed >> ${d}/order.log`,
+          "  watches:",
+          `    fe: { kind: vite, dir: fe, up: "echo up >> ${d}/order.log" }`,
+          "  steps:",
+          `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
+          `    two: { cmd: "echo two >> ${d}/order.log", runBefore: seed }`,
+        ),
+      async (directory, provision) => {
+        await provision();
+
+        expect(read(directory, "order.log")).toBe("up\none\ntwo\nseed\n");
+      },
+      { "fe/.keep": "" },
+    ));
+
+  it("stops at the first failing step and names it with its status", () =>
+    withProject(
+      (d) =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          `  seed: echo seed >> ${d}/order.log`,
+          "  steps:",
+          '    first: { cmd: "echo boom; exit 3", runBefore: seed }',
+          `    second: { cmd: "echo second >> ${d}/order.log", runBefore: seed }`,
+        ),
+      async (directory, provision) => {
+        const failure = await provision().catch((error: Error) => error);
+
+        expect(failure).toBeInstanceOf(Error);
+        expect((failure as Error).message).toContain("first");
+        expect((failure as Error).message).toContain("3");
+        expect((failure as Error).message).toContain("boom");
+        expect(existsSync(join(directory, "order.log"))).toBe(false);
+      },
+    ));
+
+  it("runs a step in its dir below the worktree", () =>
+    withProject(
+      () =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          "  steps:",
+          '    here: { cmd: "pwd > pwd.out", dir: server, runBefore: seed }',
+        ),
+      async (directory, provision) => {
+        await provision();
+
+        expect(read(directory, "server/pwd.out").trim()).toBe(join(directory, "server"));
+      },
+      { "server/.keep": "" },
+    ));
+});
+
+describe("skippable and quiet steps", () => {
+  const yaml = (d: string) =>
+    lines(
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      "  steps:",
+      `    demo-user: { cmd: "echo ran > ${d}/ran.out", runBefore: seed }`,
+    );
+
+  it("skips a step whose VARIANT_STEP_<NAME> is no and says so", () => {
+    setEnv("VARIANT_STEP_DEMO_USER", "no");
+    return withProject(yaml, async (directory, provision) => {
+      const { output } = await provision();
+
+      expect(existsSync(join(directory, "ran.out"))).toBe(false);
+      expect(output).toContain("demo-user");
+      expect(output.toLowerCase()).toContain("skip");
+    });
+  });
+
+  it("runs the step when the variable differs, is empty or is unset", async () => {
+    for (const value of ["yes", "", undefined]) {
+      setEnv("VARIANT_STEP_DEMO_USER", value);
+      await withProject(yaml, async (directory, provision) => {
+        await provision();
+
+        expect(read(directory, "ran.out").trim()).toBe("ran");
+      });
+    }
+  });
+
+  const noisy = lines(
+    "db:",
+    "  dialect: sqlite",
+    "variant:",
+    "  steps:",
+    "    migrations:",
+    '      cmd: "echo query-noise; echo Migration Init applied"',
+    '      filterLinesRegex: "^Migration "',
+    "      runBefore: seed",
+  );
+
+  it("prints only the lines that match filterLinesRegex", () =>
+    withProject(
+      () => noisy,
+      async (_directory, provision) => {
+        const { output } = await provision();
+
+        expect(output).toContain("Migration Init applied");
+        expect(output).not.toContain("query-noise");
+      },
+    ));
+
+  it("prints everything when verbose", () =>
+    withProject(
+      () => noisy,
+      async (_directory, provision) => {
+        const { output } = await provision(true);
+
+        expect(output).toContain("query-noise");
+        expect(output).toContain("Migration Init applied");
+      },
+    ));
+
+  it("includes the full output in the error when the step fails", () =>
+    withProject(
+      () => noisy.replace("echo Migration Init applied", "echo Migration Init applied; exit 1"),
+      async (_directory, provision) => {
+        const failure = await provision().catch((error: Error) => error);
+
+        expect((failure as Error).message).toContain("query-noise");
+      },
+    ));
+});
+
+describe("watch install", () => {
+  const yaml = (d: string) =>
+    lines(
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      "  watches:",
+      `    fe: { kind: vite, dir: fe, install: "echo installed >> ${d}/install.log" }`,
+    );
+
+  it("runs without node_modules", () =>
+    withProject(
+      yaml,
+      async (directory, provision) => {
+        await provision();
+
+        expect(read(directory, "install.log")).toBe("installed\n");
+      },
+      { "fe/.keep": "" },
+    ));
+
+  it("is skipped when node_modules exists", () =>
+    withProject(
+      yaml,
+      async (directory, provision) => {
+        await provision();
+
+        expect(existsSync(join(directory, "install.log"))).toBe(false);
+      },
+      { "fe/node_modules/.keep": "" },
+    ));
+});
+
+describe("command environment", () => {
+  const dump = (extra: string[] = [], step = 'cmd: "env > env.out", runBefore: seed') =>
+    lines(
+      "db:",
+      "  dialect: postgres",
+      "  host: localhost",
+      "  port: 5433",
+      "  user: app",
+      "  password: secret",
+      "  database: appdb",
+      "variant:",
+      "  watches:",
+      "    fe: { kind: vite, dir: fe, url: 'http://${slug}.vw.localhost:${port}' }",
+      "    be: { kind: nestjs, dir: be }",
+      "  steps:",
+      '    provision: { cmd: "true" }',
+      `    dump: { ${step} }`,
+      ...extra,
+    );
+
+  it("passes the database settings, the target and the config path", () =>
+    withProject(
+      () => dump(),
+      async (directory, provision) => {
+        await provision();
+        const env = parseEnv(read(directory, "env.out"));
+
+        expect(env).toMatchObject({
+          POSTGRES_HOST: "localhost",
+          POSTGRES_PORT: "5433",
+          POSTGRES_USER: "app",
+          POSTGRES_PASSWORD: "secret",
+          POSTGRES_DB: "appdb",
+          POSTGRES_SCHEMA: "v_demo",
+          VARIANT_SLUG: "demo",
+          VARIANT_TARGET: "v_demo",
+          VARIANT_CONFIG: join(directory, "variants.yaml"),
+        });
+      },
+    ));
+
+  it("passes SQLITE_DATABASE for SQLite", () =>
+    withProject(
+      () =>
+        lines(
+          "db:",
+          "  dialect: sqlite",
+          "variant:",
+          "  steps:",
+          '    dump: { cmd: "env > env.out", runBefore: seed }',
+        ),
+      async (directory, provision) => {
+        await provision();
+
+        expect(parseEnv(read(directory, "env.out")).SQLITE_DATABASE).toBe(
+          join(directory, ".cache", "variants", "demo.db"),
+        );
+      },
+    ));
+
+  it("rewrites host.docker.internal to 127.0.0.1 for host commands", () =>
+    withProject(
+      () => dump().replace("host: localhost", "host: host.docker.internal"),
+      async (directory, provision) => {
+        await provision();
+
+        expect(parseEnv(read(directory, "env.out")).POSTGRES_HOST).toBe("127.0.0.1");
+      },
+    ));
+
+  it("exposes the port and URL of every watch", () =>
+    withProject(
+      () => dump(),
+      async (directory, provision) => {
+        await provision();
+        const env = parseEnv(read(directory, "env.out"));
+
+        expect(env.VARIANT_FE_PORT).toBe("62060");
+        expect(env.VARIANT_BE_PORT).toBe("62061");
+        expect(env.VARIANT_FE_URL).toBe("http://demo.vw.localhost:62060");
+        expect(env.VARIANT_BE_URL).toBeUndefined();
+      },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
+    ));
+
+  it("lets the expanded watch overrides win for the watch's up command", () =>
+    withProject(
+      () =>
+        dump().replace(
+          "    be: { kind: nestjs, dir: be }",
+          "    be: { kind: nestjs, dir: be, up: 'env > ../up.env', env: { overrides: { POSTGRES_SCHEMA: 'mine', PORT: '${port}' } } }",
+        ),
+      async (directory, provision) => {
+        await provision();
+        const env = parseEnv(read(directory, "up.env"));
+
+        expect(env.POSTGRES_SCHEMA).toBe("mine");
+        expect(env.PORT).toBe("62061");
+      },
+      {
+        "be/.keep": "",
+        "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n",
+      },
+    ));
+
+  it("lets the expanded step env win", () =>
+    withProject(
+      () => dump([], 'cmd: "env > env.out", runBefore: seed, env: { POSTGRES_SCHEMA: "custom", PEER: "${be.port}" }'),
+      async (directory, provision) => {
+        await provision();
+        const env = parseEnv(read(directory, "env.out"));
+
+        expect(env.POSTGRES_SCHEMA).toBe("custom");
+        expect(env.PEER).toBe("62061");
+      },
+      { "variants.local.yaml": "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n" },
+    ));
+});
+
+/** Specification: openspec/specs/variant-config/core/spec.md (Interpolation in every setting) */
+describe("interpolation in commands", () => {
+  const PORTS = "runtime:\n  watches:\n    fe:\n      port: 62060\n    be:\n      port: 62061\n";
+  const project = (extra: string[]) =>
+    lines(
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      "  watches:",
+      "    fe: { kind: vite, dir: fe, install: 'echo ${port} > ../install.out', up: 'echo ${be.port} > ../up.out' }",
+      "    be: { kind: nestjs, dir: be }",
+      ...extra,
+    );
+  const files = { "fe/.keep": "", "be/.keep": "", "variants.local.yaml": PORTS };
+
+  it("expands placeholders in watch install and up commands and in steps", () =>
+    withProject(
+      () => project(["  steps:", '    peer: { cmd: "echo ${slug}-${be.port} > step.out", runBefore: seed }']),
+      async (directory, provision) => {
+        await provision();
+
+        expect(read(directory, "install.out").trim()).toBe("62060");
+        expect(read(directory, "up.out").trim()).toBe("62061");
+        expect(read(directory, "step.out").trim()).toBe("demo-62061");
+      },
+      files,
+    ));
+
+  it("expands an environment reference with a default that holds a placeholder", () =>
+    withProject(
+      () =>
+        project([
+          "  steps:",
+          '    secret: { cmd: "echo $SECRET > secret.out", runBefore: seed, env: { SECRET: "${JWT_SECRET_FOR_TEST:-local-${slug}}" } }',
+        ]),
+      async (directory, provision) => {
+        setEnv("JWT_SECRET_FOR_TEST", undefined);
+        await provision();
+
+        expect(read(directory, "secret.out").trim()).toBe("local-demo");
+      },
+      files,
+    ));
+
+  it("expands an environment reference in the seed command", () =>
+    withProject(
+      () => project(["  seed: 'echo ${SEED_ARG_FOR_TEST} > seed.out'"]),
+      async (directory, provision) => {
+        setEnv("SEED_ARG_FOR_TEST", "fixtures");
+        await provision();
+
+        expect(read(directory, "seed.out").trim()).toBe("fixtures");
+      },
+      files,
+    ));
+
+  it("passes $${NAME} on to the shell as ${NAME}", () =>
+    withProject(
+      () => project(["  steps:", '    shell: { cmd: "echo $${SHELL_VAR_FOR_TEST} > shell.out", runBefore: seed }']),
+      async (directory, provision) => {
+        setEnv("SHELL_VAR_FOR_TEST", "from-shell");
+        await provision();
+
+        expect(read(directory, "shell.out").trim()).toBe("from-shell");
+      },
+      files,
+    ));
+
+  it("fails naming the setting and the variable when a reference is set nowhere", () =>
+    withProject(
+      () => project(["  steps:", '    broken: { cmd: "echo ${NOWHERE_FOR_TEST}", runBefore: seed }']),
+      async (_directory, provision) => {
+        setEnv("NOWHERE_FOR_TEST", undefined);
+        const failure = await provision().catch((error: Error) => error);
+
+        expect((failure as Error).message).toContain("NOWHERE_FOR_TEST");
+        expect((failure as Error).message).toContain("variant.steps.broken.cmd");
+      },
+      files,
+    ));
+});
+
+describe("variant storage", () => {
+  const yaml = (storage: string[]) =>
+    lines(
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      ...storage,
+      "  steps:",
+      '    dump: { cmd: "env > env.out", runBefore: seed }',
+    );
+
+  it("creates the default directory and passes STORAGE_ROOT", () =>
+    withProject(
+      () => yaml(["  storage: {}"]),
+      async (directory, provision) => {
+        await provision();
+
+        expect(statSync(join(directory, ".storage")).isDirectory()).toBe(true);
+        expect(parseEnv(read(directory, "env.out")).STORAGE_ROOT).toBe(join(directory, ".storage"));
+      },
+    ));
+
+  it("uses a custom variable", () =>
+    withProject(
+      () => yaml(["  storage:", "    envVarName: APP_DATA"]),
+      async (directory, provision) => {
+        await provision();
+        const env = parseEnv(read(directory, "env.out"));
+
+        expect(env.APP_DATA).toBe(join(directory, ".storage"));
+        expect(env.STORAGE_ROOT).toBeUndefined();
+      },
+    ));
+
+  it("creates nothing when storage is not configured", () =>
+    withProject(
+      () => yaml([]),
+      async (directory, provision) => {
+        await provision();
+
+        expect(existsSync(join(directory, ".storage"))).toBe(false);
+        expect(parseEnv(read(directory, "env.out")).STORAGE_ROOT).toBeUndefined();
+      },
+    ));
+});
+
+/** A git repository `repo` with a tracked-free `be/.env` in the primary worktree; provisioning runs in `_v-demo`. */
+const withRepo = async (
+  yaml: string,
+  primaryFiles: Record<string, string>,
+  run: (repo: string, worktree: string) => Promise<void> | void,
+  prepare: (worktree: string) => void = () => {},
+): Promise<void> => {
+  const parent = realpathSync(mkdtempSync(join("/tmp", "variant-dotenv-")));
+  const repo = join(parent, "repo");
+  const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" });
+  try {
+    execFileSync("git", ["init", "-q", "-b", "main", repo]);
+    git("config", "user.email", "variant@example.test");
+    git("config", "user.name", "Variant Tests");
+    writeFileSync(join(repo, "variants.yaml"), yaml);
+    writeFileSync(join(repo, ".gitignore"), ".cache\n_v-*\nvariants.local.yaml\n.env\n");
+    mkdirSync(join(repo, "be"));
+    writeFileSync(join(repo, "be", ".keep"), "");
+    git("add", ".");
+    git("commit", "-q", "-m", "initial");
+    for (const [path, content] of Object.entries(primaryFiles)) {
+      mkdirSync(join(repo, path, ".."), { recursive: true });
+      writeFileSync(join(repo, path), content);
+    }
+    const worktree = join(repo, "_v-demo");
+    git("worktree", "add", "-q", "-b", "feat/demo", worktree);
+    prepare(worktree);
+    await run(repo, worktree);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+};
+
+const provisionIn = async (repo: string) => {
+  const client = createClient({
+    config: loadConfig({ cwd: repo, env: process.env }),
+    cwd: repo,
+    stateDir: join(repo, ".cache", "variants"),
+  });
+  return client.provision("demo");
+};
+
+const DOTENV_YAML = (extra: string[] = []) =>
+  lines(
+    "db:",
+    "  dialect: sqlite",
+    "variant:",
+    "  watches:",
+    "    be:",
+    "      kind: nestjs",
+    "      dir: be",
+    "      env:",
+    "        sourceFile: .env",
+    "        overrides: { PORT: '${port}' }",
+    ...extra,
+  );
+
+describe("env file copy", () => {
+  it("copies the primary worktree's file with env applied and names the source", () =>
+    withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\nKEEP=1\n" }, async (repo, worktree) => {
+      const { output } = await provisionIn(repo);
+
+      expect(read(worktree, "be/.env")).toMatch(/^PORT=\d+\nKEEP=1\n$/);
+      expect(output).toContain(join(repo, "be", ".env"));
+      expect(read(repo, "be/.env")).toBe("PORT=3000\nKEEP=1\n");
+    }));
+
+  it("keeps an existing file unchanged and says the copy was skipped", () =>
+    withRepo(
+      DOTENV_YAML(["        overrides: { PORT: '${port}', PUBLIC_BASE_URL: 'http://demo.localhost' }"]).replace(
+        "        overrides: { PORT: '${port}' }\n",
+        "",
+      ),
+      { "be/.env": "PORT=3000\n" },
+      async (repo, worktree) => {
+        const { output } = await provisionIn(repo);
+
+        expect(read(worktree, "be/.env")).toBe("PORT=1\n");
+        expect(output.toLowerCase()).toContain("skip");
+      },
+      (worktree) => writeFileSync(join(worktree, "be", ".env"), "PORT=1\n"),
+    ));
+
+  it("writes the storage variable into the copy", () =>
+    withRepo(
+      DOTENV_YAML().replace("variant:\n", "variant:\n  storage: {}\n"),
+      { "be/.env": "PORT=3000\n" },
+      async (repo, worktree) => {
+        await provisionIn(repo);
+
+        expect(read(worktree, "be/.env")).toContain(`STORAGE_ROOT=${join(worktree, ".storage")}\n`);
+      },
+    ));
+
+  it("copies from VARIANT_ENV_SOURCE rather than the primary worktree's file", () =>
+    withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\n" }, async (repo, worktree) => {
+      writeFileSync("/tmp/variant-dotenv-source-env.env", "FROM=environment\n");
+      try {
+        setEnv("VARIANT_ENV_SOURCE", "/tmp/variant-dotenv-source-env.env");
+        await provisionIn(repo);
+
+        expect(read(worktree, "be/.env")).toContain("FROM=environment");
+        expect(read(worktree, "be/.env")).not.toContain("PORT=3000");
+      } finally {
+        setEnv("VARIANT_ENV_SOURCE", undefined);
+        rmSync("/tmp/variant-dotenv-source-env.env", { force: true });
+      }
+    }));
+
+  it("falls back to the .example file, then to an empty file with a warning", () =>
+    withRepo(DOTENV_YAML(), { "be/.env.example": "FROM=example\n" }, async (repo, worktree) => {
+      await provisionIn(repo);
+      expect(read(worktree, "be/.env")).toContain("FROM=example");
+
+      rmSync(join(worktree, "be", ".env"));
+      rmSync(join(repo, "be", ".env.example"));
+      const { output } = await provisionIn(repo);
+
+      expect(read(worktree, "be/.env")).toMatch(/^PORT=\d+\n$/);
+      expect(output.toLowerCase()).toContain("warning");
+    }));
+
+  it("copies and writes nothing in the primary worktree", () =>
+    withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\n" }, async (repo) => {
+      const client = createClient({
+        config: loadConfig({ cwd: repo, env: process.env }),
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        worktree: false,
+      });
+
+      await client.provision("main");
+
+      expect(read(repo, "be/.env")).toBe("PORT=3000\n");
+    }));
+});

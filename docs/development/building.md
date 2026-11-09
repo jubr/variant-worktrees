@@ -16,7 +16,7 @@ mise x -- task bootstrap
 mise x -- task build
 ```
 
-`task bootstrap` trusts the checkout, installs the pinned tools, and installs workspace dependencies. `task build` builds `variant-config`, `variant-api`, and `variant-mcp`.
+`task bootstrap` trusts the checkout, installs the pinned tools, and installs workspace dependencies. `task build` builds the workspace: `chat-renamer-config`, `variant-config`, `variant-log`, `variant-ipc`, `variant-api`, `variant-server`, `variant-cli`, `chat-renamer-api`, `variant-mcp`, `variant-ui`, then the `chat-renamer` and `variant-vscode` extensions.
 
 ```bash
 mise x -- task lint

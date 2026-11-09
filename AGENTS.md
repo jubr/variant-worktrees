@@ -27,13 +27,18 @@ Read the narrowest authoritative source for the question at hand:
 
 Bun workspace monorepo in `packages/`:
 
-- `variant-config` — shared `variants.yaml` parser and mise/env autodetection.
+- `chat-renamer-api` — Cursor chat rename requests: pattern match, title numbering, hook text, and the agent-host call.
+- `chat-renamer-config` — defaults and field schemas for chat renamer options, shared with `variant-config`.
+- `chat-renamer-vscode` — Cursor extension (npm name `chat-renamer`) that renames a chat from its first prompt.
 - `variant-api` — TypeScript database variant lifecycle library for Node.js and Bun.
 - `variant-cli` — the `variant` command: argument parsing, help, and text/JSON/YAML output.
+- `variant-config` — shared `variants.yaml` parser and mise/env autodetection.
+- `variant-ipc` — Unix socket the VS Code extension hosts for editor requests. Lifecycle commands stay in `variant-api`.
+- `variant-log` — shared log events and the process sink used by the library, CLI, MCP, and the editor socket.
 - `variant-mcp` — MCP server exposing variant lifecycle tools.
-- `variant-ui` — the variants React app (one UI for the editor webview and the browser) and its transport seam.
 - `variant-server` — loopback HTTP server (token, SSE, static app) behind `variant ui`. A library, not a binary: `variant-cli` bundles it, with the built app, into its package and executables.
-- `variant-vscode` — VS Code extension in the same workspace, included in the root build.
+- `variant-ui` — the variants React app (one UI for the editor webview and the browser) and its transport seam.
+- `variant-vscode` — VS Code extension in the same workspace, included in the root build. Embeds chat-renamer.
 
 Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts, and that socket refuses every lifecycle command. The extension's own views (the Variants view and the panel) call `variant-api` in-process for `list`, `watch`, `down` and `implode`; those calls are not reachable from the socket. Do not route the rest through the extension.
 
@@ -43,8 +48,8 @@ Tech: Bun, TypeScript strict ESM, Zod v4, Drizzle ORM, Biome, VitePress + TypeDo
 
 **All commands** and project tools (`openspec`, `task`, `bun`, `hk`, `commitlint`, etc)
 should use mise-managed versions.
-**AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash)";` at start of each shell series.
-This will set all relevant env vars, including $PATH. The `mise x --` prefix is a shorthand of this.
+**AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash; set -x)";` at start of each shell series.
+This will set all relevant env vars, including $PATH. Then `-x` echos, so no need for `echo '---what---'`. The `mise x --` prefix is a shorthand for this.
 **Humans** with `eval "$(mise activate bash)"` in shell rc: run directly.
 Tasks: `task <name>` at repo root. Root `package.json` is the Bun workspace; do not treat `bun run` as the agent CLI.
 No mise? `/opt/homebrew/bin/mise`.
@@ -101,21 +106,27 @@ packages/
       state.ts        — YAML variant state
       slug.ts         — explicit and git-derived slug resolution
       worktree.ts     — _v-* worktree management
-    test/
   variant-cli/
     src/cli.ts        — `variant` entry point (bin)
     src/output.ts     — text, JSON and YAML rendering of command results
-    test/
   variant-config/
     src/              — variants.yaml schema and config autodetection
-    test/
+  variant-log/
+    src/index.ts      — log levels, events, and the process sink
+  variant-ipc/
+    src/index.ts      — Unix socket for editor requests
   variant-mcp/
-    src/mcp.ts       — MCP server entry point
-    test/mcp.test.ts — MCP server tests
+    src/mcp.ts        — MCP server entry point
+    src/mcp.spec.ts   — MCP server tests
   variant-ui/
-    src/              — React app, transports (memory, HTTP, webview messages), co-located *.spec.ts
+    src/              — React app, transports (memory, HTTP, webview messages), sibling *.spec.ts; src/test holds helpers such as setup.ts and specs that cover no source module
   variant-server/
     src/              — HTTP API, event stream, static files, `variant ui` core
   variant-vscode/    — VS Code extension (workspace member and root build target)
+  chat-renamer-config/
+    src/              — chat renamer defaults and field schemas
+  chat-renamer-api/
+    src/              — rename request parsing, numbering, hooks, agent-host call, awake
+  chat-renamer-vscode/ — Cursor extension (npm name `chat-renamer`)
 docs/                — VitePress documentation
 ```

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { renameExistingChats } from "./chat-existing-rename";
 import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
-import type { ChatRenameDeps } from "./cursor-chat-rename";
+import type { ChatRenameDeps } from "./cursor/cursor-chat-rename";
 
 const STARTED = Date.parse("2026-10-12T09:00:00.000Z");
 const patterns = compilePatterns(DEFAULT_ACTIVATION_PATTERNS).patterns;
