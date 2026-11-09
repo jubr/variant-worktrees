@@ -14,23 +14,18 @@ Every chat-renamer behavior is also in `variant-vscode`, preferably through shar
 
 ## Citing a specification
 
-Source comments, documentation, and specs cite the **published** location under
-`openspec/specs/<capability-path>/spec.md`, never the change directory a delta
-was drafted in. A change directory moves to `openspec/changes/archive/` when the
-change is sync-archived, so a citation pointing at it goes stale on sync-archive
-day. Cite where the requirement will live, not where it was written — the path
-is the same capability path the delta declares, so it is known before the change
-is sync-archived.
+Source comments, documentation, and specs cite the (future) **published** location under
+`openspec/specs/<capability-path>/spec.md`, never the `openspec/changes/` a delta
+was drafted under.
 
-In markdown use a relative link, labelled by capability:
+In markdown use a relative link, labelled by capability. Count the `../` segments from the citing file's own directory.
 
 ```markdown
 [specs/<category>/<capability>](../../openspec/specs/<category>/<capability>/spec.md)
 [specs/<category>/<capability> | Heading Link](../../openspec/specs/<category>/<capability>/spec.md#heading-link)
 ```
 
-Count the `../` segments from the citing file's own directory. In code, a plain
-path in a comment is enough:
+In code, a plain path in a comment is enough:
 
 ```ts
 /**
@@ -76,6 +71,7 @@ pull request: a new CLI command appears in the README CLI section, as a section 
 `docs/mcp.md`; a new flag, output format, or configuration key appears wherever
 its command or section is described. `scripts/docs-coverage.spec.ts` fails for a
 registered command that is missing from them. Record the change in `CHANGELOG.md`.
+A flag that may gain further values uses `yes|no`, not `true|false`.
 
 ## Tool execution
 
@@ -204,4 +200,5 @@ if registry publication was skipped.
 
 Never commit credentials or temporary environment state. Do not publish values
 from local handover notes; extract only stable, non-sensitive facts into durable
-documentation.
+documentation. Committed specs, code, and docs do not name other local products,
+customer repositories, or machine paths. Chat may.

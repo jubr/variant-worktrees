@@ -38,7 +38,11 @@ const memento = (store = new Map<string, unknown>()): Memento & { store: Map<str
 
 const setup = (
   environment: NodeJS.ProcessEnv | (() => NodeJS.ProcessEnv),
-  options: { state?: Memento & { store: Map<string, unknown> }; pressed?: string } = {},
+  options: {
+    state?: Memento & { store: Map<string, unknown> };
+    pressed?: string;
+    focusSection?: () => Promise<void>;
+  } = {},
 ) => {
   const state = options.state ?? memento();
   const infos: Array<{ message: string; buttons: string[] }> = [];
@@ -64,6 +68,7 @@ const setup = (
     runCommand: async (id) => {
       commands.push(id);
     },
+    ...(options.focusSection ? { focusSection: options.focusSection } : {}),
     guard,
   });
   return { notice, state, infos, errors, commands };
@@ -72,6 +77,37 @@ const setup = (
 const POSTGRES = { POSTGRES_HOST: "db" };
 
 describe("onboarding notification", () => {
+  it("focuses the Explorer section before the notification", async () => {
+    put("fe/vite.config.ts");
+    const order: string[] = [];
+    const { notice, infos } = setup(POSTGRES, {
+      focusSection: async () => {
+        order.push(infos.length === 0 ? "focus" : "focus-after");
+      },
+    });
+
+    await notice.check();
+
+    expect(order).toEqual(["focus"]);
+    expect(infos).toHaveLength(1);
+  });
+
+  it("does not focus the section when the notification stays hidden", async () => {
+    const focused: string[] = [];
+    const focusSection = async (): Promise<void> => {
+      focused.push("focus");
+    };
+    put("variants.yaml", "variant: {}\n");
+    await setup(POSTGRES, { focusSection }).notice.check();
+    rmSync(join(root, "variants.yaml"));
+    await setup({}, { focusSection }).notice.check();
+    const shown = memento(new Map([[SHOWN_KEY, true]]));
+    put("fe/vite.config.ts");
+    await setup(POSTGRES, { state: shown, focusSection }).notice.check();
+
+    expect(focused).toEqual([]);
+  });
+
   it("offers Bootstrap Variant for a Postgres database and a Vite app", async () => {
     put("fe/vite.config.ts");
     const { notice, infos } = setup(POSTGRES);
@@ -90,6 +126,7 @@ describe("onboarding notification", () => {
     await notice.check();
 
     expect(commands).toEqual([ONBOARDING_COMMAND]);
+    expect(commands).not.toContain("variant.worktrees.focus");
   });
 
   it("runs nothing when the notification is dismissed", async () => {

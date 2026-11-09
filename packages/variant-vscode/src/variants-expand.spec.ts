@@ -1,25 +1,36 @@
 import { describe, expect, it } from "bun:test";
 import { autoExpandEnabled, expandVariantsView } from "./variants-expand.ts";
 
+interface Reveal {
+  element: unknown;
+  options?: { select?: boolean; focus?: boolean };
+}
+
+const tree = () => {
+  const revealed: Reveal[] = [];
+  return {
+    revealed,
+    reveal: async (element: undefined, options: { select: boolean; focus: boolean }) => {
+      revealed.push({ element, options });
+    },
+  };
+};
+
 describe("expanding the Variant Worktrees section", () => {
-  it("expands the section and returns focus to the editor", async () => {
-    const commands: string[] = [];
+  it("expands the Explorer root without focusing or selecting it", async () => {
+    const explorer = tree();
 
-    await expandVariantsView(true, async (command) => {
-      commands.push(command);
-    });
+    await expandVariantsView(true, explorer);
 
-    expect(commands).toEqual(["variant.variants.focus", "workbench.action.focusActiveEditorGroup"]);
+    expect(explorer.revealed).toEqual([{ element: undefined, options: { select: false, focus: false } }]);
   });
 
   it("does nothing when auto-expand is off", async () => {
-    const commands: string[] = [];
+    const explorer = tree();
 
-    await expandVariantsView(false, async (command) => {
-      commands.push(command);
-    });
+    await expandVariantsView(false, explorer);
 
-    expect(commands).toEqual([]);
+    expect(explorer.revealed).toEqual([]);
   });
 
   it("treats an unset setting as on and an explicit false as off", () => {

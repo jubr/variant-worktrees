@@ -146,6 +146,64 @@ describe("loadVariantClient with the Mise setting", () => {
 });
 
 describe("onboarding flow", () => {
+  it("focuses the variants section when detection shows the notification", async () => {
+    const commits: Array<() => void> = [];
+    const order: string[] = [];
+    const context = {
+      subscriptions: [] as { dispose: () => void }[],
+      extensionUri: vscode.Uri.file("/ext"),
+      workspaceState: { get: () => undefined, update: async () => {} },
+    } as unknown as vscode.ExtensionContext;
+    registerOnboardingFlow(context, {
+      root,
+      view: view().view,
+      watchCommits: (_directory, onCommit) => {
+        commits.push(onCommit);
+        return { check: () => {}, dispose: () => {} };
+      },
+      adoption: async () => ({ status: "detected", label: "postgres+vite" }),
+    });
+    executeCommand.mockImplementation(async (id: string) => {
+      if (id.endsWith(".focus")) {
+        order.push(id);
+      }
+    });
+    showInformationMessage.mockImplementation((async () => {
+      order.push("info");
+      return undefined;
+    }) as never);
+    commits[0]?.();
+    await settle();
+
+    expect(order).toEqual(["variant.variants.focus", "info"]);
+    expect(executeCommand).not.toHaveBeenCalledWith("variant.worktrees.focus");
+  });
+
+  it("focuses the open dialog when detection runs while onboarding is open", async () => {
+    const commits: Array<() => void> = [];
+    const context = {
+      subscriptions: [] as { dispose: () => void }[],
+      extensionUri: vscode.Uri.file("/ext"),
+      workspaceState: { get: () => undefined, update: async () => {} },
+    } as unknown as vscode.ExtensionContext;
+    const flow = registerOnboardingFlow(context, {
+      root,
+      view: view().view,
+      watchCommits: (_directory, onCommit) => {
+        commits.push(onCommit);
+        return { check: () => {}, dispose: () => {} };
+      },
+      adoption: async () => ({ status: "detected", label: "postgres+vite" }),
+    });
+    await flow.onboarding.open();
+    executeCommand.mockClear();
+    commits[0]?.();
+    await settle();
+
+    expect(executeCommand).toHaveBeenCalledWith("variant.onboarding.focus");
+    expect(executeCommand).not.toHaveBeenCalledWith("variant.variants.focus");
+  });
+
   it("watches the checkout an AGENTS.md symlink names", async () => {
     const parent = realpathSync(mkdtempSync(join("/tmp", "variant-flow-link-")));
     const workspace = join(parent, "vw");

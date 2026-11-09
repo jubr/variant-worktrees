@@ -225,8 +225,9 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
       return slug === undefined ? Promise.resolve() : attempt("open url", () => run(slug), { slug });
     };
 
+  const explorer = vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider });
   context.subscriptions.push(
-    vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider }),
+    explorer,
     vscode.window.createTreeView(WORKTREES_VIEW_ID, { treeDataProvider: provider }),
     provider,
     { dispose: () => store.dispose() },
@@ -336,11 +337,11 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   );
 
   void vscode.commands.executeCommand("setContext", "variant.currentSort", readSort());
-  // The contribution starts collapsed. Expand only for active or detected adoption, then leave the editor focused.
+  // The contribution starts collapsed. Expand only for active or detected adoption, without taking focus.
   const adoption = deps.environment ? getVariantsAdoption(deps.root, deps.environment) : getVariantsAdoption(deps.root);
   void expandVariantsView(
     adoption.status !== "none" && autoExpandEnabled(vscode.workspace.getConfiguration("variant").get("autoExpand")),
-    (command) => Promise.resolve(vscode.commands.executeCommand(command)),
+    explorer,
   );
   try {
     (deps.migrate ?? createConfigMigration({ root: deps.root }).run)();

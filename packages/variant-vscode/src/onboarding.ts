@@ -4,7 +4,7 @@ import { createMiseGuard, type MiseGuard } from "./mise-guard.ts";
 import { type CommitWatcher, createCommitWatcher } from "./onboarding-commits.ts";
 import { resolveOnboardingDirectory } from "./onboarding-directory.ts";
 import { createOnboardingNotice, type OnboardingNotice } from "./onboarding-notice.ts";
-import { type Onboarding, registerOnboarding } from "./onboarding-view.ts";
+import { ONBOARDING_VIEW_ID, type Onboarding, registerOnboarding } from "./onboarding-view.ts";
 import type { ActivityLog } from "./variants-actions.ts";
 import type { VariantsView } from "./variants-view.ts";
 
@@ -91,6 +91,8 @@ export const registerOnboardingFlow = (context: vscode.ExtensionContext, deps: O
       adoption: () => adoption(directory),
       showInfo: (message, ...buttons) => vscode.window.showInformationMessage(message, ...buttons),
       runCommand: (id) => vscode.commands.executeCommand(id),
+      focusSection: () =>
+        vscode.commands.executeCommand(onboarding.isOpen() ? `${ONBOARDING_VIEW_ID}.focus` : "variant.variants.focus"),
       guard,
       ...(log ? { log } : {}),
     });

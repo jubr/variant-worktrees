@@ -219,7 +219,7 @@
         "variant.autoExpand": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Expand the Variant Worktrees section when the editor starts and the workspace already uses variants or looks ready for them, then return focus to the editor. `false` leaves the section as it was. A workspace with nothing to detect is not expanded. Default `true`."
+          "markdownDescription": "Expand the Variant Worktrees section when the editor starts and the workspace already uses variants or looks ready for them, without taking focus. `false` leaves the section as it was. A workspace with nothing to detect is not expanded. The one-time onboarding notification still focuses the section. Default `true`."
         },
         "variant.sort": {
           "type": "string",
