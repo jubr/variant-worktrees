@@ -1,10 +1,8 @@
 # Chat Renamer
 
-![Chat Renamer](./media/icon-128.png)
+Renames Cursor chats from their first prompt. Runs `caffeinate` to keep awake during agent activity.
 
-Renames Cursor chats from their first prompt. Single purpose: it does nothing else.
-
-**Experimental.** It relies on private Cursor 3.23 internals and borrows the built-in `anysphere.cursor-agent-host` identity for one synchronous call, so it can break on any Cursor update.
+**Experimental.** Renaming relies on private Cursor 3.23 internals and borrows the built-in `anysphere.cursor-agent-host` identity for one synchronous call, so it can break on any Cursor update.
 
 ## What it does
 
@@ -13,6 +11,7 @@ Renames Cursor chats from their first prompt. Single purpose: it does nothing el
 - **Numbered titles.** A pattern title is numbered against the other open chats only when it has no trailing digits. A typed trailing number is kept: `abc7` beside `abc` stays `abc7`. Otherwise the trailing number is dropped to get the base; if peers share it the title becomes `{base}{max + 1}`: `abc` becomes `abc2`, and with `def3` and `def5` open `def` becomes `def6`. No peers: the title stays as typed. `/chat-rename` titles are literal and never numbered. A chat whose current title already has the requested base (`abc3` for `abc`, any case) is left as it is, for existing chats and for title events alike; the other chats of the group take the smallest numbers it does not hold.
 - **Worktree folders.** A prompt such as `/vw-spec-iterate @/path/_v-my-slug`, which is what dragging a worktree folder into the chat produces, renames the chat `my-slug`. With no `chat-renamer.worktreePrefixes`, the default path pattern does that for any leading prefix token, and `/vw-spec-start @_work-my-slug` (no path) becomes `my-slug`. A non-empty prefix list (`_v-`, or e.g. `_work-`; each carries its own connector) replaces the path pattern and also matches that prefix written as `@_work-my-slug`.
 - **Existing chats** (`chat-renamer.renameExistingDays`, default `7`, `0` = off): chats created in the last N days that existed before the editor started are renamed too, numbered by creation order (oldest `abc`, then `abc2`, `abc3`), once per chat. Each chat is examined once and remembered, so a title you change by hand later stays. It runs shortly after startup, when the setting changes, and on **Chat Renamer: Rename Existing Chats**, which ignores that memory but obeys the day window. A title event does not start it. Caveats: with the default on, a title you set by hand within the window before the first run is replaced when the chat's first prompt holds a rename request; the numbering covers only the chats inside the window; the chat list can be incomplete right after startup; each chat read costs two `sqlite3` calls. Every log line of this feature starts with `[existing-chats]`, is debug, and names the trigger and the setting (`chat-renamer.renameExistingDays=7`).
+- **Awake** (`chat-renamer.awake.when`, `chat-renamer.awake.what`, `chat-renamer.awake.graceDelaySecs`): while a chat is taking a turn or generating, including tool work of that turn, one `caffeinate` process holds the Mac awake. An open, selected, or idle chat does not count. `awake.when` is `chatsActive` (default) or `never`. `awake.what` `screen` (default) runs `caffeinate -disu`; `cpu` runs `caffeinate -dis`. `awake.graceDelaySecs` (default `60`, integer, at least `0`) is how long that process stays after the last turn; `0` stops it immediately. Turning the enable setting off does not turn this off. The owning instance starts it; an idle copy does not.
 
 ## Triggers (`chat-renamer.trigger`)
 
@@ -32,24 +31,6 @@ Not shown in the palette; meant for other extensions and scripts:
 All activity is logged to the **Chat Renamer** log channel, which **Developer: Show Logs…** lists once the extension has started and which has its own log level. Info shows decisions and renames; select **Trace** in the channel's log level picker to also see the first lines of each new chat's prompt, the title event of a chat that already existed at startup (`[title-event] event`), and the decision that skips it (`before startup`). **Debug** remains the level for a title event after startup. When the first prompt of a new chat cannot be read from Cursor's chat store, Trace shows what the store held (`[title-event] unreadable`, for the first 5 such chats) and the first one also shows a notification. A rename that fails also shows a notification with the cause.
 
 A host extension can supply the same options from elsewhere (Variant reads the `chatRenamer` section of `variants.yaml`); an option you set explicitly in the editor settings wins over the host's value, which wins over the default.
-
-## Using it inside another extension
-
-Import `registerChatRenamer` from `chat-renamer` in `activate`:
-
-```ts
-import { registerChatRenamer } from "chat-renamer";
-
-registerChatRenamer(context, {
-  commandPrefix: "my-ext", // commands: my-ext.renameChat, my-ext.renameChatFromPrompt
-  configSection: "my-ext.chatRename", // settings: trigger, hookScope, activationPatterns, worktreePrefixes, renameExistingDays
-  log, // optional Logger; default is a "Chat Renamer" channel
-});
-```
-
-The host manifest must contribute the three settings under `configSection` and list `onStartupFinished` and `onUri` as activation events. The editor-independent logic lives in the `chat-renamer-api` package.
-
-If this extension and Variant Worktrees are both installed in one window, this one stays idle: it detects `variant-worktrees` and does not start the triggers. Otherwise, when two copies are installed, only the one that starts first runs the triggers (title listener, hook, URI handler). The other logs which extension owns renaming, removes any hook script it wrote earlier, and stays idle; its commands still work. Ownership passes on when the owner is disposed.
 
 ## Development
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Present the supplied chat-renamer artwork as the extension icon. The package README shows the 128×128 mark. The 256×256 file exists so the manifest can point VS Code at it.
+Present the supplied chat-renamer artwork as the extension icon. The package README does not embed that artwork. The 256×256 file exists so the manifest can point VS Code at it.
 
 ## Requirements
 
@@ -38,10 +38,10 @@ The product SHALL publish square PNG scales of the supplied source artwork at 25
 
 ### Requirement: Package README mark
 
-The chat-renamer package README SHALL display the 128×128 icon.
+The chat-renamer package README SHALL NOT embed an icon image.
 
-#### Scenario: README shows the 128 icon
+#### Scenario: README omits the icon
 
-- **WHEN** the chat-renamer package README is rendered
-- **THEN** it includes the 128×128 icon
+- **WHEN** the chat-renamer package README is read
+- **THEN** it does not include the 128×128 icon
 - **AND** it does not include the 256×256 icon

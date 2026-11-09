@@ -1,12 +1,20 @@
 import { join } from "node:path";
 
 import {
+  type AwakeWhat,
+  type AwakeWhen,
+  DEFAULT_AWAKE_GRACE_DELAY_SECS,
+  DEFAULT_AWAKE_WHAT,
+  DEFAULT_AWAKE_WHEN,
   DEFAULT_HOOK_SCOPE,
   DEFAULT_RENAME_EXISTING_DAYS,
   DEFAULT_TITLE_EVENT_PROMPT_LINES,
   DEFAULT_TRIGGER,
   DEFAULT_WORKTREE_PREFIXES,
   type HookScope,
+  isAwakeGraceDelaySecs,
+  isAwakeWhat,
+  isAwakeWhen,
   isHookScope,
   isPromptLineLimit,
   isRenameExistingDays,
@@ -17,7 +25,15 @@ import {
 import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
 /** The defaults live in chat-renamer-config, which owns the full set of options. */
-export { DEFAULT_RENAME_EXISTING_DAYS, DEFAULT_TITLE_EVENT_PROMPT_LINES, DEFAULT_WORKTREE_PREFIXES, type HookScope };
+export {
+  DEFAULT_AWAKE_GRACE_DELAY_SECS,
+  DEFAULT_AWAKE_WHAT,
+  DEFAULT_AWAKE_WHEN,
+  DEFAULT_RENAME_EXISTING_DAYS,
+  DEFAULT_TITLE_EVENT_PROMPT_LINES,
+  DEFAULT_WORKTREE_PREFIXES,
+  type HookScope,
+};
 
 export type ChatRenameTrigger = Trigger;
 
@@ -31,6 +47,12 @@ export type TriggerSettings = {
   renameExistingDays: number;
   /** Lines of a new chat's first prompt the title event tests for a rename request. At least 1. */
   titleEventPromptLines: number;
+  /** Hold the machine awake while a chat is active, or never. */
+  awakeWhen: AwakeWhen;
+  /** `screen` runs `caffeinate -disu`. `cpu` runs `caffeinate -dis`. */
+  awakeWhat: AwakeWhat;
+  /** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
+  graceDelaySecs: number;
 };
 
 /** Normalises raw configuration values. Unknown values fall back to the defaults. */
@@ -41,6 +63,9 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
   const promptLines = get("titleEventPromptLines");
   const trigger = get("trigger");
   const hookScope = get("hookScope");
+  const awakeWhen = get("awake.when");
+  const awakeWhat = get("awake.what");
+  const graceDelaySecs = get("awake.graceDelaySecs");
   return {
     trigger: isTrigger(trigger) ? trigger : DEFAULT_TRIGGER,
     hookScope: isHookScope(hookScope) ? hookScope : DEFAULT_HOOK_SCOPE,
@@ -52,6 +77,9 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
       : [...DEFAULT_WORKTREE_PREFIXES],
     renameExistingDays: isRenameExistingDays(days) ? days : DEFAULT_RENAME_EXISTING_DAYS,
     titleEventPromptLines: isPromptLineLimit(promptLines) ? promptLines : DEFAULT_TITLE_EVENT_PROMPT_LINES,
+    awakeWhen: isAwakeWhen(awakeWhen) ? awakeWhen : DEFAULT_AWAKE_WHEN,
+    awakeWhat: isAwakeWhat(awakeWhat) ? awakeWhat : DEFAULT_AWAKE_WHAT,
+    graceDelaySecs: isAwakeGraceDelaySecs(graceDelaySecs) ? graceDelaySecs : DEFAULT_AWAKE_GRACE_DELAY_SECS,
   };
 };
 

@@ -15,11 +15,16 @@ describe("defaults", () => {
     expect(defaults.DEFAULT_WORKTREE_PREFIXES).toEqual([]);
     expect(defaults.DEFAULT_RENAME_EXISTING_DAYS).toBe(7);
     expect(defaults.DEFAULT_TITLE_EVENT_PROMPT_LINES).toBe(10);
+    expect(defaults.DEFAULT_AWAKE_WHEN).toBe("chatsActive");
+    expect(defaults.DEFAULT_AWAKE_WHAT).toBe("screen");
+    expect(defaults.DEFAULT_AWAKE_GRACE_DELAY_SECS).toBe(60);
   });
 
   it("lists the allowed trigger and hook scope values", () => {
     expect(defaults.TRIGGERS).toEqual(["titleEvent", "hook"]);
     expect(defaults.HOOK_SCOPES).toEqual(["workspace", "user"]);
+    expect(defaults.AWAKE_WHENS).toEqual(["chatsActive", "never"]);
+    expect(defaults.AWAKE_WHATS).toEqual(["screen", "cpu"]);
   });
 
   it("does not own the variant prefix", () => {

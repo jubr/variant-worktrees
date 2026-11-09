@@ -47,9 +47,9 @@ describe("product icon", () => {
     expect(ignore).toContain("!media/icon-128.png");
   });
 
-  it("shows the 128 icon in the package README", () => {
+  it("omits the icon from the package README", () => {
     const readme = readFileSync(join(repoRoot, "packages/chat-renamer-vscode/README.md"), "utf8");
-    expect(readme).toContain("media/icon-128.png");
+    expect(readme).not.toContain("media/icon-128.png");
     expect(readme).not.toContain("media/icon-256.png");
   });
 

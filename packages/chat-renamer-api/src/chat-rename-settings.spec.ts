@@ -22,6 +22,9 @@ describe("readTriggerSettings", () => {
       worktreePrefixes: [],
       renameExistingDays: 7,
       titleEventPromptLines: 10,
+      awakeWhen: "chatsActive",
+      awakeWhat: "screen",
+      graceDelaySecs: 60,
     });
   });
 
@@ -35,6 +38,9 @@ describe("readTriggerSettings", () => {
       worktreePrefixes: [],
       renameExistingDays: 7,
       titleEventPromptLines: 10,
+      awakeWhen: "chatsActive",
+      awakeWhat: "screen",
+      graceDelaySecs: 60,
     });
   });
 
@@ -46,6 +52,9 @@ describe("readTriggerSettings", () => {
       worktreePrefixes: [],
       renameExistingDays: 7,
       titleEventPromptLines: 10,
+      awakeWhen: "chatsActive",
+      awakeWhat: "screen",
+      graceDelaySecs: 60,
     });
   });
 
@@ -76,6 +85,23 @@ describe("readTriggerSettings", () => {
     for (const value of [0, -3, 2.5, "many", true, null]) {
       expect(readTriggerSettings(settings({ titleEventPromptLines: value })).titleEventPromptLines).toBe(10);
     }
+  });
+
+  it("defaults awake to chatsActive, screen, and 60 seconds", () => {
+    expect(readTriggerSettings(settings({}))).toMatchObject({
+      awakeWhen: "chatsActive",
+      awakeWhat: "screen",
+      graceDelaySecs: 60,
+    });
+  });
+
+  it("reads awake values and falls back when they are unknown", () => {
+    expect(
+      readTriggerSettings(settings({ "awake.when": "never", "awake.what": "cpu", "awake.graceDelaySecs": 0 })),
+    ).toMatchObject({ awakeWhen: "never", awakeWhat: "cpu", graceDelaySecs: 0 });
+    expect(
+      readTriggerSettings(settings({ "awake.when": "always", "awake.what": "gpu", "awake.graceDelaySecs": -1 })),
+    ).toMatchObject({ awakeWhen: "chatsActive", awakeWhat: "screen", graceDelaySecs: 60 });
   });
 
   it("reads worktree prefixes, drops non-strings, and lets an empty list switch them off", () => {

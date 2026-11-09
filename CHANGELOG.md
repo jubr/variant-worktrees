@@ -4,6 +4,7 @@
 
 ### Added
 
+- Chat Renamer holds the Mac awake with one `caffeinate` process while a chat is taking a turn or generating, including tool work of that turn. `awake.when` is `chatsActive` (default) or `never`. `awake.what` `screen` (default) runs `caffeinate -disu`; `cpu` runs `caffeinate -dis`. `awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process after the last turn. An open, selected, or idle chat does not count. The enable setting does not turn this off.
 - `variant-log` is the shared log event: a level, a message, and an optional slug and step. The library, the editor socket, and MCP emit on it. The CLI is the only place that colors a line.
 - The Variant Worktrees extension registers the `variant` MCP server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients.
 - `--mise-install` on `create`, `provision`, and `watch` (library and MCP `miseInstall`, values `bg`, `sync`, and `no`, no short flag). Omit it and the value is `bg`. The install runs only when the worktree has a Mise config, and only from `create`; `provision` and `watch` pass the flag through. `up` does not take it, and there is no configuration-file key. The run is `trust --all`, then `install`, in the worktree. `bg` returns immediately and writes `{worktree}/.cache/variant/mise-install.log`. `sync` waits and fails the command when Mise fails; the worktree stays. Slug `main` and a create that makes no worktree skip it.

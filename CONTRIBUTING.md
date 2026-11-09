@@ -8,6 +8,10 @@
 3. Keep a change focused. Record product behavior in specs; keep VitePress
    `docs/` as user-facing library/MCP documentation, not a behavior spec.
 
+## Chat renamer and Variant
+
+Every chat-renamer behavior is also in `variant-vscode`, preferably through shared code. Some duplication between the `*.vscode` packages is allowed.
+
 ## Citing a specification
 
 Source comments, documentation, and specs cite the (future) **published** location under

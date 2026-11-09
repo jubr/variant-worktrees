@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { HOOK_SCOPES, TRIGGERS } from "./defaults";
+import { AWAKE_WHATS, AWAKE_WHENS, HOOK_SCOPES, TRIGGERS } from "./defaults";
 import { isWorktreePrefix } from "./rules";
 
 /** `titleEvent` (default) or `hook`. */
@@ -37,6 +37,21 @@ export const promptLineLimitSchema = z
   .min(1)
   .describe("Lines of a chat's first prompt that the title event tests for a rename request. At least 1.");
 
+/** `chatsActive` (default) or `never`. */
+export const awakeWhenSchema = z
+  .enum(AWAKE_WHENS)
+  .describe("When to hold the machine awake: while a chat is active, or never.");
+
+/** `screen` (default, caffeinate -disu) or `cpu` (caffeinate -dis). */
+export const awakeWhatSchema = z.enum(AWAKE_WHATS).describe("Which caffeinate assertions to hold.");
+
+/** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
+export const awakeGraceDelaySecsSchema = z
+  .number()
+  .int()
+  .min(0)
+  .describe("Seconds to keep the machine awake after the last active chat goes idle. 0 stops at once.");
+
 /** The full set of chat renamer options. Every option is optional; an absent one takes its default. */
 export const ChatRenamerConfigSchema = z.strictObject({
   trigger: triggerSchema.optional(),
@@ -45,5 +60,12 @@ export const ChatRenamerConfigSchema = z.strictObject({
   worktreePrefixes: worktreePrefixesSchema.optional(),
   renameExistingDays: renameExistingDaysSchema.optional(),
   titleEventPromptLines: promptLineLimitSchema.optional(),
+  awake: z
+    .strictObject({
+      when: awakeWhenSchema.optional(),
+      what: awakeWhatSchema.optional(),
+      graceDelaySecs: awakeGraceDelaySecsSchema.optional(),
+    })
+    .optional(),
 });
 export type ChatRenamerConfig = z.infer<typeof ChatRenamerConfigSchema>;

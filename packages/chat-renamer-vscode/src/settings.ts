@@ -1,8 +1,11 @@
 import { readTriggerSettings, type TriggerSettings } from "chat-renamer-api";
 import * as vscode from "vscode";
 
+/** `awake` object from `variants.yaml`. Editor keys stay dotted (`awake.when`). */
+export type HostAwake = { when?: unknown; what?: unknown; graceDelaySecs?: unknown };
+
 /** Options a host extension supplies, such as the `chatRenamer` section of `variants.yaml`. */
-export type HostSettings = Partial<TriggerSettings>;
+export type HostSettings = Partial<TriggerSettings> & { awake?: HostAwake };
 
 /** Trigger settings plus `enable`, which is an editor setting and not a `variants.yaml` field. */
 export type RenamerSettings = TriggerSettings & { enabled: boolean };
@@ -21,6 +24,19 @@ type ConfigReader = {
 const explicitValue = (config: ConfigReader, key: string): unknown => {
   const inspected = config.inspect?.(key);
   return inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
+};
+
+const hostValue = (host: HostSettings, key: string): unknown => {
+  if (key === "awake.when") {
+    return host.awake?.when;
+  }
+  if (key === "awake.what") {
+    return host.awake?.what;
+  }
+  if (key === "awake.graceDelaySecs") {
+    return host.awake?.graceDelaySecs;
+  }
+  return host[key as keyof TriggerSettings];
 };
 
 /** `enable` defaults to on. Only a boolean the editor returns counts; anything else stays on. */
@@ -43,7 +59,7 @@ export const readSettings = (section: string, host: HostSettings = {}): RenamerS
       if (explicit !== undefined) {
         return explicit;
       }
-      const supplied = host[key as keyof TriggerSettings];
+      const supplied = hostValue(host, key);
       return supplied !== undefined ? supplied : config.get(key);
     }),
     enabled: readEnabled(config),

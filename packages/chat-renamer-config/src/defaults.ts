@@ -33,3 +33,16 @@ export const DEFAULT_RENAME_EXISTING_DAYS = 7;
 
 /** How many lines of a chat's first prompt the title event reads. A rename request is expected near the top. */
 export const DEFAULT_TITLE_EVENT_PROMPT_LINES = 10;
+
+/** When the renamer holds the machine awake. */
+export const AWAKE_WHENS = ["chatsActive", "never"] as const;
+export type AwakeWhen = (typeof AWAKE_WHENS)[number];
+export const DEFAULT_AWAKE_WHEN: AwakeWhen = "chatsActive";
+
+/** Which caffeinate assertions to hold. `screen` is `-disu`, `cpu` is `-dis`. */
+export const AWAKE_WHATS = ["screen", "cpu"] as const;
+export type AwakeWhat = (typeof AWAKE_WHATS)[number];
+export const DEFAULT_AWAKE_WHAT: AwakeWhat = "screen";
+
+/** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
+export const DEFAULT_AWAKE_GRACE_DELAY_SECS = 60;
