@@ -96,7 +96,7 @@ describe("create installs Mise tools", () => {
     }
   });
 
-  it("logs each mise command at info with step create and the slug, and no brackets in the message", async () => {
+  it("logs each mise command at trace under /tmp, quoted, with step create and the slug", async () => {
     const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mise-log-")));
     const repo = join(parent, "repo");
     const events: LogEvent[] = [];
@@ -117,10 +117,11 @@ describe("create installs Mise tools", () => {
 
       await client.create("add-auth", { miseInstall: "sync" });
 
-      expect(events.filter((event) => event.level === "info")).toEqual([
-        { level: "info", message: "+ mise trust --all", step: "create", slug: "add-auth" },
-        { level: "info", message: "+ mise install", step: "create", slug: "add-auth" },
+      expect(events.filter((event) => event.message.startsWith("+"))).toEqual([
+        { level: "trace", message: '+"mise trust --all"', step: "create", slug: "add-auth" },
+        { level: "trace", message: '+"mise install"', step: "create", slug: "add-auth" },
       ]);
+      expect(events.some((event) => event.message.includes("cmd="))).toBe(false);
     } finally {
       setLogSink(undefined);
       rmSync(parent, { recursive: true, force: true });

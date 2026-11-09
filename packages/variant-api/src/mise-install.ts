@@ -1,7 +1,9 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { logI } from "./log.js";
+import { commandMessage } from "./command-message.js";
+import { LogLevel, log } from "./log.js";
+import { levelForDirectory } from "./log-directory.js";
 import { logToStderr } from "./ready.js";
 
 /**
@@ -41,13 +43,17 @@ const writeOutput = (output: string): void => {
   }
 };
 
-const announceMise = (action: string, command: string, slug: string): void => {
-  logI(`+ ${command}`, slug === "" ? { step: action } : { step: action, slug });
+const announceMise = (action: string, command: string, slug: string, directory: string): void => {
+  log(
+    levelForDirectory(LogLevel.info, directory),
+    commandMessage(command),
+    slug === "" ? { step: action } : { step: action, slug },
+  );
 };
 
 /** `mise -C <directory> trust --all`, then `install` when trust exits 0. The caller waits. */
 export const installMiseSync = (binary: string, directory: string, action = "create", slug = ""): void => {
-  announceMise(action, "mise trust --all", slug);
+  announceMise(action, "mise trust --all", slug, directory);
   const trust = spawnSync(binary, ["-C", directory, "trust", "--all"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -57,7 +63,7 @@ export const installMiseSync = (binary: string, directory: string, action = "cre
   if (trust.error || (trust.status ?? 1) !== 0) {
     throw new Error(trustOutput.trim());
   }
-  announceMise(action, "mise install", slug);
+  announceMise(action, "mise install", slug, directory);
   const install = spawnSync(binary, ["-C", directory, "install"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -109,8 +115,8 @@ export const installMiseInWorktree = async (
     installMiseSync(binary, directory, action, slug);
     return;
   }
-  announceMise(action, "mise trust --all", slug);
-  announceMise(action, "mise install", slug);
+  announceMise(action, "mise trust --all", slug, directory);
+  announceMise(action, "mise install", slug, directory);
   await installMiseBackground(binary, directory);
 };
 

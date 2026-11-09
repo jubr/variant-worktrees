@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
@@ -17,8 +17,9 @@ const withDrop = async (
   text: string,
   catalog: string[],
   run: (tools: { directory: string; context: OperationContext; dropped: string[] }) => Promise<void>,
+  parent: string = tmpdir(),
 ): Promise<void> => {
-  const directory = mkdtempSync(join(tmpdir(), "variant-drop-"));
+  const directory = realpathSync(mkdtempSync(join(parent, "variant-drop-")));
   const dropped: string[] = [];
   const names = [...catalog];
   const adapter: DatabaseAdapter = {
@@ -81,6 +82,26 @@ describe("deprovision", () => {
           setLogSink(undefined);
         }
       },
+    ));
+
+  it("logs a schema drop at trace when the project directory is under /tmp", () =>
+    withDrop(
+      yaml("    tenants: east\n"),
+      ["v_demo-east"],
+      async ({ context }) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await deprovisionVariant(context, "demo", { log: () => {} });
+          expect(events.filter((event) => event.message.startsWith("drop schema"))).toEqual([
+            { level: "trace", step: "deprovision", slug: "demo", message: "drop schema v_demo-east" },
+          ]);
+          expect(events.some((event) => event.level === "info")).toBe(false);
+        } finally {
+          setLogSink(undefined);
+        }
+      },
+      "/tmp",
     ));
 
   it("keeps a literal underscore and a hyphen in the slug", () =>

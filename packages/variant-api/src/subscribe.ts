@@ -1,5 +1,6 @@
 import { type FSWatcher, watch as fsWatch } from "node:fs";
-import { logI } from "./log.js";
+import { LogLevel, log } from "./log.js";
+import { levelForDirectory } from "./log-directory.js";
 import { MiseError } from "./mise.js";
 import type { MiseFailure, VariantRecord, VariantUpdate } from "./types.js";
 
@@ -221,7 +222,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
           broadcast({ records: next, ...(warning === undefined ? {} : { warning }) });
         }
         if (recovered) {
-          logI("database contact restored");
+          log(levelForDirectory(LogLevel.info, process.cwd()), "database contact restored");
         }
         if (warning !== undefined) {
           armRetry();

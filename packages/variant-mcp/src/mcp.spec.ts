@@ -828,29 +828,32 @@ const withUnreachableMcp = async (run: (directory: string, configPath: string) =
 };
 
 describe("MCP logging", () => {
-  it("sends a log event to the editor socket marked mcp and leaves the notification unmarked", async () => {
-    const directory = realpathSync(tempDirectory());
-    const seen: IpcRequest[] = [];
-    const listener = createListener(socketPath(directory), (request) => {
-      seen.push(request);
-      return {};
-    });
-    await listener.start();
-    try {
-      const result = await mcp([...initMessages(), call(2, "variant_list")], configFile(directory), {
-        cwd: directory,
+  it("sends a log event to the editor socket marked mcp and leaves the notification unmarked", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const seen: IpcRequest[] = [];
+      const listener = createListener(socketPath(directory), (request) => {
+        seen.push(request);
+        return {};
       });
-      expect(result.exitCode).toBe(0);
-      expect(seen).toContainEqual({
-        name: "log",
-        args: { level: "info", message: "listed variants", origin: "mcp" },
-      });
-      expect(logging(result).some((note) => JSON.stringify(note.data).includes("[mcp]"))).toBe(false);
-    } finally {
-      await listener.stop();
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
+      await listener.start();
+      try {
+        const result = await mcp([...initMessages(), call(2, "variant_list")], configPath, { cwd: directory });
+        expect(result.exitCode).toBe(0);
+        const logged = seen.filter((request) => request.name === "log");
+        expect(
+          logged.some(
+            (request) =>
+              request.args.origin === "mcp" &&
+              request.args.level === "trace" &&
+              String(request.args.message).includes("postgres"),
+          ),
+        ).toBe(true);
+        expect(logged.some((request) => request.args.message === "listed variants")).toBe(false);
+        expect(logging(result).some((note) => JSON.stringify(note.data).includes("[mcp]"))).toBe(false);
+      } finally {
+        await listener.stop();
+      }
+    }));
 
   it("puts step and slug on the notification data", () => {
     expect(loggingData({ level: "info", message: "+ mise install", step: "create", slug: "add-auth" })).toEqual({

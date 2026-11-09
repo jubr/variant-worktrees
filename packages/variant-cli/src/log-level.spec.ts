@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { LogLevel, log, setLogSink } from "variant-api";
 import { schemaHeaderFor } from "variant-config";
 import { attachLogLevel, formatLogEvent } from "./log-level.ts";
-import { runCli, withVariants } from "./test/cli.js";
+import { runCli, runCommand, withVariants } from "./test/cli.js";
 
 const CLEAN_DB = {
   DATABASE_URL: "",
@@ -30,14 +31,16 @@ const CLEAN_DB = {
 };
 
 /** A project whose PostgreSQL server refuses connections, with variant `demo` on disk. */
-const withUnreachable = async (run: (environment: Record<string, string>) => Promise<void>): Promise<void> => {
+const withUnreachable = async (
+  run: (environment: Record<string, string>, directory: string) => Promise<void>,
+): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-log-level-")));
   try {
     const yaml = `${schemaHeaderFor("variants.yaml")}\n\ndb:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n`;
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
     writeFileSync(join(directory, "variants.yaml"), yaml);
     writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
-    await run({ ...CLEAN_DB, VARIANT_CONFIG: join(directory, "variants.yaml") });
+    await run({ ...CLEAN_DB, VARIANT_CONFIG: join(directory, "variants.yaml") }, directory);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -67,10 +70,12 @@ describe("log level flag", () => {
     }));
 
   it("prints trace lines when the threshold is trace", () =>
-    withVariants(async (environment) => {
-      const result = await runCli(["list", "--log-level=trace"], environment);
+    withUnreachable(async (environment, directory) => {
+      const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+      const result = await runCommand(["bun", cli], ["list", "--log-level=trace"], environment, directory);
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toMatch(/^\[trace\]/m);
+      expect(result.stderr).not.toContain("listed variants");
     }));
 
   it("selects debug when the flag comes before the command name", () =>

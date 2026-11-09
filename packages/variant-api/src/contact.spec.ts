@@ -67,9 +67,9 @@ describe("subscription contact retries", () => {
           stop();
         }
         expect(events().filter((event) => event.level === "warn")).toHaveLength(1);
-        expect(events().filter((event) => event.message === "list")).toHaveLength(1);
-        expect(events().filter((event) => event.message === "listing variants")).toHaveLength(1);
-        expect(events().filter((event) => event.message === "listed variants")).toHaveLength(1);
+        expect(events().filter((event) => event.message === "list")).toHaveLength(0);
+        expect(events().filter((event) => event.message === "listing variants")).toHaveLength(0);
+        expect(events().filter((event) => event.message === "listed variants")).toHaveLength(0);
         expect(events().filter((event) => event.level === "debug").length).toBeLessThanOrEqual(2);
       },
       { "_v-demo/.cache/variant/state.yaml": "slug: demo\n" },

@@ -72,6 +72,24 @@ describe("database contact warning", () => {
     });
   }
 
+  it("emits the contact warning at trace when the working directory is under /tmp", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-contact-trace-")));
+    const cwd = process.cwd();
+    process.chdir(directory);
+    try {
+      const guard = new QueryGuard({ ...target });
+      const events = await capture(async () => {
+        await guard.run(() => Promise.reject(failedQuery(coded("ECONNREFUSED")))).catch(() => undefined);
+      });
+      const traces = events.filter((event) => event.level === "trace");
+      expect(traces.some((event) => event.message.includes("postgres") && event.message.includes("app"))).toBe(true);
+      expect(events.filter((event) => event.level === "warn")).toEqual([]);
+    } finally {
+      process.chdir(cwd);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("warns for a mysql authentication failure and a missing database", async () => {
     const mysql = { dialect: "mysql" as const, database: "app", host: "127.0.0.1", port: 3306 };
     for (const code of ["ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR"]) {
@@ -193,5 +211,28 @@ describe("statement at debug only", () => {
     expect((thrown as Error).message).not.toContain("Failed query");
     expect((thrown as Error).message).not.toContain("SELECT");
     expect((thrown as Error).message).toContain("relation does not exist");
+  });
+
+  it("logs the statement at trace when the working directory is under /tmp", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-statement-trace-")));
+    const cwd = process.cwd();
+    process.chdir(directory);
+    try {
+      const guard = new QueryGuard({ ...target });
+      const error = failedQuery(coded("42P01", "relation does not exist"));
+      const events = await capture(async () => {
+        await guard.run(() => Promise.reject(error)).catch(() => undefined);
+      });
+      expect(events.filter((event) => event.level === "debug")).toEqual([]);
+      expect(
+        events
+          .filter((event) => event.level === "trace")
+          .map((event) => event.message)
+          .join(" "),
+      ).toContain("SELECT schema_name FROM information_schema.schemata");
+    } finally {
+      process.chdir(cwd);
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
