@@ -86,7 +86,7 @@ export const createAwakeController = ({
     }
     const child = tracked;
     child.stopRequested = true;
-    awake.trace(`+ caffeinate ${child.args}`, { pid: child.pid, reason });
+    awake.trace(`+ "kill ${child.pid}"`, { reason });
     signal(child.process, "SIGTERM");
     // Exit is asynchronous. SIGKILL covers a child that ignored SIGTERM.
     if (tracked === child) {
@@ -129,7 +129,7 @@ export const createAwakeController = ({
       const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false };
       tracked = running;
       child.once("exit", () => onExit(running));
-      awake.trace(`+ caffeinate ${args}`, { pid: child.pid, reason: "activity" });
+      awake.trace(`+ "caffeinate ${args}"`, { pid: child.pid, reason: "activity" });
     } catch (error) {
       awake.error("start failed", error);
     }
