@@ -1,0 +1,25 @@
+## 1. Layout checker
+
+- [ ] 1.1 Add failing fixture tests in `scripts/colocated-tests.spec.ts` for [specs/meta/colocated-tests | Package test directories are absent](../../specs/meta/colocated-tests/spec.md#requirement-package-test-directories-are-absent), [specs/meta/colocated-tests | Source test directories hold helpers only](../../specs/meta/colocated-tests/spec.md#requirement-source-test-directories-hold-helpers-only), [specs/meta/colocated-tests | Package tests use the spec suffix](../../specs/meta/colocated-tests/spec.md#requirement-package-tests-use-the-spec-suffix), and [specs/meta/colocated-tests | A unique source stem keeps its test beside it](../../specs/meta/colocated-tests/spec.md#requirement-a-unique-source-stem-keeps-its-test-beside-it). Feed path lists only. Fail on `packages/variant-config/test` (with `schema.test.ts` inside), `packages/variant-vscode/test` (with `setup.ts` inside), `packages/variant-api/src/test/slug.spec.ts`, `packages/variant-api/src/operations/test/implode.spec.ts`, `packages/variant-vscode/src/extension.test.ts`, and a `slug.ts` whose spec sits in another directory. Pass `packages/variant-api/src/test/setup.ts`, `packages/variant-api/src/test/fake-mise.ts`, a clean sibling `slug.spec.ts`, `scripts/docs-coverage.spec.ts`, a `product-icon.spec.ts` with no `product-icon` source, and both `src/index.ts` and `src/db/index.ts`. Do not scan the repository. Verify `mise x -- bun test scripts/colocated-tests.spec.ts` fails first.
+
+- [ ] 1.2 Implement `scripts/colocated-tests.ts` as [design.md](design.md) describes: a pure function over workspace-relative paths and `packages/<package>/test` directories. Name the package `test` directory, the test file under `src/**/test`, and, for a misplaced unique stem, both paths. Leave `src/test/setup.ts` and similar helpers out of the result. Verify `mise x -- bun test scripts/colocated-tests.spec.ts` passes.
+
+## 2. Move package tests
+
+- [ ] 2.1 `git mv` every `*.test.ts` under `packages/variant-api/test/`, `packages/variant-cli/test/`, `packages/variant-config/test/`, `packages/variant-mcp/test/`, and `packages/chat-renamer-config/test/` to the destination in [design.md](design.md): beside the only same-stem source file, otherwise `src/<stem>.spec.ts`. Move `test/support/` to `src/test/`. Rewrite relative imports. Do not change assertions. Switch those packages' `tsconfig.json` exclude from `test` to `src/**/*.spec.ts`, `src/**/*.spec.tsx`, and `src/**/test/**`. Remove the empty `packages/*/test` directories. Verify `mise x -- bun test packages/variant-api packages/variant-cli packages/variant-config packages/variant-mcp packages/chat-renamer-config` passes.
+
+- [ ] 2.2 Rename in-source `*.test.ts` to `*.spec.ts` (`packages/variant-vscode/src/extension.test.ts`, `packages/variant-vscode/src/chat-renamer-manifest.test.ts`, `packages/chat-renamer-vscode/src/trigger.test.ts`, `settings.test.ts`, `register.test.ts`, `log.test.ts`, `manifest.test.ts`, `cursor-host.test.ts`). Move `packages/variant-vscode/test/setup.ts`, `packages/variant-ui/test/setup.ts`, and `packages/chat-renamer-vscode/test/{setup.ts,vscode-mock.ts,log.ts}` to each package's `src/test/`. Point the three `bunfig.toml` preloads at `./src/test/setup.ts`. Leave `packages/variant-ui/src/testing/` exported as it is. Drop `test/**` from `include` where a `tsconfig.json` names the package test directory. Exclude `src/**/*.spec.ts`, `src/**/*.spec.tsx`, and `src/**/test/**` from declaration emit. Remove empty `packages/*/test` directories. Verify `mise x -- bun test packages/variant-vscode packages/variant-ui packages/chat-renamer-vscode packages/chat-renamer-api` passes.
+
+- [ ] 2.3 Call the checker on the real `packages/` tree from `scripts/colocated-tests.spec.ts`. Verify `mise x -- bun test scripts/colocated-tests.spec.ts` passes and names no file.
+
+## 3. Cursor modules
+
+- [ ] 3.1 `git mv` `packages/variant-vscode/src/cursor-command-probe.ts`, `packages/variant-vscode/src/cursor-mcp.d.ts`, `packages/chat-renamer-vscode/src/cursor-host.ts`, and `packages/chat-renamer-api/src/cursor-chat-rename.ts` into that package's `src/cursor/`, keeping each basename. Move each colocated spec with its source. Update imports, including the `chat-renamer-api` barrel. Do not add a test. Verify `mise x -- bun test packages/variant-vscode packages/chat-renamer-vscode packages/chat-renamer-api scripts/colocated-tests.spec.ts` passes.
+
+## 4. Contributor map
+
+- [ ] 4.1 In `openspec/config.yaml`, replace the context sentence that places tests under each package's `test/` directory with sibling `*.spec.ts` files and `src/test` for helpers such as `setup.ts`. Update the package tree in `AGENTS.md` the same way. Leave `CONTRIBUTING.md` unless it still tells contributors to add files under `packages/*/test`. Verify `openspec/config.yaml` and `AGENTS.md` no longer prescribe a package `test/` directory for bun tests.
+
+## 5. Validation
+
+- [ ] 5.1 Run `task test`, `task build`, and `mise x -- openspec validate --all --strict --no-interactive`. Verify each exits 0.
