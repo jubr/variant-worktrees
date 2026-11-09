@@ -8,10 +8,6 @@
 3. Keep a change focused. Record product behavior in specs; keep VitePress
    `docs/` as user-facing library/MCP documentation, not a behavior spec.
 
-## Chat renamer and Variant
-
-Every chat-renamer behavior is also in `variant-vscode`, preferably through shared code. Some duplication between the `*.vscode` packages is allowed.
-
 ## Citing a specification
 
 Source comments, documentation, and specs cite the (future) **published** location under
@@ -48,37 +44,36 @@ Behavior changes follow red-green-refactor:
 5. When all tasks that can be completed in a task-group are green: make single task-group code+tests commit.
    Don't batch all work into one commit at end.
 
-Use present-tense test names that describe behavior. Co-locate `bun:test` files
-with their source as `{file}.spec.ts` (for example, `src/client.ts` and
-`src/client.spec.ts`). Prefer public API round-trips (`createClient().free`,
-MCP tool handlers) over private internals. Zod schemas are the source of truth
-for response types.
+## Development patterns
 
-The React app in `variant-ui` and the HTTP server in `variant-server` follow the same rule with co-located
-`*.spec.ts` files (component tests run on happy-dom and Testing Library). A new transport must pass the shared
-`describeTransportContract` suite of `variant-ui/testing`. The extension's tests run against `mocks/vscode.ts`: add
-the part of the VS Code API a test needs to that mock.
-
-Documentation-only baseline changes do not require new product tests, but they
-must run the existing checks cited as evidence by the selected OpenSpec change.
+- MUST co-locate test code with source as sibling `{file}.spec.ts`.
+- MUST use present-tense test names that describe behavior.
+- Prefer public API round-trips (`createClient().free`, MCP tool handlers) over private internals.
+- Zod schemas are the source of truth for response types.
+- All chat-renamer functionality is also in `variant-vscode`, preferably through shared code. Some duplication between the `*.vscode` packages is 
+allowed.
+- The extension's tests run against `mocks/vscode.ts`: add the part of the VS Code API a test needs to that mock.
+- A new transport MUST pass the shared describeTransportContract` suite of `variant-ui/testing`. 
+- Documentation-only baseline changes do not require new product tests, but they must run the existing checks cited as evidence by the selected OpenSpec change.
 
 ## Documenting new commands and functionality
 
 Any extra commands or functionality that you add must also be added to the
 [`README.md`](README.md) and to the documentation under `docs/`, in the same
-pull request: a new CLI command appears in the README CLI section, as a section in
+pull request.
+- a new CLI command appears in the README CLI section, as a section in
 `docs/guide/core.md`, and, when it is a lifecycle command, as a tool in
-`docs/mcp.md`; a new flag, output format, or configuration key appears wherever
-its command or section is described. `scripts/docs-coverage.spec.ts` fails for a
-registered command that is missing from them. Record the change in `CHANGELOG.md`.
-A flag that may gain further values uses `yes|no`, not `true|false`.
+`docs/mcp.md`
+- a new flag, output format, or configuration key appears wherever
+its command or section is described. Record the change in `CHANGELOG.md`.
+- Binary-like flags are added as `yes|no` (not `true|false`) to facilitate future additional values.
 
 ## Tool execution
 
 **All commands** and project tools (`openspec`, `task`, `bun`, `hk`, `commitlint`, etc)
 should use mise-managed versions.
-**AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash)";` at start of each shell series.
-This will set all relevant env vars, including $PATH. The `mise x --` prefix is a shorthand of this.
+**AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash; set -x)";` at start of each shell series.
+This will set all relevant env vars, including $PATH. Then `-x` echos, so no need for `echo '---what---'`. The `mise x --` prefix is a shorthand for this.
 
 Local lint and format use [hk](https://hk.jdx.dev/) (`hk.pkl` at root) wrapping
 Biome. Git `pre-commit` and `commit-msg` live under `.githooks/` and call hk /
@@ -96,13 +91,13 @@ prefer `task` names that match the gates.
 
 ### Bun workspace — Task at repo root
 
-`bun` is the JavaScript runtime and package manager for this workspace.
-There is no npm/`npx` fallback for package work. `Taskfile.yaml` is the
-source of install / lint / format / build / test CLI invocations.
-Biome and TypeScript run through workspace scripts (`bun run lint`,
-`bun run build`); tests are `bun test` via `bun run test`. `commitlint`
-and `openspec` are mise `npm:` tools; `node` is pinned only as their shim
-runtime. `bun.lock` is the committed, CI-authoritative lockfile.
+- `bun` is the JavaScript runtime and package manager for this workspace. There is no npm/npx fallback for package work. 
+- `bun.lock` is the committed, CI-authoritative lockfile.
+- `Taskfile.yaml` is the source of install / lint / format / build / test CLI invocations.
+- Biome and TypeScript run through workspace scripts (`bun run lint`, `bun run build`). 
+- Tests are `bun test` via `bun run test`.
+- `commitlint` and `openspec` are mise `npm:` tools.
+- `node` is pinned only as their shim runtime. 
 
 ```bash
 task install           # bun install at workspace root

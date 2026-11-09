@@ -2,7 +2,7 @@
 
 `config`, `create`, `list`, `provision`, `up`, `down`, `watch`, and
 `implode` run in `variant-api`. The CLI and the MCP server call that logic in-process. Those
-commands are not sent to the VS Code extension.
+commands are not sent to the VS Code extension. The socket itself is `variant-ipc`.
 
 The extension's own views, the Variants view and the panel, call `variant-api` in-process inside the extension host
 for `list`, `watch`, `down` and `implode`. Those calls do not use the socket, and a socket request with one of the

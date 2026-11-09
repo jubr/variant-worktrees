@@ -2,9 +2,12 @@ schema: spec-driven
 
 context: |
   variant-worktrees is a Bun workspace monorepo: variant-config (shared
-  variants.yaml configuration), variant-api (database variant library and CLI),
-  variant-mcp (MCP server), variant-vscode (VS Code extension), and the
-  chat-renamer-api / chat-renamer pair (Cursor chat renaming, embedded in variant-vscode).
+  variants.yaml configuration), variant-log (shared log events), variant-ipc
+  (editor Unix socket), variant-api (database variant lifecycle library),
+  variant-cli (the variant command), variant-mcp (MCP server), variant-ui
+  (React app), variant-server (loopback HTTP behind variant ui), variant-vscode
+  (VS Code extension), chat-renamer-config, chat-renamer-api, and chat-renamer
+  (packages/chat-renamer-vscode, also embedded in variant-vscode).
   Runtime is Bun, language is TypeScript
   strict ESM, validation is Zod v4, lint/format is Biome, docs are VitePress +
   TypeDoc. Database settings autodetect from mise.local.toml and environment
