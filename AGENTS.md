@@ -116,10 +116,10 @@ packages/
   variant-ipc/
     src/index.ts      — Unix socket for editor requests
   variant-mcp/
-    src/mcp.ts       — MCP server entry point
-    test/mcp.test.ts — MCP server tests
+    src/mcp.ts        — MCP server entry point
+    src/mcp.spec.ts   — MCP server tests
   variant-ui/
-    src/              — React app, transports (memory, HTTP, webview messages), co-located *.spec.ts
+    src/              — React app, transports (memory, HTTP, webview messages), sibling *.spec.ts; helpers such as setup.ts live in src/test
   variant-server/
     src/              — HTTP API, event stream, static files, `variant ui` core
   variant-vscode/    — VS Code extension (workspace member and root build target)
