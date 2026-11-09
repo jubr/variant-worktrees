@@ -65,6 +65,12 @@ describe("version line", () => {
     ).toBe("watch-log-2-abcd");
   });
 
+  it("turns slashes and dots that are not a branch prefix into single hyphens", () => {
+    const commit = "838c6e3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    expect(variantString({ branch: "release/v0.0.8", commitsSinceTag: 150, commit })).toBe("release-v0-0-8-150-838c");
+  });
+
   it("prints the drawing and a blank line when the banner is requested", () => {
     expect(
       renderVersion({

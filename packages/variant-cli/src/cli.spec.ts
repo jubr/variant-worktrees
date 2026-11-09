@@ -3,9 +3,9 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, runCommand } from "./test/cli.js";
-import { platformToken, VERSION_BANNER } from "./version-line.js";
+import { platformToken, VERSION_BANNER, variantString } from "./version-line.js";
 
-/** The version token for this checkout, built from git rather than from the formatter. */
+/** Package version plus `variantString` for this checkout. */
 const versionToken = (version: string): string => {
   const directory = join(import.meta.dir, "..");
   const git = (args: string[]): string => execFileSync("git", ["-C", directory, ...args], { encoding: "utf8" }).trim();
@@ -18,9 +18,8 @@ const versionToken = (version: string): string => {
   } catch {
     // A checkout with no tag counts every commit.
   }
-  const slug = branch.replace(/^(feat|fix|feature)\//, "");
-  const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
-  return `${version}${suffix}`;
+  const variant = variantString({ branch, commitsSinceTag: Number(commits), commit });
+  return variant ? `${version}-${variant}` : version;
 };
 
 const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
