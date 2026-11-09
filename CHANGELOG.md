@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Startup expands the Explorer **Variant Worktrees** section without taking focus. The one-time onboarding notification focuses that section.
 - `implode` removes the local branch after the worktree. `--branch-rm=yes|no` chooses that step. The default is `yes`. `--branch-rm=no` keeps the branch. A `[debug]` line names the branch.
 - Onboarding initializes the main checkout when the opened workspace folder has no `.git` directory.
 - Feature-branch CI no longer builds a macOS `variant` executable. Release still builds every platform executable.
