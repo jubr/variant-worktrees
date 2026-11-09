@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
+import { LogLevel } from "variant-log";
 import { loggingData } from "./logging-data.ts";
 
 interface McpResult {
@@ -855,12 +856,23 @@ describe("MCP logging", () => {
       }
     }));
 
-  it("puts step and slug on the notification data", () => {
-    expect(loggingData({ level: "info", message: "+ mise install", step: "create", slug: "add-auth" })).toEqual({
-      message: "+ mise install",
+  it("puts step and slug on the notification data and leaves the command quoted", () => {
+    const data = loggingData({
+      level: LogLevel.info,
+      message: '+"mise install"',
       step: "create",
       slug: "add-auth",
     });
+    expect(data).toEqual({
+      message: '+"mise install"',
+      step: "create",
+      slug: "add-auth",
+    });
+    const encoded = JSON.stringify(data);
+    expect(encoded).not.toContain("cmd=");
+    expect(encoded).not.toContain("[mcp]");
+    expect(encoded).not.toContain("@mcp");
+    expect(loggingData({ level: LogLevel.info, message: "ready" })).toEqual({ message: "ready" });
   });
 
   it("imports the sink from variant-log", () => {
