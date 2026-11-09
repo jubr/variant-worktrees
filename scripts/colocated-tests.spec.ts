@@ -2,7 +2,32 @@
  * Specification: openspec/specs/meta/colocated-tests/spec.md
  */
 import { describe, expect, test } from "bun:test";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { colocatedTestViolations } from "./colocated-tests.ts";
+
+const root = join(import.meta.dir, "..");
+const skippedDirectories = new Set(["node_modules", "dist", ".cache"]);
+
+const filesUnder = (directory: string): string[] => {
+  const files: string[] = [];
+  const visit = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (skippedDirectories.has(entry.name)) continue;
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else files.push(relative(root, path));
+    }
+  };
+  visit(directory);
+  return files;
+};
+
+const packageTestDirectories = (): string[] =>
+  readdirSync(join(root, "packages"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `packages/${entry.name}/test`)
+    .filter((directory) => existsSync(join(root, directory)) && statSync(join(root, directory)).isDirectory());
 
 describe("package test directories are absent", () => {
   test("names packages/variant-vscode/test when it contains setup.ts", () => {
@@ -122,5 +147,11 @@ describe("a unique source stem keeps its test beside it", () => {
     const spec = "packages/variant-ui/src/other/panel.spec.tsx";
 
     expect(colocatedTestViolations([source, spec], [])).toEqual([{ paths: [source, spec] }]);
+  });
+});
+
+describe("the packages tree", () => {
+  test("names no file", () => {
+    expect(colocatedTestViolations(filesUnder(join(root, "packages")), packageTestDirectories())).toEqual([]);
   });
 });
