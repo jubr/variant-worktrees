@@ -409,7 +409,7 @@ describe("trigger", () => {
 
       expect(decisions()).toEqual([
         {
-          level: "info",
+          level: "debug",
           message:
             '[title-event] decision session="fresh" matched=true pattern=2 decision="rename" reason="rename request" title="abc"',
         },

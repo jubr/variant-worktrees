@@ -237,7 +237,8 @@ export type TitleDecision = {
 };
 
 const logDecision = (log: Logger | undefined, session: string, result: TitleDecision): void => {
-  const early = result.reason === "no first prompt" || result.reason === "too old";
+  const early =
+    result.reason === "no first prompt" || result.reason === "too old" || result.reason === "rename request";
   const write =
     result.reason === "before startup" ? log?.trace.bind(log) : early ? log?.debug.bind(log) : log?.info.bind(log);
   write?.("decision", {
