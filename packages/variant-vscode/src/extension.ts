@@ -87,7 +87,7 @@ export const activate = (context: vscode.ExtensionContext): Promise<void> => {
   });
   return bindSockets((event) =>
     write[event.level](
-      event.origin === undefined ? formatVariantLog(event) : `${formatVariantLog(event)} [${event.origin}]`,
+      event.origin === undefined ? formatVariantLog(event) : `${formatVariantLog(event)} @${event.origin}`,
     ),
   );
 };

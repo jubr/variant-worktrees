@@ -1,26 +1,19 @@
 import type { LogEvent } from "variant-api";
 
-const COMMANDED = /^\[([^\]]+)\] \+ (.+)$/;
 const LEADING_SLUG = /^\[([^\]]+)\] (?=\[)/;
 
 /**
- * The text a VS Code log channel shows after its own `[info]` prefix.
- * A slug is the first token, wrapped as `<slug>`. `[action] + command` is written `cmd="command"`.
+ * The text a VS Code log channel shows after its own level prefix.
+ * A slug is the first token, wrapped as `<slug>`. The message is printed unchanged.
  */
 const bracket = (slug: string): string => `<${slug}>`;
 
 export const formatVariantLog = (event: LogEvent): string => {
-  if (event.step !== undefined && event.message.startsWith("+ ")) {
-    const slug = event.slug ? `${bracket(event.slug)} ` : "";
-    return `${slug}[${event.step}] cmd=${JSON.stringify(event.message.slice(2))}`;
-  }
   if (event.step !== undefined && event.slug !== undefined) {
     return `${bracket(event.slug)} [${event.step}] ${event.message}`;
   }
-  const command = COMMANDED.exec(event.message);
-  if (command) {
-    const slug = event.slug ? `${bracket(event.slug)} ` : "";
-    return `${slug}[${command[1]}] cmd=${JSON.stringify(command[2])}`;
+  if (event.step !== undefined) {
+    return `[${event.step}] ${event.message}`;
   }
   const embedded = LEADING_SLUG.exec(event.message);
   if (embedded) {
