@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { BUILTIN_AGENT_HOST_ID } from "chat-renamer-api";
 import type * as vscode from "vscode";
+import { vscodeMock } from "../test/vscode-mock";
 import { resolveChatRenameDeps } from "./cursor-host";
-import { vscodeMock } from "./test/vscode-mock";
 
 const context = (packageJSON: unknown) => ({ extension: { packageJSON } }) as unknown as vscode.ExtensionContext;
 

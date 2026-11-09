@@ -5,7 +5,7 @@ import { createExtensionLog, registerChatRenamer } from "chat-renamer";
 import { type LogLevel, setLogSink } from "variant-api";
 import * as vscode from "vscode";
 import { platformToken, renderVersion, resolveVersionFacts } from "../../variant-cli/src/version-line.ts";
-import { formatProbeReport } from "./cursor-command-probe.ts";
+import { formatProbeReport } from "./cursor/cursor-command-probe.ts";
 import { formatVariantLog } from "./format-log.ts";
 import { registerExtensionMcp, unregisterExtensionMcp } from "./mcp-registration.ts";
 import { miseBinPathSetting, registerOnboardingFlow } from "./onboarding.ts";

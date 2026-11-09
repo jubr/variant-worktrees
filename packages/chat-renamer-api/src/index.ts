@@ -16,5 +16,5 @@ export * from "./chat-renamer-claim";
 export * from "./chat-renamer-names";
 export * from "./chat-title-numbering";
 export * from "./composer-activity";
-export * from "./cursor-chat-rename";
+export * from "./cursor/cursor-chat-rename";
 export * from "./log";

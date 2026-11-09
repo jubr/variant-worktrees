@@ -10,7 +10,7 @@ import {
 } from "chat-renamer-api";
 import type * as vscode from "vscode";
 
-import { resolveChatRenameDeps } from "./cursor-host";
+import { resolveChatRenameDeps } from "./cursor/cursor-host";
 import { type HostSettings, readSettings } from "./settings";
 
 /** Category of every log line of this feature, so it can be told apart from the realtime trigger. */

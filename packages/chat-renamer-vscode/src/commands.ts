@@ -15,7 +15,7 @@ import {
 import * as vscode from "vscode";
 
 import { chooseActiveChat, selectionType } from "./active-chat";
-import { resolveChatRenameDeps } from "./cursor-host";
+import { resolveChatRenameDeps } from "./cursor/cursor-host";
 import type { ExistingChatsRunner } from "./existing-chats";
 import { readSettings } from "./settings";
 

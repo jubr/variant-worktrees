@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS, firstLines } from "./chat-rename-patterns";
+import { compilePatterns, DEFAULT_ACTIVATION_PATTERNS, firstLines } from "../chat-rename-patterns";
+import { createLogger, type Logger } from "../log";
 import {
   type ChatRenameDeps,
   catalogTitleDecision,
@@ -12,7 +13,6 @@ import {
   renameChatFromPrompt,
   subscribeCatalogTitleChanges,
 } from "./cursor-chat-rename";
-import { createLogger, type Logger } from "./log";
 
 type Entry = { level: string; message: string };
 

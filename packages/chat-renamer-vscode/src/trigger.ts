@@ -27,7 +27,7 @@ import {
 import * as vscode from "vscode";
 
 import { caffeinateOnPath, createActivityWatch, readComposerActivity, spawnCaffeinate } from "./awake-watch";
-import { resolveChatRenameDeps } from "./cursor-host";
+import { resolveChatRenameDeps } from "./cursor/cursor-host";
 import type { ExistingChatsRunner, ExistingChatsTrigger } from "./existing-chats";
 import { newestSessionAgeMs, PROJECT_SESSION_FRESH_MS, projectSessionsDir } from "./session-activity";
 import { type HostSettings, readSettings } from "./settings";
