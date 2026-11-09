@@ -109,6 +109,32 @@ describe("editor log stream", () => {
     expect(stderr.join("")).not.toContain("main");
   });
 
+  it("stamps an explicit slug on ipc connected instead of the checkout slug", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    roots.push(directory);
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    const seen: IpcRequest[] = [];
+    const listener = createListener(socketPath(directory), (request) => {
+      seen.push(request);
+      return {};
+    });
+    await listener.start();
+    try {
+      attachLogLevel(LogLevel.debug, { directory, slug: "release-smoke" });
+      log(LogLevel.debug, "ready");
+      await finishCliLog();
+      await waitFor(() => seen.some((request) => request.args.message === "connected"));
+      expect(seen).toContainEqual({
+        name: "log",
+        args: { level: "debug", message: "connected", step: "ipc", origin: "cli", slug: "release-smoke" },
+      });
+      expect(seen.some((request) => request.args.slug === "main")).toBe(false);
+    } finally {
+      setLogSink(undefined);
+      await listener.stop();
+    }
+  });
+
   it("logs connect failure once at debug and does not create the socket", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
     roots.push(directory);

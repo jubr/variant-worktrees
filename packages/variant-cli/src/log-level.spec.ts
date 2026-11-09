@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LogLevel, log, setLogSink } from "variant-api";
 import { schemaHeaderFor } from "variant-config";
-import { attachLogLevel, formatLogEvent } from "./log-level.ts";
+import { attachLogLevel, explicitSlug, formatLogEvent } from "./log-level.ts";
 import { runCli, runCommand, withVariants } from "./test/cli.js";
 
 const CLEAN_DB = {
@@ -117,14 +117,23 @@ describe("log level flag", () => {
     }) as typeof process.stderr.write;
     attachLogLevel(LogLevel.info);
     try {
-      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
-      log(LogLevel.debug, "+ mise trust --all", { step: "create", slug: "add-auth" });
+      log(LogLevel.info, '+"mise install"', { step: "create", slug: "add-auth" });
+      log(LogLevel.debug, '+"mise trust --all"', { step: "create", slug: "add-auth" });
     } finally {
       setLogSink(undefined);
       process.stderr.write = write;
     }
-    expect(lines).toEqual(["[info] create + mise install\n"]);
+    expect(lines).toEqual(['[info] create +"mise install"\n']);
     expect(lines.join("")).not.toContain("add-auth");
+    expect(lines.join("")).not.toContain("cmd=");
+    expect(lines.join("")).not.toContain(" [cli]");
+    expect(lines.join("")).not.toContain(" @cli");
+  });
+
+  it("reads -s and --slug for the log sink", () => {
+    expect(explicitSlug(["list", "-s", "release-smoke"])).toBe("release-smoke");
+    expect(explicitSlug(["--slug=release-smoke", "implode"])).toBe("release-smoke");
+    expect(explicitSlug(["list"])).toBeUndefined();
   });
 
   it("prints the message after the level when the event has no step", () => {
@@ -136,12 +145,12 @@ describe("log level flag", () => {
     }) as typeof process.stderr.write;
     attachLogLevel(LogLevel.info);
     try {
-      log(LogLevel.info, "listed variants");
+      log(LogLevel.info, "ready");
     } finally {
       setLogSink(undefined);
       process.stderr.write = write;
     }
-    expect(lines).toEqual(["[info] listed variants\n"]);
+    expect(lines).toEqual(["[info] ready\n"]);
   });
 
   it("does not treat brackets in the message as a step", () => {
@@ -165,11 +174,11 @@ describe("log level flag", () => {
 const ESC = "\u001b";
 
 describe("log line color", () => {
-  const event = { level: LogLevel.info, message: "+ mise install", step: "create", slug: "add-auth" };
+  const event = { level: LogLevel.info, message: '+"mise install"', step: "create", slug: "add-auth" };
 
   it("colors the brackets, the level word, and the step on a terminal", () => {
     expect(formatLogEvent(event, { isTTY: true })).toBe(
-      `${ESC}[90m[${ESC}[32minfo${ESC}[90m]${ESC}[0m ${ESC}[36mcreate${ESC}[0m + mise install\n`,
+      `${ESC}[90m[${ESC}[32minfo${ESC}[90m]${ESC}[0m ${ESC}[36mcreate${ESC}[0m +"mise install"\n`,
     );
   });
 

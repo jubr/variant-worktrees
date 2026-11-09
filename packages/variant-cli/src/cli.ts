@@ -9,7 +9,7 @@ import { collectArgs } from "./cli-args.js";
 import { flagSpecsFor } from "./cli-flags.js";
 import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
 import { renderHelp } from "./help.js";
-import { attachLogLevel, finishCliLog, takeLogLevel } from "./log-level.js";
+import { attachLogLevel, explicitSlug, finishCliLog, takeLogLevel } from "./log-level.js";
 import { migrateConfigFiles } from "./migration.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
@@ -101,7 +101,8 @@ const takeFormat = (argv: string[]): { args: string[]; format: OutputFormat } =>
 
 try {
   const { args: withoutLevel, level } = takeLogLevel(process.argv.slice(2));
-  attachLogLevel(level, { directory: process.cwd() });
+  const slug = explicitSlug(withoutLevel);
+  attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
   const { args, format } = takeFormat(withoutLevel);
   const requested = args.find((arg) => !arg.startsWith("-"));
   const known = (name: string): boolean =>

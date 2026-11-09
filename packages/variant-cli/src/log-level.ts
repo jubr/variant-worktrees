@@ -67,6 +67,24 @@ export const takeLogLevel = (argv: string[]): { args: string[]; level: LogLevel 
   return { args, level };
 };
 
+export const explicitSlug = (argv: string[]): string | undefined => {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === undefined) {
+      continue;
+    }
+    if (arg === "-s" || arg === "--slug") {
+      const value = argv[index + 1];
+      return value !== undefined && !value.startsWith("-") ? value : undefined;
+    }
+    if (arg.startsWith("--slug=")) {
+      const value = arg.slice("--slug=".length);
+      return value === "" ? undefined : value;
+    }
+  }
+  return undefined;
+};
+
 /** One stderr line. Color follows a terminal and an unset `NO_COLOR`. The slug is not printed. */
 export const formatLogEvent = (event: LogEvent, output: { isTTY: boolean; NO_COLOR?: string }): string => {
   const word = event.level;
@@ -190,10 +208,10 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
  * `editor` also sends every event on the project socket.
  * Specification: openspec/specs/variant-cli/logging/spec.md
  */
-export const attachLogLevel = (level: LogLevel, editor?: { directory: string }): void => {
+export const attachLogLevel = (level: LogLevel, editor?: { directory: string; slug?: string }): void => {
   const minimum = RANK[level];
   const directory = editor?.directory;
-  const slug = directory === undefined ? undefined : detectedSlug(directory);
+  const slug = editor?.slug ?? (directory === undefined ? undefined : detectedSlug(directory));
   editorClient = undefined;
   connecting = undefined;
   sendChain = Promise.resolve();
