@@ -9,10 +9,9 @@ import {
   installChatRenameHook,
 } from "chat-renamer-api";
 import * as vscode from "vscode";
-
-import { captureLog, quiet } from "../test/log";
-import { vscodeMock } from "../test/vscode-mock";
 import { type RegisterChatRenamerOptions, registerChatRenamer as register } from "./register";
+import { captureLog, quiet } from "./test/log";
+import { vscodeMock } from "./test/vscode-mock";
 
 type Disposable = { dispose(): void };
 

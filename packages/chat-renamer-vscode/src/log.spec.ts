@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as vscode from "vscode";
-
-import { vscodeMock } from "../test/vscode-mock";
 import { createExtensionLog, DEFAULT_LOG_CHANNEL_NAME } from "./log";
+import { vscodeMock } from "./test/vscode-mock";
 
 const context = () => ({ subscriptions: [] as unknown[] }) as unknown as vscode.ExtensionContext;
 

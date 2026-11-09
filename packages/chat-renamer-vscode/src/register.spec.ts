@@ -1,8 +1,7 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import * as vscode from "vscode";
-
-import { captureLog } from "../test/log";
 import { registerChatRenamer } from "./register";
+import { captureLog } from "./test/log";
 
 const context = () => ({ subscriptions: [] as unknown[] }) as unknown as vscode.ExtensionContext;
 
