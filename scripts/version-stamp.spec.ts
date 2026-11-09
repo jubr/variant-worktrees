@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { utcDate, variantString } from "../packages/variant-cli/src/version-line.ts";
 import { versionDefines } from "./version-stamp.ts";
 
 const repo = join(import.meta.dir, "..");
@@ -20,11 +21,11 @@ describe("version stamp", () => {
     } catch {
       // A checkout with no tag counts every commit.
     }
-    const slug = branch.replace(/^(feat|fix|feature)\//, "");
-    const variant = branch === "main" ? "" : `${slug}-${commits}-${commit.slice(0, 4)}`;
-    const defines = versionDefines(repo, new Date("2001-02-03T04:05:06Z"));
+    const now = new Date("2001-02-03T04:05:06Z");
+    const variant = variantString({ branch, commitsSinceTag: Number(commits), commit });
+    const defines = versionDefines(repo, now);
 
-    expect(JSON.parse(defines.VARIANT_BUILD_DATE)).toBe("2001-02-03 04:05:06");
+    expect(JSON.parse(defines.VARIANT_BUILD_DATE)).toBe(utcDate(now, variant));
     expect(JSON.parse(defines.VARIANT_BUILD_VARIANT)).toBe(variant);
   });
 

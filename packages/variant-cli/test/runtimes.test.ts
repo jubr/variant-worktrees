@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { compileCli } from "../../../scripts/package-cli.ts";
-import { platformToken, VERSION_BANNER } from "../src/version-line.js";
+import { platformToken, VERSION_BANNER, variantString } from "../src/version-line.js";
 import { runCommand, withVariants } from "./support/cli.js";
 
 const root = join(import.meta.dir, "..");
@@ -16,7 +16,7 @@ const repo = join(root, "../..");
 const built = join(root, "dist");
 const { version } = (await Bun.file(join(root, "package.json")).json()) as { version: string };
 
-/** The version token this checkout would stamp, computed from git rather than from the build helper. */
+/** The version token this checkout would stamp: package version plus `variantString` from git. */
 const bakedToken = (): string => {
   const git = (args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
@@ -28,9 +28,8 @@ const bakedToken = (): string => {
   } catch {
     // A checkout with no tag counts every commit.
   }
-  const slug = branch.replace(/^(feat|fix|feature)\//, "");
-  const suffix = branch === "main" ? "" : `-${slug}-${commits}-${commit.slice(0, 4)}`;
-  return `${version}${suffix}`;
+  const variant = variantString({ branch, commitsSinceTag: Number(commits), commit });
+  return variant ? `${version}-${variant}` : version;
 };
 
 const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
