@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { type CommandDefinition, commands } from "./commands.js";
+import { type CommandDefinition, commands, LEVELS, LIFECYCLE_COMMANDS } from "./commands.js";
 import type { VariantClient } from "./types.js";
 
 const definition = (name: string): CommandDefinition => {
@@ -24,6 +24,22 @@ const recordingClient = (): { client: VariantClient; calls: [string, ...unknown[
   }) as unknown as VariantClient;
   return { client, calls };
 };
+
+describe("socket command names", () => {
+  it("lists the lifecycle commands the socket refuses and the shared levels", () => {
+    expect([...LIFECYCLE_COMMANDS]).toEqual([
+      "config",
+      "create",
+      "list",
+      "provision",
+      "up",
+      "down",
+      "watch",
+      "implode",
+    ]);
+    expect([...LEVELS]).toEqual(["trace", "debug", "info", "warn", "error"]);
+  });
+});
 
 describe("command registry", () => {
   it("contains the lifecycle, runtime and config commands and no destroy or switch", () => {

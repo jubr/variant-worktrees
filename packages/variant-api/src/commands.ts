@@ -1,4 +1,11 @@
+import { LOG_LEVELS } from "variant-log";
 import type { VariantClient } from "./types.js";
+
+/** Command names the extension socket refuses. The views call these in-process. */
+export const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provision", "up", "down", "watch", "implode"]);
+
+/** The shared log levels, as a set the socket can test a request against. */
+export const LEVELS = new Set<string>(LOG_LEVELS);
 
 export interface ArgDefinition {
   name: string;

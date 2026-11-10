@@ -1,4 +1,14 @@
-import { LOG_LEVELS, type LogEvent, LogLevel, loadConfig, logD, logW, resolveSlug, setLogSink } from "variant-api";
+import {
+  LOG_LEVELS,
+  type LogEvent,
+  LogLevel,
+  LogOrigin,
+  loadConfig,
+  logD,
+  logW,
+  resolveSlug,
+  setLogSink,
+} from "variant-api";
 import { connect, type IpcClient, socketPath } from "variant-ipc";
 
 /** A global flag, accepted before or after the command name. `warning` selects `warn`. */
@@ -95,7 +105,7 @@ export const formatLogEvent = (event: LogEvent, output: { isTTY: boolean; NO_COL
 
 const WRITE_MS = 1000;
 
-let editorClient: IpcClient | undefined;
+let vscodeClient: IpcClient | undefined;
 let connecting: Promise<void> | undefined;
 let sendChain = Promise.resolve();
 let reportedConnect = false;
@@ -122,8 +132,8 @@ const dropSocket = (): void => {
     return;
   }
   socketDropped = true;
-  const client = editorClient;
-  editorClient = undefined;
+  const client = vscodeClient;
+  vscodeClient = undefined;
   client?.close();
   if (warnedWrite) {
     return;
@@ -171,20 +181,20 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
   if (connecting === undefined) {
     connecting = connect(socketPath(directory)).then(
       (next) => {
-        editorClient = next;
+        vscodeClient = next;
         reportConnect(true);
       },
       (error: unknown) => {
-        editorClient = undefined;
+        vscodeClient = undefined;
         reportConnect(false, error);
       },
     );
   }
   await connecting;
-  if (socketDropped || editorClient === undefined) {
+  if (socketDropped || vscodeClient === undefined) {
     return;
   }
-  const args: Record<string, unknown> = { level: event.level, message: event.message, origin: "cli" };
+  const args: Record<string, unknown> = { level: event.level, message: event.message, origin: LogOrigin.cli };
   if (event.step !== undefined) {
     args.step = event.step;
   }
@@ -192,7 +202,7 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
   if (eventSlug !== undefined) {
     args.slug = eventSlug;
   }
-  const pending = editorClient.request({ name: "log", args });
+  const pending = vscodeClient.request({ name: "log", args });
   void pending.catch(() => undefined);
   try {
     await limitedWrite(pending);
@@ -205,14 +215,14 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
 
 /**
  * Prints events at or above `level` to stderr. Lower events are dropped.
- * `editor` also sends every event on the project socket.
+ * `vscode` also sends every event on the project socket.
  * Specification: openspec/specs/variant-cli/logging/spec.md
  */
-export const attachLogLevel = (level: LogLevel, editor?: { directory: string; slug?: string }): void => {
+export const attachLogLevel = (level: LogLevel, vscode?: { directory: string; slug?: string }): void => {
   const minimum = RANK[level];
-  const directory = editor?.directory;
-  const slug = editor?.slug ?? (directory === undefined ? undefined : detectedSlug(directory));
-  editorClient = undefined;
+  const directory = vscode?.directory;
+  const slug = vscode?.slug ?? (directory === undefined ? undefined : detectedSlug(directory));
+  vscodeClient = undefined;
   connecting = undefined;
   sendChain = Promise.resolve();
   reportedConnect = false;
@@ -231,7 +241,7 @@ export const attachLogLevel = (level: LogLevel, editor?: { directory: string; sl
   });
 };
 
-/** Emits the CLI-end debug event, waits until queued editor sends have finished, then closes the socket. */
+/** Emits the CLI-end debug event, waits until queued vscode sends have finished, then closes the socket. */
 export const finishCliLog = async (): Promise<void> => {
   logD("end", { step: "cli" });
   let pending = sendChain;
@@ -242,7 +252,7 @@ export const finishCliLog = async (): Promise<void> => {
     }
     pending = sendChain;
   }
-  editorClient?.close();
-  editorClient = undefined;
+  vscodeClient?.close();
+  vscodeClient = undefined;
   connecting = undefined;
 };

@@ -1,5 +1,18 @@
 import { describe, expect, it } from "bun:test";
-import { LOG_LEVELS, type LogEvent, LogLevel, log, logD, logE, logI, logT, logW, setLogSink } from "./index.js";
+import {
+  LOG_LEVELS,
+  LOG_ORIGINS,
+  type LogEvent,
+  LogLevel,
+  LogOrigin,
+  log,
+  logD,
+  logE,
+  logI,
+  logT,
+  logW,
+  setLogSink,
+} from "./index.js";
 
 describe("level enum", () => {
   it("exposes one enum of the five levels in order", () => {
@@ -25,6 +38,27 @@ describe("level enum", () => {
       setLogSink(undefined);
     }
     expect(events[0]?.level).toBe(LogLevel.info);
+  });
+});
+
+describe("origin enum", () => {
+  it("exposes one enum of cli and mcp", () => {
+    expect([LogOrigin.cli, LogOrigin.mcp]).toEqual(["cli", "mcp"]);
+    expect(Object.values(LogOrigin)).toEqual(["cli", "mcp"]);
+    expect(LOG_ORIGINS).toEqual([LogOrigin.cli, LogOrigin.mcp]);
+  });
+
+  it("carries the origin on the same event as the level and the message", () => {
+    const events: LogEvent[] = [];
+    setLogSink((event) => {
+      events.push(event);
+    });
+    try {
+      log(LogLevel.info, "ready", { origin: LogOrigin.cli });
+    } finally {
+      setLogSink(undefined);
+    }
+    expect(events).toEqual([{ level: LogLevel.info, message: "ready", origin: LogOrigin.cli }]);
   });
 });
 

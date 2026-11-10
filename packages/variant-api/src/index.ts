@@ -134,9 +134,11 @@ export { worktreeReport } from "./cleanup.js";
 export { listSlugs } from "./list-slugs.js";
 export {
   LOG_LEVELS,
+  LOG_ORIGINS,
   type LogEvent,
   type LogFields,
   LogLevel,
+  LogOrigin,
   type LogSink,
   log,
   logD,

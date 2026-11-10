@@ -156,7 +156,8 @@ describe("extension socket", () => {
 
   it("refuses create without calling variant-api", async () => {
     const source = readFileSync(new URL("./socket.ts", import.meta.url), "utf8");
-    expect(source.includes("variant-api")).toBe(false);
+    expect(source.includes('from "variant-api";')).toBe(false);
+    expect(source.includes('from "variant-api/commands"')).toBe(true);
 
     const layout = singleRepoLayout();
     roots.push(layout.root);

@@ -1,5 +1,5 @@
 import { connect, type IpcClient, socketPath } from "variant-ipc";
-import type { LogEvent } from "variant-log";
+import { type LogEvent, LogOrigin } from "variant-log";
 
 const WRITE_MS = 1000;
 
@@ -41,7 +41,7 @@ const deliver = async (directory: string, event: LogEvent): Promise<void> => {
   if (socketDropped || editorClient === undefined) {
     return;
   }
-  const args: Record<string, unknown> = { level: event.level, message: event.message, origin: "mcp" };
+  const args: Record<string, unknown> = { level: event.level, message: event.message, origin: LogOrigin.mcp };
   if (event.step !== undefined) {
     args.step = event.step;
   }
