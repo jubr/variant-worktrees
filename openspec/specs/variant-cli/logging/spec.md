@@ -10,13 +10,13 @@ Prints the variant log stream on the `variant` CLI and lets a person choose how 
 
 The CLI SHALL accept a global `--log-level` whose value is `trace`, `debug`, `info`, `warn`, `error`, or `warning`. `warning` SHALL select `warn`. The flag SHALL be accepted before and after the command name. The default threshold SHALL be `warn`. An event below the threshold SHALL NOT be written. An event at or above the threshold SHALL be written to standard error and SHALL NOT be written to standard output.
 
-A written line SHALL start with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, using `warn` for a `warn` event. When the event has a step, that step SHALL be printed once, after the level bracket and one space, and the message SHALL follow the step after one space. When the step is absent, the message SHALL follow the level bracket after one space. The CLI SHALL NOT invent a step by reading brackets in the message. The event's slug SHALL NOT be printed.
+A written line SHALL start with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, using `warn` for a `warn` event. When the event has a step, that step SHALL be printed once, after the level bracket and one space, and the message SHALL follow the step after one space. When the step is absent, the message SHALL follow the level bracket after one space. The CLI SHALL NOT invent a step by reading brackets in the message. The CLI SHALL NOT rewrite a command message into `cmd=`. The event's slug SHALL NOT be printed.
 
 When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be colored and SHALL otherwise be the same characters. `[` and `]` SHALL be dark gray (`ESC[90m`). The level word SHALL be gray-blue for `trace` (`ESC[38;5;67m`), yellow for `debug` (`ESC[33m`), green for `info` (`ESC[32m`), orange for `warn` (`ESC[38;5;208m`), and red for `error` (`ESC[31m`). The step SHALL be cyan (`ESC[36m`). `ESC` is the byte `0x1B`. The default color SHALL be restored (`ESC[0m`) after `]` and, when a step is present, again after the step, so the message uses the terminal default. When standard error is not a terminal, or `NO_COLOR` is set, the line SHALL contain no ANSI sequence.
 
 #### Scenario: Default shows the warning
 
-- **WHEN** the configured database cannot be contacted and a user runs `variant list` with no log flag
+- **WHEN** the configured database cannot be contacted and a user runs `variant list` with no log flag, and the project directory is not a known temporary directory
 - **THEN** standard error contains a line that starts with `[warn]` and contains the contact warning
 - **AND** standard output is the list text and does not contain that warning
 
@@ -48,14 +48,14 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 
 #### Scenario: Step from the event
 
-- **WHEN** an info event is written with message `+ mise install`, step `create`, and slug `add-auth`
-- **THEN** the line's text is `[info] create + mise install`
-- **AND** the line does not contain `add-auth`
+- **WHEN** an info event is written with message `+"mise install"`, step `create`, and slug `add-auth`
+- **THEN** the line's text is `[info] create +"mise install"`
+- **AND** the line does not contain `add-auth` or `cmd=`
 
 #### Scenario: No step
 
-- **WHEN** an info event is written whose message is `listed variants` and which has no step
-- **THEN** the line's text is `[info] listed variants`
+- **WHEN** an info event is written whose message is `ready` and which has no step
+- **THEN** the line's text is `[info] ready`
 
 #### Scenario: Brackets in the message are not a step
 
@@ -64,8 +64,8 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 
 #### Scenario: Colored line
 
-- **WHEN** standard error is a terminal, `NO_COLOR` is unset, and an info event with step `create` and message `+ mise install` is written
-- **THEN** the line is dark-gray `[`, green `info`, dark-gray `]`, a reset, cyan `create`, a reset, then ` + mise install`
+- **WHEN** standard error is a terminal, `NO_COLOR` is unset, and an info event with step `create` and message `+"mise install"` is written
+- **THEN** the line is dark-gray `[`, green `info`, dark-gray `]`, a reset, cyan `create`, a reset, then ` +"mise install"`
 
 #### Scenario: Plain line
 
@@ -88,23 +88,31 @@ The CLI SHALL send each log event to vscode on the project Unix socket, except a
 
 When the attempt succeeds, the CLI SHALL emit one debug event whose step is `ipc` and whose message is `connected`. When the attempt fails, the CLI SHALL emit one debug event whose step is `ipc` and whose message is `connect failed: ` followed by the reason. A missing socket file SHALL use `file not found`. A refused connection SHALL use `connection refused`. A permission failure SHALL use `permission denied`. Any other failure SHALL use that error's text. The CLI SHALL NOT emit that outcome again. A failed attempt SHALL NOT fail the command, SHALL NOT write a log event to standard output, and SHALL NOT create the socket file.
 
-Each event that is sent SHALL be one request line whose `name` is `log` and whose `args` carry `level`, `message`, `origin` `cli`, `step` when the event has a step, and `slug` when the event has a slug. When the event has no slug, `args.slug` SHALL be the autodetected slug of the working directory, including `main` for the primary checkout. When that slug cannot be derived, `args.slug` SHALL be omitted and the command SHALL still succeed. Events emitted before the attempt settles SHALL be sent, in that order, after a successful connect. When the attempt fails, those events SHALL NOT be sent. A request that fails after a successful connect SHALL NOT fail the command and SHALL NOT start another attempt.
+Each event that is sent SHALL be one request line whose `name` is `log` and whose `args` carry `level`, `message`, `origin` `cli`, `step` when the event has a step, and `slug` when the event has a slug. When the event has no slug and the command was given an explicit slug (`-s` or `--slug`), `args.slug` SHALL be that slug. When the event has no slug and the command was not given an explicit slug, `args.slug` SHALL be the autodetected slug of the working directory, including `main` for the primary checkout. When that slug cannot be derived and no explicit slug was given, `args.slug` SHALL be omitted and the command SHALL still succeed. An event that already has a slug SHALL keep it. Events emitted before the attempt settles SHALL be sent, in that order, after a successful connect. When the attempt fails, those events SHALL NOT be sent. A request that fails after a successful connect SHALL NOT fail the command and SHALL NOT start another attempt.
 
 A single write SHALL NOT wait longer than 1 second. When a write does not finish within that time after the connected debug event was emitted, the CLI SHALL drop the socket and SHALL NOT connect again. It SHALL emit one warn event whose step is `ipc` and whose message is `write failed`, and SHALL NOT emit that warn again. Later events SHALL NOT be sent and SHALL NOT wait on the socket.
 
-When the CLI finishes and the log sink is attached, including when the command fails, the CLI SHALL emit one debug event whose step is `cli` and whose message is `end`, and SHALL wait until queued socket sends have finished or the attempt has failed before the process exits. The `end` event SHALL NOT be a socket request. The stderr threshold SHALL still apply. An event below the threshold SHALL still be sent on the socket. The slug SHALL NOT be printed on stderr. Standard error SHALL NOT contain ` [cli]`.
+When the CLI finishes and the log sink is attached, including when the command fails, the CLI SHALL emit one debug event whose step is `cli` and whose message is `end`, and SHALL wait until queued socket sends have finished or the attempt has failed before the process exits. The `end` event SHALL NOT be a socket request. The stderr threshold SHALL still apply. An event below the threshold SHALL still be sent on the socket. The slug SHALL NOT be printed on stderr. Standard error SHALL NOT contain ` [cli]` or ` @cli`.
 
 #### Scenario: Event reaches a listening vscode
 
-- **WHEN** a listener is accepting connections on the project socket and the CLI emits an info event with message `+ mise install`, step `create`, and slug `add-auth`
+- **WHEN** a listener is accepting connections on the project socket and the CLI emits an info event with message `+"mise install"`, step `create`, and slug `add-auth`
 - **THEN** the listener receives a request named `log` whose args are level `info`, that message, step `create`, slug `add-auth`, and origin `cli`
-- **AND** standard output does not contain `+ mise install`
+- **AND** standard output does not contain `+"mise install"`
 
 #### Scenario: Autodetected slug fills a bare event
 
-- **WHEN** the CLI runs in the primary checkout and emits an info event `listed variants` with no slug
+- **WHEN** the CLI runs in the primary checkout with no explicit slug and emits an info event `ready` with no slug
 - **THEN** the request has slug `main`
 - **AND** standard error does not contain `main`
+
+#### Scenario: Explicit slug fills a bare event
+
+- **WHEN** the CLI runs in the primary checkout with `-s release-smoke` and emits a debug event `ready` with no slug
+- **THEN** the request slug is `release-smoke`
+- **AND** the request slug is not `main`
+- **AND** standard error does not contain `release-smoke`
+- **AND** the listener receives no request whose step is `ipc` or `cli`
 
 #### Scenario: Connect waits for the first event
 
