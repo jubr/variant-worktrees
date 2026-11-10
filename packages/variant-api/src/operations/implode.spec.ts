@@ -13,7 +13,7 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 import { type LogEvent, setLogSink } from "../log.js";
 import { isProcessAlive } from "../runtime-state.js";
 import type { ImplodeResult } from "../types.js";
@@ -50,7 +50,7 @@ interface Project {
   repo: string;
   /** The worktree of variant `demo`, created before the test body runs. */
   worktree: string;
-  client: ReturnType<typeof createClient>;
+  client: ReturnType<typeof createVariantClient>;
   messages: string[];
   implode: (options?: { force?: boolean; branchRm?: "yes" | "no" }, slug?: string) => Promise<ImplodeResult>;
   /** Commits a file in the variant's worktree. */
@@ -85,7 +85,7 @@ const withProject = async (
     git(repo, "add", ".");
     git(repo, "commit", "-q", "-m", "initial");
 
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: repo, env: {} }),
       cwd: repo,
       stateDir: join(repo, ".cache", "variants"),
@@ -185,7 +185,7 @@ describe("implode merge gate", () => {
       git(repo, "merge", "-q", "--ff-only", "feat/demo");
       const config = loadConfig({ cwd: repo, env: {} });
       const against = (baseBranch: string) =>
-        createClient({
+        createVariantClient({
           config: { ...config, variant: { ...config.variant, baseBranch } },
           cwd: repo,
           stateDir: join(repo, ".cache", "variants"),
@@ -219,7 +219,7 @@ describe("implode teardown and worktree", () => {
 
   it("finishes after the teardown for a variant without a worktree", () =>
     withProject(async ({ implode, repo }) => {
-      const bare = createClient({
+      const bare = createVariantClient({
         config: loadConfig({ cwd: repo, env: {} }),
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -350,7 +350,7 @@ describe("implode teardown and worktree", () => {
     withProject(async ({ repo }) => {
       const events: LogEvent[] = [];
       setLogSink((event) => events.push(event));
-      const bare = createClient({
+      const bare = createVariantClient({
         config: loadConfig({ cwd: repo, env: {} }),
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),

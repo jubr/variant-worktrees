@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 
 const tempDirectory = (): string => realpathSync(mkdtempSync(join("/tmp", "variant-provision-")));
 
@@ -25,7 +25,7 @@ describe("provision", () => {
           "",
         ].join("\n"),
       );
-      const client = createClient({
+      const client = createVariantClient({
         config: loadConfig({ cwd: directory }),
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),

@@ -19,7 +19,7 @@ import { defaultStateDir, migrateJsonStates } from "./state.js";
 import { createStateSubscriptions, type WatchTarget } from "./subscribe.js";
 import type { VariantClient, VariantClientOptions } from "./types.js";
 
-export const createClient = (options: VariantClientOptions = {}): VariantClient => {
+export const createVariantClient = (options: VariantClientOptions = {}): VariantClient => {
   const cwd = resolve(options.cwd ?? process.cwd());
   const config =
     options.config ??

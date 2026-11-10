@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 import { fakeMise } from "../test/mise-mock.js";
 
 /** Specification: openspec/specs/variant-api/init/spec.md */
@@ -37,7 +37,7 @@ const files = (): string[] => readdirSync(root).filter((name) => name !== "fake-
 
 const setup = (mise: Parameters<typeof fakeMise>[1] = {}) => {
   const fake = fakeMise(root, { configLs: "[]", ...mise });
-  const client = createClient({ cwd: root, miseBinPath: fake.binary, worktree: false });
+  const client = createVariantClient({ cwd: root, miseBinPath: fake.binary, worktree: false });
   return { fake, client };
 };
 
@@ -141,7 +141,7 @@ describe("init", () => {
 
     await client.init();
 
-    const loaded = createClient({ cwd: root, miseBinPath: fake.binary, worktree: false }).config();
+    const loaded = createVariantClient({ cwd: root, miseBinPath: fake.binary, worktree: false }).config();
     expect(loaded.db).toMatchObject({ dialect: "mysql", host: "maria", database: "shop" });
   });
 

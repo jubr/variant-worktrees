@@ -30,7 +30,9 @@ export const loadVariantClient = (
       return cached;
     }
     const loading = import("variant-api")
-      .then(({ createClient }) => createClient({ cwd, ...(configured ? { miseBinPath: configured } : {}) }))
+      .then(({ createVariantClient }) =>
+        createVariantClient({ cwd, ...(configured ? { miseBinPath: configured } : {}) }),
+      )
       .catch((error: unknown) => {
         clients.delete(key);
         throw new Error(`The variant library could not be loaded: ${messageOf(error)}`);

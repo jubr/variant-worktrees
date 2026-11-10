@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 import { type LogEvent, setLogSink } from "../log.js";
 import { contactTarget, QueryGuard } from "./failure.js";
 import { MysqlAdapter } from "./mysql.js";
@@ -176,7 +176,7 @@ describe("database contact warning", () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-sqlite-missing-")));
     try {
       writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
-      const client = createClient({
+      const client = createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),

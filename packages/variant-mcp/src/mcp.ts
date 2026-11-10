@@ -4,7 +4,7 @@ import { parseArgs } from "node:util";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SetLevelRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createClient, loadVariantConfig } from "variant-api";
+import { createVariantClient, loadVariantConfig } from "variant-api";
 import { commands } from "variant-api/commands";
 import { LogLevel, setLogSink } from "variant-log";
 import { z } from "zod/v4";
@@ -26,7 +26,7 @@ const config = loadVariantConfig({
   cwd: process.cwd(),
   configPath: values.config as string | undefined,
 });
-const client = createClient({
+const client = createVariantClient({
   config,
   worktree: process.env.VARIANT_WORKTREE !== "0",
 });

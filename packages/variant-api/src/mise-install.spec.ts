@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { type LogEvent, setLogSink } from "./log.js";
 import { installMiseBackground } from "./mise-install.js";
 import { installEngineStub } from "./test/engine-stub.js";
@@ -71,7 +71,7 @@ describe("create installs Mise tools", () => {
         'case "$3" in trust) echo MISE_TRUST >&2;; install) echo MISE_INSTALL >&2;; esac\nexit 0',
       );
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -107,7 +107,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -139,7 +139,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, `case "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0`);
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -172,7 +172,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -199,7 +199,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, 'case "$3" in trust) echo TRUST_BROKE >&2; exit 1;; esac\nexit 0');
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -228,7 +228,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, 'case "$3" in install) echo INSTALL_BROKE >&2; exit 1;; esac\nexit 0');
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -252,7 +252,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -275,7 +275,7 @@ describe("create installs Mise tools", () => {
       writeFileSync(join(parent, "mise.toml"), "[tools]\n");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -300,7 +300,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -327,7 +327,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -351,7 +351,7 @@ describe("create installs Mise tools", () => {
       git(repo, "add", "mise.toml");
       git(repo, "commit", "-q", "-m", "mise");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: {
           ...baseConfig,
           db: { dialect: "sqlite" },
@@ -375,7 +375,7 @@ describe("create installs Mise tools", () => {
     try {
       initRepo(repo);
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -401,7 +401,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -427,7 +427,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -457,7 +457,7 @@ describe("create installs Mise tools", () => {
         `case "$3" in trust) echo TRUST_BROKE;; install) echo ran > "${marker}";; esac\nexit 1`,
       );
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -488,7 +488,7 @@ describe("create installs Mise tools", () => {
       git(repo, "commit", "-q", "-m", "mise");
       const mise = stubMise(parent, 'case "$3" in install) echo THIS_RUN;; esac\nexit 0');
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),

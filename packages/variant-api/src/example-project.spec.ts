@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 /** The example project of the repository: the fixture of this test. */
 const exampleDirectory = fileURLToPath(new URL("../../../example/", import.meta.url));
@@ -19,7 +19,7 @@ describe("the example project", () => {
         filter: (source) => !/(^|\/)(node_modules|dist)(\/|$)/.test(source.slice(exampleDirectory.length)),
       });
       const config = loadConfig({ cwd: directory });
-      const client = createClient({
+      const client = createVariantClient({
         config,
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
@@ -57,7 +57,7 @@ describe("the example project", () => {
         recursive: true,
         filter: (source) => !/(^|\/)(node_modules|dist)(\/|$)/.test(source.slice(exampleDirectory.length)),
       });
-      const client = createClient({
+      const client = createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),

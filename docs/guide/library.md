@@ -5,9 +5,9 @@ Use `variant-api` to manage isolated database variants from TypeScript. It runs 
 ## Quick start
 
 ```ts
-import { createClient } from "variant-api";
+import { createVariantClient } from "variant-api";
 
-const client = createClient();
+const client = createVariantClient();
 const variant = await client.create("preview-one");
 console.log(variant.target);
 ```

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { installEngineStub } from "./test/engine-stub.js";
 
 const originalPath = process.env.PATH;
@@ -15,7 +15,7 @@ const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
 /** A project directory (not a git repository) with the given variants.yaml and a stub container engine. */
 const withProject = async (
   yaml: (directory: string) => string,
-  run: (project: { directory: string; client: ReturnType<typeof createClient> }) => Promise<void>,
+  run: (project: { directory: string; client: ReturnType<typeof createVariantClient> }) => Promise<void>,
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-echo-")));
   try {
@@ -23,7 +23,7 @@ const withProject = async (
     mkdirSync(join(directory, "be"));
     writeFileSync(join(directory, "variants.yaml"), yaml(directory));
     process.env.PATH = `${installEngineStub(directory).bin}:${originalPath}`;
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),

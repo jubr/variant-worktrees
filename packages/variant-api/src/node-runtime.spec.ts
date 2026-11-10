@@ -50,7 +50,7 @@ describe("variant-api on Node and Bun", () => {
         runtime,
         `const api = await import(${JSON.stringify(entries.index)});
          const commands = await import(${JSON.stringify(entries.commands)});
-         console.log(typeof api.createClient, typeof commands.commands);`,
+         console.log(typeof api.createVariantClient, typeof commands.commands);`,
       );
       expect(result.stderr).toBe("");
       expect(result.stdout.trim()).toBe("function object");
@@ -70,8 +70,8 @@ describe("variant-api on Node and Bun", () => {
         const result = await run(
           runtime,
           `import { existsSync } from "node:fs";
-           const { createClient } = await import(${JSON.stringify(entries.index)});
-           const client = createClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: true });
+           const { createVariantClient } = await import(${JSON.stringify(entries.index)});
+           const client = createVariantClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: true });
            const file = ${JSON.stringify(join(directory, ".cache/variants/test-feature.db"))};
            const state = ${JSON.stringify(join(directory, "_v-test-feature", ".cache/variant/state.yaml"))};
            await client.create("test-feature");
@@ -104,7 +104,7 @@ describe("variant-api on Node and Bun", () => {
           `import { execFileSync } from "node:child_process";
            import { existsSync, mkdirSync, writeFileSync } from "node:fs";
            import { join } from "node:path";
-           const { createClient } = await import(${JSON.stringify(entries.index)});
+           const { createVariantClient } = await import(${JSON.stringify(entries.index)});
            const repo = join(${JSON.stringify(parent)}, "repo");
            const git = (...args) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" });
            const put = (root, path, content = "x\\n") => { mkdirSync(join(root, path, ".."), { recursive: true }); writeFileSync(join(root, path), content); };
@@ -115,7 +115,7 @@ describe("variant-api on Node and Bun", () => {
            put(repo, "tracked/keep.js");
            git("add", ".");
            git("commit", "-q", "-m", "initial");
-           const client = createClient({ cwd: repo, configPath: join(repo, "variants.yaml"), stateDir: join(repo, ".state") });
+           const client = createVariantClient({ cwd: repo, configPath: join(repo, "variants.yaml"), stateDir: join(repo, ".state") });
            const { worktree } = await client.create("demo");
            for (const path of ["out/a/b.js", "dist/c.js", ".cache/d", "rec/demo/pr7-demo.webm", "src/keep.js", "tracked/new.js"]) put(worktree, path);
            const { report } = await client.implode("demo", { force: true, log: () => {} });
@@ -143,8 +143,8 @@ describe("variant-api on Node and Bun", () => {
       );
       const result = await run(
         "node",
-        `const { createClient } = await import(${JSON.stringify(entries.index)});
-         const client = createClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: false });
+        `const { createVariantClient } = await import(${JSON.stringify(entries.index)});
+         const client = createVariantClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: false });
          await client.list().catch(() => undefined);
          console.log(process.moduleLoadList.filter((name) => name.includes("sqlite")).length);`,
       );

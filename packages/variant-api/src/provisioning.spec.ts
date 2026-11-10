@@ -13,7 +13,7 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { type LogEvent, setLogSink } from "./log.js";
 
 const saved: Record<string, string | undefined> = {};
@@ -57,7 +57,7 @@ const withProject = async (
       writeFileSync(join(directory, path), content);
     }
     writeFileSync(join(directory, "variants.yaml"), yaml(directory));
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: process.env }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),
@@ -654,7 +654,7 @@ const withRepo = async (
 };
 
 const provisionIn = async (repo: string) => {
-  const client = createClient({
+  const client = createVariantClient({
     config: loadConfig({ cwd: repo, env: process.env }),
     cwd: repo,
     stateDir: join(repo, ".cache", "variants"),
@@ -744,7 +744,7 @@ describe("env file copy", () => {
 
   it("copies and writes nothing in the primary worktree", () =>
     withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\n" }, async (repo) => {
-      const client = createClient({
+      const client = createVariantClient({
         config: loadConfig({ cwd: repo, env: process.env }),
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),

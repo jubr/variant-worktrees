@@ -2,14 +2,14 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
-describe("createClient", () => {
+describe("createVariantClient", () => {
   it("creates a typed lifecycle client from resolved config", () => {
     const directory = mkdtempSync(join("/tmp", "variant-client-"));
     try {
       const config = loadConfig({ cwd: directory });
-      const client = createClient({ config, cwd: directory, worktree: false });
+      const client = createVariantClient({ config, cwd: directory, worktree: false });
       expect(typeof client.create).toBe("function");
       expect(typeof client.implode).toBe("function");
       expect(typeof client.list).toBe("function");

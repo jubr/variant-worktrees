@@ -20,8 +20,8 @@ describe("the extension bundle", () => {
         ...shared,
         stdin: {
           contents: `import("variant-api").then(async (m) => {
-            const records = await m.createClient({ cwd: ${JSON.stringify(directory)}, worktree: false }).list();
-            console.log(Array.isArray(records) ? typeof m.createClient : "no list");
+            const records = await m.createVariantClient({ cwd: ${JSON.stringify(directory)}, worktree: false }).list();
+            console.log(Array.isArray(records) ? typeof m.createVariantClient : "no list");
           });`,
           resolveDir: join(import.meta.dir, "..", ".."),
           loader: "ts",

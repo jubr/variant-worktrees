@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const OLD =
   "db:\n  dialect: sqlite\nvariant:\n  reservedPorts: [3000]\n  instances:\n    be: { kind: nestjs, dir: . }\n";
@@ -16,7 +16,7 @@ describe("legacy configuration in the library", () => {
       writeFileSync(join(directory, "variants.local.yaml"), OLD_LOCAL);
 
       const config = loadConfig({ cwd: directory, env: {} });
-      const client = createClient({ cwd: directory, stateDir: join(directory, ".cache"), worktree: false });
+      const client = createVariantClient({ cwd: directory, stateDir: join(directory, ".cache"), worktree: false });
       const records = await client.list();
 
       expect(Object.keys(config.variant.watches)).toEqual(["be"]);

@@ -2,7 +2,14 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cli, command } from "cleye";
-import { createClient, listSlugs, platformToken, renderVersion, resolveVersionFacts, versionColor } from "variant-api";
+import {
+  createVariantClient,
+  listSlugs,
+  platformToken,
+  renderVersion,
+  resolveVersionFacts,
+  versionColor,
+} from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
@@ -53,7 +60,7 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
       const flags = argv.flags as Record<string, unknown>;
       const positional = (argv._ as unknown as { slug?: string }).slug;
       const args = collectArgs(definition, flags, positional);
-      const client = createClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
+      const client = createVariantClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       printWarnings(client.config().warnings);
       migrateConfigFiles(client.config());
       const result = await definition.execute(client, args);

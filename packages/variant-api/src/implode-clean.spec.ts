@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
@@ -22,7 +22,7 @@ const CONFIG = lines(
 interface Project {
   repo: string;
   worktree: string;
-  list: () => ReturnType<ReturnType<typeof createClient>["list"]>;
+  list: () => ReturnType<ReturnType<typeof createVariantClient>["list"]>;
   commit: (path: string, content: string) => void;
 }
 
@@ -46,7 +46,7 @@ const withProject = async (run: (project: Project) => Promise<void>, yaml: strin
     }
     git(repo, "add", ".");
     git(repo, "commit", "-q", "-m", "initial");
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: repo, env: {} }),
       cwd: repo,
       stateDir: join(repo, ".cache", "variants"),

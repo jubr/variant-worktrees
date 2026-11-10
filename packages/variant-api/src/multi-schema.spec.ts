@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { createVariant } from "./operations/create.js";
 import { implodeVariant } from "./operations/implode.js";
 import { listVariants } from "./operations/list.js";
@@ -81,12 +81,12 @@ describe("multi schema", () => {
     const directory = mkdtempSync(join(tmpdir(), "variant-multi-dialect-"));
     try {
       writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n  multi:\n    tenants: east\n");
-      expect(() => createClient({ cwd: directory, worktree: false })).toThrow(/sqlite/);
+      expect(() => createVariantClient({ cwd: directory, worktree: false })).toThrow(/sqlite/);
       writeFileSync(
         join(directory, "variants.yaml"),
         "db:\n  dialect: mysql\n  host: 127.0.0.1\n  multi:\n    tenants: east\n",
       );
-      expect(() => createClient({ cwd: directory, worktree: false })).toThrow(/mysql/);
+      expect(() => createVariantClient({ cwd: directory, worktree: false })).toThrow(/mysql/);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
