@@ -8,6 +8,7 @@ import { clearVariantRuntime, watchLogPath, writeVariantRuntime } from "../runti
 import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
+import { launchWatches } from "../watch-relay.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 import { runtimeOf, watchReports } from "./up.js";
@@ -129,27 +130,50 @@ export const watchVariant = async (
   }
   // AIDEV-NOTE: a detached watch has no console, so every process appends to one file the kernel writes directly
   // (no pipe), which keeps the output real-time and alive after this process exits. Truncated on each start.
-  const logFile = options.detach === true && toStart.length > 0 ? watchLogPath(config, run.worktree) : undefined;
-  if (logFile) {
-    mkdirSync(dirname(logFile), { recursive: true });
-    writeFileSync(logFile, "");
+  const detachedLog = options.detach === true && toStart.length > 0 ? watchLogPath(config, run.worktree) : undefined;
+  const attachedLog = options.detach === true || toStart.length === 0 ? undefined : watchLogPath(config, run.worktree);
+  let closeLog: () => Promise<void> = async () => {};
+  if (detachedLog) {
+    mkdirSync(dirname(detachedLog), { recursive: true });
+    writeFileSync(detachedLog, "");
   }
-  const output = logFile ? openSync(logFile, "a") : undefined;
+  const output = detachedLog ? openSync(detachedLog, "a") : undefined;
   try {
-    for (const launch of toStart) {
-      if (started.length > 0 && delay > 0) {
-        await sleep(delay);
+    if (options.detach === true) {
+      for (const launch of toStart) {
+        if (started.length > 0 && delay > 0) {
+          await sleep(delay);
+        }
+        log(`[${launch.key}] ${launch.command}`);
+        if (detachedLog) {
+          appendFileSync(detachedLog, `[${launch.key}] ${launch.command}\n`);
+        }
+        try {
+          started.push(spawnProcess(launch, output));
+        } catch (error) {
+          await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
+          if (detachedLog) {
+            rmSync(detachedLog, { force: true });
+          }
+          throw error;
+        }
       }
-      log(`[${launch.key}] ${launch.command}`);
-      if (logFile) {
-        appendFileSync(logFile, `[${launch.key}] ${launch.command}\n`);
-      }
+    } else if (toStart.length > 0) {
       try {
-        started.push(spawnProcess(launch, output));
+        const launched = await launchWatches({
+          launches: toStart,
+          startDelayMs: delay,
+          stdout: process.stdout,
+          stderr: process.stderr,
+          logPath: attachedLog,
+          inheritStdin: true,
+          onBanner: log,
+        });
+        closeLog = launched.close;
+        started.push(...launched.processes);
       } catch (error) {
-        await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
-        if (logFile) {
-          rmSync(logFile, { force: true });
+        if (attachedLog) {
+          rmSync(attachedLog, { force: true });
         }
         throw error;
       }
@@ -159,6 +183,7 @@ export const watchVariant = async (
       closeSync(output);
     }
   }
+  const logFile = detachedLog ?? attachedLog;
   const pids = Object.fromEntries(started.map(({ key, pid }) => [key, pid]));
   writeVariantRuntime(
     config,
@@ -187,6 +212,7 @@ export const watchVariant = async (
   const outcome = await untilEnd(context, run.worktree, started, options.signal);
   stopAnnouncing.abort();
   await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
+  await closeLog();
   await announced;
 
   if (outcome === "checkout") {

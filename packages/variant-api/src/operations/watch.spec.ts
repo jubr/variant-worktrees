@@ -7,7 +7,9 @@ import { stringify as stringifyYaml } from "yaml";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
+import { downVariant } from "./down.js";
 import type { OperationContext } from "./types.js";
+import { upVariant } from "./up.js";
 import { watchVariant } from "./watch.js";
 
 const originalPath = process.env.PATH;
@@ -43,11 +45,15 @@ const WATCH_SCRIPT = `
 import { appendFileSync, writeFileSync } from "node:fs";
 const who = process.env.WHO ?? "variant";
 appendFileSync(process.env.ORDER_LOG ?? "order.log", who + " " + Date.now() + "\\n");
-writeFileSync("started-" + who + ".txt", String(process.pid));
 if (process.env.PRINT) {
   console.log("out " + who);
   console.error("err " + who);
 }
+if (process.env.STDOUT_LINE) console.log(process.env.STDOUT_LINE);
+if (process.env.STDERR_LINE) console.error(process.env.STDERR_LINE);
+if (process.env.PARTIAL_STDOUT) process.stdout.write(process.env.PARTIAL_STDOUT + "\\r");
+writeFileSync("started-" + who + ".txt", String(process.pid));
+if (process.env.PARTIAL_STDOUT) process.exit(0);
 setInterval(() => {}, 1000);
 if (process.env.DIE_AFTER) setTimeout(() => process.exit(3), Number(process.env.DIE_AFTER));
 `;
@@ -518,6 +524,178 @@ describe("watch readiness and opening", () => {
     }));
 });
 
+/** Bytes written through a stream, including lines the watch relay prefixes onto the console. */
+const captureWrite = (stream: NodeJS.WriteStream): { text: () => string; stop: () => void } => {
+  const chunks: string[] = [];
+  const original = stream.write;
+  stream.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return original.call(stream, chunk, ...(args as []));
+  }) as typeof stream.write;
+  return {
+    text: () => chunks.join(""),
+    stop: () => {
+      stream.write = original;
+    },
+  };
+};
+
+describe("watch output log", () => {
+  const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
+  const withLine = (who: string, name: "STDOUT_LINE" | "STDERR_LINE" | "PARTIAL_STDOUT", value: string): string =>
+    BASE.replace(
+      `    ${who}: ${watcher(who, who === "fe" ? ", url: 'http://${slug}.vw.localhost:${port}'" : "")}`,
+      `    ${who}: ${watcher(who, who === "fe" ? ", url: 'http://${slug}.vw.localhost:${port}'" : "").replace("ORDER_LOG:", `${name}: '${value}', ORDER_LOG:`)}`,
+    );
+
+  it("prefixes attached stdout and appends it to the log while the process runs", () =>
+    withProject(
+      async ({ attach, directory, started }) => {
+        const stdout = captureWrite(process.stdout);
+        const { done, stop } = attach();
+        try {
+          await started("fe");
+          const log = logIn(directory);
+          await until(
+            () =>
+              stdout.text().includes("[fe] ready") &&
+              existsSync(log) &&
+              readFileSync(log, "utf8").includes("[fe] ready"),
+            1500,
+          ).catch(() => {});
+          expect(stdout.text()).toContain("[fe] ready\n");
+          expect(existsSync(log) ? readFileSync(log, "utf8") : "").toContain("[fe] ready\n");
+          expect(isProcessAlive(await started("fe"))).toBe(true);
+        } finally {
+          stdout.stop();
+          stop();
+          await done;
+        }
+      },
+      withLine("fe", "STDOUT_LINE", "ready"),
+    ));
+
+  it("prefixes attached stderr onto stderr and the log, not stdout", () =>
+    withProject(
+      async ({ attach, directory, started }) => {
+        const stdout = captureWrite(process.stdout);
+        const stderr = captureWrite(process.stderr);
+        const { done, stop } = attach();
+        try {
+          await started("fe");
+          const log = logIn(directory);
+          await until(
+            () =>
+              stderr.text().includes("[fe] oops") && existsSync(log) && readFileSync(log, "utf8").includes("[fe] oops"),
+            1500,
+          ).catch(() => {});
+          expect(stderr.text()).toContain("[fe] oops\n");
+          expect(stdout.text()).not.toContain("oops");
+          expect(readFileSync(log, "utf8")).toContain("[fe] oops\n");
+        } finally {
+          stdout.stop();
+          stderr.stop();
+          stop();
+          await done;
+        }
+      },
+      withLine("fe", "STDERR_LINE", "oops"),
+    ));
+
+  it("prefixes a trailing partial stdout line when the stream ends", () =>
+    withProject(
+      async ({ attach, directory }) => {
+        const stdout = captureWrite(process.stdout);
+        const { done, stop } = attach();
+        try {
+          const log = logIn(directory);
+          await until(
+            () =>
+              stdout.text().includes("[fe] partial") &&
+              existsSync(log) &&
+              readFileSync(log, "utf8").includes("[fe] partial"),
+            1500,
+          ).catch(() => {});
+          expect(stdout.text()).toContain("[fe] partial\n");
+          expect(stdout.text()).not.toContain("[fe] partial\r");
+          expect(readFileSync(log, "utf8")).toContain("[fe] partial\n");
+        } finally {
+          stdout.stop();
+          stop();
+          await done;
+        }
+      },
+      withLine("fe", "PARTIAL_STDOUT", "partial"),
+    ));
+
+  it("truncates the log on the next run, records its absolute path, and writes each command first", () =>
+    withProject(
+      async ({ attach, directory, runtime, started }) => {
+        const log = logIn(directory);
+        mkdirSync(join(directory, ".cache", "variant"), { recursive: true });
+        writeFileSync(log, "old run\n");
+        const first = attach();
+        await started("fe");
+        await until(() => readFileSync(log, "utf8").includes(`[fe] ${process.execPath} ../watch.js`), 1500);
+        first.stop();
+        await first.done;
+        expect(readFileSync(log, "utf8")).not.toContain("old run");
+
+        writeFileSync(log, "old run\n");
+        for (const who of ["be", "fe"]) {
+          rmSync(join(directory, who, `started-${who}.txt`), { force: true });
+        }
+        const second = attach();
+        try {
+          await started("be");
+          await started("fe");
+          await until(() => {
+            const text = readFileSync(log, "utf8");
+            return text.includes("[be] out be") && text.includes("[fe] out fe") && !text.includes("old run");
+          }, 1500).catch(() => {});
+          const text = readFileSync(log, "utf8");
+          const beBanner = `[be] ${process.execPath} ../watch.js`;
+          const feBanner = `[fe] ${process.execPath} ../watch.js`;
+          expect(text).not.toContain("old run");
+          expect(text.indexOf(beBanner)).toBeGreaterThanOrEqual(0);
+          expect(text.indexOf(beBanner)).toBeLessThan(text.indexOf("[be] out be"));
+          expect(text.indexOf(feBanner)).toBeLessThan(text.indexOf("[fe] out fe"));
+          expect(runtime().log).toBe(log);
+        } finally {
+          second.stop();
+          await second.done;
+        }
+      },
+      BASE.replace(`    be: ${watcher("be")}`, `    be: ${printingWatcher("be")}`).replace(
+        `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
+        `    fe: ${printingWatcher("fe")}`,
+      ),
+    ));
+
+  it("drops the recorded log on down and keeps the file", () =>
+    withProject(async ({ attach, directory, context, started, runtime }) => {
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => runtime().log === log && existsSync(log), 1500);
+        await downVariant(context, "demo");
+        expect(runtime().log).toBeUndefined();
+        expect(readFileSync(log, "utf8").length).toBeGreaterThan(0);
+      } finally {
+        stop();
+        await done;
+      }
+    }));
+
+  it("writes no watch log for up", () =>
+    withProject(async ({ directory, context, runtime }) => {
+      await upVariant(context, "demo", { log: () => {}, opener: () => {} });
+      expect(existsSync(logIn(directory))).toBe(false);
+      expect(runtime().log).toBeUndefined();
+    }));
+});
+
 describe("detached watch log", () => {
   const PRINTING = BASE.replace(`    be: ${watcher("be")}`, `    be: ${printingWatcher("be")}`).replace(
     `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
@@ -566,16 +744,4 @@ describe("detached watch log", () => {
       },
       PRINTING.replace("dir: be", "dir: gone"),
     ));
-
-  it("keeps the output of an attached watch on the console and writes no file", () =>
-    withProject(async ({ attach, directory, runtime, started }) => {
-      const { done, stop } = attach();
-      await started("be");
-      await started("fe");
-      expect(runtime().log).toBeUndefined();
-      stop();
-      await done;
-
-      expect(existsSync(logIn(directory))).toBe(false);
-    }));
 });
