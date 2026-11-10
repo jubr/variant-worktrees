@@ -180,4 +180,17 @@ export type {
   WatchReport,
   WatchResult,
 } from "./types.js";
+export {
+  formatVersionLine,
+  platformToken,
+  REPOSITORY_URL,
+  readVariant,
+  renderBanner,
+  renderVersion,
+  resolveVersionFacts,
+  utcDate,
+  VERSION_BANNER,
+  variantString,
+  versionColor,
+} from "./version-line.js";
 export { ensureWorktree, primaryWorktree } from "./worktree.js";

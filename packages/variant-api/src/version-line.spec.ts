@@ -146,6 +146,12 @@ describe("version line", () => {
       expect(readVariant(main)).toBe("");
       expect(resolveVersionFacts(main, new Date("2001-02-03T04:05:06Z")).date).toBe("2001-02-03");
       expect(resolveVersionFacts(feature, new Date("2001-02-03T04:05:06Z")).date).toBe("2001-02-03 04:05:06");
+      expect(
+        resolveVersionFacts(feature, new Date("1999-01-01T00:00:00Z"), {
+          date: "2001-02-03 04:05:06",
+          variant: "baked-1-abcd",
+        }),
+      ).toEqual({ date: "2001-02-03 04:05:06", variant: "baked-1-abcd" });
     } finally {
       rmSync(feature, { recursive: true, force: true });
       rmSync(main, { recursive: true, force: true });

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { platformToken, VERSION_BANNER, variantString } from "variant-api";
 import { runCli, runCommand } from "./test/cli.js";
-import { platformToken, VERSION_BANNER, variantString } from "./version-line.js";
 
 /** Package version plus `variantString` for this checkout. */
 const versionToken = (version: string): string => {

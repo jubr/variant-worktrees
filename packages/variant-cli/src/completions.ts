@@ -8,7 +8,7 @@
  */
 import { commands } from "variant-api/commands";
 import { flagSpecsFor, UI_DESCRIPTION, UI_FLAGS } from "./cli-flags.js";
-import { LOG_LEVEL_FLAG } from "./log-level.js";
+import { LOG_LEVEL_FLAG } from "./ipc-log.js";
 import { GLOBAL_FLAGS } from "./output.js";
 
 export const SHELLS = ["zsh", "bash", "fish"] as const;

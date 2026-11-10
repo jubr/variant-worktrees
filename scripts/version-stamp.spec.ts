@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { utcDate, variantString } from "../packages/variant-cli/src/version-line.ts";
+import { utcDate, variantString } from "../packages/variant-api/src/version-line.ts";
 import { versionDefines } from "./version-stamp.ts";
 
 const repo = join(import.meta.dir, "..");

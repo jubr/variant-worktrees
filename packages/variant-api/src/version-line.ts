@@ -4,7 +4,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { sanitizeSlug } from "variant-api";
+import { sanitizeSlug } from "./slug.js";
 
 export const REPOSITORY_URL = "https://github.com/jubr/variant-worktrees";
 
@@ -52,14 +52,18 @@ export const utcDate = (now: Date, variant: string): string => {
   return variant ? `${iso.slice(0, 10)} ${iso.slice(11, 19)}` : iso.slice(0, 10);
 };
 
-declare const VARIANT_BUILD_DATE: string | undefined;
-declare const VARIANT_BUILD_VARIANT: string | undefined;
-
-/** Date and `variant` from the build stamp when it was baked, otherwise from this checkout and `now`. */
-export const resolveVersionFacts = (directory: string, now: Date): { date: string; variant: string } => {
-  const variant = typeof VARIANT_BUILD_VARIANT === "string" ? VARIANT_BUILD_VARIANT : readVariant(directory);
+/**
+ * Date and `variant` from `baked` when a build stamped them, otherwise from this checkout and `now`.
+ * The CLI passes the stamp. The library does not read build globals, so a published package stays unstamped.
+ */
+export const resolveVersionFacts = (
+  directory: string,
+  now: Date,
+  baked: { date?: string; variant?: string } = {},
+): { date: string; variant: string } => {
+  const variant = baked.variant ?? readVariant(directory);
   return {
-    date: typeof VARIANT_BUILD_DATE === "string" ? VARIANT_BUILD_DATE : utcDate(now, variant),
+    date: baked.date ?? utcDate(now, variant),
     variant,
   };
 };

@@ -1,4 +1,4 @@
-import { LOG_LEVEL_FLAG } from "./log-level.js";
+import { LOG_LEVEL_FLAG } from "./ipc-log.js";
 import { GLOBAL_FLAGS } from "./output.js";
 
 /** Flags cleye adds itself; they apply to every command, so they are listed with the global flags. */

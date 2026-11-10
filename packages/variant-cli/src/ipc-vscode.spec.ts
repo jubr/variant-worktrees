@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LogLevel, log, setLogSink } from "variant-api";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
-import { attachLogLevel, finishCliLog } from "./log-level.ts";
+import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.ts";
 import { runCommand, withVariants } from "./test/cli.js";
 
 const roots: string[] = [];
@@ -22,6 +22,14 @@ const waitFor = async (ready: () => boolean): Promise<void> => {
 };
 
 describe("vscode log stream", () => {
+  it("reads -s and --slug for the log sink", () => {
+    expect(explicitSlug(["list", "-s", "release-smoke"])).toBe("release-smoke");
+    expect(explicitSlug(["--slug=release-smoke", "implode"])).toBe("release-smoke");
+    expect(explicitSlug(["list"])).toBeUndefined();
+    expect(explicitSlug(["list", "-s"])).toBeUndefined();
+    expect(explicitSlug(["--slug="])).toBeUndefined();
+  });
+
   afterEach(() => {
     setLogSink(undefined);
     for (const root of roots.splice(0)) {

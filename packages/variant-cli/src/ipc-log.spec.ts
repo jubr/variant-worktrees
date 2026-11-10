@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LogLevel, log, setLogSink } from "variant-api";
 import { schemaHeaderFor } from "variant-config";
-import { attachLogLevel, explicitSlug, formatLogEvent } from "./log-level.ts";
+import { formatLogEvent } from "./ipc-log.ts";
+import { attachLogLevel } from "./ipc-vscode.ts";
 import { runCli, runCommand, withVariants } from "./test/cli.js";
 
 const CLEAN_DB = {
@@ -128,12 +129,6 @@ describe("log level flag", () => {
     expect(lines.join("")).not.toContain("cmd=");
     expect(lines.join("")).not.toContain(" [cli]");
     expect(lines.join("")).not.toContain(" @cli");
-  });
-
-  it("reads -s and --slug for the log sink", () => {
-    expect(explicitSlug(["list", "-s", "release-smoke"])).toBe("release-smoke");
-    expect(explicitSlug(["--slug=release-smoke", "implode"])).toBe("release-smoke");
-    expect(explicitSlug(["list"])).toBeUndefined();
   });
 
   it("prints the message after the level when the event has no step", () => {

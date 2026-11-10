@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { LogLevel, log, setLogSink } from "variant-api";
+import { LogLevel, log, platformToken, setLogSink } from "variant-api";
 import * as vscode from "vscode";
-import { platformToken } from "../../variant-cli/src/version-line.ts";
 import { activate, deactivate } from "./extension.ts";
 
 const registerCommand = spyOn(vscode.commands, "registerCommand");

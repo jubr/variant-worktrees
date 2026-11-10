@@ -2,19 +2,28 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cli, command } from "cleye";
-import { createClient, listSlugs } from "variant-api";
+import { createClient, listSlugs, platformToken, renderVersion, resolveVersionFacts, versionColor } from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { flagSpecsFor } from "./cli-flags.js";
 import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
 import { renderHelp } from "./help.js";
-import { attachLogLevel, explicitSlug, finishCliLog, takeLogLevel } from "./log-level.js";
+import { takeLogLevel } from "./ipc-log.js";
+import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.js";
 import { migrateConfigFiles } from "./migration.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
-import { platformToken, renderVersion, resolveVersionFacts, versionColor } from "./version-line.js";
 import { printWarnings } from "./warnings.js";
+
+declare const VARIANT_BUILD_DATE: string | undefined;
+declare const VARIANT_BUILD_VARIANT: string | undefined;
+
+/** Stamp captured when this file was bundled. Empty when the CLI runs from source. */
+const bakedVersion = (): { date?: string; variant?: string } => ({
+  ...(typeof VARIANT_BUILD_DATE === "string" ? { date: VARIANT_BUILD_DATE } : {}),
+  ...(typeof VARIANT_BUILD_VARIANT === "string" ? { variant: VARIANT_BUILD_VARIANT } : {}),
+});
 
 const { version } = pkg;
 
@@ -114,7 +123,7 @@ try {
   }
   if (args.includes("--version") && requested === undefined) {
     const directory = dirname(fileURLToPath(import.meta.url));
-    const facts = resolveVersionFacts(directory, new Date());
+    const facts = resolveVersionFacts(directory, new Date(), bakedVersion());
     process.stdout.write(
       renderVersion({
         version,
