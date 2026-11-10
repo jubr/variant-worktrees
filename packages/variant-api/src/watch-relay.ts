@@ -228,8 +228,8 @@ const readLine = (stream: NodeJS.ReadableStream): Promise<string> =>
 
 /** Entry the relay child runs: one JSON plan on stdin, one JSON line of pids on stdout, then the watches. */
 export const runWatchRelay = async (): Promise<void> => {
-  const plan = JSON.parse(await readStdin()) as RelayPlan;
   try {
+    const plan = JSON.parse(await readStdin()) as RelayPlan;
     const launched = await launchWatches({
       launches: plan.launches,
       startDelayMs: plan.startDelayMs,
@@ -306,5 +306,6 @@ const invokedDirectly = (): boolean => {
 };
 
 if (invokedDirectly()) {
-  await runWatchRelay();
+  // AIDEV-NOTE: No top-level await. The VS Code extension bundles this module as CommonJS.
+  void runWatchRelay();
 }
