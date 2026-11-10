@@ -27,6 +27,18 @@ const config: BuildOptions = {
   logLevel: "info",
 };
 
+/** A spawnable relay. The extension bundle looks for this file beside `extension.cjs`. */
+export const watchRelayBundle: BuildOptions = {
+  entryPoints: ["../variant-api/src/watch-relay.ts"],
+  bundle: true,
+  platform: "node",
+  target: "node22",
+  format: "esm",
+  outfile: "./dist/watch-relay.js",
+  external: ["bun:sqlite"],
+  logLevel: "info",
+};
+
 export const mcpBundle: BuildOptions = {
   entryPoints: ["./src/mcp-entry.ts"],
   bundle: true,

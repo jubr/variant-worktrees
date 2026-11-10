@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stopProcessTree } from "./processes.js";
 import { sleep } from "./sleep.js";
@@ -179,15 +179,27 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
 /** A compiled executable reports its script inside an embedded file system. Same test `variant ui` uses. */
 const EMBEDDED_SCRIPT = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/;
 
-/** This module on disk, when the process is running the TypeScript source. */
-export const relayModulePath = (): string => fileURLToPath(import.meta.url);
+const RELAY_FILE = /watch-relay\.(ts|js)$/;
 
 /**
- * The command that runs this relay. A source checkout executes the module file. A compiled executable, or a bundle
- * whose script is not this file, re-enters itself with `--internal-watch-relay`.
+ * The relay file to spawn. The source file while tests import this module. The sibling `watch-relay.js` when this
+ * module was bundled into `dist/index.js` or the extension. Anything else is not a relay file.
+ */
+export const relayModulePath = (): string => {
+  const self = fileURLToPath(import.meta.url);
+  if (RELAY_FILE.test(self)) {
+    return self;
+  }
+  const sibling = join(dirname(self), "watch-relay.js");
+  return existsSync(sibling) ? sibling : self;
+};
+
+/**
+ * The command that runs this relay. A source checkout or a `watch-relay.js` bundle executes that file. A compiled
+ * executable, or a bundle with no relay file beside it, re-enters itself with `--internal-watch-relay`.
  */
 export const relaySpawnArgs = (execPath: string, script: string | undefined, relayFile: string): string[] => {
-  if (existsSync(relayFile) && relayFile.endsWith("watch-relay.ts")) {
+  if (existsSync(relayFile) && RELAY_FILE.test(relayFile)) {
     return [execPath, relayFile];
   }
   if (script !== undefined && !EMBEDDED_SCRIPT.test(script) && existsSync(script)) {
@@ -262,10 +274,14 @@ export const runWatchRelay = async (): Promise<void> => {
  */
 export const startDetachedRelay = async (plan: RelayPlan): Promise<Record<string, number>> => {
   const args = relaySpawnArgs(process.execPath, process.argv[1], relayModulePath());
+  const env = { ...process.env };
+  if (process.versions.electron !== undefined) {
+    env.ELECTRON_RUN_AS_NODE = "1";
+  }
   const child = spawn(args[0] as string, args.slice(1), {
     detached: true,
     stdio: ["pipe", "pipe", "ignore"],
-    env: process.env,
+    env,
   });
   child.unref();
   child.on("error", () => {});
@@ -295,7 +311,7 @@ export const startDetachedRelay = async (plan: RelayPlan): Promise<Record<string
 const invokedDirectly = (): boolean => {
   const script = process.argv[1];
   // A bundled CLI shares this module. Only the spawned source file should enter the relay on its own.
-  if (script === undefined || !script.endsWith("watch-relay.ts")) {
+  if (script === undefined || !RELAY_FILE.test(script)) {
     return false;
   }
   try {
