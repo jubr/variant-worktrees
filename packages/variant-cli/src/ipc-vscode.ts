@@ -94,6 +94,9 @@ const detectedSlug = (directory: string): string | undefined => {
   }
 };
 
+/** `ipc` and `cli` are the CLI's own bookkeeping. They stay on stderr and never go to vscode. */
+const localOnly = (event: LogEvent): boolean => event.step === "ipc" || event.step === "cli";
+
 const deliver = async (event: LogEvent, directory: string, slug: string | undefined): Promise<void> => {
   if (connecting === undefined) {
     connecting = connect(socketPath(directory)).then(
@@ -108,7 +111,7 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
     );
   }
   await connecting;
-  if (socketDropped || vscodeClient === undefined) {
+  if (socketDropped || vscodeClient === undefined || localOnly(event)) {
     return;
   }
   const args: Record<string, unknown> = { level: event.level, message: event.message, origin: LogOrigin.cli };
@@ -132,7 +135,7 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
 
 /**
  * Prints events at or above `level` to stderr. Lower events are dropped.
- * `vscode` also sends every event on the project socket.
+ * `vscode` also sends every event on the project socket, except steps `ipc` and `cli`.
  * Specification: openspec/specs/variant-cli/logging/spec.md
  */
 export const attachLogLevel = (level: LogLevel, vscode?: { directory: string; slug?: string }): void => {
@@ -155,7 +158,7 @@ export const attachLogLevel = (level: LogLevel, vscode?: { directory: string; sl
   });
 };
 
-/** Emits the CLI-end debug event, waits until queued vscode sends have finished, then closes the socket. */
+/** Emits the local CLI-end debug line, waits until queued vscode sends have finished, then closes the socket. */
 export const finishCliLog = async (): Promise<void> => {
   logD("end", { step: "cli" });
   let pending = sendChain;

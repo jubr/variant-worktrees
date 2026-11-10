@@ -68,9 +68,8 @@ describe("vscode log stream", () => {
         name: "log",
         args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth", origin: "cli" },
       },
-      { name: "log", args: { level: "debug", message: "end", step: "cli", origin: "cli" } },
-      { name: "log", args: { level: "debug", message: "connected", step: "ipc", origin: "cli" } },
     ]);
+    expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
     expect(stdout.join("")).not.toContain("+ mise install");
   });
 
@@ -95,7 +94,7 @@ describe("vscode log stream", () => {
       log(LogLevel.info, "listed variants");
       log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
       await finishCliLog();
-      await waitFor(() => seen.some((request) => request.args.message === "end"));
+      await waitFor(() => seen.some((request) => request.args.message === "listed variants"));
     } finally {
       process.stderr.write = write;
       setLogSink(undefined);
@@ -106,10 +105,8 @@ describe("vscode log stream", () => {
       name: "log",
       args: { level: "info", message: "listed variants", origin: "cli", slug: "main" },
     });
-    expect(seen).toContainEqual({
-      name: "log",
-      args: { level: "debug", message: "end", step: "cli", origin: "cli", slug: "main" },
-    });
+    expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
+    expect(stderr.join("")).toContain("[debug] cli end");
     expect(seen).toContainEqual({
       name: "log",
       args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth", origin: "cli" },
@@ -131,11 +128,12 @@ describe("vscode log stream", () => {
       attachLogLevel(LogLevel.debug, { directory, slug: "release-smoke" });
       log(LogLevel.debug, "ready");
       await finishCliLog();
-      await waitFor(() => seen.some((request) => request.args.message === "connected"));
+      await waitFor(() => seen.some((request) => request.args.message === "ready"));
       expect(seen).toContainEqual({
         name: "log",
-        args: { level: "debug", message: "connected", step: "ipc", origin: "cli", slug: "release-smoke" },
+        args: { level: "debug", message: "ready", origin: "cli", slug: "release-smoke" },
       });
+      expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
       expect(seen.some((request) => request.args.slug === "main")).toBe(false);
     } finally {
       setLogSink(undefined);
@@ -196,7 +194,7 @@ describe("vscode log stream", () => {
 
     expect(lines.filter((line) => line.includes("ipc connected"))).toEqual(["[debug] ipc connected\n"]);
     expect(lines.join("")).not.toContain("connect failed");
-    expect(seen.filter((request) => request.args.message === "connected")).toHaveLength(1);
+    expect(seen.filter((request) => request.args.step === "ipc" || request.args.step === "cli")).toHaveLength(0);
   });
 
   it("prints one connect-failure debug and one cli-end debug when list finds no vscode", () =>
@@ -231,10 +229,7 @@ describe("vscode log stream", () => {
         ]);
         expect(result.stderr.split("\n").filter((line) => line === "[debug] cli end")).toEqual(["[debug] cli end"]);
         expect(result.stderr).not.toContain("connect failed");
-        expect(seen).toContainEqual({
-          name: "log",
-          args: { level: "debug", message: "end", step: "cli", origin: "cli" },
-        });
+        expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
       } finally {
         await listener.stop();
       }
