@@ -1,15 +1,30 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
+import {
+  closeSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  openSync,
+  realpathSync,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
+import { PassThrough } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stopProcessTree } from "./processes.js";
 import { sleep } from "./sleep.js";
+
+/** `tty` gives the process a terminal. `no-tty` keeps pipes. */
+export type WatchOutputMode = "tty" | "no-tty";
 
 export interface WatchLaunch {
   key: string;
   command: string;
   cwd: string;
   env: NodeJS.ProcessEnv;
+  /** Absent means pipes. */
+  outputMode?: WatchOutputMode;
 }
 
 export interface LaunchWatchesOptions {
@@ -126,6 +141,75 @@ const relay = (
   );
 };
 
+/** BSD `script` writes this when its stdin is `/dev/null`, before the process output. */
+const SCRIPT_EOF = "^\u0044\b\b";
+
+/** Drops a leading `^D` backspace echo. Later bytes pass through. */
+const withoutScriptEof = (stream: NodeJS.ReadableStream): NodeJS.ReadableStream => {
+  const out = new PassThrough();
+  let pending = "";
+  let decided = false;
+  const emit = (text: string): void => {
+    if (text.length > 0) {
+      out.write(text);
+    }
+  };
+  stream.setEncoding("utf8");
+  stream.on("data", (chunk: string) => {
+    if (decided) {
+      emit(chunk);
+      return;
+    }
+    pending += chunk;
+    if (SCRIPT_EOF.startsWith(pending) && pending.length < SCRIPT_EOF.length) {
+      return;
+    }
+    decided = true;
+    emit(pending.startsWith(SCRIPT_EOF) ? pending.slice(SCRIPT_EOF.length) : pending);
+    pending = "";
+  });
+  stream.on("end", () => {
+    if (!decided && pending.length > 0) {
+      emit(pending);
+    }
+    out.end();
+  });
+  stream.on("error", () => out.end());
+  return out;
+};
+
+const colorTerm = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
+  const term = env.TERM;
+  if (term === undefined || term.length === 0 || term === "dumb") {
+    return { ...env, TERM: "xterm-256color" };
+  }
+  return env;
+};
+
+/** Wide terminal, then the watch command. The command variable is unset before the command runs. */
+const TTY_WRAPPER =
+  'cmd=$VARIANT_WATCH_COMMAND; unset VARIANT_WATCH_COMMAND; stty cols 10000 rows 200; exec sh -c "$cmd"';
+
+/** `script` flags differ. Linux takes `-c`. macOS takes the command after the typescript file. */
+const ttySpawnArgs = (): string[] =>
+  process.platform === "linux"
+    ? ["-q", "-e", "-f", "-c", TTY_WRAPPER, "/dev/null"]
+    : ["-q", "/dev/null", "sh", "-c", TTY_WRAPPER];
+
+const spawnOnTerminal = (launch: WatchLaunch): ChildProcess => {
+  const stdin = openSync("/dev/null", "r");
+  try {
+    return spawn("script", ttySpawnArgs(), {
+      cwd: launch.cwd,
+      env: { ...colorTerm(launch.env), VARIANT_WATCH_COMMAND: launch.command },
+      detached: true,
+      stdio: [stdin, "pipe", "pipe"],
+    });
+  } finally {
+    closeSync(stdin);
+  }
+};
+
 /**
  * Starts each watch, prefixes its stdout and stderr, and tees those lines to the console sinks and the log file.
  * Specification: openspec/specs/variant-api/runtime/spec.md
@@ -142,14 +226,17 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
       const banner = `[${launch.key}] ${launch.command}`;
       options.onBanner?.(banner);
       log?.write(`${banner}\n`);
+      const terminal = launch.outputMode === "tty";
       let child: ChildProcess;
       try {
-        child = spawn("sh", ["-c", launch.command], {
-          cwd: launch.cwd,
-          env: launch.env,
-          detached: true,
-          stdio: [options.inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
-        });
+        child = terminal
+          ? spawnOnTerminal(launch)
+          : spawn("sh", ["-c", launch.command], {
+              cwd: launch.cwd,
+              env: launch.env,
+              detached: true,
+              stdio: [options.inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
+            });
       } catch {
         throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
       }
@@ -157,7 +244,8 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
       if (!child.pid || child.stdout === null || child.stderr === null) {
         throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
       }
-      relay(child.stdout, launch.key, options.stdout, log?.write, finished);
+      // AIDEV-NOTE: a terminal mixes the process stderr into the transcript. That transcript is the stdout stream.
+      relay(terminal ? withoutScriptEof(child.stdout) : child.stdout, launch.key, options.stdout, log?.write, finished);
       relay(child.stderr, launch.key, options.stderr, log?.write, finished);
       processes.push({ ...launch, pid: child.pid, child });
     }

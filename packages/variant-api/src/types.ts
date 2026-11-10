@@ -129,6 +129,8 @@ export interface UpOptions {
 export interface WatchOptions extends UpOptions {
   /** Start the processes detached from the console and return without waiting. */
   detach?: boolean;
+  /** Output mode for a watch that does not set `output.mode`. Absent means pipes. */
+  outputMode?: "tty" | "no-tty";
   /** Drop the schemas and create them again before the watches start. */
   reprovision?: boolean;
   /** Ends an attached watch as an interrupt (exit code 130), like SIGINT. */

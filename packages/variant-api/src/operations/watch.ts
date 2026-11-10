@@ -17,6 +17,7 @@ interface Launch {
   command: string;
   cwd: string;
   env: NodeJS.ProcessEnv;
+  outputMode?: "tty" | "no-tty";
 }
 
 interface Started extends Launch {
@@ -26,20 +27,23 @@ interface Started extends Launch {
 
 type Outcome = "interrupted" | "ended" | "checkout";
 
-const launches = (context: OperationContext, run: VariantRun): Launch[] => {
+const launches = (context: OperationContext, run: VariantRun, outputMode?: "tty" | "no-tty"): Launch[] => {
   const { config } = context;
-  return Object.entries(config.variant.watches).flatMap(([key, watch]) =>
-    watch.watch
-      ? [
-          {
-            key,
-            command: expandSetting(config, run, watch.watch, `variant.watches.${key}.watch`, key),
-            cwd: resolve(run.projectDir, watch.dir),
-            env: commandEnvironment(config, run, watch.env?.overrides, key),
-          },
-        ]
-      : [],
-  );
+  return Object.entries(config.variant.watches).flatMap(([key, watch]) => {
+    if (!watch.watch) {
+      return [];
+    }
+    const mode = watch.output?.mode ?? outputMode;
+    return [
+      {
+        key,
+        command: expandSetting(config, run, watch.watch, `variant.watches.${key}.watch`, key),
+        cwd: resolve(run.projectDir, watch.dir),
+        env: commandEnvironment(config, run, watch.env?.overrides, key),
+        ...(mode !== undefined ? { outputMode: mode } : {}),
+      },
+    ];
+  });
 };
 
 /** Resolves with what ended an attached watch: an interrupt, a process that ended, or the vanished worktree. */
@@ -103,7 +107,7 @@ export const watchVariant = async (
 
   const delay = config.variant.supervise.startDelaySeconds * 1000;
   const started: Started[] = [];
-  const toStart = launches(context, run);
+  const toStart = launches(context, run, options.outputMode);
   if (toStart.length === 0) {
     log("Warning: nothing was started: no watch has a watch command. Set `watch` on a watch in variants.yaml.");
   }

@@ -53,6 +53,14 @@ if (process.env.PRINT) {
 }
 if (process.env.STDOUT_LINE) console.log(process.env.STDOUT_LINE);
 if (process.env.STDERR_LINE) console.error(process.env.STDERR_LINE);
+if (process.env.TTY_PROBE) {
+  const terminal = process.stdout.isTTY === true;
+  console.log(terminal ? "tty" : "pipe");
+  console.log(terminal ? "\u001b[32mgreen\u001b[0m" : "plain");
+  console.error("oops");
+  console.log("cols " + String(process.stdout.columns ?? 0));
+  console.log("term " + (process.env.TERM ?? ""));
+}
 if (process.env.WAIT_FILE) {
   const deadline = Date.now() + 10000;
   const pause = new Int32Array(new SharedArrayBuffer(4));
@@ -954,4 +962,157 @@ describe("detached watch log", () => {
       },
       PRINTING.replace("dir: be", "dir: gone"),
     ));
+});
+
+describe("watch output terminal", () => {
+  const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
+  const green = "\u001b[32mgreen\u001b[0m";
+  const feLine = watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'");
+  const probe = (mode?: "tty" | "no-tty"): string => {
+    const body = feLine.replace("ORDER_LOG:", "TTY_PROBE: '1', ORDER_LOG:");
+    const withMode = mode === undefined ? body : body.replace(/\}$/, `, output: { mode: ${mode} }}`);
+    return BASE.replace(`    fe: ${feLine}`, `    fe: ${withMode}`);
+  };
+
+  it("writes terminal color to stdout and the log, including stderr, without the allocator echo", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] tty"), 2000).catch(() => {});
+        const logged = existsSync(log) ? readFileSync(log, "utf8") : "";
+        expect(stdout.text()).toContain("[fe] tty\n");
+        expect(stdout.text()).toContain(`[fe] ${green}\n`);
+        expect(stdout.text()).toContain("[fe] oops\n");
+        expect(stdout.text()).toContain("[fe] cols 10000\n");
+        expect(stdout.text()).not.toContain("^D\b\b");
+        expect(logged).toContain("[fe] tty\n");
+        expect(logged).toContain(`[fe] ${green}\n`);
+        expect(logged).toContain("[fe] oops\n");
+        expect(logged).not.toContain("^D\b\b");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("keeps pipes when the mode is no-tty", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const stderr = captureWrite(process.stderr);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] pipe"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] pipe\n");
+        expect(stdout.text()).toContain("[fe] plain\n");
+        expect(stdout.text()).not.toContain("\u001b[32m");
+        expect(stdout.text()).not.toContain("oops");
+        expect(stderr.text()).toContain("[fe] oops\n");
+      } finally {
+        stdout.stop();
+        stderr.stop();
+        stop();
+        await done;
+      }
+    }, probe("no-tty")));
+
+  it("keeps pipes when the mode and the caller default are both omitted", () =>
+    withProject(async ({ attach, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        await until(() => stdout.text().includes("[fe] pipe"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] pipe\n");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe()));
+
+  it("uses a caller default of tty when the watch sets no mode", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const { done, stop } = attach({ outputMode: "tty" });
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] tty"), 2000).catch(() => {});
+        expect(readFileSync(log, "utf8")).toContain("[fe] tty\n");
+      } finally {
+        stop();
+        await done;
+      }
+    }, probe()));
+
+  it("keeps an explicit no-tty when the caller asks for a terminal", () =>
+    withProject(async ({ attach, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach({ outputMode: "tty" });
+      try {
+        await started("fe");
+        await until(() => stdout.text().includes("[fe] pipe"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] pipe\n");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("no-tty")));
+
+  it("replaces a dumb TERM with a color terminal", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const previous = process.env.TERM;
+      process.env.TERM = "dumb";
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] term "), 2000).catch(() => {});
+        expect(readFileSync(log, "utf8")).toContain("[fe] term xterm-256color\n");
+      } finally {
+        if (previous === undefined) delete process.env.TERM;
+        else process.env.TERM = previous;
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("leaves a set TERM alone", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const previous = process.env.TERM;
+      process.env.TERM = "vt100";
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] term "), 2000).catch(() => {});
+        expect(readFileSync(log, "utf8")).toContain("[fe] term vt100\n");
+      } finally {
+        if (previous === undefined) delete process.env.TERM;
+        else process.env.TERM = previous;
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("keeps detached terminal color in the log and off the caller's stdout", () =>
+    withProject(async ({ watch, directory }) => {
+      const stdout = captureWrite(process.stdout);
+      try {
+        await watch({ detach: true });
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes(green), 2000).catch(() => {});
+        expect(readFileSync(log, "utf8")).toContain(`[fe] ${green}\n`);
+        expect(stdout.text()).not.toContain(green);
+        expect(stdout.text()).not.toContain("[fe] tty");
+      } finally {
+        stdout.stop();
+      }
+    }, probe("tty")));
 });
