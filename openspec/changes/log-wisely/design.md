@@ -51,7 +51,7 @@ Alternative: quote only in the formatter and leave the message as `+ cmd`. Rejec
 
 ### Slug on the event, and CLI fill-in for the rest
 
-Implode passes the variant slug on the finish event and the branch event. The CLI, once arguments are parsed, passes an explicit `-s` / `--slug` into the sink. The sink uses that value only when the event has no slug, so a schema line that already carries `release-smoke` stays, and `ipc` / `cli end` during `variant implode -s release-smoke` from `main` take `release-smoke` too. With no explicit slug, working-directory detection stays, including `main`.
+Implode passes the variant slug on the finish event and the branch event. The CLI, once arguments are parsed, passes an explicit `-s` / `--slug` into the sink. The sink uses that value only when the event has no slug, so a schema line that already carries `release-smoke` stays, and a bare event during `variant implode -s release-smoke` from `main` takes `release-smoke` too. Steps `ipc` and `cli` stay on stderr and are not sent. With no explicit slug, working-directory detection stays, including `main`.
 
 Alternative: change only the CLI fill-in and leave implode's `logD` calls slug-less. Rejected: the extension logs implode in-process and would still show the checkout slug.
 
