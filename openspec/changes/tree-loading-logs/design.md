@@ -38,6 +38,16 @@ The `[key] command` banner is written by `launchWatches` to stderr when a stderr
 
 Opening stays where it is: after every ready watch has returned 200, open each URL template unless `variant.open` is already false (`VARIANT_OPEN=0` is applied when config loads). A 204 stays in the waiting set until timeout.
 
+### A terminal when the watch asks for color
+
+`variant.watches.<name>.output.mode` is `tty` or `no-tty`. Absent, the mode is the caller's default, and that default is `no-tty` when the caller does not set one.
+
+`no-tty` keeps the pipes. Stdout and stderr stay separate, and neither is a terminal, so a program that colors only on a terminal stays plain.
+
+`tty` starts the process with `script`, so stdout and stderr are one pseudo-terminal and both answer as a terminal. The wrapper runs `stty cols 10000 rows 200` before the command, so a long colored line is not folded. When `TERM` is unset or `dumb`, the process gets `TERM=xterm-256color`. Any other `TERM` stays. Stdin of `script` is `/dev/null`. BSD `script` then writes the four bytes `^D` and two backspaces; those bytes are dropped and never reach the log. The terminal transcript, which mixes the process's stdout and stderr, is relayed as stdout lines: prefixed, written to the log, and, when a stdout sink exists, to that sink. The caller's stdin is not the process's stdin.
+
+The extension is the caller that can see enabled extensions. It passes `tty` when any enabled extension's `description` contains `log` and `ansi`, ignoring case, and `no-tty` otherwise. An explicit `output.mode` still wins. The CLI does not pass a default.
+
 ### Tree confirmation
 
 `confirmStarted` loads `ready` for every watch key on the record that has a URL. Keys with no `ready` are skipped. Each remaining URL is fetched in one pass, then the loop sleeps one second. The loading icon stays until every remaining watch has returned 200. `ActivityLog` gains `debug`. The first fetch and the first 200 call `log.debug(readyProbeLine(...))`. The row URL opens once when the last 200 arrives. A dead pid on a watch that is not yet 200 releases the icon and does not open.
@@ -48,7 +58,9 @@ Opening stays where it is: after every ready watch has returned 200, open each U
 - [Relay child exits] → Watch pipes break and the log stops. The child is detached and unref'd, and the parent does not signal it on return.
 - [Compiled binary looks like a script] → The embedded-script test selects `--internal-watch-relay`. A runtime test covers the on-disk spawn; the existing compiled-CLI suite covers the flag only if it already builds a binary. Do not add a new compile step for this change.
 - [File buffer lags the console] → Accepted. The console write is not delayed. The queue still lands every line in the file.
-- [Attached stdin] → Stdin stays inherited so a watch that reads it still can. Only stdout and stderr are piped.
+- [Attached stdin] → Stdin stays inherited for `no-tty`, so a watch that reads it still can. `tty` uses a pseudo-terminal and does not take the caller's keyboard.
+- [`script` is missing] → A `tty` watch fails to start and the error names the watch. Windows has no `script`.
+- [Terminal transcript mixes stderr] → Accepted for `tty`. `no-tty` still keeps stderr on stderr.
 
 ## Migration Plan
 

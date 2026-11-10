@@ -9,6 +9,7 @@ Starting a variant from the tree clears the loading icon when the one watch that
 - **BREAKING** An attached `watch` truncates that log, records its absolute path as `log`, and keeps the file across `down` the same way a detached watch does.
 - On the first probe of a watch that sets `ready`, stderr and the log gain `[watch] {name} URL try {url}`. On the first HTTP 200 they gain `[watch] {name} URL 200 {url}`. `{url}` is the rendered watch URL joined with `ready`. A watch with `ready` and no URL template still uses `http://127.0.0.1:<port><ready>`. Opening the watch URL stays after every such watch has returned 200, and `VARIANT_OPEN=0` or `variant.open: false` still skips the browser.
 - A ready response counts only for status 200.
+- A watch accepts `output.mode` of `tty` or `no-tty`. `tty` starts that process on a pseudo-terminal, so it prints color. `no-tty` keeps the pipes. When `output.mode` is omitted, the extension uses `tty` if an enabled extension has both `log` and `ansi` in its description, and `no-tty` otherwise. The CLI, which does not see extensions, uses `no-tty`.
 
 ## Capabilities
 
@@ -20,11 +21,14 @@ Starting a variant from the tree clears the loading icon when the one watch that
 - `variant-api/runtime`: one relay prefixes and tees watch output for attached and detached `watch`, attached records `log`, and readiness logs the full URL on the first try and the first 200.
 - `variant-api/status`: `log` is the watch log recorded for either attach mode.
 - `variant-api/commands`: the `list` log column is that same path.
+- `variant-config/cfg-watches`: `output.mode` is `tty` or `no-tty`.
+- `variant-vscode/variants-tree`: starting a watch supplies the default mode from enabled extensions.
 
 ## Impact
 
-- `packages/variant-api` watch spawn, readiness, and the watch tests.
-- `packages/variant-vscode` tree confirmation and its tests. `ActivityLog` gains `debug`.
+- `packages/variant-api` watch spawn, readiness, and the watch tests. `tty` spawns through a pseudo-terminal.
+- `packages/variant-config` schema, `variants.example.yaml`, and `variants.yaml.schema.json`.
+- `packages/variant-vscode` tree confirmation and its tests. `ActivityLog` gains `debug`. The extension picks the default output mode from enabled extensions.
 - `list` and `status` show `log` for an attached watch that recorded one.
 - `README.md`, `docs/guide/core.md`, `docs/guide/configuration.md`, `docs/mcp.md`, `packages/variant-vscode/README.md`, and `CHANGELOG.md`.
 

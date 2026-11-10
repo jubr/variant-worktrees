@@ -81,7 +81,7 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 
 ### Requirement: Watch output log
 
-`watch` SHALL capture stdout and stderr of every process it starts, attached or detached. Each complete line from a process's stdout SHALL be written to standard output as `[{name}] {line}`. Each complete line from a process's stderr SHALL be written to standard error as `[{name}] {line}`. `{name}` is the watch key. A trailing partial line SHALL be written the same way when the stream ends. The same prefixed line SHALL be appended to `.cache/variant/watch.log` in the variant directory. Appending that line SHALL NOT block the write to standard output or standard error. The file is git-ignored and removed with the worktree. `watch` SHALL truncate the file when it starts, write the line `[{name}] {command}` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. A line SHALL reach the file while the process still runs. A detached `watch` SHALL prefix and record lines the same way. After that call returns, capture SHALL keep writing the file until the processes end, and SHALL NOT write the caller's terminal. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
+`watch` SHALL capture stdout and stderr of every process it starts, attached or detached. For a watch whose output mode is not `tty`, each complete line from a process's stdout SHALL be written to standard output as `[{name}] {line}` and each complete line from a process's stderr SHALL be written to standard error as `[{name}] {line}`. For a watch whose output mode is `tty`, stdout and stderr are one terminal, and each complete line of that transcript SHALL be written as a standard-output line `[{name}] {line}`. `{name}` is the watch key. A trailing partial line SHALL be written the same way when the stream ends. The same prefixed line SHALL be appended to `.cache/variant/watch.log` in the variant directory. Appending that line SHALL NOT block the write to standard output or standard error. The file is git-ignored and removed with the worktree. `watch` SHALL truncate the file when it starts, write the line `[{name}] {command}` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. A line SHALL reach the file while the process still runs. A detached `watch` SHALL prefix and record lines the same way. After that call returns, capture SHALL keep writing the file until the processes end, and SHALL NOT write the caller's terminal. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
 
 #### Scenario: Attached stdout is prefixed and logged
 
@@ -90,7 +90,7 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 
 #### Scenario: Stderr stays on stderr
 
-- **WHEN** a watch prints `oops` on stderr
+- **WHEN** a watch whose output mode is not `tty` prints `oops` on stderr
 - **THEN** standard error contains `[fe] oops`, standard output does not, and the log file contains `[fe] oops`
 
 #### Scenario: Log path recorded for an attached watch
@@ -128,3 +128,45 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 
 - **WHEN** `up` runs
 - **THEN** no `.cache/variant/watch.log` is written and no `log` is recorded
+
+### Requirement: Watch output terminal
+
+A watch's output mode SHALL be `tty` or `no-tty`. `variant.watches.<name>.output.mode` sets it. When that is unset, the mode SHALL be the default the caller passed, and `no-tty` when the caller passed none. An explicit mode SHALL win over the caller's default. `no-tty` SHALL start the process with pipes, so neither stdout nor stderr is a terminal. `tty` SHALL start the process with stdout and stderr attached to one pseudo-terminal, so both are a terminal, and that terminal SHALL be at least 1000 columns wide. When `TERM` is unset or `dumb`, the process environment SHALL set `TERM` to `xterm-256color`. Any other `TERM` SHALL be left as it is. A line the process writes only because it has a terminal, including an ANSI color sequence, SHALL appear in `.cache/variant/watch.log` and, for an attached watch, on standard output. A line the process writes to stderr SHALL be part of that same transcript. The four bytes `^D` and two backspaces that the terminal allocator writes when its input is closed SHALL NOT appear in the log or on standard output. A detached `tty` watch SHALL write that transcript to the log and SHALL NOT write it to the caller's terminal.
+
+#### Scenario: A terminal prints color
+
+- **WHEN** attached `watch` runs a command with `output.mode: tty` that writes `tty` and an ANSI green line only when stdout is a terminal, and writes `oops` on stderr
+- **THEN** standard output and `.cache/variant/watch.log` contain `[fe] tty`, the green line with its ANSI sequence, and `[fe] oops`
+- **AND** neither contains the `^D` terminal-allocator echo
+
+#### Scenario: Pipes stay plain
+
+- **WHEN** a watch with `output.mode: no-tty` writes `pipe` when stdout is not a terminal, `plain` instead of a color line, and `oops` on stderr
+- **THEN** standard output contains `[fe] pipe` and `[fe] plain` and does not contain an ANSI escape
+- **AND** standard error contains `[fe] oops` and standard output does not
+
+#### Scenario: Omitted mode is not a terminal
+
+- **WHEN** a watch sets no `output.mode` and the caller passes no default, and the command writes `tty` or `pipe` from whether stdout is a terminal
+- **THEN** standard output contains `[fe] pipe`
+
+#### Scenario: Caller default is a terminal
+
+- **WHEN** a watch sets no `output.mode`, the caller passes the default `tty`, and the command writes `tty` when stdout is a terminal
+- **THEN** `.cache/variant/watch.log` contains `[fe] tty`
+
+#### Scenario: Explicit mode wins
+
+- **WHEN** a watch sets `output.mode: no-tty` and the caller passes the default `tty`
+- **THEN** the process stdout is not a terminal
+
+#### Scenario: Dumb TERM becomes a color terminal
+
+- **WHEN** a watch sets `output.mode: tty` and `TERM` is `dumb`
+- **THEN** the process environment has `TERM` `xterm-256color`
+
+#### Scenario: Detached terminal output stays in the log
+
+- **WHEN** `watch` runs detached with `output.mode: tty` and the command writes an ANSI green line because stdout is a terminal
+- **THEN** `.cache/variant/watch.log` contains that line
+- **AND** the caller's standard output does not
