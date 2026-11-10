@@ -110,7 +110,8 @@ describe("createAwakeController", () => {
     controller.update(active());
 
     expect(children.map((child) => child.args)).toEqual(["-disu"]);
-    expect(traces(entries).at(-1)).toBe('[awake] + "caffeinate -disu" pid=4242 reason="activity"');
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu" pid=4242 reason="activity"');
+    expect(traces(entries).some((line) => line.includes("caffeinate -disu"))).toBe(false);
     expect(infos(entries)).toEqual(["[awake] caffeinate available"]);
 
     controller.update(active());
@@ -124,7 +125,8 @@ describe("createAwakeController", () => {
     controller.update(active({ what: "cpu" }));
 
     expect(children.map((child) => child.args)).toEqual(["-dis"]);
-    expect(traces(entries).at(-1)).toBe('[awake] + "caffeinate -dis" pid=4242 reason="activity"');
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -dis" pid=4242 reason="activity"');
+    expect(traces(entries).some((line) => line.includes("caffeinate -dis"))).toBe(false);
   });
 
   it("keeps the process for the grace delay, logs that only at trace, then stops it", () => {

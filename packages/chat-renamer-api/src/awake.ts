@@ -129,7 +129,7 @@ export const createAwakeController = ({
       const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false };
       tracked = running;
       child.once("exit", () => onExit(running));
-      awake.trace(`+ "caffeinate ${args}"`, { pid: child.pid, reason: "activity" });
+      awake.debug(`+ "caffeinate ${args}"`, { pid: child.pid, reason: "activity" });
     } catch (error) {
       awake.error("start failed", error);
     }

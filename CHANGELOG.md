@@ -23,7 +23,7 @@
 - A shell command in the log is `+"<command>"`. Schema lines such as `create schema …` stay plain sentences. The Variant Worktrees channel ends a CLI line with ` @cli` and an MCP line with ` @mcp`.
 - MCP sends each library log event to that socket with origin `mcp`. The logging notification stays unmarked and does not contain ` @mcp` or `cmd=`.
 - A library event for a variant whose project directory is under `/tmp`, including through the `/tmp` symlink, is emitted at `trace`. `list` does not log that it listed. `implode` finish and branch lines carry the variant slug. Log levels are the `LogLevel` string enum.
-- Killing the awake `caffeinate` process is a debug line. A title-event decision whose reason is `rename request` is debug. The awake start line stays trace.
+- Starting and killing the awake `caffeinate` process are debug lines. A title-event decision whose reason is `rename request` is debug. The awake grace lines stay trace.
 - The Variant Worktrees channel's next line after `activating variant-worktrees` is the long `variant --version` text, without color.
 - Existing-chats runs at startup, when the setting changes, and from the command. A title event does not start it. Those lines are debug.
 - `task package:vsix:unpacked` is removed. `task bleed:vsix`, `task bleed:cli`, and `task bleed:mcp` publish the extension, the host `variant` executable, and the host `variant-mcp` executable into `vw-bleeds` beside the checkout. `task bleed:all` runs the three.
