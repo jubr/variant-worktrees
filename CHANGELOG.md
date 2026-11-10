@@ -13,6 +13,9 @@
 
 ### Changed
 
+- Attached and detached `watch` prefix each line with `[name]` and write `.cache/variant/watch.log`. The file is emptied when the watch starts. `down` keeps the file and clears `log` from state. `up` writes no log.
+- The first ready probe writes `[watch] {name} URL try {url}` and the first status 200 writes `[watch] {name} URL 200 {url}` once. Status 204 is not ready. Detach writes neither line and opens nothing.
+- In the Variants tree, the loading icon stays until every watch that has a URL and a `ready` path returns 200. The extension log records those two debug lines. The row URL opens once when the last 200 arrives.
 - The library factory is `createVariantClient`.
 - Startup expands the Explorer **Variant Worktrees** section without taking focus. The one-time onboarding notification focuses that section.
 - `implode` removes the local branch after the worktree. `--branch-rm=yes|no` chooses that step. The default is `yes`. `--branch-rm=no` keeps the branch. A `[debug]` line names the branch.
