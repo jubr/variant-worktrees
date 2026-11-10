@@ -54,7 +54,7 @@ A SQL statement associated with a database failure SHALL be logged at `debug` wh
 
 ### Requirement: Known temporary directory forces trace
 
-The known temporary directories SHALL be `/tmp`. A directory matches when it is one of those directories or a directory inside one. The comparison SHALL use the path as given and the path after symbolic links are resolved, so a link at `/tmp` covers the directory it points at.
+The known temporary directories SHALL be `/tmp`, `/private/tmp`, `/var/folders`, `/var/tmp`, and the process temporary directory. A directory matches when it is one of those directories or a directory inside one. The comparison SHALL use the path as given and the path after symbolic links are resolved, so a link at `/tmp` covers the directory it points at.
 
 The directory the rule selects SHALL be the project directory of the event's variant when the event has a slug, and the process working directory when the event has no slug.
 
@@ -66,10 +66,15 @@ When the selected directory matches, the library SHALL emit that event at `trace
 - **THEN** the event is `trace`, the step is `provision`, the slug is `test-feature`, and the message names the schema
 - **AND** no info event is emitted for that schema creation
 
-#### Scenario: Same line outside /tmp stays info
+#### Scenario: Same line outside the known directories stays info
 
 - **WHEN** provisioning variant `demo` whose project directory is `/work/demo` logs schema creation
 - **THEN** the event is `info`
+
+#### Scenario: User and process temporary directories match
+
+- **WHEN** the variant project directory is `/var/folders/ab/cd`, `/var/tmp/variant-app`, or the process temporary directory
+- **THEN** the event is `trace`
 
 #### Scenario: A link at /tmp matches
 
