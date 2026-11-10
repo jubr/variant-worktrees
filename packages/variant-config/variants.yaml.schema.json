@@ -325,6 +325,19 @@
                 "format": "starts_with",
                 "pattern": "^\\/.*"
               },
+              "output": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "tty",
+                      "no-tty"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
               "container": {
                 "type": "object",
                 "properties": {

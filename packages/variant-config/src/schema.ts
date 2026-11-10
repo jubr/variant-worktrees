@@ -110,6 +110,15 @@ export const WatchContainerSchema = z.strictObject({
 });
 export type WatchContainer = z.infer<typeof WatchContainerSchema>;
 
+/** Whether a watch's process is given a terminal. `tty` so it prints color; `no-tty` keeps pipes. */
+export const WatchOutputModeSchema = z.enum(["tty", "no-tty"]);
+export type WatchOutputMode = z.infer<typeof WatchOutputModeSchema>;
+
+export const WatchOutputSchema = z.strictObject({
+  mode: WatchOutputModeSchema.optional(),
+});
+export type WatchOutput = z.infer<typeof WatchOutputSchema>;
+
 export const VariantWatchSchema = z.strictObject({
   /** What the watch runs; only a label (autodetection sets it and names a root-level watch after it). */
   kind: z.enum(["vite", "nestjs"]).optional(),
@@ -124,6 +133,8 @@ export const VariantWatchSchema = z.strictObject({
   install: z.string().min(1).optional(),
   /** URL path that answers with a success status when the watch serves. */
   ready: z.string().startsWith("/").optional(),
+  /** `tty` gives the process a terminal so it prints color. `no-tty` keeps pipes. Absent: the caller chooses. */
+  output: WatchOutputSchema.optional(),
   container: WatchContainerSchema.optional(),
 });
 /** A watch as written in `variants.yaml`: `dir` may be absent. */
