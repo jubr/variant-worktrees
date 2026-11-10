@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
@@ -7,6 +8,7 @@ import { stringify as stringifyYaml } from "yaml";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
+import { relayModulePath, relaySpawnArgs } from "../watch-relay.js";
 import { downVariant } from "./down.js";
 import type { OperationContext } from "./types.js";
 import { upVariant } from "./up.js";
@@ -42,7 +44,7 @@ const untilDead = (pid: number): Promise<void> => until(() => !isProcessAlive(pi
 
 /** What every watched process runs: it records itself, then idles, or exits after `DIE_AFTER` milliseconds. */
 const WATCH_SCRIPT = `
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 const who = process.env.WHO ?? "variant";
 appendFileSync(process.env.ORDER_LOG ?? "order.log", who + " " + Date.now() + "\\n");
 if (process.env.PRINT) {
@@ -51,6 +53,15 @@ if (process.env.PRINT) {
 }
 if (process.env.STDOUT_LINE) console.log(process.env.STDOUT_LINE);
 if (process.env.STDERR_LINE) console.error(process.env.STDERR_LINE);
+if (process.env.WAIT_FILE) {
+  const deadline = Date.now() + 10000;
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  while (!existsSync(process.env.WAIT_FILE)) {
+    if (Date.now() > deadline) process.exit(2);
+    Atomics.wait(pause, 0, 0, 30);
+  }
+  console.log("ready");
+}
 if (process.env.PARTIAL_STDOUT) process.stdout.write(process.env.PARTIAL_STDOUT + "\\r");
 writeFileSync("started-" + who + ".txt", String(process.pid));
 if (process.env.PARTIAL_STDOUT) process.exit(0);
@@ -542,7 +553,11 @@ const captureWrite = (stream: NodeJS.WriteStream): { text: () => string; stop: (
 
 describe("watch output log", () => {
   const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
-  const withLine = (who: string, name: "STDOUT_LINE" | "STDERR_LINE" | "PARTIAL_STDOUT", value: string): string =>
+  const withLine = (
+    who: string,
+    name: "STDOUT_LINE" | "STDERR_LINE" | "PARTIAL_STDOUT" | "WAIT_FILE",
+    value: string,
+  ): string =>
     BASE.replace(
       `    ${who}: ${watcher(who, who === "fe" ? ", url: 'http://${slug}.vw.localhost:${port}'" : "")}`,
       `    ${who}: ${watcher(who, who === "fe" ? ", url: 'http://${slug}.vw.localhost:${port}'" : "").replace("ORDER_LOG:", `${name}: '${value}', ORDER_LOG:`)}`,
@@ -687,6 +702,71 @@ describe("watch output log", () => {
         await done;
       }
     }));
+
+  it("prefixes detached stdout into the log and leaves it off the caller's stdout", () =>
+    withProject(
+      async ({ watch, directory, runtime }) => {
+        const stdout = captureWrite(process.stdout);
+        try {
+          const result = await watch({ detach: true });
+          const log = logIn(directory);
+          await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] ready"), 1500).catch(() => {});
+          expect(existsSync(log) ? readFileSync(log, "utf8") : "").toContain("[fe] ready\n");
+          expect(stdout.text()).not.toContain("[fe] ready");
+          expect(runtime().log).toBe(log);
+          expect(isProcessAlive(result.processes.find((process) => process.key === "fe")?.pid as number)).toBe(true);
+        } finally {
+          stdout.stop();
+        }
+      },
+      withLine("fe", "STDOUT_LINE", "ready"),
+    ));
+
+  it("appends detached output that arrives after the call returns", () =>
+    withProject(
+      async ({ watch, directory }) => {
+        const stdout = captureWrite(process.stdout);
+        try {
+          await watch({ detach: true });
+          const log = logIn(directory);
+          await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] "), 1500);
+          expect(readFileSync(log, "utf8")).not.toContain("[fe] ready");
+          writeFileSync(join(directory, "go.txt"), "go\n");
+          await until(() => readFileSync(log, "utf8").includes("[fe] ready"), 1500);
+          expect(stdout.text()).not.toContain("[fe] ready");
+        } finally {
+          stdout.stop();
+        }
+      },
+      withLine("fe", "WAIT_FILE", "../go.txt"),
+    ));
+
+  it("spawns the on-disk relay module for a detached watch", () =>
+    withProject(async ({ watch, started }) => {
+      await watch({ detach: true });
+      const commandOf = (pid: number): string =>
+        execFileSync("ps", ["-ww", "-o", "command=", "-p", String(pid)], { encoding: "utf8" }).trim();
+      const parentOf = (pid: number): number =>
+        Number(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).trim());
+      let current = await started("fe");
+      let command = "";
+      for (let hop = 0; hop < 5 && !command.includes("watch-relay.ts"); hop += 1) {
+        current = parentOf(current);
+        command = commandOf(current);
+      }
+      expect(command).toContain("watch-relay.ts");
+    }));
+
+  it("selects --internal-watch-relay when the program is a compiled executable", () => {
+    expect(relaySpawnArgs("/usr/bin/variant", "/$bunfs/root/cli", "/no/such/watch-relay.ts")).toEqual([
+      "/usr/bin/variant",
+      "--internal-watch-relay",
+    ]);
+    expect(relaySpawnArgs(process.execPath, process.argv[1], relayModulePath())).toEqual([
+      process.execPath,
+      relayModulePath(),
+    ]);
+  });
 
   it("writes no watch log for up", () =>
     withProject(async ({ directory, context, runtime }) => {

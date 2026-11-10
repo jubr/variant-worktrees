@@ -351,3 +351,46 @@ describe("variant CLI", () => {
     }
   });
 });
+
+describe("internal watch relay", () => {
+  it("runs the relay before command parsing", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-relay-")));
+    const log = join(directory, "watch.log");
+    try {
+      const proc = Bun.spawn(["bun", "run", "src/cli.ts", "--internal-watch-relay"], {
+        cwd: join(import.meta.dir, ".."),
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      proc.stdin.write(
+        JSON.stringify({
+          launches: [
+            {
+              key: "fe",
+              command: "echo ready",
+              cwd: directory,
+              env: { PATH: process.env.PATH ?? "/usr/bin:/bin" },
+            },
+          ],
+          startDelayMs: 0,
+          logPath: log,
+        }),
+      );
+      proc.stdin.end();
+      const [exitCode, stdout, stderr] = await Promise.all([
+        proc.exited,
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('"pids"');
+      expect(stdout).not.toContain("Usage");
+      expect(stderr).not.toContain("Unknown command");
+      expect(readFileSync(log, "utf8")).toContain("[fe] ready\n");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});

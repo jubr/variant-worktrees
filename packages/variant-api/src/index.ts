@@ -63,4 +63,5 @@ export {
   variantString,
   versionColor,
 } from "./version-line.js";
+export { runWatchRelay } from "./watch-relay.js";
 export { ensureWorktree, primaryWorktree } from "./worktree.js";

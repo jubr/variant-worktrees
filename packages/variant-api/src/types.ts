@@ -28,7 +28,7 @@ export interface RuntimeStatus {
   slug?: string;
   mode?: "up" | "watch";
   dir?: string;
-  /** The log file of a detached watch. */
+  /** The log file of an attached or detached watch. */
   log?: string;
   /** Local time the variant was created, `YYYY-MM-DD_HH:MM:SS`. */
   createdAt?: string;
@@ -46,7 +46,7 @@ export interface VariantRecord extends VariantState {
   watches?: Record<string, WatchFacts>;
   /** The longest time any live recorded process of the variant has been running. */
   uptimeSeconds?: number;
-  /** The absolute path of the log file of its detached watch. */
+  /** The absolute path of the log file of its watch. */
   log?: string;
   /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
   runtime?: RuntimeStatus;

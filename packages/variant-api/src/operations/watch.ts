@@ -1,14 +1,13 @@
-import { type ChildProcess, spawn } from "node:child_process";
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import type { ChildProcess } from "node:child_process";
+import { existsSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 import { stopProcessTree } from "../processes.js";
 import { announce, logToStderr } from "../ready.js";
 import { commandEnvironment, expandSetting, type VariantRun } from "../run-context.js";
 import { clearVariantRuntime, watchLogPath, writeVariantRuntime } from "../runtime-state.js";
-import { sleep } from "../sleep.js";
 import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
-import { launchWatches } from "../watch-relay.js";
+import { launchWatches, startDetachedRelay } from "../watch-relay.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 import { runtimeOf, watchReports } from "./up.js";
@@ -41,26 +40,6 @@ const launches = (context: OperationContext, run: VariantRun): Launch[] => {
         ]
       : [],
   );
-};
-
-/** `output` is the descriptor a detached process writes its stdout and stderr to; an attached one uses the console. */
-const spawnProcess = (launch: Launch, output: number | undefined): Started => {
-  const detach = output !== undefined;
-  const child = spawn("sh", ["-c", launch.command], {
-    cwd: launch.cwd,
-    env: launch.env,
-    detached: true,
-    stdio: detach ? ["ignore", output, output] : "inherit",
-  });
-  // a spawn failure is also reported as an event, which must not end the process
-  child.on("error", () => {});
-  if (!child.pid) {
-    throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
-  }
-  if (detach) {
-    child.unref();
-  }
-  return { ...launch, child, pid: child.pid };
 };
 
 /** Resolves with what ended an attached watch: an interrupt, a process that ended, or the vanished worktree. */
@@ -128,63 +107,42 @@ export const watchVariant = async (
   if (toStart.length === 0) {
     log("Warning: nothing was started: no watch has a watch command. Set `watch` on a watch in variants.yaml.");
   }
-  // AIDEV-NOTE: a detached watch has no console, so every process appends to one file the kernel writes directly
-  // (no pipe), which keeps the output real-time and alive after this process exits. Truncated on each start.
-  const detachedLog = options.detach === true && toStart.length > 0 ? watchLogPath(config, run.worktree) : undefined;
-  const attachedLog = options.detach === true || toStart.length === 0 ? undefined : watchLogPath(config, run.worktree);
+  // AIDEV-NOTE: detach cannot prefix from this process, because the CLI exits. A child runs the same relay and
+  // outlives the call. Attached capture stays in this process. The log is truncated when that relay starts.
+  const logFile = toStart.length === 0 ? undefined : watchLogPath(config, run.worktree);
   let closeLog: () => Promise<void> = async () => {};
-  if (detachedLog) {
-    mkdirSync(dirname(detachedLog), { recursive: true });
-    writeFileSync(detachedLog, "");
-  }
-  const output = detachedLog ? openSync(detachedLog, "a") : undefined;
-  try {
-    if (options.detach === true) {
-      for (const launch of toStart) {
-        if (started.length > 0 && delay > 0) {
-          await sleep(delay);
-        }
-        log(`[${launch.key}] ${launch.command}`);
-        if (detachedLog) {
-          appendFileSync(detachedLog, `[${launch.key}] ${launch.command}\n`);
-        }
-        try {
-          started.push(spawnProcess(launch, output));
-        } catch (error) {
-          await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
-          if (detachedLog) {
-            rmSync(detachedLog, { force: true });
-          }
-          throw error;
-        }
-      }
-    } else if (toStart.length > 0) {
+  let detachedPids: Record<string, number> | undefined;
+  if (options.detach === true) {
+    for (const launch of toStart) {
+      log(`[${launch.key}] ${launch.command}`);
+    }
+    if (logFile) {
       try {
-        const launched = await launchWatches({
-          launches: toStart,
-          startDelayMs: delay,
-          stdout: process.stdout,
-          stderr: process.stderr,
-          logPath: attachedLog,
-          inheritStdin: true,
-          onBanner: log,
-        });
-        closeLog = launched.close;
-        started.push(...launched.processes);
+        detachedPids = await startDetachedRelay({ launches: toStart, startDelayMs: delay, logPath: logFile });
       } catch (error) {
-        if (attachedLog) {
-          rmSync(attachedLog, { force: true });
-        }
+        rmSync(logFile, { force: true });
         throw error;
       }
     }
-  } finally {
-    if (output !== undefined) {
-      closeSync(output);
+  } else if (toStart.length > 0 && logFile) {
+    try {
+      const launched = await launchWatches({
+        launches: toStart,
+        startDelayMs: delay,
+        stdout: process.stdout,
+        stderr: process.stderr,
+        logPath: logFile,
+        inheritStdin: true,
+        onBanner: log,
+      });
+      closeLog = launched.close;
+      started.push(...launched.processes);
+    } catch (error) {
+      rmSync(logFile, { force: true });
+      throw error;
     }
   }
-  const logFile = detachedLog ?? attachedLog;
-  const pids = Object.fromEntries(started.map(({ key, pid }) => [key, pid]));
+  const pids = detachedPids ?? Object.fromEntries(started.map(({ key, pid }) => [key, pid]));
   writeVariantRuntime(
     config,
     run.worktree,
@@ -197,7 +155,10 @@ export const watchVariant = async (
     worktree: run.worktree,
     target: run.target,
     watches: watchReports(run, pids),
-    processes: started.map(({ key, pid, command }) => ({ key, pid, command })),
+    processes: (detachedPids === undefined ? started : toStart).flatMap((launch) => {
+      const pid = pids[launch.key];
+      return pid === undefined ? [] : [{ key: launch.key, pid, command: launch.command }];
+    }),
     urls: run.urls,
     exitCode: 0,
     commands: [...provisioned.commands, ...started.map(({ command }) => command)],
