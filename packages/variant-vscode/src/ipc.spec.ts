@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { createListener } from "variant-ipc";
 import * as vscode from "vscode";
 import { activate, deactivate } from "./extension.ts";
-import { bindSockets } from "./socket.ts";
+import { bindSockets } from "./ipc.ts";
 
 const tempDirectory = (): string => realpathSync(mkdtempSync(join("/tmp", "variant-vscode-ipc-")));
 
@@ -155,7 +155,7 @@ describe("extension socket", () => {
   });
 
   it("refuses create without calling variant-api", async () => {
-    const source = readFileSync(new URL("./socket.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./ipc.ts", import.meta.url), "utf8");
     expect(source.includes('from "variant-api";')).toBe(false);
     expect(source.includes('from "variant-api/commands"')).toBe(true);
 

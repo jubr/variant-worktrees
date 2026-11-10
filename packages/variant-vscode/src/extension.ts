@@ -7,10 +7,10 @@ import * as vscode from "vscode";
 import cliPackage from "../../variant-cli/package.json" with { type: "json" };
 import { formatProbeReport } from "./cursor/cursor-command-probe.ts";
 import { formatVariantLog } from "./format-log.ts";
+import { bindSockets, stopSockets } from "./ipc.ts";
 import { registerExtensionMcp, unregisterExtensionMcp } from "./mcp-registration.ts";
 import { miseBinPathSetting, registerOnboardingFlow } from "./onboarding.ts";
 import { chatRenamerConfigFor } from "./renamer-config.ts";
-import { bindSockets, stopSockets } from "./socket.ts";
 import { registerVariantsView } from "./variants-view.ts";
 
 export const LOG_CHANNEL_NAME = "Variant Worktrees";

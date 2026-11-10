@@ -99,7 +99,8 @@ when adding or changing gates. Do not merge PRs as an agent; human reviewer owns
 packages/
   variant-api/
     src/
-      index.ts       — createVariantClient() and lifecycle operations
+      index.ts        — public exports
+      variant-client.ts — createVariantClient()
       commands.ts    — command definitions shared by CLI/MCP
       db/             — Drizzle-backed database adapters
       operations/     — create/implode/up/down/watch/list/provision

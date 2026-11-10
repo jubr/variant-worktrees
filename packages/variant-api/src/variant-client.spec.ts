@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createVariantClient } from "./index.js";
+import { createVariantClient } from "./variant-client.js";
 
 describe("createVariantClient", () => {
   it("creates a typed lifecycle client from resolved config", () => {
