@@ -6,6 +6,14 @@
   "bin": {
     "variant": "./dist/cli.js"
   },
+  "exports": {
+    "./bundle": "./src/cli.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/cli.js"
+    }
+  },
   "scripts": {
     "build": "bun run build:js && bun run build:ui && bun run build:types && chmod +x dist/cli.js",
     "build:js": "bun ../../scripts/build-cli.ts",

@@ -7,9 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
+import { platformToken, VERSION_BANNER, variantString } from "variant-api";
 import { compileCli } from "../../../scripts/package-cli.ts";
 import { runCommand, withVariants } from "./test/cli.js";
-import { platformToken, VERSION_BANNER, variantString } from "./version-line.js";
 
 const root = join(import.meta.dir, "..");
 const repo = join(root, "../..");

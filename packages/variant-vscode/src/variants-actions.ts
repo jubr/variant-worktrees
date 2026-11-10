@@ -22,7 +22,7 @@ export interface ActionDeps {
 /**
  * What a person can do to a variant from the tree or the panel. Each action rejects with the reason it failed.
  *
- * AIDEV-NOTE: these run `variant-api` in-process. They are not reachable from the extension socket (`socket.ts`), which
+ * AIDEV-NOTE: these run `variant-api` in-process. They are not reachable from the extension socket (`ipc.ts`), which
  * refuses every lifecycle name.
  */
 export interface VariantActions {

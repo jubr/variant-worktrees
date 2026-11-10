@@ -1,5 +1,6 @@
 import type { DbConfig } from "variant-config";
-import { logD, logW } from "../log.js";
+import { LogLevel, log } from "../log.js";
+import { levelForDirectory } from "../log-directory.js";
 
 /** Specification: openspec/specs/variant-api/logging/spec.md */
 
@@ -173,13 +174,13 @@ export class QueryGuard {
     } catch (error) {
       const statement = statementOf(error);
       if (statement !== undefined && !this.quiet) {
-        logD(statement);
+        log(levelForDirectory(LogLevel.debug, process.cwd()), statement);
       }
       if (this.target !== undefined && isContact(error)) {
         const message = contactWarning(this.target);
         if (!this.warned && !this.quiet) {
           this.warned = true;
-          logW(message);
+          log(levelForDirectory(LogLevel.warn, process.cwd()), message);
         }
         throw new DatabaseContactError(message);
       }

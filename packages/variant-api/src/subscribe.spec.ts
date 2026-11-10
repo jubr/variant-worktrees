@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { type FSWatcher, mkdirSync, mkdtempSync, realpathSync, rmSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { type LogEvent, setLogSink } from "./log.js";
 import { MiseError } from "./mise.js";
 import { createStateSubscriptions } from "./subscribe.js";
@@ -64,7 +64,7 @@ const withProject = async (
   run: (context: {
     directory: string;
     put: (path: string, content: string) => void;
-    client: ReturnType<typeof createClient>;
+    client: ReturnType<typeof createVariantClient>;
   }) => Promise<void>,
   timings: { debounceMs?: number; livenessIntervalMs?: number } = {},
 ): Promise<void> => {
@@ -76,7 +76,7 @@ const withProject = async (
   try {
     put("variants.yaml", "db:\n  dialect: sqlite\n");
     put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),
@@ -115,7 +115,7 @@ describe("client.subscribe", () => {
       "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n",
     );
     writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {}, environment: () => ({}) }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),

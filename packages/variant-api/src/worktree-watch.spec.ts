@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
@@ -88,7 +88,7 @@ describe("watch from the worktree file", () => {
     );
     const saved = process.env.MARK;
     process.env.MARK = mark;
-    const client = createClient({
+    const client = createVariantClient({
       cwd: linked,
       config: loadConfig({ cwd: linked, env: {} }),
       stateDir: join(linked, ".cache", "variants"),

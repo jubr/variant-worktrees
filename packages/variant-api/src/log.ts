@@ -2,9 +2,11 @@
 
 export {
   LOG_LEVELS,
+  LOG_ORIGINS,
   type LogEvent,
   type LogFields,
-  type LogLevel,
+  LogLevel,
+  LogOrigin,
   type LogSink,
   log,
   logD,

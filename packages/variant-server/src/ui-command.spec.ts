@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { createClient } from "variant-api";
+import { createVariantClient } from "variant-api";
 import { parse as parseYaml } from "yaml";
 import { runUi, type UiCommandOptions } from "./index.js";
 import { readEntry, readToken, tokenPath } from "./ui-watch.js";
@@ -267,7 +267,7 @@ describe("variant ui as a watch of main", () => {
           url: `http://ui.vw.localhost:${new URL(project.printed[0] as string).port}`,
         });
 
-        const main = (await createClient({ cwd: project.directory, worktree: false }).list()).find(
+        const main = (await createVariantClient({ cwd: project.directory, worktree: false }).list()).find(
           (variant) => variant.slug === "main",
         );
         expect(main?.watches?.["variant-ui"]).toMatchObject({ pid: process.pid, alive: true, url: entry?.url });

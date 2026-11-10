@@ -48,11 +48,11 @@ Behavior changes follow red-green-refactor:
 
 - MUST co-locate test code with source as sibling `{file}.spec.ts`.
 - MUST use present-tense test names that describe behavior.
-- Prefer public API round-trips (`createClient().free`, MCP tool handlers) over private internals.
+- Prefer public API round-trips (`createVariantClient().free`, MCP tool handlers) over private internals.
 - Zod schemas are the source of truth for response types.
 - All chat-renamer functionality is also in `variant-vscode`, preferably through shared code. Some duplication between the `*.vscode` packages is 
 allowed.
-- The extension's tests run against `mocks/vscode.ts`: add the part of the VS Code API a test needs to that mock.
+- The extension's tests run against `packages/variant-vscode/src/test/mock-vscode.ts`: add the part of the VS Code API a test needs to that mock.
 - A new transport MUST pass the shared describeTransportContract` suite of `variant-ui/testing`. 
 - Documentation-only baseline changes do not require new product tests, but they must run the existing checks cited as evidence by the selected OpenSpec change.
 

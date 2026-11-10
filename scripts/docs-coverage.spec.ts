@@ -7,8 +7,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { commands } from "../packages/variant-api/src/commands.ts";
-import { GLOBAL_FLAGS } from "../packages/variant-cli/src/output.ts";
+
+const { commands } = (await import(new URL("./commands.ts", import.meta.resolve("variant-api/bundle")).href)) as {
+  commands: { name: string }[];
+};
+const { GLOBAL_FLAGS } = (await import(new URL("./output.ts", import.meta.resolve("variant-cli/bundle")).href)) as {
+  GLOBAL_FLAGS: readonly { name: string }[];
+};
 
 const root = join(import.meta.dir, "..");
 const read = (path: string): string => readFileSync(join(root, path), "utf8");

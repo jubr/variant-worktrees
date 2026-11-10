@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { join } from "node:path";
 import { loadConfig, readRuntime } from "variant-config";
 import { stringify as stringifyYaml } from "yaml";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 
@@ -58,7 +58,7 @@ const startWatcher = async (cwd: string): Promise<{ pid: number; child: number }
 interface Project {
   directory: string;
   engine: EngineStub;
-  down: (slug?: string) => ReturnType<ReturnType<typeof createClient>["down"]>;
+  down: (slug?: string) => ReturnType<ReturnType<typeof createVariantClient>["down"]>;
   localFile: string;
 }
 
@@ -71,7 +71,7 @@ const withProject = async (run: (project: Project) => Promise<void>, yaml = CONF
     const engine = installEngineStub(directory);
     process.env.PATH = `${engine.bin}:${originalPath}`;
     const client = () =>
-      createClient({
+      createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),

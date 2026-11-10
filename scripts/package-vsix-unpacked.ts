@@ -11,8 +11,8 @@ import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { readVariant } from "../packages/variant-cli/src/version-line.ts";
-import { detectVariantMain } from "../packages/variant-config/src/autodetect.ts";
+import { readVariant } from "variant-api/bundle";
+import { detectVariantMain } from "variant-config/bundle";
 
 /** The main checkout `cwd` publishes into: the checkout itself, or the one a variant worktree belongs to. */
 export const publishTarget = (cwd: string): string => {

@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { log, setLogSink } from "variant-api";
+import { LogLevel, log, platformToken, setLogSink } from "variant-api";
 import * as vscode from "vscode";
-import { platformToken } from "../../variant-cli/src/version-line.ts";
 import { activate, deactivate } from "./extension.ts";
 
 const registerCommand = spyOn(vscode.commands, "registerCommand");
@@ -241,7 +240,7 @@ describe("extension", () => {
           extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
           globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
         } as unknown as vscode.ExtensionContext);
-        log("warn", message);
+        log(LogLevel.warn, message);
       } finally {
         vscode.env.appName = undefined;
         setLogSink(undefined);
@@ -270,17 +269,14 @@ describe("extension", () => {
           extension: { id: "jubr.variant-worktrees", packageJSON: { identifier: { value: "jubr.variant-worktrees" } } },
           globalStorageUri: { fsPath: "/tmp/variant-worktrees-test" },
         } as unknown as vscode.ExtensionContext);
-        log("info", "+ mise install", { step: "create", slug: "add-auth" });
-        log("info", "create schema app", { step: "provision", slug: "demo" });
+        log(LogLevel.info, '+"mise install"', { step: "create", slug: "add-auth" });
+        log(LogLevel.info, "create schema app", { step: "provision", slug: "demo" });
       } finally {
         vscode.env.appName = undefined;
         setLogSink(undefined);
       }
 
-      expect(infos.slice(-2)).toEqual([
-        '<add-auth> [create] cmd="mise install"',
-        "<demo> [provision] create schema app",
-      ]);
+      expect(infos.slice(-2)).toEqual(['<add-auth> [create] +"mise install"', "<demo> [provision] create schema app"]);
     });
 
     it("activates on startup so the log channel is listed without running a command", () => {

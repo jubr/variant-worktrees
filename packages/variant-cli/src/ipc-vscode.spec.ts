@@ -4,9 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:f
 import { createServer, type Server, type Socket } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { log, setLogSink } from "variant-api";
+import { LogLevel, log, setLogSink } from "variant-api";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
-import { attachLogLevel, finishCliLog } from "./log-level.ts";
+import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.ts";
 import { runCommand, withVariants } from "./test/cli.js";
 
 const roots: string[] = [];
@@ -21,7 +21,15 @@ const waitFor = async (ready: () => boolean): Promise<void> => {
   }
 };
 
-describe("editor log stream", () => {
+describe("vscode log stream", () => {
+  it("reads -s and --slug for the log sink", () => {
+    expect(explicitSlug(["list", "-s", "release-smoke"])).toBe("release-smoke");
+    expect(explicitSlug(["--slug=release-smoke", "implode"])).toBe("release-smoke");
+    expect(explicitSlug(["list"])).toBeUndefined();
+    expect(explicitSlug(["list", "-s"])).toBeUndefined();
+    expect(explicitSlug(["--slug="])).toBeUndefined();
+  });
+
   afterEach(() => {
     setLogSink(undefined);
     for (const root of roots.splice(0)) {
@@ -30,7 +38,7 @@ describe("editor log stream", () => {
   });
 
   it("sends an info event to the project socket and keeps it off stdout", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     const seen: IpcRequest[] = [];
     const listener = createListener(socketPath(directory), (request) => {
@@ -45,8 +53,8 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stdout.write;
     try {
-      attachLogLevel("warn", { directory });
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
       await finishCliLog();
       await waitFor(() => seen.length > 0);
     } finally {
@@ -60,14 +68,13 @@ describe("editor log stream", () => {
         name: "log",
         args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth", origin: "cli" },
       },
-      { name: "log", args: { level: "debug", message: "end", step: "cli", origin: "cli" } },
-      { name: "log", args: { level: "debug", message: "connected", step: "ipc", origin: "cli" } },
     ]);
+    expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
     expect(stdout.join("")).not.toContain("+ mise install");
   });
 
   it("sends the autodetected slug when the event has none and keeps an explicit slug", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     execFileSync("git", ["init", "-q", "-b", "main", directory]);
     const seen: IpcRequest[] = [];
@@ -83,11 +90,11 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "listed variants");
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
       await finishCliLog();
-      await waitFor(() => seen.some((request) => request.args.message === "end"));
+      await waitFor(() => seen.some((request) => request.args.message === "listed variants"));
     } finally {
       process.stderr.write = write;
       setLogSink(undefined);
@@ -98,10 +105,8 @@ describe("editor log stream", () => {
       name: "log",
       args: { level: "info", message: "listed variants", origin: "cli", slug: "main" },
     });
-    expect(seen).toContainEqual({
-      name: "log",
-      args: { level: "debug", message: "end", step: "cli", origin: "cli", slug: "main" },
-    });
+    expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
+    expect(stderr.join("")).toContain("[debug] cli end");
     expect(seen).toContainEqual({
       name: "log",
       args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth", origin: "cli" },
@@ -109,8 +114,35 @@ describe("editor log stream", () => {
     expect(stderr.join("")).not.toContain("main");
   });
 
+  it("stamps an explicit slug on a bare event and does not send ipc or cli", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
+    roots.push(directory);
+    execFileSync("git", ["init", "-q", "-b", "main", directory]);
+    const seen: IpcRequest[] = [];
+    const listener = createListener(socketPath(directory), (request) => {
+      seen.push(request);
+      return {};
+    });
+    await listener.start();
+    try {
+      attachLogLevel(LogLevel.debug, { directory, slug: "release-smoke" });
+      log(LogLevel.debug, "ready");
+      await finishCliLog();
+      await waitFor(() => seen.some((request) => request.args.message === "ready"));
+      expect(seen).toContainEqual({
+        name: "log",
+        args: { level: "debug", message: "ready", origin: "cli", slug: "release-smoke" },
+      });
+      expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
+      expect(seen.some((request) => request.args.slug === "main")).toBe(false);
+    } finally {
+      setLogSink(undefined);
+      await listener.stop();
+    }
+  });
+
   it("logs connect failure once at debug and does not create the socket", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     const lines: string[] = [];
     const write = process.stderr.write.bind(process.stderr);
@@ -119,9 +151,9 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "listed variants");
-      log("warn", "still going");
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.warn, "still going");
       await finishCliLog();
     } finally {
       process.stderr.write = write;
@@ -135,7 +167,7 @@ describe("editor log stream", () => {
   });
 
   it("logs connect success once at debug", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     const seen: IpcRequest[] = [];
     const listener = createListener(socketPath(directory), (request) => {
@@ -150,9 +182,9 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "listed variants");
-      log("warn", "still going");
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.warn, "still going");
       await finishCliLog();
     } finally {
       process.stderr.write = write;
@@ -162,10 +194,10 @@ describe("editor log stream", () => {
 
     expect(lines.filter((line) => line.includes("ipc connected"))).toEqual(["[debug] ipc connected\n"]);
     expect(lines.join("")).not.toContain("connect failed");
-    expect(seen.filter((request) => request.args.message === "connected")).toHaveLength(1);
+    expect(seen.filter((request) => request.args.step === "ipc" || request.args.step === "cli")).toHaveLength(0);
   });
 
-  it("prints one connect-failure debug and one cli-end debug when list finds no editor", () =>
+  it("prints one connect-failure debug and one cli-end debug when list finds no vscode", () =>
     withVariants(async (environment, directory) => {
       const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
       const result = await runCommand(["bun", cli], ["list", "--log-level=debug"], environment, directory);
@@ -179,7 +211,7 @@ describe("editor log stream", () => {
       expect(existsSync(socketPath(directory))).toBe(false);
     }));
 
-  it("prints one connect-success debug and one cli-end debug when the editor is listening", () =>
+  it("prints one connect-success debug and one cli-end debug when vscode is listening", () =>
     withVariants(async (environment, directory) => {
       const seen: IpcRequest[] = [];
       const listener = createListener(socketPath(directory), (request) => {
@@ -197,10 +229,7 @@ describe("editor log stream", () => {
         ]);
         expect(result.stderr.split("\n").filter((line) => line === "[debug] cli end")).toEqual(["[debug] cli end"]);
         expect(result.stderr).not.toContain("connect failed");
-        expect(seen).toContainEqual({
-          name: "log",
-          args: { level: "debug", message: "end", step: "cli", origin: "cli" },
-        });
+        expect(seen.some((request) => request.args.step === "cli" || request.args.step === "ipc")).toBe(false);
       } finally {
         await listener.stop();
       }
@@ -216,7 +245,7 @@ describe("editor log stream", () => {
     }));
 
   it("does not connect before the first event", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     mkdirSync(join(directory, ".vscode"), { recursive: true });
     let accepts = 0;
@@ -239,11 +268,11 @@ describe("editor log stream", () => {
     const write = process.stderr.write.bind(process.stderr);
     process.stderr.write = (() => true) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
+      attachLogLevel(LogLevel.debug, { directory });
       await Bun.sleep(30);
       expect(accepts).toBe(0);
-      log("info", "listed variants");
-      log("warn", "still going");
+      log(LogLevel.info, "listed variants");
+      log(LogLevel.warn, "still going");
       await finishCliLog();
       expect(accepts).toBe(1);
     } finally {
@@ -257,7 +286,7 @@ describe("editor log stream", () => {
   });
 
   it("sends an info event that stderr hides below warn", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     const seen: IpcRequest[] = [];
     const listener = createListener(socketPath(directory), (request) => {
@@ -272,8 +301,8 @@ describe("editor log stream", () => {
       return true;
     }) as typeof process.stderr.write;
     try {
-      attachLogLevel("warn", { directory });
-      log("info", "listed variants");
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.info, "listed variants");
       await finishCliLog();
     } finally {
       process.stderr.write = write;
@@ -285,8 +314,8 @@ describe("editor log stream", () => {
     expect(seen).toContainEqual({ name: "log", args: { level: "info", message: "listed variants", origin: "cli" } });
   });
 
-  it("does not fail or reconnect when the editor rejects the log request", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+  it("does not fail or reconnect when vscode rejects the log request", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     mkdirSync(join(directory, ".vscode"), { recursive: true });
     let accepts = 0;
@@ -309,9 +338,9 @@ describe("editor log stream", () => {
     const write = process.stderr.write.bind(process.stderr);
     process.stderr.write = (() => true) as typeof process.stderr.write;
     try {
-      attachLogLevel("debug", { directory });
-      log("info", "one");
-      log("warn", "two");
+      attachLogLevel(LogLevel.debug, { directory });
+      log(LogLevel.info, "one");
+      log(LogLevel.warn, "two");
       await finishCliLog();
       expect(accepts).toBe(1);
     } finally {
@@ -325,7 +354,7 @@ describe("editor log stream", () => {
   });
 
   it("warns once and stops when a write is not answered within one second", async () => {
-    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-editor-log-")));
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     mkdirSync(join(directory, ".vscode"), { recursive: true });
     const sockets: Socket[] = [];
@@ -341,9 +370,9 @@ describe("editor log stream", () => {
     }) as typeof process.stderr.write;
     const started = Date.now();
     try {
-      attachLogLevel("warn", { directory });
-      log("info", "one");
-      log("info", "two");
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.info, "one");
+      log(LogLevel.info, "two");
       const outcome = await Promise.race([
         finishCliLog().then(() => "done" as const),
         Bun.sleep(1800).then(() => "hung" as const),

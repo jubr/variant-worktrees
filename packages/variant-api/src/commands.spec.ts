@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { type CommandDefinition, commands } from "./commands.js";
+import { type CommandDefinition, commands, LEVELS, LIFECYCLE_COMMANDS } from "./commands.js";
 import type { VariantClient } from "./types.js";
 
 const definition = (name: string): CommandDefinition => {
@@ -24,6 +24,22 @@ const recordingClient = (): { client: VariantClient; calls: [string, ...unknown[
   }) as unknown as VariantClient;
   return { client, calls };
 };
+
+describe("socket command names", () => {
+  it("lists the lifecycle commands the socket refuses and the shared levels", () => {
+    expect([...LIFECYCLE_COMMANDS]).toEqual([
+      "config",
+      "create",
+      "list",
+      "provision",
+      "up",
+      "down",
+      "watch",
+      "implode",
+    ]);
+    expect([...LEVELS]).toEqual(["trace", "debug", "info", "warn", "error"]);
+  });
+});
 
 describe("command registry", () => {
   it("contains the lifecycle, runtime and config commands and no destroy or switch", () => {
@@ -124,8 +140,13 @@ describe("command registry", () => {
   });
 
   it("is not wired to the editor socket in the CLI or the MCP server", () => {
-    const sources = ["src/commands.ts", "src/index.ts", "../variant-cli/src/cli.ts", "../variant-mcp/src/mcp.ts"]
-      .map((path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"))
+    const sources = [
+      new URL("./commands.ts", import.meta.url),
+      new URL("./index.ts", import.meta.url),
+      new URL(import.meta.resolve("variant-cli/bundle")),
+      new URL(import.meta.resolve("variant-mcp/bundle")),
+    ]
+      .map((url) => readFileSync(url, "utf8"))
       .join("\n");
 
     expect(sources).not.toContain("variant-ipc");

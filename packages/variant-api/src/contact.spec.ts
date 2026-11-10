@@ -3,13 +3,13 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { PostgresAdapter } from "./db/postgres.js";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { type LogEvent, setLogSink } from "./log.js";
 
 const YAML = "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n";
 
 const withUnreachable = async (
-  run: (client: ReturnType<typeof createClient>, events: () => LogEvent[]) => Promise<void>,
+  run: (client: ReturnType<typeof createVariantClient>, events: () => LogEvent[]) => Promise<void>,
   files: Record<string, string> = {},
   subscription?: { debounceMs?: number; livenessIntervalMs?: number; contactRetryMs?: (attempt: number) => number },
 ): Promise<void> => {
@@ -27,7 +27,7 @@ const withUnreachable = async (
     for (const [path, content] of Object.entries(files)) {
       put(path, content);
     }
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {}, environment: () => ({}) }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),
@@ -67,9 +67,9 @@ describe("subscription contact retries", () => {
           stop();
         }
         expect(events().filter((event) => event.level === "warn")).toHaveLength(1);
-        expect(events().filter((event) => event.message === "list")).toHaveLength(1);
-        expect(events().filter((event) => event.message === "listing variants")).toHaveLength(1);
-        expect(events().filter((event) => event.message === "listed variants")).toHaveLength(1);
+        expect(events().filter((event) => event.message === "list")).toHaveLength(0);
+        expect(events().filter((event) => event.message === "listing variants")).toHaveLength(0);
+        expect(events().filter((event) => event.message === "listed variants")).toHaveLength(0);
         expect(events().filter((event) => event.level === "debug").length).toBeLessThanOrEqual(2);
       },
       { "_v-demo/.cache/variant/state.yaml": "slug: demo\n" },

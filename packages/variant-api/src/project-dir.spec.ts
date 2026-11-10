@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -56,7 +56,7 @@ const withRepository = async (
 
 /** A client that works from `cwd` with the configuration found in `project`. */
 const clientFor = (project: string, cwd: string, worktree: boolean) =>
-  createClient({
+  createVariantClient({
     config: loadConfig({ cwd: project, env: {} }),
     cwd,
     stateDir: join(project, ".cache", "variants"),

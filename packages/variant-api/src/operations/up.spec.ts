@@ -14,7 +14,7 @@ import {
 import { join } from "node:path";
 import { loadConfig, readRuntime } from "variant-config";
 import { parse as parseYaml } from "yaml";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 import type { DatabaseAdapter } from "../types.js";
@@ -225,7 +225,7 @@ describe("up preparation", () => {
 
   it("keeps an existing database file", () =>
     withProject(async ({ directory }) => {
-      const client = createClient({
+      const client = createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),

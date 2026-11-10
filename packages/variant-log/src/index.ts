@@ -1,14 +1,28 @@
 /** Specification: openspec/specs/variant-log/events/spec.md */
 
-export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error"] as const;
+export enum LogLevel {
+  trace = "trace",
+  debug = "debug",
+  info = "info",
+  warn = "warn",
+  error = "error",
+}
 
-export type LogLevel = (typeof LOG_LEVELS)[number];
+export const LOG_LEVELS = [LogLevel.trace, LogLevel.debug, LogLevel.info, LogLevel.warn, LogLevel.error] as const;
+
+export enum LogOrigin {
+  cli = "cli",
+  mcp = "mcp",
+}
+
+export const LOG_ORIGINS = [LogOrigin.cli, LogOrigin.mcp] as const;
 
 export interface LogEvent {
   level: LogLevel;
   message: string;
   slug?: string;
   step?: string;
+  origin?: LogOrigin;
 }
 
 export type LogSink = (event: LogEvent) => void;
@@ -22,6 +36,7 @@ export const setLogSink = (next: LogSink | undefined): void => {
 export interface LogFields {
   slug?: string;
   step?: string;
+  origin?: LogOrigin;
 }
 
 export const log = (level: LogLevel, message: string, fields?: LogFields): void => {
@@ -29,25 +44,26 @@ export const log = (level: LogLevel, message: string, fields?: LogFields): void 
   const event: LogEvent = { level, message };
   if (fields?.slug !== undefined) event.slug = fields.slug;
   if (fields?.step !== undefined) event.step = fields.step;
+  if (fields?.origin !== undefined) event.origin = fields.origin;
   sink(event);
 };
 
 export const logI = (message: string, fields?: LogFields): void => {
-  log("info", message, fields);
+  log(LogLevel.info, message, fields);
 };
 
 export const logW = (message: string, fields?: LogFields): void => {
-  log("warn", message, fields);
+  log(LogLevel.warn, message, fields);
 };
 
 export const logT = (message: string, fields?: LogFields): void => {
-  log("trace", message, fields);
+  log(LogLevel.trace, message, fields);
 };
 
 export const logD = (message: string, fields?: LogFields): void => {
-  log("debug", message, fields);
+  log(LogLevel.debug, message, fields);
 };
 
 export const logE = (message: string, fields?: LogFields): void => {
-  log("error", message, fields);
+  log(LogLevel.error, message, fields);
 };

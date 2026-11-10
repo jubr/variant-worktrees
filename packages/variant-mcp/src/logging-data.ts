@@ -1,4 +1,4 @@
-import type { LogEvent } from "variant-log";
+import { type LogEvent, LogLevel } from "variant-log";
 
 /** Specification: openspec/specs/variant-mcp/logging/spec.md */
 export const loggingData = (event: LogEvent): { message: string; step?: string; slug?: string; level?: "trace" } => {
@@ -9,7 +9,7 @@ export const loggingData = (event: LogEvent): { message: string; step?: string; 
   if (event.slug !== undefined) {
     data.slug = event.slug;
   }
-  if (event.level === "trace") {
+  if (event.level === LogLevel.trace) {
     data.level = "trace";
   }
   return data;

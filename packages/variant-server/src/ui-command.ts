@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createClient } from "variant-api";
+import { createVariantClient } from "variant-api";
 import { startUiServer, type UiServer } from "./server.js";
 import { defaultStaticDir, type StaticApp } from "./static.js";
 import {
@@ -88,7 +88,7 @@ const detached = async (options: UiCommandOptions): Promise<number> => {
 const bind = async (
   options: UiCommandOptions,
   abbr: string,
-  client: ReturnType<typeof createClient>,
+  client: ReturnType<typeof createVariantClient>,
 ): Promise<UiServer> => {
   const env = options.env ?? process.env;
   const staticDir = options.staticDir ?? defaultStaticDir();
@@ -118,7 +118,7 @@ export const runUi = async (options: UiCommandOptions): Promise<number> => {
     return detached(options);
   }
 
-  const client = createClient({ cwd: options.cwd, worktree: false });
+  const client = createVariantClient({ cwd: options.cwd, worktree: false });
   const server = await bind(options, client.config().variant.abbr, client);
   try {
     writeToken(options.cwd, server.token);

@@ -1,5 +1,66 @@
 import { describe, expect, it } from "bun:test";
-import { type LogEvent, log, logD, logE, logI, logT, logW, setLogSink } from "./index.js";
+import {
+  LOG_LEVELS,
+  LOG_ORIGINS,
+  type LogEvent,
+  LogLevel,
+  LogOrigin,
+  log,
+  logD,
+  logE,
+  logI,
+  logT,
+  logW,
+  setLogSink,
+} from "./index.js";
+
+describe("level enum", () => {
+  it("exposes one enum of the five levels in order", () => {
+    expect([LogLevel.trace, LogLevel.debug, LogLevel.info, LogLevel.warn, LogLevel.error]).toEqual([
+      "trace",
+      "debug",
+      "info",
+      "warn",
+      "error",
+    ]);
+    expect(Object.values(LogLevel)).toEqual(["trace", "debug", "info", "warn", "error"]);
+    expect(LOG_LEVELS).toEqual([LogLevel.trace, LogLevel.debug, LogLevel.info, LogLevel.warn, LogLevel.error]);
+  });
+
+  it("emits the info member from the info shorthand", () => {
+    const events: LogEvent[] = [];
+    setLogSink((event) => {
+      events.push(event);
+    });
+    try {
+      logI("ready");
+    } finally {
+      setLogSink(undefined);
+    }
+    expect(events[0]?.level).toBe(LogLevel.info);
+  });
+});
+
+describe("origin enum", () => {
+  it("exposes one enum of cli and mcp", () => {
+    expect([LogOrigin.cli, LogOrigin.mcp]).toEqual(["cli", "mcp"]);
+    expect(Object.values(LogOrigin)).toEqual(["cli", "mcp"]);
+    expect(LOG_ORIGINS).toEqual([LogOrigin.cli, LogOrigin.mcp]);
+  });
+
+  it("carries the origin on the same event as the level and the message", () => {
+    const events: LogEvent[] = [];
+    setLogSink((event) => {
+      events.push(event);
+    });
+    try {
+      log(LogLevel.info, "ready", { origin: LogOrigin.cli });
+    } finally {
+      setLogSink(undefined);
+    }
+    expect(events).toEqual([{ level: LogLevel.info, message: "ready", origin: LogOrigin.cli }]);
+  });
+});
 
 describe("shared log event", () => {
   it("delivers step and slug as fields and keeps them out of the message", () => {
@@ -8,7 +69,7 @@ describe("shared log event", () => {
       events.push(event);
     });
     try {
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
+      log(LogLevel.info, "+ mise install", { step: "create", slug: "add-auth" });
     } finally {
       setLogSink(undefined);
     }
@@ -54,7 +115,7 @@ describe("shared log event", () => {
       events.push(event);
     });
     try {
-      log("error", "socket already listening", { step: "listen" });
+      log(LogLevel.error, "socket already listening", { step: "listen" });
     } finally {
       setLogSink(undefined);
     }

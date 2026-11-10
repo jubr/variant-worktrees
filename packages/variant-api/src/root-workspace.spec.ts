@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
@@ -67,7 +67,7 @@ const withRoot = async (
 describe("operations from the variant root", () => {
   it("creates a worktree from the variant root", () =>
     withRoot(async ({ workspace }) => {
-      const client = createClient({
+      const client = createVariantClient({
         cwd: workspace,
         config: loadConfig({ cwd: workspace, env: {} }),
         stateDir: join(workspace, ".state"),
@@ -81,7 +81,7 @@ describe("operations from the variant root", () => {
 
   it("removes a worktree from the variant root through the main checkout", () =>
     withRoot(async ({ workspace, main }) => {
-      const client = createClient({
+      const client = createVariantClient({
         cwd: workspace,
         config: loadConfig({ cwd: workspace, env: {} }),
         stateDir: join(workspace, ".state"),
@@ -108,7 +108,7 @@ describe("operations from the variant root", () => {
       const saved = process.env.PATH;
       process.env.PATH = `${bin}:${saved}`;
       try {
-        const client = createClient({
+        const client = createVariantClient({
           cwd: workspace,
           config: loadConfig({ cwd: workspace, env: {} }),
           stateDir: join(workspace, ".state"),
@@ -126,7 +126,7 @@ describe("operations from the variant root", () => {
 
   it("runs watch of main in the main checkout", () =>
     withRoot(async ({ workspace, main, marker }) => {
-      const client = createClient({
+      const client = createVariantClient({
         cwd: workspace,
         config: loadConfig({ cwd: workspace, env: {} }),
         stateDir: join(workspace, ".state"),
@@ -146,7 +146,7 @@ describe("operations from the variant root", () => {
 
   it("runs watch of a slug in that slug's worktree and prints the slug", () =>
     withRoot(async ({ workspace, marker }) => {
-      const client = createClient({
+      const client = createVariantClient({
         cwd: workspace,
         config: loadConfig({ cwd: workspace, env: {} }),
         stateDir: join(workspace, ".state"),
@@ -166,7 +166,7 @@ describe("operations from the variant root", () => {
 
   it("prints main when an operation starts in the primary checkout", () =>
     withRoot(async ({ main, marker }) => {
-      const client = createClient({
+      const client = createVariantClient({
         cwd: main,
         config: loadConfig({ cwd: main, env: {} }),
         stateDir: join(main, ".state"),
@@ -186,13 +186,13 @@ describe("operations from the variant root", () => {
 
   it("prints the branch slug when an operation starts in that worktree", () =>
     withRoot(async ({ main, marker }) => {
-      const origin = createClient({
+      const origin = createVariantClient({
         cwd: main,
         config: loadConfig({ cwd: main, env: {} }),
         stateDir: join(main, ".state"),
       });
       const worktree = (await origin.create("add-auth")).worktree as string;
-      const client = createClient({
+      const client = createVariantClient({
         cwd: worktree,
         config: loadConfig({ cwd: worktree, env: {} }),
         stateDir: join(main, ".state"),
@@ -212,7 +212,7 @@ describe("operations from the variant root", () => {
 
   it("stops a slug from the variant root", () =>
     withRoot(async ({ workspace }) => {
-      const client = createClient({
+      const client = createVariantClient({
         cwd: workspace,
         config: loadConfig({ cwd: workspace, env: {} }),
         stateDir: join(workspace, ".state"),
@@ -239,7 +239,7 @@ describe("operations from the variant root", () => {
           "",
         ].join("\n"),
       );
-      const client = createClient({
+      const client = createVariantClient({
         cwd: workspace,
         config: loadConfig({ cwd: workspace, env: {} }),
         stateDir: join(workspace, ".state"),

@@ -10,9 +10,10 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { type LogEvent, setLogSink } from "./log.js";
 
 const saved: Record<string, string | undefined> = {};
@@ -47,15 +48,16 @@ const withProject = async (
     provision: (verbose?: boolean) => Promise<{ commands: string[]; output: string }>,
   ) => Promise<void> | void,
   files: Record<string, string> = {},
+  parent = "/tmp",
 ): Promise<void> => {
-  const directory = realpathSync(mkdtempSync(join("/tmp", "variant-provisioning-")));
+  const directory = realpathSync(mkdtempSync(join(parent, "variant-provisioning-")));
   try {
     for (const [path, content] of Object.entries(files)) {
       mkdirSync(join(directory, path, ".."), { recursive: true });
       writeFileSync(join(directory, path), content);
     }
     writeFileSync(join(directory, "variants.yaml"), yaml(directory));
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: process.env }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),
@@ -77,7 +79,7 @@ const parseEnv = (text: string): Record<string, string> =>
   );
 
 describe("step log", () => {
-  it("emits each step at info with the operation as step and the variant as slug", () =>
+  it("emits schema, shell steps, and seed at trace when the project directory is under /tmp", () =>
     withProject(
       (d) =>
         lines(
@@ -97,17 +99,102 @@ describe("step log", () => {
         } finally {
           setLogSink(undefined);
         }
-        expect(events.filter((event) => event.level === "info")).toEqual([
+        expect(events.filter((event) => event.level === "trace")).toEqual([
           {
-            level: "info",
+            level: "trace",
             step: "provision",
             slug: "demo",
             message: `create schema ${_directory}/.cache/variants/demo.db`,
           },
-          { level: "info", step: "one", slug: "demo", message: `echo one >> ${_directory}/order.log` },
-          { level: "info", step: "two", slug: "demo", message: `echo two >> ${_directory}/order.log` },
-          { level: "info", step: "seed", slug: "demo", message: `echo seed >> ${_directory}/order.log` },
+          { level: "trace", step: "one", slug: "demo", message: `+"echo one >> ${_directory}/order.log"` },
+          { level: "trace", step: "two", slug: "demo", message: `+"echo two >> ${_directory}/order.log"` },
+          { level: "trace", step: "seed", slug: "demo", message: `+"echo seed >> ${_directory}/order.log"` },
         ]);
+      },
+    ));
+
+  it("emits schema creation at trace when the project directory is under /tmp", () =>
+    withProject(
+      () => lines("db:", "  dialect: sqlite"),
+      async (directory, provision) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await provision();
+        } finally {
+          setLogSink(undefined);
+        }
+        const schema = events.find((event) => event.step === "provision");
+        expect(schema).toEqual({
+          level: "trace",
+          step: "provision",
+          slug: "demo",
+          message: `create schema ${directory}/.cache/variants/demo.db`,
+        });
+        expect(events.some((event) => event.level === "info" && event.step === "provision")).toBe(false);
+      },
+    ));
+
+  it("keeps schema creation at info when the project directory is outside /tmp", async () => {
+    const parent = mkdtempSync(join(homedir(), "variant-outside-"));
+    try {
+      await withProject(
+        () => lines("db:", "  dialect: sqlite"),
+        async (directory, provision) => {
+          const events: LogEvent[] = [];
+          setLogSink((event) => events.push(event));
+          try {
+            await provision();
+          } finally {
+            setLogSink(undefined);
+          }
+          expect(directory.startsWith("/tmp/") || directory === "/tmp" || directory.startsWith("/private/tmp/")).toBe(
+            false,
+          );
+          expect(events.find((event) => event.step === "provision")).toEqual({
+            level: "info",
+            step: "provision",
+            slug: "demo",
+            message: `create schema ${directory}/.cache/variants/demo.db`,
+          });
+        },
+        {},
+        parent,
+      );
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("quotes a seed command as a plus and a JSON string", () =>
+    withProject(
+      () => lines("db:", "  dialect: sqlite", "variant:", "  seed: printf seeded"),
+      async (_directory, provision) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await provision();
+        } finally {
+          setLogSink(undefined);
+        }
+        const seed = events.find((event) => event.step === "seed");
+        expect(seed).toMatchObject({ slug: "demo", message: '+"printf seeded"' });
+        expect(seed?.message.includes("cmd=")).toBe(false);
+      },
+    ));
+
+  it("escapes a double quote in a seed command", () =>
+    withProject(
+      () => lines("db:", "  dialect: sqlite", "variant:", '  seed: echo "hi"'),
+      async (_directory, provision) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await provision();
+        } finally {
+          setLogSink(undefined);
+        }
+        expect(events.find((event) => event.step === "seed")?.message).toBe('+"echo \\"hi\\""');
       },
     ));
 });
@@ -567,7 +654,7 @@ const withRepo = async (
 };
 
 const provisionIn = async (repo: string) => {
-  const client = createClient({
+  const client = createVariantClient({
     config: loadConfig({ cwd: repo, env: process.env }),
     cwd: repo,
     stateDir: join(repo, ".cache", "variants"),
@@ -657,7 +744,7 @@ describe("env file copy", () => {
 
   it("copies and writes nothing in the primary worktree", () =>
     withRepo(DOTENV_YAML(), { "be/.env": "PORT=3000\n" }, async (repo) => {
-      const client = createClient({
+      const client = createVariantClient({
         config: loadConfig({ cwd: repo, env: process.env }),
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),

@@ -10,9 +10,10 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 import { type LogEvent, setLogSink } from "../log.js";
 import { isProcessAlive } from "../runtime-state.js";
 import type { ImplodeResult } from "../types.js";
@@ -49,7 +50,7 @@ interface Project {
   repo: string;
   /** The worktree of variant `demo`, created before the test body runs. */
   worktree: string;
-  client: ReturnType<typeof createClient>;
+  client: ReturnType<typeof createVariantClient>;
   messages: string[];
   implode: (options?: { force?: boolean; branchRm?: "yes" | "no" }, slug?: string) => Promise<ImplodeResult>;
   /** Commits a file in the variant's worktree. */
@@ -61,8 +62,9 @@ const withProject = async (
   run: (project: Project) => Promise<void>,
   yaml: string = CONFIG,
   extraFiles: Record<string, string> = {},
+  parentDir = "/tmp",
 ): Promise<void> => {
-  const parent = realpathSync(mkdtempSync(join("/tmp", "variant-implode-git-")));
+  const parent = realpathSync(mkdtempSync(join(parentDir, "variant-implode-git-")));
   const repo = join(parent, "repo");
   try {
     execFileSync("git", ["init", "-q", "-b", "main", repo]);
@@ -83,7 +85,7 @@ const withProject = async (
     git(repo, "add", ".");
     git(repo, "commit", "-q", "-m", "initial");
 
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: repo, env: {} }),
       cwd: repo,
       stateDir: join(repo, ".cache", "variants"),
@@ -183,7 +185,7 @@ describe("implode merge gate", () => {
       git(repo, "merge", "-q", "--ff-only", "feat/demo");
       const config = loadConfig({ cwd: repo, env: {} });
       const against = (baseBranch: string) =>
-        createClient({
+        createVariantClient({
           config: { ...config, variant: { ...config.variant, baseBranch } },
           cwd: repo,
           stateDir: join(repo, ".cache", "variants"),
@@ -217,7 +219,7 @@ describe("implode teardown and worktree", () => {
 
   it("finishes after the teardown for a variant without a worktree", () =>
     withProject(async ({ implode, repo }) => {
-      const bare = createClient({
+      const bare = createVariantClient({
         config: loadConfig({ cwd: repo, env: {} }),
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -242,14 +244,57 @@ describe("implode teardown and worktree", () => {
         expect(existsSync(worktree)).toBe(false);
         expect(git(repo, "branch", "--list", "feat/demo")).toBe("");
         expect(result).toMatchObject({ branch: "feat/demo", branchRemoved: true });
-        expect(events).toContainEqual({ level: "debug", message: "removed branch feat/demo" });
+        expect(events).toContainEqual({ level: "trace", slug: "demo", message: "removed branch feat/demo" });
         expect(events.filter((event) => event.message.startsWith("implode finished"))).toEqual([
-          { level: "debug", message: 'implode finished slug="demo"' },
+          { level: "trace", slug: "demo", message: 'implode finished slug="demo"' },
         ]);
       } finally {
         setLogSink(undefined);
       }
     }));
+
+  it("stamps release-smoke when the working directory is the primary checkout", () =>
+    withProject(async ({ client, implode }) => {
+      await client.create("release-smoke");
+      const events: LogEvent[] = [];
+      setLogSink((event) => events.push(event));
+      try {
+        await implode({}, "release-smoke");
+        expect(events.filter((event) => event.message.startsWith("implode finished"))).toEqual([
+          { level: "trace", slug: "release-smoke", message: 'implode finished slug="release-smoke"' },
+        ]);
+        expect(events).toContainEqual({
+          level: "trace",
+          slug: "release-smoke",
+          message: "removed branch feat/release-smoke",
+        });
+        expect(events.some((event) => event.slug === "main")).toBe(false);
+      } finally {
+        setLogSink(undefined);
+      }
+    }));
+
+  it("keeps finish and branch at debug when the project directory is outside /tmp", () => {
+    const parent = mkdtempSync(join(homedir(), "variant-implode-outside-"));
+    return withProject(
+      async ({ implode }) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          await implode();
+          expect(events.filter((event) => event.message.startsWith("implode finished"))).toEqual([
+            { level: "debug", slug: "demo", message: 'implode finished slug="demo"' },
+          ]);
+          expect(events).toContainEqual({ level: "debug", slug: "demo", message: "removed branch feat/demo" });
+        } finally {
+          setLogSink(undefined);
+        }
+      },
+      CONFIG,
+      {},
+      parent,
+    ).finally(() => rmSync(parent, { recursive: true, force: true }));
+  });
 
   it("removes the local branch when branchRm is yes", () =>
     withProject(async ({ implode, repo }) => {
@@ -268,7 +313,7 @@ describe("implode teardown and worktree", () => {
         expect(existsSync(worktree)).toBe(false);
         expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
         expect(result).toMatchObject({ branch: "feat/demo", branchRemoved: false });
-        expect(events).toContainEqual({ level: "debug", message: "kept branch feat/demo" });
+        expect(events).toContainEqual({ level: "trace", slug: "demo", message: "kept branch feat/demo" });
       } finally {
         setLogSink(undefined);
       }
@@ -305,7 +350,7 @@ describe("implode teardown and worktree", () => {
     withProject(async ({ repo }) => {
       const events: LogEvent[] = [];
       setLogSink((event) => events.push(event));
-      const bare = createClient({
+      const bare = createVariantClient({
         config: loadConfig({ cwd: repo, env: {} }),
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -314,7 +359,7 @@ describe("implode teardown and worktree", () => {
       try {
         await bare.implode("orphan");
 
-        expect(events).toContainEqual({ level: "debug", message: "no branch to remove for orphan" });
+        expect(events).toContainEqual({ level: "trace", slug: "orphan", message: "no branch to remove for orphan" });
       } finally {
         setLogSink(undefined);
       }

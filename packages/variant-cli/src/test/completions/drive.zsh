@@ -24,7 +24,14 @@ report() { print -r -- "$1=$(calls)"; }
 # Types `$1`, presses TAB, and prints what the shell showed, one line.
 tab() {
   zpty -w -n z "$1"$'\t'
-  local shown; shown=$(drain)
+  local shown more tries=0
+  shown=$(drain)
+  # A busy machine reports quiet before zsh draws the list. The typed line has no newline; the list does.
+  while ((tries < 5)) && [[ $shown != *$'\n'* ]]; do
+    more=$(drain)
+    shown+="$more"
+    ((tries++))
+  done
   print -r -- "$2=${shown//$'\n'/ | }"
   zpty -w -n z $'\x15'
   drain >/dev/null

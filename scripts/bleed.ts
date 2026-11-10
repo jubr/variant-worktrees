@@ -3,9 +3,10 @@
  *
  * Specification: openspec/specs/meta/dev-bleeds/spec.md
  */
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { compileCli } from "./package-cli.ts";
 import { bleedDirectory } from "./package-vsix-unpacked.ts";
 
@@ -51,11 +52,13 @@ export const bleedCli = (cwd: string): Promise<string> =>
 
 /** Compile `variant-mcp` for the host with its dependencies included. */
 export const compileMcp = async (root: string, outfile: string): Promise<string> => {
-  const entry = join(root, "packages/variant-mcp/src/mcp.ts");
-  if (!existsSync(entry)) {
+  const entry = realpathSync(fileURLToPath(import.meta.resolve("variant-mcp/bundle")));
+  if (!entry.startsWith(`${realpathSync(root)}${sep}`)) {
     throw new Error(`variant-mcp entry is missing: ${entry}`);
   }
-  const version = JSON.parse(readFileSync(join(root, "packages/variant-mcp/package.json"), "utf8")).version as string;
+  const version = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.resolve("variant-mcp/bundle")), "utf8"),
+  ).version as string;
   const result = await Bun.build({
     entrypoints: [entry],
     compile: { outfile },
@@ -64,7 +67,7 @@ export const compileMcp = async (root: string, outfile: string): Promise<string>
         name: "embed-mcp-version",
         setup: (build) => {
           build.onLoad({ filter: /mcp\.ts$/ }, (args) => {
-            if (args.path !== entry) {
+            if (realpathSync(args.path) !== entry) {
               return undefined;
             }
             const source = readFileSync(args.path, "utf8").replace(

@@ -10,8 +10,10 @@ import {
   seedCommandFor,
   type VariantWatch,
 } from "variant-config";
+import { commandMessage } from "./command-message.js";
 import { echoCommand, type ProgressLog } from "./echo.js";
-import { logI } from "./log.js";
+import { LogLevel, log } from "./log.js";
+import { levelForDirectory } from "./log-directory.js";
 import type { OperationContext } from "./operations/types.js";
 import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from "./run-context.js";
 
@@ -167,11 +169,17 @@ export const runProvisioning = async (
         if (run.multi) {
           for (const tenant of run.multi.tenants()) {
             const schema = multiSchemaName(run.multi.prefix, run.slug, tenant);
-            logI(`create schema ${schema}`, { slug: run.slug, step: name });
+            log(levelForDirectory(LogLevel.info, run.projectDir), `create schema ${schema}`, {
+              slug: run.slug,
+              step: name,
+            });
             await context.adapter.createSchema(schema);
           }
         } else {
-          logI(`create schema ${context.adapter.target(run.slug)}`, { slug: run.slug, step: name });
+          log(levelForDirectory(LogLevel.info, run.projectDir), `create schema ${context.adapter.target(run.slug)}`, {
+            slug: run.slug,
+            step: name,
+          });
           await context.adapter.create(run.slug);
         }
       }
@@ -183,7 +191,7 @@ export const runProvisioning = async (
       continue;
     }
     const stepCommand = expandSetting(config, run, step.cmd, `variant.steps.${name}.cmd`);
-    logI(stepCommand, { slug: run.slug, step: name });
+    log(levelForDirectory(LogLevel.info, run.projectDir), commandMessage(stepCommand), { slug: run.slug, step: name });
     commands.push(stepCommand);
     echoCommand(stepCommand, options.log);
     const result = execute(
@@ -210,7 +218,10 @@ export const runProvisioning = async (
   const seed = seedCommandFor(config, run.slug);
   if (seed) {
     const seedCommand = expandSetting(config, run, seed, "seed");
-    logI(seedCommand, { slug: run.slug, step: "seed" });
+    log(levelForDirectory(LogLevel.info, run.projectDir), commandMessage(seedCommand), {
+      slug: run.slug,
+      step: "seed",
+    });
     command(seedCommand, run.projectDir, plainEnv);
   }
   return { commands, output };

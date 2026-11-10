@@ -778,7 +778,7 @@ describe("catalogTitleDecision", () => {
     await expect(result).resolves.toMatchObject({ outcome: "renamed", decision: "rename", reason: "rename request" });
     expect(entries).toEqual([
       {
-        level: "info",
+        level: "debug",
         message:
           '[title-event] decision session="chat-1" matched=true pattern=2 decision="rename" reason="rename request" title="abc"',
       },
@@ -790,7 +790,7 @@ describe("catalogTitleDecision", () => {
 
     expect(entries).toEqual([
       {
-        level: "info",
+        level: "debug",
         message:
           '[title-event] decision session="chat-1" matched=true decision="rename" reason="rename request" title="two words"',
       },

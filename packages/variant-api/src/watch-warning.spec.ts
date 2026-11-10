@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const withProject = async (watch: string, run: (log: string[], watch: () => Promise<unknown>) => Promise<void>) => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-watch-warning-")));
@@ -12,7 +12,7 @@ const withProject = async (watch: string, run: (log: string[], watch: () => Prom
       join(directory, "variants.yaml"),
       `db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be${watch} }\n`,
     );
-    const client = createClient({
+    const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),

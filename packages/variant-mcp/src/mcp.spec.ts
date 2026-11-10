@@ -10,8 +10,10 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
+import { LogLevel } from "variant-log";
 import { loggingData } from "./logging-data.ts";
 
 interface McpResult {
@@ -20,6 +22,13 @@ interface McpResult {
 }
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-mcp-"));
+
+/** Outside the known temporary directories, so a log stays at the level the call site asked for. */
+const loudParent = (): string => {
+  const parent = join(homedir(), ".cache", "variant-loud");
+  mkdirSync(parent, { recursive: true });
+  return parent;
+};
 
 const configFile = (directory: string, seed = false): string => {
   const path = join(directory, "variants.yaml");
@@ -694,7 +703,7 @@ describe("MCP runtime tools", () => {
     } finally {
       rmSync(parent, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 });
 
 describe("MCP status and verbose list", () => {
@@ -811,8 +820,11 @@ const setLevel = (id: number, level: string): object => ({
 });
 
 /** PostgreSQL on a closed port, with variant `demo` known from its state file. */
-const withUnreachableMcp = async (run: (directory: string, configPath: string) => Promise<void>): Promise<void> => {
-  const directory = realpathSync(tempDirectory());
+const withUnreachableMcp = async (
+  run: (directory: string, configPath: string) => Promise<void>,
+  parent = "/tmp",
+): Promise<void> => {
+  const directory = realpathSync(mkdtempSync(join(parent, "variant-mcp-")));
   try {
     const configPath = join(directory, "variants.yaml");
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
@@ -828,36 +840,50 @@ const withUnreachableMcp = async (run: (directory: string, configPath: string) =
 };
 
 describe("MCP logging", () => {
-  it("sends a log event to the editor socket marked mcp and leaves the notification unmarked", async () => {
-    const directory = realpathSync(tempDirectory());
-    const seen: IpcRequest[] = [];
-    const listener = createListener(socketPath(directory), (request) => {
-      seen.push(request);
-      return {};
-    });
-    await listener.start();
-    try {
-      const result = await mcp([...initMessages(), call(2, "variant_list")], configFile(directory), {
-        cwd: directory,
+  it("sends a log event to the editor socket marked mcp and leaves the notification unmarked", () =>
+    withUnreachableMcp(async (directory, configPath) => {
+      const seen: IpcRequest[] = [];
+      const listener = createListener(socketPath(directory), (request) => {
+        seen.push(request);
+        return {};
       });
-      expect(result.exitCode).toBe(0);
-      expect(seen).toContainEqual({
-        name: "log",
-        args: { level: "info", message: "listed variants", origin: "mcp" },
-      });
-      expect(logging(result).some((note) => JSON.stringify(note.data).includes("[mcp]"))).toBe(false);
-    } finally {
-      await listener.stop();
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
+      await listener.start();
+      try {
+        const result = await mcp([...initMessages(), call(2, "variant_list")], configPath, { cwd: directory });
+        expect(result.exitCode).toBe(0);
+        const logged = seen.filter((request) => request.name === "log");
+        expect(
+          logged.some(
+            (request) =>
+              request.args.origin === "mcp" &&
+              request.args.level === "trace" &&
+              String(request.args.message).includes("postgres"),
+          ),
+        ).toBe(true);
+        expect(logged.some((request) => request.args.message === "listed variants")).toBe(false);
+        expect(logging(result).some((note) => JSON.stringify(note.data).includes("[mcp]"))).toBe(false);
+      } finally {
+        await listener.stop();
+      }
+    }));
 
-  it("puts step and slug on the notification data", () => {
-    expect(loggingData({ level: "info", message: "+ mise install", step: "create", slug: "add-auth" })).toEqual({
-      message: "+ mise install",
+  it("puts step and slug on the notification data and leaves the command quoted", () => {
+    const data = loggingData({
+      level: LogLevel.info,
+      message: '+"mise install"',
       step: "create",
       slug: "add-auth",
     });
+    expect(data).toEqual({
+      message: '+"mise install"',
+      step: "create",
+      slug: "add-auth",
+    });
+    const encoded = JSON.stringify(data);
+    expect(encoded).not.toContain("cmd=");
+    expect(encoded).not.toContain("[mcp]");
+    expect(encoded).not.toContain("@mcp");
+    expect(loggingData({ level: LogLevel.info, message: "ready" })).toEqual({ message: "ready" });
   });
 
   it("imports the sink from variant-log", () => {
@@ -877,18 +903,37 @@ describe("MCP logging", () => {
       const listed = answer(result, 2);
       expect(listed.isError).not.toBe(true);
       expect(listed.text).not.toContain("SELECT");
-    }));
+    }, loudParent()));
 
-  it("sends info and warning but not debug when the client asks for info", () =>
+  it("sends the contact warning and not the statement when the client asks for info", () =>
     withUnreachableMcp(async (directory, configPath) => {
       const result = await mcp([...initMessages(), setLevel(2, "info"), call(3, "variant_list")], configPath, {
         cwd: directory,
       });
       const notes = logging(result);
-      expect(notes.some((note) => note.level === "info")).toBe(true);
       expect(notes.some((note) => note.level === "warning")).toBe(true);
+      expect(notes.some((note) => note.level === "info")).toBe(false);
       expect(notes.some((note) => note.level === "debug")).toBe(false);
-    }));
+    }, loudParent()));
+
+  it("sends a schema create at info when the client asks for info", async () => {
+    const directory = realpathSync(mkdtempSync(join(loudParent(), "variant-mcp-info-")));
+    try {
+      const result = await mcp(
+        [...initMessages(), setLevel(2, "info"), call(3, "variant_provision", { slug: "test-feature" })],
+        configFile(directory, true),
+        { cwd: directory },
+      );
+      const messages = logging(result)
+        .filter((note) => note.level === "info")
+        .map((note) => (note.data as { message?: string }).message ?? "");
+      expect(messages.some((message) => message.includes("create schema"))).toBe(true);
+      expect(messages).toContain('+"printf seeded"');
+      expect(messages.join("\n")).not.toContain("cmd=");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 
   it("sends trace as a debug notification whose data names trace", () =>
     withUnreachableMcp(async (directory, configPath) => {
@@ -907,7 +952,7 @@ describe("MCP logging", () => {
         cwd: directory,
       });
       expect(logging(result).some((note) => note.level === "warning")).toBe(false);
-    }));
+    }, loudParent()));
 
   it("returns variant_create as an error whose text is the contact warning", () =>
     withUnreachableMcp(async (directory, configPath) => {

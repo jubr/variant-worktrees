@@ -100,6 +100,7 @@ const idle = (over: Partial<AwakeInput> = {}): AwakeInput => active({ active: fa
 
 const infos = (entries: Entry[]) => entries.filter((entry) => entry.level === "info").map((entry) => entry.message);
 const traces = (entries: Entry[]) => entries.filter((entry) => entry.level === "trace").map((entry) => entry.message);
+const debugs = (entries: Entry[]) => entries.filter((entry) => entry.level === "debug").map((entry) => entry.message);
 
 describe("createAwakeController", () => {
   it("logs the binary once at startup and spawns caffeinate -disu while a chat is active", () => {
@@ -109,7 +110,8 @@ describe("createAwakeController", () => {
     controller.update(active());
 
     expect(children.map((child) => child.args)).toEqual(["-disu"]);
-    expect(traces(entries).at(-1)).toBe('[awake] + "caffeinate -disu" pid=4242 reason="activity"');
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu" pid=4242 reason="activity"');
+    expect(traces(entries).some((line) => line.includes("caffeinate -disu"))).toBe(false);
     expect(infos(entries)).toEqual(["[awake] caffeinate available"]);
 
     controller.update(active());
@@ -123,7 +125,8 @@ describe("createAwakeController", () => {
     controller.update(active({ what: "cpu" }));
 
     expect(children.map((child) => child.args)).toEqual(["-dis"]);
-    expect(traces(entries).at(-1)).toBe('[awake] + "caffeinate -dis" pid=4242 reason="activity"');
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -dis" pid=4242 reason="activity"');
+    expect(traces(entries).some((line) => line.includes("caffeinate -dis"))).toBe(false);
   });
 
   it("keeps the process for the grace delay, logs that only at trace, then stops it", () => {
@@ -140,7 +143,8 @@ describe("createAwakeController", () => {
     expect(children[0]?.signals).toEqual([]);
     advance(1);
     expect(children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
-    expect(traces(entries).at(-1)).toBe('[awake] + "kill 4242" reason="idle"');
+    expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="idle"');
+    expect(traces(entries).some((line) => line.includes("kill"))).toBe(false);
     expect(infos(entries)).toHaveLength(infoBefore);
     expect(entries.filter((entry) => entry.level === "info" && entry.message.includes("grace"))).toEqual([]);
   });
@@ -184,17 +188,17 @@ describe("createAwakeController", () => {
     never.controller.update(active());
     never.controller.update(idle({ when: "never" }));
     expect(never.children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
-    expect(traces(never.entries).at(-1)).toBe('[awake] + "kill 4242" reason="never"');
+    expect(debugs(never.entries).at(-1)).toBe('[awake] + "kill 4242" reason="never"');
 
     const owner = harness();
     owner.controller.update(active());
     owner.controller.update(idle({ owned: false }));
-    expect(traces(owner.entries).at(-1)).toContain('reason="not owner"');
+    expect(debugs(owner.entries).at(-1)).toContain('reason="not owner"');
 
     const disposed = harness();
     disposed.controller.update(active());
     disposed.controller.dispose();
-    expect(traces(disposed.entries).at(-1)).toContain('reason="disposed"');
+    expect(debugs(disposed.entries).at(-1)).toContain('reason="disposed"');
     disposed.children[0]?.finish();
     disposed.controller.update(active());
     expect(disposed.children).toHaveLength(1);
@@ -206,7 +210,7 @@ describe("createAwakeController", () => {
 
     controller.update(active({ what: "cpu" }));
     expect(children).toHaveLength(1);
-    expect(traces(entries).at(-1)).toBe('[awake] + "kill 4242" reason="mode changed"');
+    expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="mode changed"');
 
     children[0]?.finish();
     expect(children.map((child) => child.args)).toEqual(["-disu", "-dis"]);

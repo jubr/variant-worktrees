@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { log, setLogSink } from "variant-api";
+import { fileURLToPath } from "node:url";
+import { LogLevel, log, setLogSink } from "variant-api";
 import { schemaHeaderFor } from "variant-config";
-import { attachLogLevel, formatLogEvent } from "./log-level.ts";
-import { runCli, withVariants } from "./test/cli.js";
+import { formatLogEvent } from "./ipc-log.ts";
+import { attachLogLevel } from "./ipc-vscode.ts";
+import { runCli, runCommand, withVariants } from "./test/cli.js";
 
 const CLEAN_DB = {
   DATABASE_URL: "",
@@ -30,14 +32,16 @@ const CLEAN_DB = {
 };
 
 /** A project whose PostgreSQL server refuses connections, with variant `demo` on disk. */
-const withUnreachable = async (run: (environment: Record<string, string>) => Promise<void>): Promise<void> => {
+const withUnreachable = async (
+  run: (environment: Record<string, string>, directory: string) => Promise<void>,
+): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-log-level-")));
   try {
     const yaml = `${schemaHeaderFor("variants.yaml")}\n\ndb:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n`;
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
     writeFileSync(join(directory, "variants.yaml"), yaml);
     writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
-    await run({ ...CLEAN_DB, VARIANT_CONFIG: join(directory, "variants.yaml") });
+    await run({ ...CLEAN_DB, VARIANT_CONFIG: join(directory, "variants.yaml") }, directory);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -67,10 +71,12 @@ describe("log level flag", () => {
     }));
 
   it("prints trace lines when the threshold is trace", () =>
-    withVariants(async (environment) => {
-      const result = await runCli(["list", "--log-level=trace"], environment);
+    withUnreachable(async (environment, directory) => {
+      const cli = fileURLToPath(new URL("./cli.ts", import.meta.url));
+      const result = await runCommand(["bun", cli], ["list", "--log-level=trace"], environment, directory);
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toMatch(/^\[trace\]/m);
+      expect(result.stderr).not.toContain("listed variants");
     }));
 
   it("selects debug when the flag comes before the command name", () =>
@@ -110,16 +116,19 @@ describe("log level flag", () => {
       lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
       return true;
     }) as typeof process.stderr.write;
-    attachLogLevel("info");
+    attachLogLevel(LogLevel.info);
     try {
-      log("info", "+ mise install", { step: "create", slug: "add-auth" });
-      log("debug", "+ mise trust --all", { step: "create", slug: "add-auth" });
+      log(LogLevel.info, '+"mise install"', { step: "create", slug: "add-auth" });
+      log(LogLevel.debug, '+"mise trust --all"', { step: "create", slug: "add-auth" });
     } finally {
       setLogSink(undefined);
       process.stderr.write = write;
     }
-    expect(lines).toEqual(["[info] create + mise install\n"]);
+    expect(lines).toEqual(['[info] create +"mise install"\n']);
     expect(lines.join("")).not.toContain("add-auth");
+    expect(lines.join("")).not.toContain("cmd=");
+    expect(lines.join("")).not.toContain(" [cli]");
+    expect(lines.join("")).not.toContain(" @cli");
   });
 
   it("prints the message after the level when the event has no step", () => {
@@ -129,14 +138,14 @@ describe("log level flag", () => {
       lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
       return true;
     }) as typeof process.stderr.write;
-    attachLogLevel("info");
+    attachLogLevel(LogLevel.info);
     try {
-      log("info", "listed variants");
+      log(LogLevel.info, "ready");
     } finally {
       setLogSink(undefined);
       process.stderr.write = write;
     }
-    expect(lines).toEqual(["[info] listed variants\n"]);
+    expect(lines).toEqual(["[info] ready\n"]);
   });
 
   it("does not treat brackets in the message as a step", () => {
@@ -146,9 +155,9 @@ describe("log level flag", () => {
       lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
       return true;
     }) as typeof process.stderr.write;
-    attachLogLevel("info");
+    attachLogLevel(LogLevel.info);
     try {
-      log("info", "[provision] create schema app");
+      log(LogLevel.info, "[provision] create schema app");
     } finally {
       setLogSink(undefined);
       process.stderr.write = write;
@@ -160,25 +169,24 @@ describe("log level flag", () => {
 const ESC = "\u001b";
 
 describe("log line color", () => {
-  const event = { level: "info" as const, message: "+ mise install", step: "create", slug: "add-auth" };
+  const event = { level: LogLevel.info, message: '+"mise install"', step: "create", slug: "add-auth" };
 
   it("colors the brackets, the level word, and the step on a terminal", () => {
     expect(formatLogEvent(event, { isTTY: true })).toBe(
-      `${ESC}[90m[${ESC}[32minfo${ESC}[90m]${ESC}[0m ${ESC}[36mcreate${ESC}[0m + mise install\n`,
+      `${ESC}[90m[${ESC}[32minfo${ESC}[90m]${ESC}[0m ${ESC}[36mcreate${ESC}[0m +"mise install"\n`,
     );
   });
 
   it("uses the level color for trace, debug, warn, and error", () => {
-    const colored = (level: "trace" | "debug" | "warn" | "error"): string =>
-      formatLogEvent({ level, message: "x" }, { isTTY: true });
-    expect(colored("trace")).toContain(`${ESC}[38;5;67mtrace`);
-    expect(colored("debug")).toContain(`${ESC}[33mdebug`);
-    expect(colored("warn")).toContain(`${ESC}[38;5;208mwarn`);
-    expect(colored("error")).toContain(`${ESC}[31merror`);
+    const colored = (level: LogLevel): string => formatLogEvent({ level, message: "x" }, { isTTY: true });
+    expect(colored(LogLevel.trace)).toContain(`${ESC}[38;5;67mtrace`);
+    expect(colored(LogLevel.debug)).toContain(`${ESC}[33mdebug`);
+    expect(colored(LogLevel.warn)).toContain(`${ESC}[38;5;208mwarn`);
+    expect(colored(LogLevel.error)).toContain(`${ESC}[31merror`);
   });
 
   it("prints a plain warn line when stderr is not a terminal or NO_COLOR is set", () => {
-    const warn = { level: "warn" as const, message: "database down" };
+    const warn = { level: LogLevel.warn, message: "database down" };
     for (const output of [{ isTTY: false }, { isTTY: true, NO_COLOR: "1" }, { isTTY: true, NO_COLOR: "" }]) {
       const line = formatLogEvent(warn, output);
       expect(line.startsWith("[warn]")).toBe(true);

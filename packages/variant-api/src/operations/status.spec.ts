@@ -3,7 +3,7 @@ import { type ChildProcess, execFileSync, spawn, spawnSync } from "node:child_pr
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 
 const sleepers: ChildProcess[] = [];
 afterEach(() => {
@@ -18,7 +18,7 @@ const sleeper = (): number => {
 };
 const pause = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
 
-type Client = ReturnType<typeof createClient>;
+type Client = ReturnType<typeof createVariantClient>;
 
 const withProject = async (
   run: (project: {
@@ -39,7 +39,7 @@ const withProject = async (
       "db:\n  dialect: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n",
     );
     const client = (cwd = directory): Client =>
-      createClient({
+      createVariantClient({
         config: loadConfig({ cwd: directory, env }),
         cwd,
         stateDir: join(directory, ".cache", "variants"),

@@ -2,19 +2,36 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cli, command } from "cleye";
-import { createClient, listSlugs } from "variant-api";
+import {
+  createVariantClient,
+  listSlugs,
+  platformToken,
+  renderVersion,
+  repositoryUrl,
+  resolveVersionFacts,
+  versionColor,
+} from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
 import { collectArgs } from "./cli-args.js";
 import { flagSpecsFor } from "./cli-flags.js";
 import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
 import { renderHelp } from "./help.js";
-import { attachLogLevel, finishCliLog, takeLogLevel } from "./log-level.js";
+import { takeLogLevel } from "./ipc-log.js";
+import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.js";
 import { migrateConfigFiles } from "./migration.js";
 import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
-import { platformToken, renderVersion, resolveVersionFacts, versionColor } from "./version-line.js";
 import { printWarnings } from "./warnings.js";
+
+declare const VARIANT_BUILD_DATE: string | undefined;
+declare const VARIANT_BUILD_VARIANT: string | undefined;
+
+/** Stamp captured when this file was bundled. Empty when the CLI runs from source. */
+const bakedVersion = (): { date?: string; variant?: string } => ({
+  ...(typeof VARIANT_BUILD_DATE === "string" ? { date: VARIANT_BUILD_DATE } : {}),
+  ...(typeof VARIANT_BUILD_VARIANT === "string" ? { variant: VARIANT_BUILD_VARIANT } : {}),
+});
 
 const { version } = pkg;
 
@@ -44,7 +61,7 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
       const flags = argv.flags as Record<string, unknown>;
       const positional = (argv._ as unknown as { slug?: string }).slug;
       const args = collectArgs(definition, flags, positional);
-      const client = createClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
+      const client = createVariantClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       printWarnings(client.config().warnings);
       migrateConfigFiles(client.config());
       const result = await definition.execute(client, args);
@@ -101,7 +118,8 @@ const takeFormat = (argv: string[]): { args: string[]; format: OutputFormat } =>
 
 try {
   const { args: withoutLevel, level } = takeLogLevel(process.argv.slice(2));
-  attachLogLevel(level, { directory: process.cwd() });
+  const slug = explicitSlug(withoutLevel);
+  attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
   const { args, format } = takeFormat(withoutLevel);
   const requested = args.find((arg) => !arg.startsWith("-"));
   const known = (name: string): boolean =>
@@ -113,7 +131,7 @@ try {
   }
   if (args.includes("--version") && requested === undefined) {
     const directory = dirname(fileURLToPath(import.meta.url));
-    const facts = resolveVersionFacts(directory, new Date());
+    const facts = resolveVersionFacts(directory, new Date(), bakedVersion());
     process.stdout.write(
       renderVersion({
         version,
@@ -122,6 +140,7 @@ try {
         variant: facts.variant,
         banner: process.stdout.isTTY === true,
         color: versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
+        repository: repositoryUrl(),
       }),
     );
   } else {

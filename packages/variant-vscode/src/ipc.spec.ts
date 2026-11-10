@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { createListener } from "variant-ipc";
 import * as vscode from "vscode";
 import { activate, deactivate } from "./extension.ts";
-import { bindSockets } from "./socket.ts";
+import { bindSockets } from "./ipc.ts";
 
 const tempDirectory = (): string => realpathSync(mkdtempSync(join("/tmp", "variant-vscode-ipc-")));
 
@@ -155,8 +155,9 @@ describe("extension socket", () => {
   });
 
   it("refuses create without calling variant-api", async () => {
-    const source = readFileSync(new URL("./socket.ts", import.meta.url), "utf8");
-    expect(source.includes("variant-api")).toBe(false);
+    const source = readFileSync(new URL("./ipc.ts", import.meta.url), "utf8");
+    expect(source.includes('from "variant-api";')).toBe(false);
+    expect(source.includes('from "variant-api/commands"')).toBe(true);
 
     const layout = singleRepoLayout();
     roots.push(layout.root);
@@ -229,11 +230,12 @@ describe("extension socket", () => {
         layout.socketFile,
         JSON.stringify({
           name: "log",
-          args: { level: "info", message: "+ mise install", step: "create", slug: "add-auth" },
+          args: { level: "info", message: '+"mise install"', step: "create", slug: "add-auth" },
         }),
       );
       expect(JSON.parse(line)).not.toHaveProperty("error");
-      expect(infos).toContain('<add-auth> [create] cmd="mise install"');
+      expect(infos).toContain('<add-auth> [create] +"mise install"');
+      expect(infos.join("")).not.toContain("cmd=");
     } finally {
       vscode.env.appName = undefined;
       vscode.window.createOutputChannel = original;
@@ -243,7 +245,7 @@ describe("extension socket", () => {
   it.each([
     "cli",
     "mcp",
-  ] as const)("appends [%s] on the channel when the log request names that origin", async (origin) => {
+  ] as const)("appends @%s on the channel when the log request names that origin", async (origin) => {
     const infos: string[] = [];
     const original = vscode.window.createOutputChannel;
     vscode.window.createOutputChannel = ((name: string) => ({
@@ -278,7 +280,8 @@ describe("extension socket", () => {
         JSON.stringify({ name: "log", args: { level: "info", message: "listed variants", origin } }),
       );
       expect(JSON.parse(line)).not.toHaveProperty("error");
-      expect(infos).toContain(`listed variants [${origin}]`);
+      expect(infos).toContain(`listed variants @${origin}`);
+      expect(infos.join("")).not.toContain(`[${origin}]`);
     } finally {
       vscode.env.appName = undefined;
       vscode.window.createOutputChannel = original;

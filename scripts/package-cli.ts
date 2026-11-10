@@ -6,8 +6,9 @@
  * Usage: bun scripts/package-cli.ts [bun-target|all]   (default: the host platform)
  * Output: out/variant-<version>-<os>-<arch>[.exe]
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { versionDefines } from "./version-stamp.ts";
 
 /** Platforms a release ships a `variant` executable for. */
@@ -31,7 +32,7 @@ export const assetName = (version: string, target: string): string => {
 
 const hostTarget = (): string => `bun-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
 
-/** The module that stands in for `packages/variant-cli/src/embedded-app.ts` in a compiled executable. */
+/** The module that stands in for `embedded-app.ts` beside `variant-cli/bundle` in a compiled executable. */
 export const embeddedAppModule = (appDirectory: string): string => {
   const files = readdirSync(appDirectory).filter((name) => statSync(join(appDirectory, name)).isFile());
   return [
@@ -49,9 +50,12 @@ export const compileCli = async (root: string, outfile: string, target?: string)
   if (!existsSync(join(appDirectory, "index.html"))) {
     throw new Error(`the variants app is not built: ${appDirectory}/index.html is missing (run task build)`);
   }
-  const placeholder = join(root, "packages/variant-cli/src/embedded-app.ts");
+  const entry = realpathSync(fileURLToPath(import.meta.resolve("variant-cli/bundle")));
+  const placeholder = realpathSync(
+    fileURLToPath(new URL("./embedded-app.ts", import.meta.resolve("variant-cli/bundle"))),
+  );
   const result = await Bun.build({
-    entrypoints: [join(root, "packages/variant-cli/src/cli.ts")],
+    entrypoints: [entry],
     compile: target === undefined ? { outfile } : { outfile, target: target as Bun.Build.Target },
     define: versionDefines(root),
     plugins: [
@@ -59,7 +63,9 @@ export const compileCli = async (root: string, outfile: string, target?: string)
         name: "embed-variants-app",
         setup: (build) => {
           build.onLoad({ filter: /embedded-app\.ts$/ }, (args) =>
-            args.path === placeholder ? { contents: embeddedAppModule(appDirectory), loader: "ts" } : undefined,
+            realpathSync(args.path) === placeholder
+              ? { contents: embeddedAppModule(appDirectory), loader: "ts" }
+              : undefined,
           );
         },
       },

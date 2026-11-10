@@ -8,4 +8,5 @@ if (flag !== -1) {
   process.argv.splice(flag, 2);
 }
 
-await import("../../variant-mcp/src/mcp.ts");
+// AIDEV-NOTE: `variant-mcp/bundle` is the server source. The extension bundle inlines it, including variant-api.
+await import("variant-mcp/bundle");

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { platformToken, VERSION_BANNER, variantString } from "variant-api";
 import { runCli, runCommand } from "./test/cli.js";
-import { platformToken, VERSION_BANNER, variantString } from "./version-line.js";
 
 /** Package version plus `variantString` for this checkout. */
 const versionToken = (version: string): string => {
@@ -272,14 +272,14 @@ describe("variant CLI", () => {
       ).toBe("");
 
       expect((await variant(["create", "-s", "other"])).exitCode).toBe(0);
-      const kept = await variant(["implode", "-s", "other", "--branch-rm=no", "--log-level=debug"]);
+      const kept = await variant(["implode", "-s", "other", "--branch-rm=no", "--log-level=trace"]);
       expect(kept.exitCode).toBe(0);
-      expect(kept.stderr).toContain("[debug] kept branch feat/other");
+      expect(kept.stderr).toContain("[trace] kept branch feat/other");
       expect(execFileSync("git", ["-C", directory, "branch", "--list", "feat/other"], { encoding: "utf8" })).toContain(
         "feat/other",
       );
-      const removed = await variant(["implode", "-s", "other", "--log-level=debug"]);
-      expect(removed.stderr).toContain("[debug] removed branch feat/other");
+      const removed = await variant(["implode", "-s", "other", "--log-level=trace"]);
+      expect(removed.stderr).toContain("[trace] removed branch feat/other");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

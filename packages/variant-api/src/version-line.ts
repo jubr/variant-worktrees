@@ -4,9 +4,23 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { sanitizeSlug } from "variant-api";
+import apiPackage from "../package.json" with { type: "json" };
+import { sanitizeSlug } from "./slug.js";
 
-export const REPOSITORY_URL = "https://github.com/jubr/variant-worktrees";
+type PackageUrl = { homepage?: string; repository?: string | { url?: string } };
+
+/** The version-line URL: `homepage` of `variant-api`, otherwise `repository.url` without a `git+` prefix or a trailing `.git`. */
+export const repositoryUrl = (pkg: PackageUrl = apiPackage): string => {
+  if (typeof pkg.homepage === "string" && pkg.homepage !== "") {
+    return pkg.homepage;
+  }
+  const repository = pkg.repository;
+  const raw = typeof repository === "string" ? repository : repository?.url;
+  if (typeof raw !== "string" || raw === "") {
+    throw new Error("package.json needs homepage or repository.url");
+  }
+  return raw.replace(/^git\+/, "").replace(/\.git$/, "");
+};
 
 const ORANGE = "\u001b[38;5;208m";
 const RESET = "\u001b[0m";
@@ -52,14 +66,18 @@ export const utcDate = (now: Date, variant: string): string => {
   return variant ? `${iso.slice(0, 10)} ${iso.slice(11, 19)}` : iso.slice(0, 10);
 };
 
-declare const VARIANT_BUILD_DATE: string | undefined;
-declare const VARIANT_BUILD_VARIANT: string | undefined;
-
-/** Date and `variant` from the build stamp when it was baked, otherwise from this checkout and `now`. */
-export const resolveVersionFacts = (directory: string, now: Date): { date: string; variant: string } => {
-  const variant = typeof VARIANT_BUILD_VARIANT === "string" ? VARIANT_BUILD_VARIANT : readVariant(directory);
+/**
+ * Date and `variant` from `baked` when a build stamped them, otherwise from this checkout and `now`.
+ * The CLI passes the stamp. The library does not read build globals, so a published package stays unstamped.
+ */
+export const resolveVersionFacts = (
+  directory: string,
+  now: Date,
+  baked: { date?: string; variant?: string } = {},
+): { date: string; variant: string } => {
+  const variant = baked.variant ?? readVariant(directory);
   return {
-    date: typeof VARIANT_BUILD_DATE === "string" ? VARIANT_BUILD_DATE : utcDate(now, variant),
+    date: baked.date ?? utcDate(now, variant),
     variant,
   };
 };
@@ -94,12 +112,13 @@ export const renderVersion = (input: {
   platform: string;
   date: string;
   variant?: string;
+  repository: string;
   color: boolean;
   banner: boolean;
 }): string => {
   const head = `${versionToken(input.version, input.variant)} (${input.date})\n`;
   const drawing = input.banner ? `${renderBanner(input.color)}\n` : "";
-  return `${head}${drawing}${input.platform}, ${REPOSITORY_URL}\n`;
+  return `${head}${drawing}${input.platform}, ${input.repository}\n`;
 };
 
 export const formatVersionLine = (input: {
@@ -107,4 +126,5 @@ export const formatVersionLine = (input: {
   platform: string;
   date: string;
   variant?: string;
+  repository: string;
 }): string => renderVersion({ ...input, color: false, banner: true }).replace(/\n$/, "");

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-operations-"));
 
@@ -20,7 +20,7 @@ describe("variant client operations", () => {
       execFileSync("git", ["-C", directory, "add", ".gitignore", "README.md"]);
       execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
       const baseConfig = loadConfig({ cwd: directory, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" as const } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
@@ -49,7 +49,7 @@ describe("variant client operations", () => {
     const directory = tempDirectory();
     try {
       const baseConfig = loadConfig({ cwd: directory });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
@@ -77,7 +77,7 @@ describe("variant client operations", () => {
       git("commit", "-q", "-m", "initial");
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
@@ -107,7 +107,7 @@ describe("variant client operations", () => {
       git("commit", "-q", "-m", "initial");
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
-      const client = createClient({
+      const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),

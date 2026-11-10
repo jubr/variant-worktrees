@@ -3,13 +3,13 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "../index.js";
+import { createVariantClient } from "../index.js";
 
 const withProject = async (
   run: (
     directory: string,
     put: (path: string, content: string) => void,
-    list: () => ReturnType<ReturnType<typeof createClient>["list"]>,
+    list: () => ReturnType<ReturnType<typeof createVariantClient>["list"]>,
   ) => Promise<void>,
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-list-")));
@@ -20,7 +20,7 @@ const withProject = async (
   try {
     put("variants.yaml", "db:\n  dialect: sqlite\n");
     const list = () =>
-      createClient({
+      createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),

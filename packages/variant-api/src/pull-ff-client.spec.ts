@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { installEngineStub } from "./test/engine-stub.js";
 
 const git = (cwd: string, ...args: string[]): string => {
@@ -54,7 +54,7 @@ const pushAhead = (origin: string): void => {
 
 const clientFor = (repo: string) => {
   const config = loadConfig({ cwd: repo, env: {} });
-  return createClient({
+  return createVariantClient({
     config: { ...config, db: { dialect: "sqlite" } },
     cwd: repo,
     stateDir: join(repo, ".cache", "variants"),

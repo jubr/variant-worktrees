@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createClient } from "./index.js";
+import { createVariantClient } from "./index.js";
 import { loadVariantConfig, MiseError, miseEnvironment, readVariableSources, runMiseTrust } from "./mise.js";
 import { fakeMise } from "./test/mise-mock.js";
 
@@ -167,11 +167,11 @@ describe("runMiseTrust", () => {
   });
 });
 
-describe("createClient laziness", () => {
+describe("createVariantClient laziness", () => {
   it("starts no Mise process for list when the database is an explicit SQLite one", async () => {
     const mise = fakeMise(root, { env: "POSTGRES_HOST=db\n" });
     writeFileSync(join(root, "variants.yaml"), "db:\n  dialect: sqlite\n");
-    const client = createClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
+    const client = createVariantClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
 
     await client.list();
 
@@ -181,7 +181,7 @@ describe("createClient laziness", () => {
   it("reads the environment through Mise once when detection needs it", async () => {
     const mise = fakeMise(root, { env: "SQLITE_DATABASE=app\n" });
     writeFileSync(join(root, "variants.yaml"), "variant:\n  prefix: wt-\n");
-    const client = createClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
+    const client = createVariantClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
 
     await client.list();
     await client.list();
