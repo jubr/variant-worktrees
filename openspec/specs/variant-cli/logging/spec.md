@@ -82,9 +82,9 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 - **THEN** standard output is the verbose list text
 - **AND** standard error does not contain a line that starts with `[debug]`
 
-### Requirement: Editor log stream
+### Requirement: Vscode log stream
 
-The CLI SHALL send each log event to the editor on the project Unix socket. The socket path SHALL be the path resolved for the process working directory. The CLI SHALL NOT connect while attaching the log sink. The first event SHALL start the only connection attempt. A later event SHALL NOT open a second connection.
+The CLI SHALL send each log event to vscode on the project Unix socket. The socket path SHALL be the path resolved for the process working directory. The CLI SHALL NOT connect while attaching the log sink. The first event SHALL start the only connection attempt. A later event SHALL NOT open a second connection.
 
 When the attempt succeeds, the CLI SHALL emit one debug event whose step is `ipc` and whose message is `connected`. When the attempt fails, the CLI SHALL emit one debug event whose step is `ipc` and whose message is `connect failed: ` followed by the reason. A missing socket file SHALL use `file not found`. A refused connection SHALL use `connection refused`. A permission failure SHALL use `permission denied`. Any other failure SHALL use that error's text. The CLI SHALL NOT emit that outcome again. A failed attempt SHALL NOT fail the command, SHALL NOT write a log event to standard output, and SHALL NOT create the socket file.
 
@@ -94,7 +94,7 @@ A single write SHALL NOT wait longer than 1 second. When a write does not finish
 
 When the CLI finishes and the log sink is attached, including when the command fails, the CLI SHALL emit one debug event whose step is `cli` and whose message is `end`, and SHALL wait until that event has been sent or the attempt has failed before the process exits. The stderr threshold SHALL still apply. An event below the threshold SHALL still be sent on the socket. The slug SHALL NOT be printed on stderr. Standard error SHALL NOT contain ` [cli]`.
 
-#### Scenario: Event reaches a listening editor
+#### Scenario: Event reaches a listening vscode
 
 - **WHEN** a listener is accepting connections on the project socket and the CLI emits an info event with message `+ mise install`, step `create`, and slug `add-auth`
 - **THEN** the listener receives a request named `log` whose args are level `info`, that message, step `create`, slug `add-auth`, and origin `cli`
