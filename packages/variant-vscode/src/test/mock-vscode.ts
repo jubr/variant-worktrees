@@ -4084,7 +4084,12 @@ export interface Uri {
   toString(): string;
 }
 
-const makeUri = (scheme: string, path: string, text: string): Uri => ({ scheme, fsPath: path, path, toString: () => text });
+const makeUri = (scheme: string, path: string, text: string): Uri => ({
+  scheme,
+  fsPath: path,
+  path,
+  toString: () => text,
+});
 
 export const Uri = {
   file: (path: string): Uri => makeUri("file", path, `file://${path}`),
@@ -4196,9 +4201,9 @@ const configurationListeners = new Set<(event: { affectsConfiguration: (section:
 export const workspace: {
   workspaceFolders?: Array<{ uri: { fsPath: string } }>;
   getConfiguration: (section: string) => typeof configuration;
-  onDidChangeConfiguration: (
-    listener: (event: { affectsConfiguration: (section: string) => boolean }) => void,
-  ) => { dispose: () => void };
+  onDidChangeConfiguration: (listener: (event: { affectsConfiguration: (section: string) => boolean }) => void) => {
+    dispose: () => void;
+  };
   openTextDocument: (target: Uri | string) => Promise<unknown>;
   onDidChangeWorkspaceFolders: (listener: unknown) => { dispose: () => void };
   /** Tells every configuration listener that `section` changed. Tests use this. */
@@ -4363,12 +4368,7 @@ export const window = {
     _provider: { resolveWebviewView: (view: WebviewViewStub) => unknown },
     _options?: unknown,
   ): Disposable => ({ dispose: () => {} }),
-  createWebviewPanel: (
-    viewType: string,
-    title: string,
-    _column: unknown,
-    options: unknown,
-  ): WebviewPanelStub => {
+  createWebviewPanel: (viewType: string, title: string, _column: unknown, options: unknown): WebviewPanelStub => {
     const messageListeners = new Set<(message: unknown) => unknown>();
     const disposeListeners = new Set<() => void>();
     return {
