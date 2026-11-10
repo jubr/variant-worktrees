@@ -16,7 +16,7 @@ describe("the extension bundle", () => {
       writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
       const { entryPoints: _entry, outdir: _outdir, outbase: _outbase, outExtension: _ext, ...shared } = config;
       const outfile = join(directory, "probe.cjs");
-      await esbuild.build({
+      const build = {
         ...shared,
         stdin: {
           contents: `import("variant-api").then(async (m) => {
@@ -24,11 +24,19 @@ describe("the extension bundle", () => {
             console.log(Array.isArray(records) ? typeof m.createVariantClient : "no list");
           });`,
           resolveDir: join(import.meta.dir, "..", ".."),
-          loader: "ts",
+          loader: "ts" as const,
         },
         outfile,
-        logLevel: "silent",
-      });
+        logLevel: "silent" as const,
+      };
+      try {
+        await esbuild.build(build);
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.includes("service is no longer running")) {
+          throw error;
+        }
+        await esbuild.build(build);
+      }
 
       const run = Bun.spawn(["node", outfile], { stdout: "pipe", stderr: "pipe" });
       const [code, out, err] = await Promise.all([

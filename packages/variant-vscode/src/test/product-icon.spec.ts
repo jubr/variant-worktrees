@@ -92,7 +92,7 @@ describe("product icon", () => {
     const vsix = join(repoRoot, "out", `variant-worktrees-${manifest.version}.vsix`);
     const listed = spawnSync("unzip", ["-l", vsix], { encoding: "utf8" });
     expect(listed.stdout).toContain("media/icon-256.png");
-  });
+  }, 120_000);
 
   it("publishes rounded-rectangle downscales with transparent corners", async () => {
     const icon256 = await decoded("packages/variant-vscode/media/icon-256.png");

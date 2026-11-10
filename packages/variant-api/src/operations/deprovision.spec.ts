@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { type LogEvent, setLogSink } from "../log.js";
@@ -13,11 +13,18 @@ import type { OperationContext } from "./types.js";
 const yaml = (multi: string, steps = ""): string =>
   `db:\n  dialect: postgres\n  host: 127.0.0.1\n  multi:\n${multi}${steps ? `variant:\n${steps}` : "variant: {}\n"}`;
 
+/** Outside the known temporary directories, so a log stays at the level the call site asked for. */
+const loudParent = (): string => {
+  const parent = join(homedir(), ".cache", "variant-loud");
+  mkdirSync(parent, { recursive: true });
+  return parent;
+};
+
 const withDrop = async (
   text: string,
   catalog: string[],
   run: (tools: { directory: string; context: OperationContext; dropped: string[] }) => Promise<void>,
-  parent: string = tmpdir(),
+  parent: string = loudParent(),
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join(parent, "variant-drop-")));
   const dropped: string[] = [];

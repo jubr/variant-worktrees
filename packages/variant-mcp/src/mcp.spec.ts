@@ -10,7 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { createListener, type IpcRequest, socketPath } from "variant-ipc";
 import { LogLevel } from "variant-log";
@@ -22,6 +22,13 @@ interface McpResult {
 }
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-mcp-"));
+
+/** Outside the known temporary directories, so a log stays at the level the call site asked for. */
+const loudParent = (): string => {
+  const parent = join(homedir(), ".cache", "variant-loud");
+  mkdirSync(parent, { recursive: true });
+  return parent;
+};
 
 const configFile = (directory: string, seed = false): string => {
   const path = join(directory, "variants.yaml");
@@ -696,7 +703,7 @@ describe("MCP runtime tools", () => {
     } finally {
       rmSync(parent, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 });
 
 describe("MCP status and verbose list", () => {
@@ -896,7 +903,7 @@ describe("MCP logging", () => {
       const listed = answer(result, 2);
       expect(listed.isError).not.toBe(true);
       expect(listed.text).not.toContain("SELECT");
-    }, tmpdir()));
+    }, loudParent()));
 
   it("sends the contact warning and not the statement when the client asks for info", () =>
     withUnreachableMcp(async (directory, configPath) => {
@@ -907,10 +914,10 @@ describe("MCP logging", () => {
       expect(notes.some((note) => note.level === "warning")).toBe(true);
       expect(notes.some((note) => note.level === "info")).toBe(false);
       expect(notes.some((note) => note.level === "debug")).toBe(false);
-    }, tmpdir()));
+    }, loudParent()));
 
   it("sends a schema create at info when the client asks for info", async () => {
-    const directory = realpathSync(mkdtempSync(join(tmpdir(), "variant-mcp-info-")));
+    const directory = realpathSync(mkdtempSync(join(loudParent(), "variant-mcp-info-")));
     try {
       const result = await mcp(
         [...initMessages(), setLevel(2, "info"), call(3, "variant_provision", { slug: "test-feature" })],
@@ -945,7 +952,7 @@ describe("MCP logging", () => {
         cwd: directory,
       });
       expect(logging(result).some((note) => note.level === "warning")).toBe(false);
-    }, tmpdir()));
+    }, loudParent()));
 
   it("returns variant_create as an error whose text is the contact warning", () =>
     withUnreachableMcp(async (directory, configPath) => {

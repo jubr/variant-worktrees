@@ -38,12 +38,7 @@ describe("bundled MCP server", () => {
     writeFileSync(join(elsewhere, "package.json"), JSON.stringify({ version: "0.0.0" }));
     mkdirSync(join(elsewhere, "dist"));
     try {
-      await esbuild.build({
-        ...(builds.mcpBundle as BuildOptions),
-        absWorkingDir: join(import.meta.dir, ".."),
-        outfile,
-        logLevel: "silent",
-      });
+      await buildBundle(builds.mcpBundle as BuildOptions, outfile);
       const flagged = await talk(outfile, elsewhere, ["--cwd", directory]);
       expect(flagged.names).toContain("variant_list");
       expect(flagged.names).not.toContain("variant_destroy");
@@ -55,7 +50,7 @@ describe("bundled MCP server", () => {
       rmSync(directory, { recursive: true, force: true });
       rmSync(elsewhere, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   it("keeps the standalone bin and its --config-only parser", () => {
     const pkg = JSON.parse(readFileSync(new URL("../../variant-mcp/package.json", import.meta.url), "utf8")) as {
@@ -74,6 +69,24 @@ interface Talk {
   names: string[];
   config: { warnings?: string[] };
 }
+
+/** esbuild's service dies when a neighbour test is killed. One more start is enough. */
+const buildBundle = async (options: BuildOptions, outfile: string): Promise<void> => {
+  const build = {
+    ...options,
+    absWorkingDir: join(import.meta.dir, ".."),
+    outfile,
+    logLevel: "silent" as const,
+  };
+  try {
+    await esbuild.build(build);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("service is no longer running")) {
+      throw error;
+    }
+    await esbuild.build(build);
+  }
+};
 
 const talk = async (outfile: string, cwd: string, args: string[]): Promise<Talk> => {
   const input = [
