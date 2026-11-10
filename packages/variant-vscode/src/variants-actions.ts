@@ -1,6 +1,7 @@
 import type { VariantRecord } from "variant-api";
 import { UI_WATCH_KEY } from "variant-ui/state";
 import * as vscode from "vscode";
+import { outputModeForExtensions } from "./output-mode.ts";
 import type { LoadClient } from "./variants-client.ts";
 
 /** The extension log an action writes to. */
@@ -66,7 +67,11 @@ export const createActions = (deps: ActionDeps): VariantActions => {
   };
   return {
     watch: async (slug) => {
-      await (await deps.loadClient(directoryOf(slug))).watch(slug, { ...report, detach: true });
+      await (await deps.loadClient(directoryOf(slug))).watch(slug, {
+        ...report,
+        detach: true,
+        outputMode: outputModeForExtensions(vscode.extensions.all),
+      });
     },
     down: async (slug) => {
       if (slug === UI_WATCH_KEY) {

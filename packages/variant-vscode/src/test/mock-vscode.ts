@@ -4229,7 +4229,7 @@ export const workspace: {
 
 export const extensions = {
   getExtension: (_id: string): { packageJSON: unknown } | undefined => undefined,
-  all: [] as { id: string }[],
+  all: [] as { id: string; packageJSON?: { description?: string } }[],
 };
 
 export interface WebviewPanelStub {
