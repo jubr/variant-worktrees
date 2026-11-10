@@ -4,10 +4,13 @@
  */
 
 import { execFileSync } from "node:child_process";
+import apiPackage from "../package.json" with { type: "json" };
 import { sanitizeSlug } from "./slug.js";
 
-/** The version-line URL: `homepage`, otherwise `repository.url` without a `git+` prefix or a trailing `.git`. */
-export const repositoryUrl = (pkg: { homepage?: string; repository?: string | { url?: string } }): string => {
+type PackageUrl = { homepage?: string; repository?: string | { url?: string } };
+
+/** The version-line URL: `homepage` of `variant-api`, otherwise `repository.url` without a `git+` prefix or a trailing `.git`. */
+export const repositoryUrl = (pkg: PackageUrl = apiPackage): string => {
   if (typeof pkg.homepage === "string" && pkg.homepage !== "") {
     return pkg.homepage;
   }

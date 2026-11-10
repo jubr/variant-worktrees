@@ -16,6 +16,10 @@ import {
 } from "./version-line.js";
 
 describe("repository URL", () => {
+  it("uses the variant-api homepage when no package is passed", () => {
+    expect(repositoryUrl()).toBe("https://github.com/jubr/variant-worktrees");
+  });
+
   it("uses homepage when the package has one", () => {
     expect(
       repositoryUrl({
