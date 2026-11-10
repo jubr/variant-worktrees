@@ -7,6 +7,8 @@ import type { LoadClient } from "./variants-client.ts";
 export interface ActivityLog {
   info(message: string, fields?: Record<string, unknown>): void;
   error(message: string, cause?: unknown, fields?: Record<string, unknown>): void;
+  /** Ready-probe lines. Optional so a log that only records actions still type-checks. */
+  debug?(message: string, fields?: Record<string, unknown>): void;
 }
 
 export interface ActionDeps {

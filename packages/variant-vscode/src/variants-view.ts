@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { type ResolvedConfig, type VariantRecord, worktreeReport } from "variant-api";
+import { type ResolvedConfig, readyProbeLine, type VariantRecord, worktreeReport } from "variant-api";
 import { findConfigFile, getVariantsAdoption } from "variant-config";
 import { DEFAULT_MAX_DIFF_LINES } from "variant-config/schema";
 import { type VariantSort, variantSort } from "variant-ui/state";
@@ -112,46 +112,83 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
   const opened = new Set<string>();
 
   const confirmStarted = async (slug: string): Promise<void> => {
+    const tried = new Set<string>();
+    const ok = new Set<string>();
+    const needed = new Set<string>();
     const stop = store.onDidChange(() => {
       const current = store.records().find((entry) => entry.slug === slug);
-      const currentPid = current === undefined ? undefined : ownerPid(current);
-      if (currentPid !== undefined && !pidAlive(currentPid)) {
-        provider.release(slug);
+      if (current === undefined) {
+        return;
+      }
+      for (const [key, watch] of Object.entries(current.watches ?? {})) {
+        if (needed.has(key) && !ok.has(key) && watch.pid !== undefined && !pidAlive(watch.pid)) {
+          provider.release(slug);
+          return;
+        }
       }
     });
     try {
       while (provider.holding(slug)) {
         const record = store.records().find((entry) => entry.slug === slug);
-        const url = record?.url;
-        const ready = record === undefined ? undefined : await readyPath(loadClient, record);
-        const pid = record === undefined ? undefined : ownerPid(record);
+        if (record === undefined) {
+          provider.release(slug);
+          return;
+        }
+        const targets = await readyTargets(loadClient, record);
         if (!provider.holding(slug)) {
           return;
         }
-        if (url === undefined || ready === undefined || (pid !== undefined && !pidAlive(pid))) {
+        for (const target of targets) {
+          needed.add(target.key);
+        }
+        if (targets.length === 0) {
           provider.release(slug);
           return;
         }
-        if (pid === undefined) {
-          await sleep(READY_POLL_MS);
-          continue;
-        }
-        let status = 0;
-        try {
-          status = (await fetch(joinReady(url, ready))).status;
-        } catch {
-          await sleep(READY_POLL_MS);
-          continue;
-        }
-        if (!provider.holding(slug) || !pidAlive(pid)) {
+        const pending = targets.filter((target) => !ok.has(target.key));
+        if (pending.some((target) => target.pid !== undefined && !pidAlive(target.pid))) {
           provider.release(slug);
           return;
         }
-        if (status === 200) {
+        if (pending.some((target) => target.pid === undefined)) {
+          await sleep(READY_POLL_MS);
+          continue;
+        }
+        await Promise.all(
+          pending.map(async (target) => {
+            const probe = joinReady(target.url, target.ready);
+            if (!tried.has(target.key)) {
+              tried.add(target.key);
+              log?.debug?.(readyProbeLine(target.key, "try", probe));
+            }
+            let status = 0;
+            try {
+              status = (await fetch(probe)).status;
+            } catch {
+              return;
+            }
+            if (!provider.holding(slug) || (target.pid !== undefined && !pidAlive(target.pid))) {
+              return;
+            }
+            if (status === 200 && !ok.has(target.key)) {
+              ok.add(target.key);
+              log?.debug?.(readyProbeLine(target.key, "200", probe));
+            }
+          }),
+        );
+        if (!provider.holding(slug)) {
+          return;
+        }
+        if (targets.some((target) => !ok.has(target.key) && target.pid !== undefined && !pidAlive(target.pid))) {
           provider.release(slug);
-          if (!opened.has(slug)) {
+          return;
+        }
+        if (targets.every((target) => ok.has(target.key))) {
+          provider.release(slug);
+          const rowUrl = record.url;
+          if (rowUrl !== undefined && !opened.has(slug)) {
             opened.add(slug);
-            await vscode.env.openExternal(vscode.Uri.parse(url));
+            await vscode.env.openExternal(vscode.Uri.parse(rowUrl));
           }
           return;
         }
@@ -368,18 +405,24 @@ const implodeReport = async (
   return worktreeReport(worktree, maxDiffLines);
 };
 
-/** The pid of the watch whose url is the row url. */
-const ownerPid = (record: VariantRecord): number | undefined =>
-  Object.values(record.watches ?? {}).find((watch) => watch.url === record.url)?.pid;
-
-/** `ready` of that watch, from the variant's own configuration. Absent when the file names none. */
-const readyPath = async (loadClient: LoadClient, record: VariantRecord): Promise<string | undefined> => {
-  const key = Object.entries(record.watches ?? {}).find(([, watch]) => watch.url === record.url)?.[0];
-  if (key === undefined) {
-    return undefined;
+/** Watches that have both a URL and a `ready` path. A watch with only one of those is not probed. */
+const readyTargets = async (
+  loadClient: LoadClient,
+  record: VariantRecord,
+): Promise<Array<{ key: string; url: string; ready: string; pid?: number }>> => {
+  const entries = Object.entries(record.watches ?? {});
+  if (!entries.some(([, watch]) => watch.url !== undefined)) {
+    return [];
   }
   const client = (await loadClient(record.worktree)) as { config?: () => ResolvedConfig };
-  return client.config?.().variant.watches[key]?.ready;
+  const configured = client.config?.().variant.watches ?? {};
+  return entries.flatMap(([key, watch]) => {
+    const ready = configured[key]?.ready;
+    if (watch.url === undefined || ready === undefined) {
+      return [];
+    }
+    return [{ key, url: watch.url, ready, ...(watch.pid !== undefined ? { pid: watch.pid } : {}) }];
+  });
 };
 
 /** How long a ready GET that is not 200 waits before the next try. Same pace as the library's ready poll. */
