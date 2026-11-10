@@ -94,9 +94,9 @@ export const createActivityWatch = ({
 /** `caffeinate` on macOS. Missing file means the platform cannot run it. */
 export const caffeinateOnPath = (): boolean => existsSync("/usr/bin/caffeinate");
 
-/** Not detached, so the extension host does not leave the child behind. */
-export const spawnCaffeinate = (args: string): AwakeProcess => {
-  const child = spawn("caffeinate", [args], { stdio: "ignore" });
+/** Not detached, so dispose can signal the child. `-w` in `argv` exits it when the host dies. */
+export const spawnCaffeinate = (argv: readonly string[]): AwakeProcess => {
+  const child = spawn("caffeinate", [...argv], { stdio: "ignore" });
   return {
     pid: child.pid ?? -1,
     kill: (signal = "SIGTERM") => child.kill(signal),

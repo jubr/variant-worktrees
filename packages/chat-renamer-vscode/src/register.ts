@@ -32,6 +32,8 @@ export type RegisterChatRenamerOptions = ChatRenamerNamesInput & {
   readAwakeActivity?: TriggerHost["readAwakeActivity"];
   /** Spawns `caffeinate`. For tests. */
   awakeSpawn?: TriggerHost["awakeSpawn"];
+  /** Extension host pid `caffeinate -w` waits on. For tests. */
+  parentPid?: TriggerHost["parentPid"];
   /** Whether `caffeinate` can be run. For tests. */
   caffeinateAvailable?: TriggerHost["caffeinateAvailable"];
   /**
@@ -63,6 +65,7 @@ export const registerChatRenamer = (
     fileConfig,
     readAwakeActivity,
     awakeSpawn,
+    parentPid,
     caffeinateAvailable,
     ...nameInput
   }: RegisterChatRenamerOptions = {},
@@ -92,6 +95,7 @@ export const registerChatRenamer = (
     fileConfig,
     readAwakeActivity,
     awakeSpawn,
+    parentPid,
     caffeinateAvailable,
   });
   return { names, ready };
