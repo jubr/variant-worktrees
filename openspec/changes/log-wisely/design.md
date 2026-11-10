@@ -21,7 +21,7 @@ Awake kill is `awake.trace`. A title-event decision uses info for every reason e
 **Non-Goals:**
 
 - Do not change `echoCommand` or the progress-log line `+ <command>`.
-- Do not change the awake start line (`+ "caffeinate …"` with a space, pid, and reason).
+- Do not change the awake start message (`+ "caffeinate …"` with a space, pid, and reason). Its level is debug.
 - Do not remove the `quiet` option on `list`. It stops affecting logs because those logs are gone.
 - Do not demote CLI `ipc` and `cli` events when the working directory is under `/tmp`. The temporary-directory rule covers library events.
 
@@ -57,7 +57,7 @@ Alternative: change only the CLI fill-in and leave implode's `logD` calls slug-l
 
 ### Decision and kill levels stay local
 
-`logDecision` sends `rename request` through the debug writer. The info fallback remains for `current title shares the base`, `no rename request`, and `malformed request`. Awake changes the kill call from `trace` to `debug` and leaves the start call on `trace`. Both live in the shared renamer packages; `variant-vscode` does not grow a copy.
+`logDecision` sends `rename request` through the debug writer. The info fallback remains for `current title shares the base`, `no rename request`, and `malformed request`. Awake changes the start and kill calls from `trace` to `debug`. The start message stays `+ "caffeinate …"` with a space. Both live in the shared renamer packages; `variant-vscode` does not grow a copy.
 
 ## Risks / Trade-offs
 

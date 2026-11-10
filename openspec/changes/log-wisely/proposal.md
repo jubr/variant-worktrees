@@ -9,7 +9,7 @@ Variant logs are noisy in the wrong places and quiet in the wrong ones. Unit tes
 - On the Variant Worktrees channel, an event from the CLI ends with ` @cli` and an event from MCP ends with ` @mcp`. **BREAKING** for a reader that matches ` [cli]` or ` [mcp]`.
 - A shell command in the log is the message `+"<command>"` (plus, then the command in quotes, no space). That replaces a bare command such as `printf seeded` and the channel form `cmd="mise trust --all"`. **BREAKING** for a reader that matches `cmd=`. Schema lines such as `create schema …` stay plain sentences.
 - The five log levels are one exported enum, values `trace`, `debug`, `info`, `warn`, `error`, in that order. The strings on a log line and on the socket stay those words. `warning` still selects `warn` on the CLI.
-- Killing the awake `caffeinate` process is logged at `debug`. Starting it stays at `trace`.
+- Starting and killing the awake `caffeinate` process are logged at `debug`.
 - A command run with an explicit slug (CLI `-s` / `--slug`, or the slug a tool call names) stamps that slug on events that would otherwise take the working-directory slug. `variant implode -s release-smoke` from the primary checkout logs `<release-smoke>`, including branch removal and `implode finished`.
 - A title-event decision whose reason is `rename request` is logged at `debug`.
 
