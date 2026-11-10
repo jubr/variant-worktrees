@@ -114,7 +114,7 @@ describe("vscode log stream", () => {
     expect(stderr.join("")).not.toContain("main");
   });
 
-  it("stamps an explicit slug on ipc connected instead of the checkout slug", async () => {
+  it("stamps an explicit slug on a bare event and does not send ipc or cli", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     execFileSync("git", ["init", "-q", "-b", "main", directory]);
