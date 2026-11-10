@@ -13,6 +13,19 @@
     "./commands": {
       "types": "./dist/commands.d.ts",
       "import": "./dist/commands.js"
+    },
+    "./bundle": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./commands": {
+        "types": "./dist/commands.d.ts",
+        "import": "./dist/commands.js"
+      }
     }
   },
   "scripts": {

@@ -12,6 +12,15 @@
     ".": {
       "types": "./dist/mcp.d.ts",
       "import": "./dist/mcp.js"
+    },
+    "./bundle": "./src/mcp.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mcp.d.ts",
+        "import": "./dist/mcp.js"
+      }
     }
   },
   "scripts": {

@@ -148,6 +148,7 @@
         "variant-config": "workspace:*",
         "variant-ipc": "workspace:*",
         "variant-log": "workspace:*",
+        "variant-mcp": "workspace:*",
         "variant-ui": "workspace:*",
       },
       "devDependencies": {

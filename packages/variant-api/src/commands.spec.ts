@@ -140,8 +140,13 @@ describe("command registry", () => {
   });
 
   it("is not wired to the editor socket in the CLI or the MCP server", () => {
-    const sources = ["src/commands.ts", "src/index.ts", "../variant-cli/src/cli.ts", "../variant-mcp/src/mcp.ts"]
-      .map((path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"))
+    const sources = [
+      new URL("./commands.ts", import.meta.url),
+      new URL("./index.ts", import.meta.url),
+      new URL(import.meta.resolve("variant-cli/bundle")),
+      new URL(import.meta.resolve("variant-mcp/bundle")),
+    ]
+      .map((url) => readFileSync(url, "utf8"))
       .join("\n");
 
     expect(sources).not.toContain("variant-ipc");

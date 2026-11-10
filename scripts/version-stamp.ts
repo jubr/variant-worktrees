@@ -4,7 +4,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readVariant, utcDate } from "../packages/variant-api/src/version-line.ts";
+import { readVariant, utcDate } from "variant-api/bundle";
 
 const hasCommit = (directory: string): boolean => {
   try {

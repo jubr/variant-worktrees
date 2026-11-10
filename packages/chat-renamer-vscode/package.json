@@ -7,7 +7,8 @@
   "icon": "media/icon-256.png",
   "main": "./dist/extension.cjs",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./bundle": "./src/index.ts"
   },
   "dependencies": {
     "@types/vscode": "^1.86.0",

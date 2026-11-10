@@ -46,6 +46,9 @@ describe("bundled MCP server", () => {
 
       const plain = await talk(outfile, directory, []);
       expect(plain.config.warnings).toEqual([`${configPath}: unknown key db.colour`]);
+      const bundled = readFileSync(outfile, "utf8");
+      expect(bundled).not.toContain("variant-mcp/bundle");
+      expect(bundled).not.toContain('from "variant-api"');
     } finally {
       rmSync(directory, { recursive: true, force: true });
       rmSync(elsewhere, { recursive: true, force: true });
@@ -53,15 +56,19 @@ describe("bundled MCP server", () => {
   }, 60_000);
 
   it("keeps the standalone bin and its --config-only parser", () => {
-    const pkg = JSON.parse(readFileSync(new URL("../../variant-mcp/package.json", import.meta.url), "utf8")) as {
+    const bundle = new URL(import.meta.resolve("variant-mcp/bundle"));
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", bundle), "utf8")) as {
       bin: Record<string, string>;
     };
-    const source = readFileSync(new URL("../../variant-mcp/src/mcp.ts", import.meta.url), "utf8");
+    const source = readFileSync(bundle, "utf8");
     const options = source.slice(source.indexOf("options:"), source.indexOf("strict:"));
+    const entry = readFileSync(new URL("./mcp-entry.ts", import.meta.url), "utf8");
 
     expect(pkg.bin).toEqual({ "variant-mcp": "./dist/mcp.js" });
     expect(options).toContain("config:");
     expect(options).not.toContain("cwd");
+    expect(entry).toContain('import("variant-mcp/bundle")');
+    expect(entry).not.toContain("variant-mcp/src/");
   });
 });
 
