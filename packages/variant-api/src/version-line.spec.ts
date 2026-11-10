@@ -9,10 +9,26 @@ import {
   readVariant,
   renderBanner,
   renderVersion,
+  repositoryUrl,
   resolveVersionFacts,
   variantString,
   versionColor,
 } from "./version-line.js";
+
+describe("repository URL", () => {
+  it("uses homepage when the package has one", () => {
+    expect(
+      repositoryUrl({
+        homepage: "https://github.com/jubr/variant-worktrees",
+        repository: { url: "https://github.com/jubr/variant-worktrees.git" },
+      }),
+    ).toBe("https://github.com/jubr/variant-worktrees");
+  });
+
+  it("uses repository.url without a git prefix or a trailing .git", () => {
+    expect(repositoryUrl({ repository: "git+https://example.test/variant.git" })).toBe("https://example.test/variant");
+  });
+});
 
 describe("version line", () => {
   it("prints the package version, the platform, the build date, and the repository URL", () => {
@@ -22,8 +38,9 @@ describe("version line", () => {
         platform: "macos-arm64",
         date: "2001-02-03 04:05:06",
         variant: "",
+        repository: "https://example.test/variant",
       }),
-    ).toBe(`1.2.3 (2001-02-03 04:05:06)\n${DRAWING}\n\nmacos-arm64, https://github.com/jubr/variant-worktrees`);
+    ).toBe(`1.2.3 (2001-02-03 04:05:06)\n${DRAWING}\n\nmacos-arm64, https://example.test/variant`);
   });
 
   it("appends the variant string when it is not empty", () => {
@@ -33,6 +50,7 @@ describe("version line", () => {
         platform: "macos-arm64",
         date: "2001-02-03 04:05:06",
         variant: "version-details-4-abcd",
+        repository: "https://github.com/jubr/variant-worktrees",
       }),
     ).toBe(
       `1.2.3-version-details-4-abcd (2001-02-03 04:05:06)\n${DRAWING}\n\nmacos-arm64, https://github.com/jubr/variant-worktrees`,
@@ -79,6 +97,7 @@ describe("version line", () => {
         date: "2001-02-03",
         color: false,
         banner: true,
+        repository: "https://github.com/jubr/variant-worktrees",
       }),
     ).toBe(`1.2.3 (2001-02-03)\n${DRAWING}\n\nmacos-arm64, https://github.com/jubr/variant-worktrees\n`);
   });
@@ -91,6 +110,7 @@ describe("version line", () => {
         date: "2001-02-03",
         color: true,
         banner: false,
+        repository: "https://github.com/jubr/variant-worktrees",
       }),
     ).toBe("1.2.3 (2001-02-03)\nmacos-arm64, https://github.com/jubr/variant-worktrees\n");
   });

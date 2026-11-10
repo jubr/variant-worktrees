@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExtensionLog, registerChatRenamer } from "chat-renamer";
-import { LogLevel, platformToken, renderVersion, resolveVersionFacts, setLogSink } from "variant-api";
+import { LogLevel, platformToken, renderVersion, repositoryUrl, resolveVersionFacts, setLogSink } from "variant-api";
 import * as vscode from "vscode";
+import cliPackage from "../../variant-cli/package.json" with { type: "json" };
 import { formatProbeReport } from "./cursor/cursor-command-probe.ts";
 import { formatVariantLog } from "./format-log.ts";
 import { registerExtensionMcp, unregisterExtensionMcp } from "./mcp-registration.ts";
@@ -38,6 +39,7 @@ const longVersion = (context: vscode.ExtensionContext): string => {
     platform: platformToken(process.platform, process.arch),
     color: false,
     banner: true,
+    repository: repositoryUrl(cliPackage),
   }).trimEnd();
 };
 

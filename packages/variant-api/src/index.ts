@@ -183,10 +183,10 @@ export type {
 export {
   formatVersionLine,
   platformToken,
-  REPOSITORY_URL,
   readVariant,
   renderBanner,
   renderVersion,
+  repositoryUrl,
   resolveVersionFacts,
   utcDate,
   VERSION_BANNER,

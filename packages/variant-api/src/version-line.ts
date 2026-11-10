@@ -6,7 +6,18 @@
 import { execFileSync } from "node:child_process";
 import { sanitizeSlug } from "./slug.js";
 
-export const REPOSITORY_URL = "https://github.com/jubr/variant-worktrees";
+/** The version-line URL: `homepage`, otherwise `repository.url` without a `git+` prefix or a trailing `.git`. */
+export const repositoryUrl = (pkg: { homepage?: string; repository?: string | { url?: string } }): string => {
+  if (typeof pkg.homepage === "string" && pkg.homepage !== "") {
+    return pkg.homepage;
+  }
+  const repository = pkg.repository;
+  const raw = typeof repository === "string" ? repository : repository?.url;
+  if (typeof raw !== "string" || raw === "") {
+    throw new Error("package.json needs homepage or repository.url");
+  }
+  return raw.replace(/^git\+/, "").replace(/\.git$/, "");
+};
 
 const ORANGE = "\u001b[38;5;208m";
 const RESET = "\u001b[0m";
@@ -98,12 +109,13 @@ export const renderVersion = (input: {
   platform: string;
   date: string;
   variant?: string;
+  repository: string;
   color: boolean;
   banner: boolean;
 }): string => {
   const head = `${versionToken(input.version, input.variant)} (${input.date})\n`;
   const drawing = input.banner ? `${renderBanner(input.color)}\n` : "";
-  return `${head}${drawing}${input.platform}, ${REPOSITORY_URL}\n`;
+  return `${head}${drawing}${input.platform}, ${input.repository}\n`;
 };
 
 export const formatVersionLine = (input: {
@@ -111,4 +123,5 @@ export const formatVersionLine = (input: {
   platform: string;
   date: string;
   variant?: string;
+  repository: string;
 }): string => renderVersion({ ...input, color: false, banner: true }).replace(/\n$/, "");
