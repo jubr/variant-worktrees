@@ -18,7 +18,9 @@ export type AwakeInput = {
 };
 
 export type AwakeControllerDeps = {
-  spawn: (args: string) => AwakeProcess;
+  spawn: (argv: readonly string[]) => AwakeProcess;
+  /** Pid of the extension host. `caffeinate -w` exits when this process exits. */
+  parentPid: number;
   /** Called once, when the controller is created. */
   caffeinateAvailable: () => boolean;
   log: Logger;
@@ -31,11 +33,18 @@ export type AwakeController = {
   dispose(): void;
 };
 
-type Tracked = { pid: number; args: string; process: AwakeProcess; stopRequested: boolean };
+type Tracked = { pid: number; args: readonly string[]; process: AwakeProcess; stopRequested: boolean };
 
 type Grace = { since: number; delaySecs: number; timer: { cancel(): void } | null };
 
-const argsFor = (what: AwakeWhat): string => (what === "cpu" ? "-dis" : "-disu");
+const sameArgv = (left: readonly string[], right: readonly string[]): boolean =>
+  left.length === right.length && left.every((part, index) => part === right[index]);
+
+const argsFor = (what: AwakeWhat, pid: number): readonly string[] => [
+  what === "cpu" ? "-dis" : "-disu",
+  "-w",
+  String(pid),
+];
 
 const signal = (child: AwakeProcess, name: NodeJS.Signals): void => {
   try {
@@ -52,6 +61,7 @@ const signal = (child: AwakeProcess, name: NodeJS.Signals): void => {
  */
 export const createAwakeController = ({
   spawn,
+  parentPid,
   caffeinateAvailable,
   log,
   now,
@@ -62,7 +72,7 @@ export const createAwakeController = ({
   awake.info(available ? "caffeinate available" : "caffeinate unavailable");
 
   let tracked: Tracked | null = null;
-  let pendingArgs: string | null = null;
+  let pendingArgs: readonly string[] | null = null;
   let grace: Grace | null = null;
   let latest: AwakeInput = {
     when: "chatsActive",
@@ -120,7 +130,7 @@ export const createAwakeController = ({
     }
   };
 
-  const start = (args: string): void => {
+  const start = (args: readonly string[]): void => {
     if (!available || tracked) {
       return;
     }
@@ -129,14 +139,14 @@ export const createAwakeController = ({
       const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false };
       tracked = running;
       child.once("exit", () => onExit(running));
-      awake.debug(`+ "caffeinate ${args}"`, { pid: child.pid, reason: "activity" });
+      awake.debug(`+ "caffeinate ${args.join(" ")}"`, { pid: child.pid, reason: "activity" });
     } catch (error) {
       awake.error("start failed", error);
     }
   };
 
-  const ensure = (args: string): void => {
-    if (tracked && !tracked.stopRequested && tracked.args === args) {
+  const ensure = (args: readonly string[]): void => {
+    if (tracked && !tracked.stopRequested && sameArgv(tracked.args, args)) {
       pendingArgs = null;
       return;
     }
@@ -198,7 +208,7 @@ export const createAwakeController = ({
     latest = input;
     if (wantsRun()) {
       cancelGrace();
-      ensure(argsFor(input.what));
+      ensure(argsFor(input.what, parentPid));
       return;
     }
     if (!input.owned) {
