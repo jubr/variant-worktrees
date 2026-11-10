@@ -1,8 +1,9 @@
 import { realpathSync } from "node:fs";
+import os from "node:os";
 import { LogLevel } from "variant-log";
 
 /** Known temporary directories. A match forces the emitted level to trace. */
-const KNOWN_TEMPORARY_DIRECTORIES = ["/tmp"];
+const KNOWN_TEMPORARY_DIRECTORIES = ["/tmp", "/private/tmp", "/var/folders/", "/var/tmp", os.tmpdir()];
 
 const resolved = (path: string): string => {
   try {

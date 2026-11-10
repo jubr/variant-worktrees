@@ -4,18 +4,6 @@ import { tmpdir } from "node:os";
 import { LogLevel } from "variant-log";
 import { levelForDirectory } from "./log-directory.ts";
 
-const underTmp = (directory: string): boolean => {
-  const real = realpathSync(directory);
-  return (
-    directory === "/tmp" ||
-    directory.startsWith("/tmp/") ||
-    real === "/tmp" ||
-    real.startsWith("/tmp/") ||
-    real === "/private/tmp" ||
-    real.startsWith("/private/tmp/")
-  );
-};
-
 describe("known temporary directory", () => {
   it("forces trace for a directory inside /tmp", () => {
     expect(levelForDirectory(LogLevel.info, "/tmp/variant-app")).toBe(LogLevel.trace);
@@ -30,17 +18,9 @@ describe("known temporary directory", () => {
     expect(levelForDirectory(LogLevel.info, "/work/demo")).toBe(LogLevel.info);
   });
 
-  it("keeps warn for a user temp directory that is not /tmp", () => {
-    expect(levelForDirectory(LogLevel.warn, "/var/folders/ab/cd")).toBe(LogLevel.warn);
-    expect(levelForDirectory(LogLevel.debug, "/var/tmp/variant-app")).toBe(LogLevel.debug);
-  });
-
-  it("keeps the requested level when the process temp directory is not /tmp", () => {
-    const directory = realpathSync(tmpdir());
-    if (underTmp(directory)) {
-      expect(levelForDirectory(LogLevel.info, directory)).toBe(LogLevel.trace);
-      return;
-    }
-    expect(levelForDirectory(LogLevel.info, directory)).toBe(LogLevel.info);
+  it("forces trace for /var/folders, /var/tmp, and the process temp directory", () => {
+    expect(levelForDirectory(LogLevel.warn, "/var/folders/ab/cd")).toBe(LogLevel.trace);
+    expect(levelForDirectory(LogLevel.debug, "/var/tmp/variant-app")).toBe(LogLevel.trace);
+    expect(levelForDirectory(LogLevel.info, realpathSync(tmpdir()))).toBe(LogLevel.trace);
   });
 });
