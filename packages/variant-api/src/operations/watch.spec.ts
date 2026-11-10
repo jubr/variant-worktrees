@@ -202,8 +202,11 @@ const withProject = async (
   }
 };
 
-/** An HTTP server whose `/health` answers 503 until `healthyAfterMs` have passed. */
-const healthServer = async (healthyAfterMs: number): Promise<{ port: number; healthyAt: () => number }> => {
+/** An HTTP server whose `/health` answers 503 until `healthyAfterMs` have passed, then `status`. */
+const healthServer = async (
+  healthyAfterMs: number,
+  status = 200,
+): Promise<{ port: number; healthyAt: () => number }> => {
   const born = Date.now();
   let healthyAt = 0;
   const server = createServer((request, response) => {
@@ -211,11 +214,11 @@ const healthServer = async (healthyAfterMs: number): Promise<{ port: number; hea
     if (healthy && healthyAt === 0) {
       healthyAt = Date.now();
     }
-    response.statusCode = healthy ? 200 : 503;
+    response.statusCode = healthy ? status : 503;
     response.end();
   });
   servers.push(server);
-  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  await new Promise<void>((done) => server.listen({ port: 0, host: "::", ipv6Only: false }, done));
   return { port: (server.address() as { port: number }).port, healthyAt: () => healthyAt };
 };
 
@@ -447,6 +450,34 @@ describe("watch readiness and opening", () => {
       ),
     );
 
+  it("logs the joined ready URL on the first probe", () =>
+    healthServer(0).then((health) =>
+      withProject(
+        async ({ attach, directory, messages }) => {
+          const { done, stop } = attach();
+          const url = `http://demo.vw.localhost:${health.port}/health`;
+          const tried = `[watch] be URL try ${url}`;
+          const ok = `[watch] be URL 200 ${url}`;
+          const log = join(directory, ".cache", "variant", "watch.log");
+          await until(
+            () => messages.includes(ok) && existsSync(log) && readFileSync(log, "utf8").includes(ok),
+            3000,
+          ).catch(() => {});
+          expect(messages).toContain(tried);
+          expect(messages.filter((line) => line === tried || line === ok)).toEqual([tried, ok]);
+          expect(readFileSync(log, "utf8")).toContain(`${tried}\n`);
+          expect(readFileSync(log, "utf8")).toContain(`${ok}\n`);
+          stop();
+          await done;
+        },
+        BASE.replace(
+          "kind: nestjs, dir: be,",
+          "kind: nestjs, dir: be, ready: /health, url: 'http://demo.vw.localhost:${port}',",
+        ),
+        { "variants.local.yaml": `runtime:\n  watches:\n    be: { port: ${health.port} }\n    fe: { port: 62060 }\n` },
+      ),
+    ));
+
   it("opens the URLs after the watch with ready answers", () =>
     withHealth(1500, async ({ attach, opened, messages }, health) => {
       const { done, stop } = attach();
@@ -463,14 +494,113 @@ describe("watch readiness and opening", () => {
     }));
 
   it("opens right away when no watch sets ready", () =>
-    withProject(async ({ attach, opened }) => {
+    withProject(async ({ attach, opened, messages }) => {
       const { done, stop } = attach();
 
       await until(() => opened.length > 0, 1500);
 
       expect(opened).toEqual([expect.stringMatching(/^http:\/\/demo\.vw\.localhost:\d+$/)]);
+      expect(messages).not.toContain(expect.stringContaining("URL try"));
       stop();
       await done;
+    }));
+
+  it("does not treat status 204 as ready", () =>
+    healthServer(0, 204).then((health) =>
+      withProject(
+        async ({ attach, opened, messages, started }) => {
+          const { done, stop } = attach();
+          const be = await started("be");
+          await until(() => messages.some((line) => line.startsWith("Warning")), 4000);
+          expect(messages.some((line) => line.includes("URL 200"))).toBe(false);
+          expect(opened).toEqual([]);
+          expect(isProcessAlive(be)).toBe(true);
+          stop();
+          await done;
+        },
+        BASE.replace("readyTimeoutSeconds: 3", "readyTimeoutSeconds: 1").replace(
+          "kind: nestjs, dir: be,",
+          "kind: nestjs, dir: be, ready: /health,",
+        ),
+        { "variants.local.yaml": `runtime:\n  watches:\n    be: { port: ${health.port} }\n` },
+      ),
+    ));
+
+  it("logs the loopback URL when a ready watch has no URL template", () =>
+    withHealth(0, async ({ attach, messages }, health) => {
+      const { done, stop } = attach();
+      const line = `[watch] be URL try http://127.0.0.1:${health.port}/health`;
+      await until(() => messages.includes(line), 2000);
+      expect(messages).toContain(line);
+      stop();
+      await done;
+    }));
+
+  it("logs the 200 line and opens nothing when opening is disabled", () =>
+    withHealth(
+      0,
+      async ({ attach, opened, messages }, health) => {
+        const { done, stop } = attach();
+        const line = `[watch] be URL 200 http://127.0.0.1:${health.port}/health`;
+        await until(() => messages.includes(line), 2000);
+        expect(opened).toEqual([]);
+        stop();
+        await done;
+      },
+      BASE.replace("variant:\n", "variant:\n  open: false\n"),
+    ));
+
+  it("logs the 200 line and opens nothing when VARIANT_OPEN is 0", () =>
+    withHealth(
+      0,
+      async ({ attach, opened, messages }, health) => {
+        const { done, stop } = attach();
+        const line = `[watch] be URL 200 http://127.0.0.1:${health.port}/health`;
+        await until(() => messages.includes(line), 2000);
+        expect(opened).toEqual([]);
+        stop();
+        await done;
+      },
+      BASE,
+      { VARIANT_OPEN: "0" },
+    ));
+
+  it("does not repeat a ready line on a later poll", () =>
+    withHealth(
+      0,
+      async ({ attach, messages }, health) => {
+        const { done, stop } = attach();
+        const tried = `[watch] be URL try http://127.0.0.1:${health.port}/health`;
+        const ok = `[watch] be URL 200 http://127.0.0.1:${health.port}/health`;
+        await until(() => messages.includes(ok), 2000);
+        await sleep(1200);
+        expect(messages.filter((line) => line === tried)).toHaveLength(1);
+        expect(messages.filter((line) => line === ok)).toHaveLength(1);
+        stop();
+        await done;
+      },
+      BASE.replace(
+        `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
+        `    fe: ${watcher("fe", ", ready: /missing, url: 'http://${slug}.vw.localhost:${port}'")}`,
+      ),
+    ));
+
+  it("does not append ready lines to a watch log for up", () =>
+    withHealth(0, async ({ context, directory, messages }, health) => {
+      await upVariant(context, "demo", {
+        log: (line) => messages.push(line),
+        opener: () => {},
+      });
+      expect(messages).toContain(`[watch] be URL try http://127.0.0.1:${health.port}/health`);
+      expect(existsSync(join(directory, ".cache", "variant", "watch.log"))).toBe(false);
+    }));
+
+  it("does not probe or open URLs for a detached watch", () =>
+    withHealth(0, async ({ watch, opened, messages }) => {
+      await watch({ detach: true });
+      await sleep(400);
+      expect(messages.some((line) => line.includes("URL try"))).toBe(false);
+      expect(opened).toEqual([]);
     }));
 
   it("warns after readyTimeoutSeconds, opens nothing and keeps the watches running", () =>

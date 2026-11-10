@@ -34,6 +34,8 @@ export interface LaunchedWatch extends WatchLaunch {
 
 export interface LaunchResult {
   processes: LaunchedWatch[];
+  /** Appends an already-formatted chunk to the log without blocking the console. */
+  writeLog?: (text: string) => void;
   /** Waits until every captured stream has ended, then flushes the log. */
   close: () => Promise<void>;
 }
@@ -166,6 +168,7 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
   }
   return {
     processes,
+    ...(log ? { writeLog: (text: string) => log.write(text) } : {}),
     close: async () => {
       await Promise.all(finished);
       await log?.close();

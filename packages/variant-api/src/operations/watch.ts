@@ -111,6 +111,7 @@ export const watchVariant = async (
   // outlives the call. Attached capture stays in this process. The log is truncated when that relay starts.
   const logFile = toStart.length === 0 ? undefined : watchLogPath(config, run.worktree);
   let closeLog: () => Promise<void> = async () => {};
+  let record: ((line: string) => void) | undefined;
   let detachedPids: Record<string, number> | undefined;
   if (options.detach === true) {
     for (const launch of toStart) {
@@ -136,6 +137,10 @@ export const watchVariant = async (
         onBanner: log,
       });
       closeLog = launched.close;
+      if (launched.writeLog) {
+        const writeLog = launched.writeLog;
+        record = (line) => writeLog(`${line}\n`);
+      }
       started.push(...launched.processes);
     } catch (error) {
       rmSync(logFile, { force: true });
@@ -169,7 +174,7 @@ export const watchVariant = async (
   }
 
   const stopAnnouncing = new AbortController();
-  const announced = announce(context, run, { ...options, log, signal: stopAnnouncing.signal });
+  const announced = announce(context, run, { ...options, log, signal: stopAnnouncing.signal, record });
   const outcome = await untilEnd(context, run.worktree, started, options.signal);
   stopAnnouncing.abort();
   await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
