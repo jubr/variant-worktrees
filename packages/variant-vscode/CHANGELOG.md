@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- The embedded chat renamer holds the Mac awake with one `caffeinate` process while a chat is taking a turn or generating, including tool work of that turn. `variant.awake.when` is `chatsActive` (default) or `never`. `variant.awake.what` `screen` (default) runs `caffeinate -disu`; `cpu` runs `caffeinate -dis`. `variant.awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process after the last turn. An open, selected, or idle chat does not count. `variant.enable` does not turn this off.
+- The embedded chat renamer holds the Mac awake with one `caffeinate` process per host while a chat in that host is taking a turn or generating, including tool work of that turn. A chat in another workspace does not count. `variant.awake.when` is `chatsActive` (default) or `never`. `variant.awake.what` `screen` (default) runs `caffeinate -disu -w <host-pid>`; `cpu` runs `caffeinate -dis -w <host-pid>`. The child exits when that host exits. `variant.awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process after the last turn. An open, selected, or idle chat does not count. `variant.enable` does not turn this off.
 - The extension registers the `variant` MCP server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients.
 
 ### Changed
