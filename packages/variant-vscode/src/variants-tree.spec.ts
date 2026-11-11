@@ -43,6 +43,14 @@ describe("variants tree", () => {
     expect(next).toMatchObject({ kind: "variant", record: { url: "http://demo.vw.localhost:62100" } });
   });
 
+  it("has no parent, so reveal can address a root row", async () => {
+    const { provider } = await started([record("demo", { worktree: "/work/_v-demo" })]);
+    const node = provider.getChildren().find((entry) => entry.kind === "variant");
+
+    expect(provider.getParent()).toBeUndefined();
+    expect(node).toBeDefined();
+  });
+
   it("marks a database-only variant with a space and a superscript d", async () => {
     const { provider } = await started([record("demo", { dbOnly: true }), record("kept", { worktree: "/work/kept" })]);
 

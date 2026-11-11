@@ -143,6 +143,11 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
     ];
   }
 
+  /** Every row is a root. The host rejects `TreeView.reveal` when this is missing. */
+  getParent(): undefined {
+    return undefined;
+  }
+
   /** The same object while `record` is the same value, so a tree can reveal the row it already holds. */
   private variantNode(record: VariantRecord): { kind: "variant"; record: VariantRecord } {
     const current = this.nodes.get(record.slug);

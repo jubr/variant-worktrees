@@ -4406,7 +4406,7 @@ export const window = {
   registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
   createTreeView: (
     _viewId: string,
-    _options: unknown,
+    options: { treeDataProvider?: { getParent?: unknown } },
   ): Disposable & {
     message?: string;
     visible: boolean;
@@ -4434,9 +4434,14 @@ export const window = {
           listener({ visible });
         }
       },
-      reveal: async (element: unknown, options?: { select?: boolean; focus?: boolean }) => {
-        revealed.push({ element, options });
-        if (options?.select === true) {
+      reveal: async (element: unknown, revealOptions?: { select?: boolean; focus?: boolean }) => {
+        if (typeof options.treeDataProvider?.getParent !== "function") {
+          throw new Error(
+            "Required registered TreeDataProvider to implement 'getParent' method to access 'reveal' method",
+          );
+        }
+        revealed.push({ element, options: revealOptions });
+        if (revealOptions?.select === true) {
           tree.selection = element === undefined ? [] : [element];
         }
       },
