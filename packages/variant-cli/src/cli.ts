@@ -11,6 +11,7 @@ import {
   resolveVersionFacts,
   runWatchRelay,
   versionColor,
+  type WatchResult,
 } from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
@@ -65,14 +66,27 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
       const client = createVariantClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       printWarnings(client.config().warnings);
       migrateConfigFiles(client.config());
+      const rendered = {
+        format,
+        variantRoot: client.config().variant.root,
+        verbose: flags.verbose === true,
+      };
+      let printedStart = false;
+      if (definition.name === "watch" && format === "text" && args.detach !== true) {
+        args.onStarted = (started: WatchResult) => {
+          printedStart = true;
+          console.log(renderOutput("watch", started, rendered));
+        };
+      }
       const result = await definition.execute(client, args);
-      console.log(
-        renderOutput(String(definition.name), result, {
-          format,
-          variantRoot: client.config().variant.root,
-          verbose: flags.verbose === true,
-        }),
-      );
+      if (printedStart) {
+        const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
+        if (typeof exitCode === "number" && exitCode !== 0) {
+          console.log(`exit code:  ${exitCode}`);
+        }
+      } else {
+        console.log(renderOutput(String(definition.name), result, rendered));
+      }
       const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
       if (typeof exitCode === "number" && exitCode !== 0) {
         process.exitCode = exitCode;

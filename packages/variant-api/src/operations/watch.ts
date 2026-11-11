@@ -195,6 +195,7 @@ export const watchVariant = async (
     commands: [...provisioned.commands, ...started.map(({ command }) => command)],
     output: provisioned.output,
   };
+  options.onStarted?.(result);
   if (options.detach) {
     return result;
   }

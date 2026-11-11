@@ -135,6 +135,8 @@ export interface WatchOptions extends UpOptions {
   reprovision?: boolean;
   /** Ends an attached watch as an interrupt (exit code 130), like SIGINT. */
   signal?: AbortSignal;
+  /** Called once the processes are running and their pids are known, before an attached watch waits. */
+  onStarted?: (result: WatchResult) => void;
 }
 
 /** What `deprovision` dropped or ran. */

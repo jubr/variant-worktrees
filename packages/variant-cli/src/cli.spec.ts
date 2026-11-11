@@ -222,6 +222,47 @@ describe("variant CLI", () => {
     });
   });
 
+  it("prints the watch summary as soon as the pids are known", async () => {
+    const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
+    const configPath = join(directory, "variants.yaml");
+    writeFileSync(
+      configPath,
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: sleep 30 }\n",
+    );
+    const { FORCE_COLOR: _color, ...inherited } = process.env;
+    const proc = Bun.spawn(["bun", "run", "src/cli.ts", "watch", "-s", "demo"], {
+      cwd: join(import.meta.dir, ".."),
+      env: { ...inherited, NO_COLOR: "1", VARIANT_WORKTREE: "0", VARIANT_CONFIG: configPath },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const decoder = new TextDecoder();
+    let stdout = "";
+    const reading = (async () => {
+      for await (const chunk of proc.stdout) {
+        stdout += decoder.decode(chunk);
+      }
+    })();
+    const deadline = Date.now() + 3000;
+    try {
+      while (Date.now() < deadline && !stdout.includes("pid ")) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(proc.exitCode).toBeNull();
+      expect(stdout).toContain("Started demo (watch)");
+      expect(stdout).toMatch(/pid \d+/);
+      proc.kill("SIGINT");
+      const exitCode = await proc.exited;
+      await reading;
+      expect(exitCode).toBe(130);
+      expect(stdout.match(/Started demo \(watch\)/g)).toHaveLength(1);
+      expect(stdout).toMatch(/exit code:\s+130/);
+    } finally {
+      proc.kill();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("sets the exit code of an attached watch from its result", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
     const configPath = join(directory, "variants.yaml");
