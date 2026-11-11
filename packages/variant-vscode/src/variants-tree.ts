@@ -89,6 +89,9 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
   private readonly changed = new vscode.EventEmitter<VariantNode | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
   private readonly confirming = new Set<string>();
+  private readonly nodes = new Map<string, { kind: "variant"; record: VariantRecord }>();
+  /** Bumped so a selected row's `TreeItem.id` changes and the host drops that selection. */
+  private readonly generation = new Map<string, number>();
   private readonly stopListening: () => void;
 
   constructor(
@@ -128,20 +131,57 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
     const records = this.store.records();
     const server = uiServerOf(records);
     const warning = this.store.warning();
+    const variants = sortVariants(records, this.sort()).map((record) => this.variantNode(record));
+    const slugs = new Set(variants.map((node) => node.record.slug));
+    for (const slug of this.nodes.keys()) {
+      if (!slugs.has(slug)) {
+        this.nodes.delete(slug);
+      }
+    }
     return [
       ...(warning === undefined ? [] : [{ kind: "unreachable" as const, message: warning }]),
       ...(server ? [{ kind: "ui" as const, ...server }] : []),
-      ...sortVariants(records, this.sort()).map((record) => ({ kind: "variant" as const, record })),
+      ...variants,
     ];
+  }
+
+  /** Every row is a root. The host rejects `TreeView.reveal` when this is missing. */
+  getParent(): undefined {
+    return undefined;
+  }
+
+  /**
+   * The host will not select a different row while this slug's id still resolves.
+   * Changing the id and refreshing drops that selection.
+   */
+  forget(slug: string): void {
+    this.generation.set(slug, (this.generation.get(slug) ?? 0) + 1);
+    this.changed.fire(undefined);
+  }
+
+  /** The same object while `record` is the same value, so a tree can reveal the row it already holds. */
+  private variantNode(record: VariantRecord): { kind: "variant"; record: VariantRecord } {
+    const current = this.nodes.get(record.slug);
+    if (current?.record === record) {
+      return current;
+    }
+    const node = { kind: "variant" as const, record };
+    this.nodes.set(record.slug, node);
+    return node;
   }
 
   getTreeItem(node: VariantNode): vscode.TreeItem {
     if (node.kind === "variant") {
-      return variantItem(
+      const item = variantItem(
         node.record,
         this.store.pending().has(node.record.slug),
         this.confirming.has(node.record.slug),
       );
+      const generation = this.generation.get(node.record.slug) ?? 0;
+      if (generation > 0) {
+        item.id = `variant:${node.record.slug}#${generation}`;
+      }
+      return item;
     }
     if (node.kind === "error") {
       const item = new vscode.TreeItem(node.message, vscode.TreeItemCollapsibleState.None);

@@ -4290,7 +4290,65 @@ export const createWebviewViewStub = (viewType: string) => {
   };
 };
 
+const activeEditorListeners = new Set<(editor: unknown) => void>();
+const windowStateListeners = new Set<(state: { focused: boolean }) => void>();
+const textEditorSelectionListeners = new Set<() => void>();
+let activeTextEditor: unknown;
+let treesStartVisible = false;
+
+/** Drops editor-focus listeners and the active editor. Tests call this between cases. */
+export const resetEditorFocus = (): void => {
+  activeTextEditor = undefined;
+  treesStartVisible = false;
+  activeEditorListeners.clear();
+  windowStateListeners.clear();
+  textEditorSelectionListeners.clear();
+};
+
 export const window = {
+  get activeTextEditor(): unknown {
+    return activeTextEditor;
+  },
+  set activeTextEditor(value: unknown) {
+    activeTextEditor = value;
+  },
+  get treesStartVisible(): boolean {
+    return treesStartVisible;
+  },
+  set treesStartVisible(value: boolean) {
+    treesStartVisible = value;
+  },
+  onDidChangeActiveTextEditor: (listener: (editor: unknown) => void): Disposable => {
+    activeEditorListeners.add(listener);
+    return { dispose: () => activeEditorListeners.delete(listener) };
+  },
+  /** Sets the active editor and tells listeners. Tests use this. */
+  changeActiveTextEditor: (editor: unknown): void => {
+    activeTextEditor = editor;
+    for (const listener of [...activeEditorListeners]) {
+      listener(editor);
+    }
+  },
+  onDidChangeWindowState: (listener: (state: { focused: boolean }) => void): Disposable => {
+    windowStateListeners.add(listener);
+    return { dispose: () => windowStateListeners.delete(listener) };
+  },
+  /** Tells window-state listeners. Tests use this. */
+  changeWindowState: (state: { focused: boolean }): void => {
+    for (const listener of [...windowStateListeners]) {
+      listener(state);
+    }
+  },
+  onDidChangeTextEditorSelection: (listener: () => void): Disposable => {
+    textEditorSelectionListeners.add(listener);
+    return { dispose: () => textEditorSelectionListeners.delete(listener) };
+  },
+  /** Tells text-editor selection listeners. Tests use this. */
+  changeTextEditorSelection: (): void => {
+    for (const listener of [...textEditorSelectionListeners]) {
+      listener();
+    }
+  },
   createInputBox: (): {
     title: string;
     value: string;
@@ -4348,20 +4406,67 @@ export const window = {
   registerUriHandler: (_handler: unknown) => ({ dispose: () => {} }),
   createTreeView: (
     _viewId: string,
-    _options: unknown,
+    options: { treeDataProvider?: { getParent?: unknown } },
   ): Disposable & {
     message?: string;
+    visible: boolean;
+    selection: unknown[];
     revealed: Array<{ element: unknown; options?: { select?: boolean; focus?: boolean } }>;
     reveal: (element: unknown, options?: { select?: boolean; focus?: boolean }) => Promise<void>;
+    onDidChangeVisibility: (listener: (event: { visible: boolean }) => void) => Disposable;
+    /** Sets `visible` and tells listeners. Tests use this. */
+    setVisible: (visible: boolean) => void;
   } => {
     const revealed: Array<{ element: unknown; options?: { select?: boolean; focus?: boolean } }> = [];
-    return {
+    const visibility = new Set<(event: { visible: boolean }) => void>();
+    let selectedId: string | undefined;
+    const itemId = (element: unknown): string | undefined => {
+      const provider = options.treeDataProvider as { getTreeItem?: (entry: unknown) => { id?: string } };
+      return provider.getTreeItem?.(element)?.id;
+    };
+    const tree = {
       dispose: () => {},
+      visible: treesStartVisible,
+      selection: [] as unknown[],
       revealed,
-      reveal: async (element, options) => {
-        revealed.push({ element, options });
+      onDidChangeVisibility: (listener: (event: { visible: boolean }) => void) => {
+        visibility.add(listener);
+        return { dispose: () => visibility.delete(listener) };
+      },
+      setVisible: (visible: boolean) => {
+        tree.visible = visible;
+        for (const listener of [...visibility]) {
+          listener({ visible });
+        }
+      },
+      reveal: async (element: unknown, revealOptions?: { select?: boolean; focus?: boolean }) => {
+        if (typeof options.treeDataProvider?.getParent !== "function") {
+          throw new Error(
+            "Required registered TreeDataProvider to implement 'getParent' method to access 'reveal' method",
+          );
+        }
+        const held = tree.selection[0];
+        if (revealOptions?.select === true && held !== undefined && held !== element && itemId(held) === selectedId) {
+          return;
+        }
+        revealed.push({ element, options: revealOptions });
+        if (revealOptions?.select === true) {
+          tree.selection = element === undefined ? [] : [element];
+          selectedId = element === undefined ? undefined : itemId(element);
+        }
       },
     };
+    const provider = options.treeDataProvider as {
+      onDidChangeTreeData?: (listener: () => void) => { dispose: () => void };
+    };
+    provider.onDidChangeTreeData?.(() => {
+      const held = tree.selection[0];
+      if (held !== undefined && itemId(held) !== selectedId) {
+        tree.selection = [];
+        selectedId = undefined;
+      }
+    });
+    return tree;
   },
   registerWebviewViewProvider: (
     _viewType: string,

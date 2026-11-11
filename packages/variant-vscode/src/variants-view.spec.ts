@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as vscode from "vscode";
+import { resetEditorFocus } from "./test/mock-vscode.ts";
 import { fakeClient, record } from "./variants-test-support.ts";
 import type { VariantNode } from "./variants-tree.ts";
 import { type ActivityLog, registerVariantsView, type ViewDeps } from "./variants-view.ts";
@@ -52,6 +53,7 @@ const open = async (records = [down], overrides: Partial<ViewDeps> = {}) => {
 };
 
 beforeEach(() => {
+  resetEditorFocus();
   for (const mocked of [
     registerCommand,
     executeCommand,
@@ -1487,6 +1489,272 @@ const revealed = (id: string): Revealed[] => {
 };
 
 const settle = (): Promise<void> => Promise.resolve();
+
+const focusHost = vscode.window as typeof vscode.window & {
+  treesStartVisible: boolean;
+  activeTextEditor: unknown;
+  changeActiveTextEditor: (editor: unknown) => void;
+  changeWindowState: (state: { focused: boolean }) => void;
+  changeTextEditorSelection: () => void;
+};
+
+const fileEditor = (fsPath: string, scheme = "file"): vscode.TextEditor =>
+  ({ document: { uri: { scheme, fsPath } } }) as vscode.TextEditor;
+
+interface FocusTree {
+  visible: boolean;
+  selection: unknown[];
+  revealed: Revealed[];
+  setVisible: (visible: boolean) => void;
+}
+
+const focusTree = (id: string): FocusTree => {
+  const index = createTreeView.mock.calls.findIndex((call) => call[0] === id);
+  return createTreeView.mock.results[index]?.value as FocusTree;
+};
+
+const variantNode = (id: string, slug: string): VariantNode => {
+  const index = createTreeView.mock.calls.findIndex((call) => call[0] === id);
+  const provider = (createTreeView.mock.calls[index]?.[1] as { treeDataProvider: { getChildren: () => VariantNode[] } })
+    .treeDataProvider;
+  const node = provider.getChildren().find((entry) => entry.kind === "variant" && entry.record.slug === slug);
+  if (node === undefined) {
+    throw new Error(`no row ${slug}`);
+  }
+  return node;
+};
+
+const selected = (id: string): Revealed[] => focusTree(id).revealed.filter((entry) => entry.options?.select === true);
+
+const flush = async (): Promise<void> => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
+describe("active file", () => {
+  const demo = record("demo", { worktree: "/work/_v-demo" });
+  const main = record("main", { worktree: "/work/app" });
+
+  it("selects the worktree row in each visible tree and leaves keyboard focus", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+
+    await open([demo, main]);
+
+    const node = variantNode("variant.variants", "demo");
+    const reveal = { element: node, options: { select: true, focus: false } };
+    expect(selected("variant.variants")).toEqual([reveal]);
+    expect(selected("variant.worktrees")).toEqual([reveal]);
+    expect(focused()).toBe(false);
+  });
+
+  it("drops the selected row before highlighting the variant of the next file", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+    await open([demo, main]);
+
+    focusHost.changeActiveTextEditor(fileEditor("/work/app/src/a.ts"));
+
+    const node = variantNode("variant.variants", "main");
+    expect(focusTree("variant.variants").selection).toEqual([node]);
+    expect(focusTree("variant.worktrees").selection).toEqual([node]);
+    expect(focused()).toBe(false);
+  });
+
+  it("selects main when the active file is in the main checkout", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/app/src/a.ts");
+
+    await open([demo, main]);
+
+    const node = variantNode("variant.variants", "main");
+    expect(selected("variant.variants")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+    expect(focused()).toBe(false);
+  });
+
+  it("selects the longer worktree when the main checkout is a parent", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+
+    await open([record("demo", { worktree: "/work/_v-demo" }), record("main", { worktree: "/work" })]);
+
+    expect(selected("variant.variants")[0]?.element).toBe(variantNode("variant.variants", "demo"));
+  });
+
+  it("does not reveal a hidden tree until that tree is shown", async () => {
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+
+    await open([demo, main]);
+
+    expect(selected("variant.variants")).toEqual([]);
+    expect(selected("variant.worktrees")).toEqual([]);
+    expect(focused()).toBe(false);
+
+    focusTree("variant.worktrees").setVisible(true);
+
+    const node = variantNode("variant.worktrees", "demo");
+    expect(selected("variant.worktrees")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+    expect(selected("variant.variants")).toEqual([]);
+    expect(focused()).toBe(false);
+  });
+
+  it("selects a row that appears while the same file stays active", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+    const { fake } = await open([main]);
+
+    expect(selected("variant.variants")).toEqual([]);
+
+    fake.publish([main, demo]);
+
+    const node = variantNode("variant.variants", "demo");
+    expect(selected("variant.variants")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+    expect(focused()).toBe(false);
+  });
+
+  it("selects the row when the window gains focus", async () => {
+    focusHost.treesStartVisible = true;
+    await open([demo, main]);
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+    focusHost.changeWindowState({ focused: false });
+
+    expect(selected("variant.variants")).toEqual([]);
+
+    focusHost.changeWindowState({ focused: true });
+
+    const node = variantNode("variant.variants", "demo");
+    expect(selected("variant.variants")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+    expect(focused()).toBe(false);
+  });
+
+  it("clears the highlight when the file matches nothing and keeps it when focus leaves the editor", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+    await open([demo, main]);
+
+    focusHost.changeActiveTextEditor(fileEditor("/other/notes.txt"));
+
+    expect(focusTree("variant.variants").selection).toEqual([]);
+    expect(focusTree("variant.worktrees").selection).toEqual([]);
+    expect(focused()).toBe(false);
+
+    focusHost.changeActiveTextEditor(fileEditor("/work/_v-demo/src/a.ts"));
+    const held = focusTree("variant.variants").selection[0];
+    focusHost.changeActiveTextEditor(fileEditor("/work/_v-alpha/a.ts", "output"));
+    focusHost.changeTextEditorSelection();
+    focusHost.changeActiveTextEditor(undefined);
+
+    expect(focusTree("variant.variants").selection).toEqual([held]);
+    expect(focused()).toBe(false);
+  });
+
+  it("keeps a hand-picked row until the active editor changes", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+    await open([demo, main, record("alpha", { worktree: "/work/_v-alpha" })]);
+    const explorer = focusTree("variant.variants");
+    const before = explorer.revealed.length;
+    explorer.selection = [variantNode("variant.variants", "alpha")];
+
+    expect(explorer.revealed.length).toBe(before);
+
+    focusHost.changeActiveTextEditor(fileEditor("/work/_v-demo/src/b.ts"));
+
+    expect(selected("variant.variants").at(-1)?.element).toBe(variantNode("variant.variants", "demo"));
+    expect(focused()).toBe(false);
+  });
+
+  it("selects main and not the UI server item", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/app/src/a.ts");
+    await open([
+      record("main", {
+        worktree: "/work/app",
+        watches: { "variant-ui": { alive: true, url: "http://ui.vw.localhost:62100" } },
+      }),
+    ]);
+
+    const node = variantNode("variant.variants", "main");
+    expect(node.kind).toBe("variant");
+    expect(selected("variant.variants")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+  });
+
+  it("uses the configured main checkout when the main row has no worktree", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/app/src/a.ts");
+    const fake = fakeClient([demo]);
+    (fake.client as { config?: () => { variant: { main: string } } }).config = () => ({
+      variant: { main: "/work/app" },
+    });
+
+    await open([demo], { root: "/work/vw", loadClient: async () => fake.client });
+    await flush();
+
+    const node = variantNode("variant.variants", "main");
+    expect(selected("variant.variants")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+  });
+
+  it("does not treat the workspace folder as the main checkout", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/vw/src/a.ts");
+    const fake = fakeClient([demo]);
+    (fake.client as { config?: () => { variant: { main: string } } }).config = () => ({
+      variant: { main: "/work/app" },
+    });
+
+    await open([demo], { root: "/work/vw", loadClient: async () => fake.client });
+    await flush();
+
+    expect(selected("variant.variants")).toEqual([]);
+  });
+
+  it("does not expand a collapsed explorer section to select the row", async () => {
+    const folder = project();
+    folder.put("variants.yaml", "variant: {}\n");
+    folder.put("src/a.ts", "");
+    focusHost.activeTextEditor = fileEditor(join(folder.directory, "src/a.ts"));
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => true,
+        loadClient: async () => fakeClient([record("main", { worktree: folder.directory })]).client,
+        environment: () => ({}),
+      });
+      await settle();
+
+      expect(revealed("variant.variants")).toEqual([{ element: undefined, options: { select: false, focus: false } }]);
+      expect(selected("variant.worktrees")).toEqual([]);
+      expect(focused()).toBe(false);
+    } finally {
+      folder.remove();
+    }
+  });
+
+  it("selects a visible explorer row on startup without focusing the activity bar", async () => {
+    const folder = project();
+    folder.put("variants.yaml", "variant: {}\n");
+    const file = join(folder.directory, "src/a.ts");
+    folder.put("src/a.ts", "");
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor(file);
+    try {
+      registerVariantsView(context(), {
+        root: folder.directory,
+        hasConfig: () => true,
+        loadClient: async () => fakeClient([record("main", { worktree: folder.directory })]).client,
+        environment: () => ({}),
+      });
+      await settle();
+
+      const node = variantNode("variant.variants", "main");
+      expect(selected("variant.variants")).toEqual([{ element: node, options: { select: true, focus: false } }]);
+      expect(selected("variant.worktrees").every((entry) => entry.options?.focus !== true)).toBe(true);
+      expect(focused()).toBe(false);
+    } finally {
+      folder.remove();
+    }
+  });
+});
 
 describe("section startup", () => {
   it("expands an active project and does not read the environment", async () => {
