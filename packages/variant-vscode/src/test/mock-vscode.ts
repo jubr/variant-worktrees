@@ -4419,6 +4419,11 @@ export const window = {
   } => {
     const revealed: Array<{ element: unknown; options?: { select?: boolean; focus?: boolean } }> = [];
     const visibility = new Set<(event: { visible: boolean }) => void>();
+    let selectedId: string | undefined;
+    const itemId = (element: unknown): string | undefined => {
+      const provider = options.treeDataProvider as { getTreeItem?: (entry: unknown) => { id?: string } };
+      return provider.getTreeItem?.(element)?.id;
+    };
     const tree = {
       dispose: () => {},
       visible: treesStartVisible,
@@ -4440,9 +4445,14 @@ export const window = {
             "Required registered TreeDataProvider to implement 'getParent' method to access 'reveal' method",
           );
         }
+        const held = tree.selection[0];
+        if (revealOptions?.select === true && held !== undefined && held !== element && itemId(held) === selectedId) {
+          return;
+        }
         revealed.push({ element, options: revealOptions });
         if (revealOptions?.select === true) {
           tree.selection = element === undefined ? [] : [element];
+          selectedId = element === undefined ? undefined : itemId(element);
         }
       },
     };

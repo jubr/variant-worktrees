@@ -1548,6 +1548,19 @@ describe("active file", () => {
     expect(focused()).toBe(false);
   });
 
+  it("drops the selected row before highlighting the variant of the next file", async () => {
+    focusHost.treesStartVisible = true;
+    focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
+    await open([demo, main]);
+
+    focusHost.changeActiveTextEditor(fileEditor("/work/app/src/a.ts"));
+
+    const node = variantNode("variant.variants", "main");
+    expect(focusTree("variant.variants").selection).toEqual([node]);
+    expect(focusTree("variant.worktrees").selection).toEqual([node]);
+    expect(focused()).toBe(false);
+  });
+
   it("selects main when the active file is in the main checkout", async () => {
     focusHost.treesStartVisible = true;
     focusHost.activeTextEditor = fileEditor("/work/app/src/a.ts");

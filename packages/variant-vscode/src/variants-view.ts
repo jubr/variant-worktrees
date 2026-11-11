@@ -108,6 +108,19 @@ const watchActiveVariant = (
     if (node === undefined) {
       return;
     }
+    const stale = new Set<string>();
+    for (const tree of trees) {
+      if (!tree.visible) {
+        continue;
+      }
+      const current = tree.selection[0];
+      if (current?.kind === "variant" && current !== node) {
+        stale.add(current.record.slug);
+      }
+    }
+    for (const held of stale) {
+      provider.forget(held);
+    }
     for (const tree of trees) {
       if (!tree.visible || tree.selection[0] === node) {
         continue;
