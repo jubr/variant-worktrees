@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Added
+
+- A focused file inside the main checkout or a variant worktree highlights that row in a visible Variant Worktrees tree and does not take editor focus.
+
 ## [0.0.8] - 2026-11-11
 
 ### Added
