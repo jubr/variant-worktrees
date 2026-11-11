@@ -28,7 +28,7 @@ variant implode                        # detect slug from dir, stop everything, 
 - `variant deprovision` stops the watches and drops that slug's schemas. The worktree stays.
 - `variant implode [--force] [--branch-rm=yes|no]` deprovisions, drops storage, and removes the worktree when the branch is merged, then removes the local branch. `--branch-rm=no` keeps it. The default is `yes`.
 
-Ports, pids, URLs are in `{worktree}/.cache/variant/state.yaml`. Logs in `{worktree}/.cache/variant/watch.log`, each line prefixed `[name]`. A watch with `output.mode: tty` is given a terminal, so the log keeps its color. Omit `output.mode` and the extension uses `tty` when an enabled extension's description contains both `log` and `ansi`, otherwise `no-tty`.
+Ports, pids, URLs are in `{worktree}/.cache/variant/state.yaml`. Logs in `{worktree}/.cache/variant/watch.log`, each line prefixed `[name]`. A watch with `output.mode: tty` is given a terminal, so the log keeps its color. A colored line ends with an ANSI reset, and the log starts with one line `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`. Omit `output.mode` and the extension uses `tty` when an enabled extension's description contains both `log` and `ansi`, otherwise `no-tty`.
 When you work inside a variant worktree yourself, the slug comes from the branch, so you can leave out `-s`.
 
 Install the `variant` CLI into a project with [mise](https://mise.jdx.dev):

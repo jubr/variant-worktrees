@@ -46,6 +46,21 @@ const launches = (context: OperationContext, run: VariantRun, outputMode?: "tty"
   });
 };
 
+/** Flags of this invocation. A default `miseInstall` of `bg` is omitted, because the CLI fills that in. */
+const invocationArgs = (
+  options: WatchOptions & { from?: string; pullFf?: boolean; miseInstall?: "bg" | "sync" | "no" },
+): string => {
+  const args: string[] = [];
+  if (options.detach === true) args.push("--detach");
+  if (options.reprovision === true) args.push("--reprovision");
+  if (options.from !== undefined) args.push("--from", options.from);
+  if (options.pullFf === true) args.push("--pull-ff");
+  if (options.miseInstall !== undefined && options.miseInstall !== "bg") {
+    args.push(`--mise-install=${options.miseInstall}`);
+  }
+  return args.join(" ");
+};
+
 /** Resolves with what ended an attached watch: an interrupt, a process that ended, or the vanished worktree. */
 const untilEnd = (
   context: OperationContext,
@@ -108,6 +123,7 @@ export const watchVariant = async (
   const delay = config.variant.supervise.startDelaySeconds * 1000;
   const started: Started[] = [];
   const toStart = launches(context, run, options.outputMode);
+  const args = invocationArgs(options);
   if (toStart.length === 0) {
     log("Warning: nothing was started: no watch has a watch command. Set `watch` on a watch in variants.yaml.");
   }
@@ -123,7 +139,12 @@ export const watchVariant = async (
     }
     if (logFile) {
       try {
-        detachedPids = await startDetachedRelay({ launches: toStart, startDelayMs: delay, logPath: logFile });
+        detachedPids = await startDetachedRelay({
+          launches: toStart,
+          startDelayMs: delay,
+          logPath: logFile,
+          args,
+        });
       } catch (error) {
         rmSync(logFile, { force: true });
         throw error;
@@ -139,6 +160,7 @@ export const watchVariant = async (
         logPath: logFile,
         inheritStdin: true,
         onBanner: log,
+        args,
       });
       closeLog = launched.close;
       if (launched.writeLog) {

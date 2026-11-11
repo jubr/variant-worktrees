@@ -1,14 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import {
-  closeSync,
-  createWriteStream,
-  existsSync,
-  mkdirSync,
-  openSync,
-  realpathSync,
-  writeFileSync,
-  writeSync,
-} from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -40,6 +31,8 @@ export interface LaunchWatchesOptions {
   inheritStdin?: boolean;
   /** `[key] command`, without a trailing newline. The relay also writes that line to the log. */
   onBanner?: (line: string) => void;
+  /** Flags of this watch invocation, such as `--detach`. Empty when none were set. */
+  args?: string;
 }
 
 export interface LaunchedWatch extends WatchLaunch {
@@ -97,6 +90,18 @@ const openLog = (path: string): { write: (text: string) => void; close: () => Pr
   };
 };
 
+const ANSI_ESCAPE = "\u001b";
+const ANSI_RESET = "\u001b[0m";
+
+/** A tty line that already contains an escape ends with a reset, so color does not bleed into the next prefix. */
+const closeAnsi = (line: string, resetAnsi: boolean): string =>
+  resetAnsi && line.includes(ANSI_ESCAPE) ? `${line}${ANSI_RESET}` : line;
+
+const ttyModeLine = (args: string): string => {
+  const head = args.length > 0 ? `[watch] ${args} mode=tty` : "[watch] mode=tty";
+  return `${head} # set to 'no-tty' likely suppresses ansi escape sequences\n`;
+};
+
 /** Prefixes each line of `stream` and tees it to the console sink and the log. A partial line is flushed at the end. */
 const relay = (
   stream: NodeJS.ReadableStream,
@@ -104,10 +109,11 @@ const relay = (
   consoleSink: NodeJS.WritableStream | undefined,
   writeLog: ((text: string) => void) | undefined,
   finished: Promise<void>[],
+  resetAnsi: boolean,
 ): void => {
   let buffer = "";
   const emit = (line: string): void => {
-    const text = `[${key}] ${line}\n`;
+    const text = `[${key}] ${closeAnsi(line, resetAnsi)}\n`;
     consoleSink?.write(text);
     writeLog?.(text);
   };
@@ -196,19 +202,15 @@ const ttySpawnArgs = (): string[] =>
     ? ["-q", "-e", "-f", "-c", TTY_WRAPPER, "/dev/null"]
     : ["-q", "/dev/null", "sh", "-c", TTY_WRAPPER];
 
-const spawnOnTerminal = (launch: WatchLaunch): ChildProcess => {
-  const stdin = openSync("/dev/null", "r");
-  try {
-    return spawn("script", ttySpawnArgs(), {
-      cwd: launch.cwd,
-      env: { ...colorTerm(launch.env), VARIANT_WATCH_COMMAND: launch.command },
-      detached: true,
-      stdio: [stdin, "pipe", "pipe"],
-    });
-  } finally {
-    closeSync(stdin);
-  }
-};
+const spawnOnTerminal = (launch: WatchLaunch): ChildProcess =>
+  // AIDEV-NOTE: `/dev/null` is immediate EOF. script writes that EOF into the terminal, and a program such as vite exits.
+  // bash holds the read end open with `tail -f /dev/null`, then becomes `script`, so the watched pid is still script.
+  spawn("bash", ["-c", 'exec < <(tail -f /dev/null); exec "$@"', "bash", "script", ...ttySpawnArgs()], {
+    cwd: launch.cwd,
+    env: { ...colorTerm(launch.env), VARIANT_WATCH_COMMAND: launch.command },
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
 /**
  * Starts each watch, prefixes its stdout and stderr, and tees those lines to the console sinks and the log file.
@@ -218,6 +220,9 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
   const log = options.logPath === undefined ? undefined : openLog(options.logPath);
   const processes: LaunchedWatch[] = [];
   const finished: Promise<void>[] = [];
+  if (options.launches.some((launch) => launch.outputMode === "tty")) {
+    log?.write(ttyModeLine(options.args ?? ""));
+  }
   try {
     for (const launch of options.launches) {
       if (processes.length > 0 && options.startDelayMs > 0) {
@@ -245,8 +250,15 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
         throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
       }
       // AIDEV-NOTE: a terminal mixes the process stderr into the transcript. That transcript is the stdout stream.
-      relay(terminal ? withoutScriptEof(child.stdout) : child.stdout, launch.key, options.stdout, log?.write, finished);
-      relay(child.stderr, launch.key, options.stderr, log?.write, finished);
+      relay(
+        terminal ? withoutScriptEof(child.stdout) : child.stdout,
+        launch.key,
+        options.stdout,
+        log?.write,
+        finished,
+        terminal,
+      );
+      relay(child.stderr, launch.key, options.stderr, log?.write, finished, terminal);
       processes.push({ ...launch, pid: child.pid, child });
     }
   } catch (error) {
@@ -300,6 +312,8 @@ export interface RelayPlan {
   launches: readonly WatchLaunch[];
   startDelayMs: number;
   logPath: string;
+  /** Flags of this watch invocation, such as `--detach`. */
+  args?: string;
 }
 
 const readStdin = async (): Promise<string> => {
@@ -334,6 +348,7 @@ export const runWatchRelay = async (): Promise<void> => {
       launches: plan.launches,
       startDelayMs: plan.startDelayMs,
       logPath: plan.logPath,
+      ...(plan.args === undefined ? {} : { args: plan.args }),
     });
     const pids = Object.fromEntries(launched.processes.map(({ key, pid }) => [key, pid]));
     writeSync(1, `${JSON.stringify({ pids })}\n`);

@@ -60,6 +60,12 @@ if (process.env.TTY_PROBE) {
   console.error("oops");
   console.log("cols " + String(process.stdout.columns ?? 0));
   console.log("term " + (process.env.TERM ?? ""));
+  process.stdin.resume();
+  process.stdin.on("end", () => {
+    console.log("stdin-end");
+    process.exit(0);
+  });
+  setTimeout(() => console.log("held"), 250);
 }
 if (process.env.WAIT_FILE) {
   const deadline = Date.now() + 10000;
@@ -967,6 +973,9 @@ describe("detached watch log", () => {
 describe("watch output terminal", () => {
   const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
   const green = "\u001b[32mgreen\u001b[0m";
+  const reset = "\u001b[0m";
+  const modeLine = (args = ""): string =>
+    `${args === "" ? "[watch] mode=tty" : `[watch] ${args} mode=tty`} # set to 'no-tty' likely suppresses ansi escape sequences\n`;
   const feLine = watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'");
   const probe = (mode?: "tty" | "no-tty"): string => {
     const body = feLine.replace("ORDER_LOG:", "TTY_PROBE: '1', ORDER_LOG:");
@@ -981,15 +990,17 @@ describe("watch output terminal", () => {
       try {
         await started("fe");
         const log = logIn(directory);
-        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] tty"), 2000).catch(() => {});
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] held"), 2000).catch(() => {});
         const logged = existsSync(log) ? readFileSync(log, "utf8") : "";
+        expect(logged.startsWith(modeLine())).toBe(true);
+        expect(logged).not.toContain("stdin-end");
         expect(stdout.text()).toContain("[fe] tty\n");
-        expect(stdout.text()).toContain(`[fe] ${green}\n`);
+        expect(stdout.text()).toContain(`[fe] ${green}${reset}\n`);
         expect(stdout.text()).toContain("[fe] oops\n");
         expect(stdout.text()).toContain("[fe] cols 10000\n");
         expect(stdout.text()).not.toContain("^D\b\b");
         expect(logged).toContain("[fe] tty\n");
-        expect(logged).toContain(`[fe] ${green}\n`);
+        expect(logged).toContain(`[fe] ${green}${reset}\n`);
         expect(logged).toContain("[fe] oops\n");
         expect(logged).not.toContain("^D\b\b");
       } finally {
@@ -1013,6 +1024,7 @@ describe("watch output terminal", () => {
         expect(stdout.text()).not.toContain("\u001b[32m");
         expect(stdout.text()).not.toContain("oops");
         expect(stderr.text()).toContain("[fe] oops\n");
+        expect(readFileSync(log, "utf8")).not.toContain("mode=tty");
       } finally {
         stdout.stop();
         stderr.stop();
@@ -1043,7 +1055,9 @@ describe("watch output terminal", () => {
         await started("fe");
         const log = logIn(directory);
         await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] tty"), 2000).catch(() => {});
-        expect(readFileSync(log, "utf8")).toContain("[fe] tty\n");
+        const logged = readFileSync(log, "utf8");
+        expect(logged.startsWith(modeLine())).toBe(true);
+        expect(logged).toContain("[fe] tty\n");
       } finally {
         stop();
         await done;
@@ -1108,7 +1122,9 @@ describe("watch output terminal", () => {
         await watch({ detach: true });
         const log = logIn(directory);
         await until(() => existsSync(log) && readFileSync(log, "utf8").includes(green), 2000).catch(() => {});
-        expect(readFileSync(log, "utf8")).toContain(`[fe] ${green}\n`);
+        const logged = readFileSync(log, "utf8");
+        expect(logged.startsWith(modeLine("--detach"))).toBe(true);
+        expect(logged).toContain(`[fe] ${green}${reset}\n`);
         expect(stdout.text()).not.toContain(green);
         expect(stdout.text()).not.toContain("[fe] tty");
       } finally {
