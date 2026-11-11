@@ -13,9 +13,14 @@ export const composerIsActive = (record: unknown): boolean => {
     isContinuationInProgress?: unknown;
     generatingBubbleIds?: unknown;
     hasChatGeneration?: unknown;
+    unfinishedRunAt?: unknown;
   };
   // AIDEV-NOTE: disk persist stores a live turn as aborted while chatGenerationUUID remains. Completion clears it.
   // AIDEV-NOTE: an aborted row keeps chatGenerationUUID after the turn ends. That leftover is idle.
+  // AIDEV-NOTE: a live tool run stays status aborted and sets unfinishedRunAt. The uuid alone does not.
+  if (typeof data.unfinishedRunAt === "number" && data.unfinishedRunAt > 0) {
+    return true;
+  }
   if (data.status === "generating" || data.isContinuationInProgress === true) {
     return true;
   }
@@ -77,9 +82,15 @@ export const composerDataActivitySql = (ids: readonly string[]): string | undefi
 
 /** Read-only query of the status fields. Does not load prompt text. */
 export const COMPOSER_ACTIVITY_SQL =
-  "select json_extract(value, '$.status') as status, json_extract(value, '$.isContinuationInProgress') as continuation, json_array_length(json_extract(value, '$.generatingBubbleIds')) as bubbles, json_extract(value, '$.chatGenerationUUID') is not null as hasChatGen from cursorDiskKV where key like 'composerData:%'";
+  "select json_extract(value, '$.status') as status, json_extract(value, '$.isContinuationInProgress') as continuation, json_array_length(json_extract(value, '$.generatingBubbleIds')) as bubbles, json_extract(value, '$.chatGenerationUUID') is not null as hasChatGen, json_extract(value, '$.unfinishedRunAt') as unfinished from cursorDiskKV where key like 'composerData:%'";
 
-type ActivityRow = { status?: unknown; continuation?: unknown; bubbles?: unknown; hasChatGen?: unknown };
+type ActivityRow = {
+  status?: unknown;
+  continuation?: unknown;
+  bubbles?: unknown;
+  hasChatGen?: unknown;
+  unfinished?: unknown;
+};
 
 /** `sqlite3 -json` output of {@link COMPOSER_ACTIVITY_SQL}. Empty or unreadable output is idle. */
 export const composerRowsActive = (json: string): boolean => {
@@ -108,6 +119,7 @@ export const composerRowsActive = (json: string): boolean => {
       isContinuationInProgress: record.continuation === true || record.continuation === 1,
       generatingBubbleIds: bubbles,
       hasChatGeneration: record.hasChatGen === true || record.hasChatGen === 1,
+      unfinishedRunAt: typeof record.unfinished === "number" ? record.unfinished : undefined,
     });
   });
 };
