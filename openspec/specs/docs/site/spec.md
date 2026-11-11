@@ -127,3 +127,13 @@ Tracked files under `docs/` and the built HTML SHALL NOT contain `zach.dev` or `
 - **WHEN** the built home page HTML is read
 - **THEN** it does not contain `zach.dev` or `statue.png`
 - **AND** it does not include a fixed corner image
+
+### Requirement: API reference from a fresh checkout
+
+`bun run docs:api` SHALL generate the API reference when workspace `dist` directories are absent. Before TypeDoc runs, it SHALL build every workspace package that `variant-api` imports and that publishes types only from `dist`, including `variant-log`.
+
+#### Scenario: variant-log has not been built
+
+- **WHEN** `packages/variant-log/dist` is absent and `bun run docs:api` runs
+- **THEN** the command exits successfully
+- **AND** TypeDoc does not report that the module `variant-log` cannot be found
