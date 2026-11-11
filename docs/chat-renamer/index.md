@@ -26,7 +26,7 @@ A pattern title with no trailing digits is numbered against the other open chats
 
 ## Awake
 
-`chatRenamer.awake.when` is `chatsActive` by default. While a chat is taking a turn or generating, including tool work of that turn, one `caffeinate` process holds the Mac awake. An open, selected, or idle chat does not start it. `never` does not run it. `chatRenamer.awake.what` `screen` (default) passes `-disu`; `cpu` passes `-dis`. After the last turn, `chatRenamer.awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process. `variant.enable` does not turn this off.
+`chatRenamer.awake.when` is `chatsActive` by default. While a chat in this window is taking a turn or generating, including tool work of that turn, one `caffeinate` process holds the Mac awake. A chat in another workspace does not count. An open, selected, or idle chat does not start it. `never` does not run it. `chatRenamer.awake.what` `screen` (default) runs `caffeinate -disu -w <host-pid>`; `cpu` runs `caffeinate -dis -w <host-pid>`. The child exits when that host exits. After this host's last turn, `chatRenamer.awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process. `variant.enable` does not turn this off.
 
 ## Triggers
 

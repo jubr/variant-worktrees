@@ -129,5 +129,5 @@ chatRenamer:
   titleEventPromptLines: 10 # how many lines of a new chat's first prompt the title event tests (at least 1)
   awake:
     when: chatsActive # never; hold the Mac awake while a chat is taking a turn or generating
-    what: screen # cpu; screen runs caffeinate -disu, cpu runs caffeinate -dis
+    what: screen # cpu; screen runs caffeinate -disu -w <host-pid>, cpu runs caffeinate -dis -w <host-pid>
     graceDelaySecs: 60 # seconds to stay awake after the last turn; 0 stops at once. An idle chat does not count

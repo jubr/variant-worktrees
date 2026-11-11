@@ -5,7 +5,12 @@ import { createLogger, type LogSink } from "./log";
 
 type Entry = { level: string; message: string };
 
-type Fake = AwakeProcess & { args: string; signals: NodeJS.Signals[]; exited: boolean; finish: () => void };
+type Fake = AwakeProcess & {
+  args: readonly string[];
+  signals: NodeJS.Signals[];
+  exited: boolean;
+  finish: () => void;
+};
 
 const harness = (available = true) => {
   const entries: Entry[] = [];
@@ -21,7 +26,7 @@ const harness = (available = true) => {
     error: (message) => entries.push({ level: "error", message }),
   };
   let failStarts = 0;
-  const spawn = (args: string): AwakeProcess => {
+  const spawn = (args: readonly string[]): AwakeProcess => {
     if (failStarts > 0) {
       failStarts -= 1;
       throw new Error("spawn failed");
@@ -54,6 +59,7 @@ const harness = (available = true) => {
   };
   const controller = createAwakeController({
     spawn,
+    parentPid: 5151,
     caffeinateAvailable: () => available,
     log: createLogger(sink),
     now: () => clock,
@@ -109,9 +115,9 @@ describe("createAwakeController", () => {
     expect(infos(entries)).toEqual(["[awake] caffeinate available"]);
     controller.update(active());
 
-    expect(children.map((child) => child.args)).toEqual(["-disu"]);
-    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu" pid=4242 reason="activity"');
-    expect(traces(entries).some((line) => line.includes("caffeinate -disu"))).toBe(false);
+    expect(children.map((child) => child.args)).toEqual([["-disu", "-w", "5151"]]);
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu -w 5151" pid=4242 reason="activity"');
+    expect(traces(entries).some((line) => line.includes("caffeinate"))).toBe(false);
     expect(infos(entries)).toEqual(["[awake] caffeinate available"]);
 
     controller.update(active());
@@ -124,9 +130,9 @@ describe("createAwakeController", () => {
 
     controller.update(active({ what: "cpu" }));
 
-    expect(children.map((child) => child.args)).toEqual(["-dis"]);
-    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -dis" pid=4242 reason="activity"');
-    expect(traces(entries).some((line) => line.includes("caffeinate -dis"))).toBe(false);
+    expect(children.map((child) => child.args)).toEqual([["-dis", "-w", "5151"]]);
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -dis -w 5151" pid=4242 reason="activity"');
+    expect(traces(entries).some((line) => line.includes("caffeinate"))).toBe(false);
   });
 
   it("keeps the process for the grace delay, logs that only at trace, then stops it", () => {
@@ -144,6 +150,7 @@ describe("createAwakeController", () => {
     advance(1);
     expect(children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
     expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="idle"');
+    expect(debugs(entries).at(-1)).not.toContain("caffeinate");
     expect(traces(entries).some((line) => line.includes("kill"))).toBe(false);
     expect(infos(entries)).toHaveLength(infoBefore);
     expect(entries.filter((entry) => entry.level === "info" && entry.message.includes("grace"))).toEqual([]);
@@ -213,7 +220,10 @@ describe("createAwakeController", () => {
     expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="mode changed"');
 
     children[0]?.finish();
-    expect(children.map((child) => child.args)).toEqual(["-disu", "-dis"]);
+    expect(children.map((child) => child.args)).toEqual([
+      ["-disu", "-w", "5151"],
+      ["-dis", "-w", "5151"],
+    ]);
   });
 
   it("starts a replacement when the process exits while a session is still active", () => {

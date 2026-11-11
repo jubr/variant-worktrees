@@ -66,7 +66,9 @@ export type TriggerHost = {
   /** Whether any chat is in a turn. Default: Cursor's composer rows in state.vscdb. */
   readAwakeActivity?: () => Promise<boolean>;
   /** Spawns `caffeinate`. Default: the macOS binary, not detached. */
-  awakeSpawn?: (args: string) => AwakeProcess;
+  awakeSpawn?: (argv: readonly string[]) => AwakeProcess;
+  /** Extension host pid `caffeinate -w` waits on. Default: this process. */
+  parentPid?: number;
   /** Whether `caffeinate` can be run. Default: `/usr/bin/caffeinate` exists. */
   caffeinateAvailable?: () => boolean;
 };
@@ -114,6 +116,7 @@ export const startChatRenameTrigger = (
         const settingsNow = () => readSettings(names.configSection, host.fileConfig);
         const controller = createAwakeController({
           spawn: host.awakeSpawn ?? spawnCaffeinate,
+          parentPid: host.parentPid ?? process.pid,
           caffeinateAvailable: host.caffeinateAvailable ?? caffeinateOnPath,
           log,
           now,

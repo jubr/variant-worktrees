@@ -1,34 +1,23 @@
 import { existsSync } from "node:fs";
-import {
-  COMPOSER_ACTIVITY_SQL,
-  composerDataActivitySql,
-  composerIdsFromHeaders,
-  composerRowsActive,
-  RECENT_COMPOSER_SQL,
-  runSqlite3,
-} from "chat-renamer-api";
+import { composerDataActivitySql, composerRowsActive, runSqlite3 } from "chat-renamer-api";
 
-/** Reads composer status fields from Cursor's state database. A missing database is idle. */
-export const readComposerActivity = async (dbPath: string, alsoIds: readonly string[] = []): Promise<boolean> => {
+/**
+ * Point-reads composer status for the ids this host has open.
+ * A missing database, a failed read, or an empty id list is idle.
+ *
+ * Specification: openspec/specs/chat-renamer/awake/spec.md
+ */
+export const readComposerActivity = async (dbPath: string, openIds: readonly string[] = []): Promise<boolean> => {
   if (!existsSync(dbPath)) {
     return false;
   }
+  const pointSql = composerDataActivitySql(openIds);
+  if (pointSql === undefined) {
+    return false;
+  }
   try {
-    const headerIds = composerIdsFromHeaders(await runSqlite3(dbPath, RECENT_COMPOSER_SQL));
-    // Newest headers first. The open-id list is over 100 and would otherwise fill the 20-row cap.
-    const ids = [...new Set([...headerIds, ...alsoIds])];
-    const pointSql = composerDataActivitySql(ids);
-    const json = pointSql === undefined ? "[]" : await runSqlite3(dbPath, pointSql);
-    return composerRowsActive(json);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    if (!detail.includes("no such table")) {
-      return false;
-    }
-    try {
-      return composerRowsActive(await runSqlite3(dbPath, COMPOSER_ACTIVITY_SQL));
-    } catch {
-      return false;
-    }
+    return composerRowsActive(await runSqlite3(dbPath, pointSql));
+  } catch {
+    return false;
   }
 };

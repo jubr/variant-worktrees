@@ -1384,10 +1384,10 @@ describe("trigger", () => {
 
   // openspec/specs/chat-renamer/awake/spec.md
   describe("awake", () => {
-    type Child = { args: string; killed: NodeJS.Signals[] };
+    type Child = { args: readonly string[]; killed: NodeJS.Signals[] };
 
     const fakeSpawn = (children: Child[]) => {
-      const awakeSpawn = (args: string): AwakeProcess => {
+      const awakeSpawn = (args: readonly string[]): AwakeProcess => {
         const child: Child = { args, killed: [] };
         children.push(child);
         return {
@@ -1413,9 +1413,10 @@ describe("trigger", () => {
         readAwakeActivity: async () => true,
         awakeSpawn: fakeSpawn(children),
         caffeinateAvailable: () => true,
+        parentPid: 5151,
       }).ready;
 
-      expect(children.map((child) => child.args)).toEqual(["-disu"]);
+      expect(children.map((child) => child.args)).toEqual([["-disu", "-w", "5151"]]);
     });
 
     it("stops caffeinate without a reload when awake.when becomes never", async () => {
