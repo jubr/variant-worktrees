@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## [0.0.8] - 2026-11-11
 
 ### Added
 
@@ -15,6 +15,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Startup expands the Explorer **Variant Worktrees** section without taking focus. The one-time onboarding notification focuses that section.
 - Onboarding initializes the main checkout when the opened workspace folder has no `.git` directory.
+
+### Release notes
+
+- feat: publish local bleeds beside the checkout by @jubr in https://github.com/jubr/variant-worktrees/pull/39
+- feat(cli): print the version banner and build time by @jubr in https://github.com/jubr/variant-worktrees/pull/40
+- docs(agents): spell out variant lifecycle by @jubr in https://github.com/jubr/variant-worktrees/pull/42
+- Initialize onboarding in the main checkout by @jubr in https://github.com/jubr/variant-worktrees/pull/43
+- ci(release): sign variant executables with packslip by @jubr in https://github.com/jubr/variant-worktrees/pull/44
+- feat: fast-forward the start branch with --pull-ff by @jubr in https://github.com/jubr/variant-worktrees/pull/45
+- feat: remove the local branch on implode by @jubr in https://github.com/jubr/variant-worktrees/pull/46
+- feat: install Mise tools when creating a worktree by @jubr in https://github.com/jubr/variant-worktrees/pull/47
+- feat(vscode): register the MCP server from the extension by @jubr in https://github.com/jubr/variant-worktrees/pull/48
+- feat: consolidate logs onto one event by @jubr in https://github.com/jubr/variant-worktrees/pull/49
+- Record workflow rules and fix CLI text by @jubr in https://github.com/jubr/variant-worktrees/pull/51
+- fix(variant-vscode): expand the section without taking focus by @jubr in https://github.com/jubr/variant-worktrees/pull/52
+- feat(chat-renamer): hold the Mac awake during a chat turn by @jubr in https://github.com/jubr/variant-worktrees/pull/50
+- test(cli): expect sanitized version slug by @jubr in https://github.com/jubr/variant-worktrees/pull/54
+- test: colocate package specs and nest cursor modules by @jubr in https://github.com/jubr/variant-worktrees/pull/55
+- Log quietly in temporary directories and quote shell commands by @jubr in https://github.com/jubr/variant-worktrees/pull/56
+- feat: share one watch log and wait for the last ready URL by @jubr in https://github.com/jubr/variant-worktrees/pull/57
+- fix(chat-renamer): reap caffeinate with the host by @jubr in https://github.com/jubr/variant-worktrees/pull/58
+- fix(chat-renamer): ignore a leftover generation id by @jubr in https://github.com/jubr/variant-worktrees/pull/59
+- fix(chat-renamer): treat unfinished runs as active by @jubr in https://github.com/jubr/variant-worktrees/pull/60
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.7...v0.0.8
 
 ## [0.0.7] - 2026-11-06
 
