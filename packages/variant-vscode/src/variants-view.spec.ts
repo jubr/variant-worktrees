@@ -1627,18 +1627,24 @@ describe("active file", () => {
     expect(focused()).toBe(false);
   });
 
-  it("leaves the highlight when the file matches nothing or focus leaves the editor", async () => {
+  it("clears the highlight when the file matches nothing and keeps it when focus leaves the editor", async () => {
     focusHost.treesStartVisible = true;
     focusHost.activeTextEditor = fileEditor("/work/_v-demo/src/a.ts");
     await open([demo, main]);
-    const before = focusTree("variant.variants").revealed.length;
 
     focusHost.changeActiveTextEditor(fileEditor("/other/notes.txt"));
+
+    expect(focusTree("variant.variants").selection).toEqual([]);
+    expect(focusTree("variant.worktrees").selection).toEqual([]);
+    expect(focused()).toBe(false);
+
+    focusHost.changeActiveTextEditor(fileEditor("/work/_v-demo/src/a.ts"));
+    const held = focusTree("variant.variants").selection[0];
     focusHost.changeActiveTextEditor(fileEditor("/work/_v-alpha/a.ts", "output"));
     focusHost.changeTextEditorSelection();
     focusHost.changeActiveTextEditor(undefined);
 
-    expect(focusTree("variant.variants").revealed.length).toBe(before);
+    expect(focusTree("variant.variants").selection).toEqual([held]);
     expect(focused()).toBe(false);
   });
 

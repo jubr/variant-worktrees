@@ -108,19 +108,7 @@ const watchActiveVariant = (
     if (node === undefined) {
       return;
     }
-    const stale = new Set<string>();
-    for (const tree of trees) {
-      if (!tree.visible) {
-        continue;
-      }
-      const current = tree.selection[0];
-      if (current?.kind === "variant" && current !== node) {
-        stale.add(current.record.slug);
-      }
-    }
-    for (const held of stale) {
-      provider.forget(held);
-    }
+    dropSelection(node);
     for (const tree of trees) {
       if (!tree.visible || tree.selection[0] === node) {
         continue;
@@ -128,6 +116,21 @@ const watchActiveVariant = (
       void tree.reveal(node, { select: true, focus: false }).catch(() => {
         // The row can disappear between the lookup and the reveal.
       });
+    }
+  };
+  const dropSelection = (except?: VariantNode): void => {
+    const stale = new Set<string>();
+    for (const tree of trees) {
+      if (!tree.visible) {
+        continue;
+      }
+      const current = tree.selection[0];
+      if (current?.kind === "variant" && current !== except) {
+        stale.add(current.record.slug);
+      }
+    }
+    for (const held of stale) {
+      provider.forget(held);
     }
   };
   const select = (): void => {
@@ -139,14 +142,24 @@ const watchActiveVariant = (
     const known = worktreeRows(records);
     const needsMain = !known.some((row) => row.slug === "main") && records.some((record) => record.slug === "main");
     if (!needsMain) {
-      revealSlug(activeVariant(file, known));
+      const match = activeVariant(file, known);
+      if (match === undefined) {
+        dropSelection();
+        return;
+      }
+      revealSlug(match);
       return;
     }
     void directories().then((rows) => {
       if (activeFilePath() !== file) {
         return;
       }
-      revealSlug(activeVariant(file, rows));
+      const match = activeVariant(file, rows);
+      if (match === undefined) {
+        dropSelection();
+        return;
+      }
+      revealSlug(match);
     });
   };
   context.subscriptions.push(

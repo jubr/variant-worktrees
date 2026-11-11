@@ -4456,6 +4456,16 @@ export const window = {
         }
       },
     };
+    const provider = options.treeDataProvider as {
+      onDidChangeTreeData?: (listener: () => void) => { dispose: () => void };
+    };
+    provider.onDidChangeTreeData?.(() => {
+      const held = tree.selection[0];
+      if (held !== undefined && itemId(held) !== selectedId) {
+        tree.selection = [];
+        selectedId = undefined;
+      }
+    });
     return tree;
   },
   registerWebviewViewProvider: (
