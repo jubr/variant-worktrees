@@ -89,6 +89,7 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
   private readonly changed = new vscode.EventEmitter<VariantNode | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
   private readonly confirming = new Set<string>();
+  private readonly nodes = new Map<string, { kind: "variant"; record: VariantRecord }>();
   private readonly stopListening: () => void;
 
   constructor(
@@ -128,11 +129,29 @@ export class VariantsTreeProvider implements vscode.TreeDataProvider<VariantNode
     const records = this.store.records();
     const server = uiServerOf(records);
     const warning = this.store.warning();
+    const variants = sortVariants(records, this.sort()).map((record) => this.variantNode(record));
+    const slugs = new Set(variants.map((node) => node.record.slug));
+    for (const slug of this.nodes.keys()) {
+      if (!slugs.has(slug)) {
+        this.nodes.delete(slug);
+      }
+    }
     return [
       ...(warning === undefined ? [] : [{ kind: "unreachable" as const, message: warning }]),
       ...(server ? [{ kind: "ui" as const, ...server }] : []),
-      ...sortVariants(records, this.sort()).map((record) => ({ kind: "variant" as const, record })),
+      ...variants,
     ];
+  }
+
+  /** The same object while `record` is the same value, so a tree can reveal the row it already holds. */
+  private variantNode(record: VariantRecord): { kind: "variant"; record: VariantRecord } {
+    const current = this.nodes.get(record.slug);
+    if (current?.record === record) {
+      return current;
+    }
+    const node = { kind: "variant" as const, record };
+    this.nodes.set(record.slug, node);
+    return node;
   }
 
   getTreeItem(node: VariantNode): vscode.TreeItem {

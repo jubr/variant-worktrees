@@ -4,6 +4,7 @@ import { findConfigFile, getVariantsAdoption } from "variant-config";
 import { DEFAULT_MAX_DIFF_LINES } from "variant-config/schema";
 import { type VariantSort, variantSort } from "variant-ui/state";
 import * as vscode from "vscode";
+import { activeVariant } from "./active-variant.ts";
 import { createConfigMigration } from "./config-migration.ts";
 import { type ActivityLog, createActions, type VariantActions } from "./variants-actions.ts";
 import { openInBrowser, readServerToken } from "./variants-browser.ts";
@@ -67,6 +68,92 @@ const setContext = (key: string, value: boolean): void => {
 
 const slugOf = (node: VariantNode | undefined): string | undefined =>
   node?.kind === "variant" ? node.record.slug : undefined;
+
+const activeFilePath = (): string | undefined => {
+  const uri = vscode.window.activeTextEditor?.document.uri;
+  if (uri?.scheme !== "file") {
+    return undefined;
+  }
+  return uri.fsPath;
+};
+
+const worktreeRows = (records: readonly VariantRecord[]): { slug: string; directory: string }[] =>
+  records.flatMap((record) =>
+    record.worktree === undefined || record.worktree === "" ? [] : [{ slug: record.slug, directory: record.worktree }],
+  );
+
+/** Highlights the variant row that contains the active file. A hidden tree is left hidden. */
+const watchActiveVariant = (
+  context: vscode.ExtensionContext,
+  store: VariantsStore,
+  provider: VariantsTreeProvider,
+  loadClient: LoadClient,
+  trees: readonly vscode.TreeView<VariantNode>[],
+): void => {
+  const directories = async (): Promise<{ slug: string; directory: string }[]> => {
+    const records = store.records();
+    const rows = worktreeRows(records);
+    if (rows.some((row) => row.slug === "main") || !records.some((record) => record.slug === "main")) {
+      return rows;
+    }
+    const client = (await loadClient()) as { config?: () => ResolvedConfig };
+    const main = client.config?.().variant.main;
+    return main === undefined || main === "" ? rows : [...rows, { slug: "main", directory: main }];
+  };
+  const revealSlug = (slug: string | undefined): void => {
+    if (slug === undefined) {
+      return;
+    }
+    const node = provider.getChildren().find((entry) => entry.kind === "variant" && entry.record.slug === slug);
+    if (node === undefined) {
+      return;
+    }
+    for (const tree of trees) {
+      if (!tree.visible || tree.selection[0] === node) {
+        continue;
+      }
+      void tree.reveal(node, { select: true, focus: false }).catch(() => {
+        // The row can disappear between the lookup and the reveal.
+      });
+    }
+  };
+  const select = (): void => {
+    const file = activeFilePath();
+    if (file === undefined) {
+      return;
+    }
+    const records = store.records();
+    const known = worktreeRows(records);
+    const needsMain = !known.some((row) => row.slug === "main") && records.some((record) => record.slug === "main");
+    if (!needsMain) {
+      revealSlug(activeVariant(file, known));
+      return;
+    }
+    void directories().then((rows) => {
+      if (activeFilePath() !== file) {
+        return;
+      }
+      revealSlug(activeVariant(file, rows));
+    });
+  };
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      select();
+    }),
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) {
+        select();
+      }
+    }),
+    ...trees.map((tree) =>
+      tree.onDidChangeVisibility(() => {
+        select();
+      }),
+    ),
+    { dispose: store.onDidChange(() => select()) },
+  );
+  select();
+};
 
 /**
  * Explorer and activity-bar Variants trees: one provider, its welcome contexts, and its item commands.
@@ -263,9 +350,10 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     };
 
   const explorer = vscode.window.createTreeView(VIEW_ID, { treeDataProvider: provider });
+  const worktrees = vscode.window.createTreeView(WORKTREES_VIEW_ID, { treeDataProvider: provider });
   context.subscriptions.push(
     explorer,
-    vscode.window.createTreeView(WORKTREES_VIEW_ID, { treeDataProvider: provider }),
+    worktrees,
     provider,
     { dispose: () => store.dispose() },
     register("variant.play", (node) => {
@@ -386,6 +474,7 @@ export const registerVariantsView = (context: vscode.ExtensionContext, deps: Vie
     log?.error("configuration migration failed", error);
   }
   syncContexts();
+  watchActiveVariant(context, store, provider, loadClient, [explorer, worktrees]);
   void store.start();
   return { store, actions, loadClient };
 };

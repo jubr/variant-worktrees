@@ -22,6 +22,27 @@ const watching = { mode: "watch" as const, watches: { fe: { alive: true } } };
 const up = { mode: "up" as const, watches: { fe: { alive: true } } };
 
 describe("variants tree", () => {
+  it("returns the same variant node while the record is unchanged", async () => {
+    const { provider } = await started([record("demo", { worktree: "/work/_v-demo" })]);
+    const slug = (nodes: VariantNode[]): VariantNode | undefined =>
+      nodes.find((node) => node.kind === "variant" && node.record.slug === "demo");
+
+    expect(slug(provider.getChildren())).toBe(slug(provider.getChildren()));
+  });
+
+  it("returns a new variant node when the record changes", async () => {
+    const demo = record("demo", { worktree: "/work/_v-demo" });
+    const { provider, fake } = await started([demo]);
+    const node = (): VariantNode | undefined =>
+      provider.getChildren().find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+    const first = node();
+    fake.publish([record("demo", { worktree: "/work/_v-demo", url: "http://demo.vw.localhost:62100" })]);
+    const next = node();
+
+    expect(next).not.toBe(first);
+    expect(next).toMatchObject({ kind: "variant", record: { url: "http://demo.vw.localhost:62100" } });
+  });
+
   it("marks a database-only variant with a space and a superscript d", async () => {
     const { provider } = await started([record("demo", { dbOnly: true }), record("kept", { worktree: "/work/kept" })]);
 
