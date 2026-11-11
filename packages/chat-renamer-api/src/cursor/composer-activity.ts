@@ -15,7 +15,11 @@ export const composerIsActive = (record: unknown): boolean => {
     hasChatGeneration?: unknown;
   };
   // AIDEV-NOTE: disk persist stores a live turn as aborted while chatGenerationUUID remains. Completion clears it.
-  if (data.status === "generating" || data.isContinuationInProgress === true || data.hasChatGeneration === true) {
+  // AIDEV-NOTE: an aborted row keeps chatGenerationUUID after the turn ends. That leftover is idle.
+  if (data.status === "generating" || data.isContinuationInProgress === true) {
+    return true;
+  }
+  if (data.hasChatGeneration === true && data.status !== "aborted") {
     return true;
   }
   return data.status !== "aborted" && Array.isArray(data.generatingBubbleIds) && data.generatingBubbleIds.length > 0;

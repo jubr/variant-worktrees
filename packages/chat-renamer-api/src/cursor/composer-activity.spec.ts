@@ -27,8 +27,8 @@ describe("composerIsActive", () => {
     expect(composerIsActive({ status: "aborted", generatingBubbleIds: ["b1"] })).toBe(false);
   });
 
-  it("treats an aborted row that still has a generation uuid as active", () => {
-    expect(composerIsActive({ status: "aborted", generatingBubbleIds: [], hasChatGeneration: true })).toBe(true);
+  it("treats an aborted row that still has a generation uuid as idle", () => {
+    expect(composerIsActive({ status: "aborted", generatingBubbleIds: [], hasChatGeneration: true })).toBe(false);
     expect(composerIsActive({ status: "aborted", generatingBubbleIds: [], hasChatGeneration: false })).toBe(false);
   });
 });
@@ -43,11 +43,11 @@ describe("composerRowsActive", () => {
     expect(composerRowsActive(json)).toBe(true);
   });
 
-  it("is active when a saved row is aborted but still has a generation uuid", () => {
-    const live = JSON.stringify([{ status: "aborted", continuation: 0, bubbles: 0, hasChatGen: 1 }]);
+  it("is idle when a saved row is aborted but still has a generation uuid", () => {
+    const stale = JSON.stringify([{ status: "aborted", continuation: 0, bubbles: 0, hasChatGen: 1 }]);
     const done = JSON.stringify([{ status: "completed", continuation: 0, bubbles: 0, hasChatGen: 0 }]);
 
-    expect(composerRowsActive(live)).toBe(true);
+    expect(composerRowsActive(stale)).toBe(false);
     expect(composerRowsActive(done)).toBe(false);
   });
 
