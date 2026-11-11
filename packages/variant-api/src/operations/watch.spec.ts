@@ -502,7 +502,7 @@ describe("watch readiness and opening", () => {
 
       expect(opened).toEqual(["http://demo.vw.localhost:62060"]);
       expect(Date.now()).toBeGreaterThanOrEqual(health.healthyAt());
-      expect(messages).toContain("fe: http://demo.vw.localhost:62060");
+      expect(messages).not.toContain("fe: http://demo.vw.localhost:62060");
       stop();
       await done;
     }));
@@ -634,13 +634,14 @@ describe("watch readiness and opening", () => {
       BASE.replace("readyTimeoutSeconds: 3", "readyTimeoutSeconds: 1"),
     ));
 
-  it("prints the URL but does not open it when variant.open is false", () =>
+  it("does not print or open the URL when variant.open is false", () =>
     withProject(
-      async ({ attach, opened, messages }) => {
+      async ({ attach, opened, messages, started }) => {
         const { done, stop } = attach();
 
-        await until(() => messages.some((line) => line.startsWith("fe: ")));
+        await started("fe");
 
+        expect(messages.some((line) => line.startsWith("fe: "))).toBe(false);
         expect(opened).toEqual([]);
         stop();
         await done;
@@ -650,11 +651,12 @@ describe("watch readiness and opening", () => {
 
   it("does not open URLs when VARIANT_OPEN is 0", () =>
     withProject(
-      async ({ attach, opened, messages }) => {
+      async ({ attach, opened, messages, started }) => {
         const { done, stop } = attach();
 
-        await until(() => messages.some((line) => line.startsWith("fe: ")));
+        await started("fe");
 
+        expect(messages.some((line) => line.startsWith("fe: "))).toBe(false);
         expect(opened).toEqual([]);
         stop();
         await done;

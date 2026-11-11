@@ -93,7 +93,7 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `containerEngine` | `docker` or `podman`; `CONTAINER_ENGINE` wins; absent: `docker` if installed, else `podman` |
 | `mise` | `{ binPath }`: the Mise executable, when `mise` is not on `PATH`; the editor setting `variant.mise.binPath` wins |
 | `main` | The main checkout the worktrees are made from, relative to `variants.yaml`. Default: the directory a parent `AGENTS.md` symlink points into, else the git checkout |
-| `open` | `false` prints URLs without opening a browser; `VARIANT_OPEN=0` wins |
+| `open` | `false` does not open a browser; `VARIANT_OPEN=0` wins |
 | `prefix` | Starts every name derived from a slug, such as worktree directories (default `_v-`) |
 | `root` | Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into `main` (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `main` itself (`./_v-foo`). A worktree directory inside `main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created |
 | `ports` | `{ range }`: `LOW-HIGH` (1024 to 65535, default `42000-42999`) the free ports of watches and of `variant ui` are picked from. An explicit `VARIANT_<KEY>_PORT` or `runtime.watches.<key>.port` may lie anywhere |

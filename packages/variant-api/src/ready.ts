@@ -115,9 +115,8 @@ const waitUntilReady = async (
 };
 
 /**
- * Once the watches serve (or right away when none sets `ready`), prints the URL of every watch that has an `open`
- * template and opens each one unless `variant.open` is off. On timeout it warns and opens nothing. Returns whether the
- * watches became ready.
+ * Once the watches serve (or right away when none sets `ready`), opens the URL of every watch that has one unless
+ * `variant.open` is off. On timeout it warns and opens nothing. Returns whether the watches became ready.
  */
 export const announce = async (
   context: OperationContext,
@@ -136,8 +135,7 @@ export const announce = async (
     return false;
   }
   const opener = options.opener ?? openInBrowser;
-  for (const [key, url] of Object.entries(run.urls)) {
-    log(`${key}: ${url}`);
+  for (const url of Object.values(run.urls)) {
     if (context.config.variant.open) {
       try {
         await opener(url);
