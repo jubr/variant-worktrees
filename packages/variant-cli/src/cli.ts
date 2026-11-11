@@ -9,7 +9,9 @@ import {
   renderVersion,
   repositoryUrl,
   resolveVersionFacts,
+  runWatchRelay,
   versionColor,
+  type WatchResult,
 } from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
@@ -64,14 +66,27 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
       const client = createVariantClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       printWarnings(client.config().warnings);
       migrateConfigFiles(client.config());
+      const rendered = {
+        format,
+        variantRoot: client.config().variant.root,
+        verbose: flags.verbose === true,
+      };
+      let printedStart = false;
+      if (definition.name === "watch" && format === "text" && args.detach !== true) {
+        args.onStarted = (started: WatchResult) => {
+          printedStart = true;
+          console.log(renderOutput("watch", started, rendered));
+        };
+      }
       const result = await definition.execute(client, args);
-      console.log(
-        renderOutput(String(definition.name), result, {
-          format,
-          variantRoot: client.config().variant.root,
-          verbose: flags.verbose === true,
-        }),
-      );
+      if (printedStart) {
+        const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
+        if (typeof exitCode === "number" && exitCode !== 0) {
+          console.log(`exit code:  ${exitCode}`);
+        }
+      } else {
+        console.log(renderOutput(String(definition.name), result, rendered));
+      }
       const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
       if (typeof exitCode === "number" && exitCode !== 0) {
         process.exitCode = exitCode;
@@ -116,52 +131,56 @@ const takeFormat = (argv: string[]): { args: string[]; format: OutputFormat } =>
   return { args: argv.filter((arg) => !flags.includes(arg)), format: (asked[0]?.name ?? "text") as OutputFormat };
 };
 
-try {
-  const { args: withoutLevel, level } = takeLogLevel(process.argv.slice(2));
-  const slug = explicitSlug(withoutLevel);
-  attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
-  const { args, format } = takeFormat(withoutLevel);
-  const requested = args.find((arg) => !arg.startsWith("-"));
-  const known = (name: string): boolean =>
-    commands.some((definition) => definition.name === name) ||
-    (CLI_ONLY_COMMANDS as readonly string[]).includes(name) ||
-    name === completionsCommand.name;
-  if (requested !== undefined && !known(requested)) {
-    throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
-  }
-  if (args.includes("--version") && requested === undefined) {
-    const directory = dirname(fileURLToPath(import.meta.url));
-    const facts = resolveVersionFacts(directory, new Date(), bakedVersion());
-    process.stdout.write(
-      renderVersion({
-        version,
-        platform: platformToken(process.platform, process.arch),
-        date: facts.date,
-        variant: facts.variant,
-        banner: process.stdout.isTTY === true,
-        color: versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
-        repository: repositoryUrl(),
-      }),
-    );
-  } else {
-    await cli(
-      {
-        name: "variant",
-        version,
-        help: {
-          description: "Database variants for git worktrees",
-          render: renderHelp,
+if (process.argv.includes("--internal-watch-relay")) {
+  await runWatchRelay();
+} else {
+  try {
+    const { args: withoutLevel, level } = takeLogLevel(process.argv.slice(2));
+    const slug = explicitSlug(withoutLevel);
+    attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
+    const { args, format } = takeFormat(withoutLevel);
+    const requested = args.find((arg) => !arg.startsWith("-"));
+    const known = (name: string): boolean =>
+      commands.some((definition) => definition.name === name) ||
+      (CLI_ONLY_COMMANDS as readonly string[]).includes(name) ||
+      name === completionsCommand.name;
+    if (requested !== undefined && !known(requested)) {
+      throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
+    }
+    if (args.includes("--version") && requested === undefined) {
+      const directory = dirname(fileURLToPath(import.meta.url));
+      const facts = resolveVersionFacts(directory, new Date(), bakedVersion());
+      process.stdout.write(
+        renderVersion({
+          version,
+          platform: platformToken(process.platform, process.arch),
+          date: facts.date,
+          variant: facts.variant,
+          banner: process.stdout.isTTY === true,
+          color: versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
+          repository: repositoryUrl(),
+        }),
+      );
+    } else {
+      await cli(
+        {
+          name: "variant",
+          version,
+          help: {
+            description: "Database variants for git worktrees",
+            render: renderHelp,
+          },
+          strictFlags: true,
+          commands: [...commands.map((definition) => runCommand(definition, format)), uiCommand(), completionsCli],
         },
-        strictFlags: true,
-        commands: [...commands.map((definition) => runCommand(definition, format)), uiCommand(), completionsCli],
-      },
-      undefined,
-      args.length === 0 ? ["--help"] : args,
-    );
+        undefined,
+        args.length === 0 ? ["--help"] : args,
+      );
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  } finally {
+    await finishCliLog();
   }
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-} finally {
-  await finishCliLog();
 }

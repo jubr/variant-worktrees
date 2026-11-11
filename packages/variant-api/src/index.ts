@@ -27,6 +27,7 @@ export {
   runMiseTrust,
 } from "./mise.js";
 export { type AugmentMiseOptions, type AugmentMiseResult, augmentMiseConfig, MISE_TOOL } from "./mise-augment.js";
+export { readyProbeLine } from "./ready.js";
 export { redacted } from "./redact.js";
 export { resolveSlug, sanitizeSlug } from "./slug.js";
 export type {
@@ -63,4 +64,5 @@ export {
   variantString,
   versionColor,
 } from "./version-line.js";
+export { runWatchRelay } from "./watch-relay.js";
 export { ensureWorktree, primaryWorktree } from "./worktree.js";

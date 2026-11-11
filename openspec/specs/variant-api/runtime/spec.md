@@ -102,7 +102,7 @@ When the loaded configuration is a worktree's `variants.yaml` and that file defi
 
 ### Requirement: The watch command runs watches as host processes
 
-The system SHALL start the `watch` command of every watch as a process in the watch directory with the command environment, stdout and stderr attached to the console, and SHALL record the process id of each in the runtime state. A watch without a `watch` command SHALL NOT be started. Watches SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each watch.
+The system SHALL start the `watch` command of every watch as a process in the watch directory with the command environment, and SHALL record the process id of each in the runtime state. Stdout and stderr of those processes SHALL be captured and written by the watch output log, for an attached watch and for a detached watch. A watch without a `watch` command SHALL NOT be started. Watches SHALL start in their listed order, waiting `supervise.startDelaySeconds` between two of them. The command SHALL print the command line it runs for each watch.
 
 #### Scenario: Two watchers
 
@@ -208,7 +208,7 @@ The system SHALL write `.cache/variant/state.yaml` and `.cache/variant/runtime.y
 
 ### Requirement: Readiness and opening
 
-The system SHALL, after watches start in attached `up` and attached `watch`, poll `http://127.0.0.1:<port><ready>` once per second for every watch that sets `ready`, up to `supervise.readyTimeoutSeconds`. When all answer with a success status it SHALL print the URL of each watch with a `url` template and open each in the system browser, unless opening is disabled. When no watch sets `ready` it SHALL print and open the URLs right after start. On timeout it SHALL print a warning and leave the watches running. Failure to launch a browser SHALL NOT fail the command.
+The system SHALL, after watches start in attached `up` and attached `watch`, poll once per second for every watch that sets `ready`, up to `supervise.readyTimeoutSeconds`. When that watch has a URL template, the polled URL SHALL be the rendered watch URL joined with `ready`, keeping one slash. Otherwise the polled URL SHALL be `http://127.0.0.1:<port><ready>`. A response SHALL count only when its status is 200. On the first poll of a watch the command SHALL write `[watch] {name} URL try {url}` to standard error, where `{name}` is the watch key and `{url}` is the polled URL. On the first status 200 it SHALL write `[watch] {name} URL 200 {url}` to standard error. It SHALL NOT write either line again for that watch. When `watch` is writing `.cache/variant/watch.log`, those same lines SHALL be appended there. When every such watch has returned 200, the command SHALL open the URL of each watch with a `url` template in the system browser, unless opening is disabled. When no watch sets `ready` it SHALL print and open the URLs right after start and SHALL NOT write a URL try line. On timeout it SHALL print a warning, open nothing, and leave the watches running. Failure to launch a browser SHALL NOT fail the command. `variant.open` set to false, and `VARIANT_OPEN=0`, SHALL disable opening. A detached `watch` SHALL NOT poll and SHALL NOT open URLs.
 
 #### Scenario: Open after ready
 
@@ -217,13 +217,45 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 
 #### Scenario: Open disabled
 
-- **WHEN** `variant.open` is `false`
-- **THEN** URLs are printed and no browser is launched
+- **WHEN** `variant.open` is `false` and a watch returns 200
+- **THEN** standard error contains the URL 200 line and no browser is launched
+
+#### Scenario: Environment disables opening
+
+- **WHEN** `VARIANT_OPEN` is `0` and every ready watch returns 200
+- **THEN** no browser is launched
 
 #### Scenario: Ready timeout
 
 - **WHEN** a watch never answers within `readyTimeoutSeconds`
 - **THEN** a warning is printed, no URL is opened, and the watches keep running
+
+#### Scenario: First probe logs the full URL
+
+- **WHEN** watch `be` has URL `http://demo.vw.localhost:62061` and `ready: /health`, and attached `watch` polls it for the first time
+- **THEN** standard error contains `[watch] be URL try http://demo.vw.localhost:62061/health`
+- **AND** `.cache/variant/watch.log` contains that same line
+
+#### Scenario: First 200 logs once
+
+- **WHEN** that URL then returns status 200 for the first time
+- **THEN** standard error contains `[watch] be URL 200 http://demo.vw.localhost:62061/health`
+- **AND** a later poll of `be` does not write that try line or that 200 line again
+
+#### Scenario: Status 204 is not ready
+
+- **WHEN** the ready URL returns status 204 until `readyTimeoutSeconds` elapses
+- **THEN** no URL 200 line is written, a warning is printed, and no URL is opened
+
+#### Scenario: No URL template uses the loopback URL
+
+- **WHEN** watch `be` sets `ready: /health`, has no URL template, and is on port 62061
+- **THEN** the first probe line is `[watch] be URL try http://127.0.0.1:62061/health`
+
+#### Scenario: Detach does not probe
+
+- **WHEN** `watch` runs with `detach` and a watch sets `ready`
+- **THEN** no URL try line is written and no browser is launched
 
 ### Requirement: Down
 
@@ -287,14 +319,31 @@ The system SHALL print a warning to the progress log when `watch` starts no proc
 - **WHEN** at least one watch has a `watch` command
 - **THEN** no such warning is printed
 
-### Requirement: Detached watch log
 
-A `watch` with the `detach` option SHALL write the stdout and stderr of every process it starts, interleaved as they are produced, to one log file `.cache/variant/watch.log` in the variant directory (git-ignored, removed with the worktree). It SHALL truncate that file when it starts, write the line `[<key>] <command>` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. Output SHALL reach the file while the processes run, so a reader can follow it with `tail -f`. An attached `watch` SHALL keep its output on the console, write no log file, and record no `log`. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
+### Requirement: Watch output log
+
+`watch` SHALL capture stdout and stderr of every process it starts, attached or detached. For a watch whose output mode is not `tty`, each complete line from a process's stdout SHALL be written to standard output as `[{name}] {line}` and each complete line from a process's stderr SHALL be written to standard error as `[{name}] {line}`. For a watch whose output mode is `tty`, stdout and stderr are one terminal, and each complete line of that transcript SHALL be written as a standard-output line `[{name}] {line}`. `{name}` is the watch key. A trailing partial line SHALL be written the same way when the stream ends. The same prefixed line SHALL be appended to `.cache/variant/watch.log` in the variant directory. Appending that line SHALL NOT block the write to standard output or standard error. The file is git-ignored and removed with the worktree. `watch` SHALL truncate the file when it starts, write the line `[{name}] {command}` for each process before it starts, and record the absolute path as `log` in `.cache/variant/state.yaml`. When a watch runs as `tty`, the single mode line from Watch output terminal SHALL be the first line, before those banners. A line SHALL reach the file while the process still runs. A detached `watch` SHALL prefix and record lines the same way. After that call returns, capture SHALL keep writing the file until the processes end, and SHALL NOT write the caller's terminal. `down` SHALL remove `log` from the state file and keep the file. `up` SHALL write no log file.
+
+#### Scenario: Attached stdout is prefixed and logged
+
+- **WHEN** attached `watch` runs a command that prints `ready` on stdout and keeps running
+- **THEN** standard output contains `[fe] ready` and `.cache/variant/watch.log` contains `[fe] ready` while the process still runs
+
+#### Scenario: Stderr stays on stderr
+
+- **WHEN** a watch whose output mode is not `tty` prints `oops` on stderr
+- **THEN** standard error contains `[fe] oops`, standard output does not, and the log file contains `[fe] oops`
+
+#### Scenario: Log path recorded for an attached watch
+
+- **WHEN** attached `watch` runs for slug `demo`
+- **THEN** `state.yaml` holds `log` with the absolute path of `.cache/variant/watch.log`
 
 #### Scenario: Detached output reaches the file
 
 - **WHEN** `watch` runs detached with a command that prints `ready` and keeps running
-- **THEN** `.cache/variant/watch.log` contains `ready` while the process still runs
+- **THEN** `.cache/variant/watch.log` contains `[fe] ready` while the process still runs
+- **AND** the caller's standard output does not contain that line
 
 #### Scenario: Log path recorded
 
@@ -303,20 +352,64 @@ A `watch` with the `detach` option SHALL write the stdout and stderr of every pr
 
 #### Scenario: Two processes, one file
 
-- **WHEN** watches `be` and `fe` both print a line and run detached
-- **THEN** both lines are in the same file, below the lines `[be] <command>` and `[fe] <command>`
+- **WHEN** watches `be` and `fe` both print a line
+- **THEN** both lines are in the same file, prefixed `[be]` and `[fe]`, below the lines `[be] {command}` and `[fe] {command}`
 
 #### Scenario: Restart truncates
 
-- **WHEN** a detached watch runs again for the same variant
+- **WHEN** `watch` runs again for the same variant
 - **THEN** the file holds only the output of the new run
-
-#### Scenario: Attached keeps the console
-
-- **WHEN** `watch` runs attached
-- **THEN** the output goes to the console, no log file is written and no `log` is recorded
 
 #### Scenario: Down drops the record
 
-- **WHEN** `down` stops a detached watch
+- **WHEN** `down` stops a watch that recorded `log`
 - **THEN** `log` is no longer in `state.yaml` and the file still exists
+
+#### Scenario: Up writes no watch log
+
+- **WHEN** `up` runs
+- **THEN** no `.cache/variant/watch.log` is written and no `log` is recorded
+
+### Requirement: Watch output terminal
+
+A watch's output mode SHALL be `tty` or `no-tty`. `variant.watches.<name>.output.mode` sets it. When that is unset, the mode SHALL be the default the caller passed, and `no-tty` when the caller passed none. An explicit mode SHALL win over the caller's default. `no-tty` SHALL start the process with pipes, so neither stdout nor stderr is a terminal. `tty` SHALL start the process with stdout and stderr attached to one pseudo-terminal, so both are a terminal, and that terminal SHALL be at least 1000 columns wide. When `TERM` is unset or `dumb`, the process environment SHALL set `TERM` to `xterm-256color`. Any other `TERM` SHALL be left as it is. A line the process writes only because it has a terminal, including an ANSI color sequence, SHALL appear in `.cache/variant/watch.log` and, for an attached watch, on standard output. A `tty` line that contains an ANSI escape SHALL have the reset sequence ESC `[0m` appended before the newline. When any watch runs as `tty`, the first line of `.cache/variant/watch.log` SHALL be one line, `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, before the `[name] {command}` banners. `{args}` is the flags of this invocation, such as `--detach`, and is omitted when none were set. The terminal's stdin SHALL stay open for the life of the process, so a program that exits on end-of-file keeps running. A line the process writes to stderr SHALL be part of that same transcript. The four bytes `^D` and two backspaces that the terminal allocator writes when its input is closed SHALL NOT appear in the log or on standard output. A detached `tty` watch SHALL write that transcript to the log and SHALL NOT write it to the caller's terminal.
+
+#### Scenario: A terminal prints color
+
+- **WHEN** attached `watch` runs a command with `output.mode: tty` that writes `tty` and an ANSI green line only when stdout is a terminal, and writes `oops` on stderr
+- **THEN** standard output and `.cache/variant/watch.log` contain `[fe] tty`, the green line with its ANSI sequence followed by the reset sequence, and `[fe] oops`
+- **AND** the first line of `.cache/variant/watch.log` is `[watch] mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`
+- **AND** the process is still running after that output, because stdin did not end
+- **AND** neither contains the `^D` terminal-allocator echo
+
+#### Scenario: Pipes stay plain
+
+- **WHEN** a watch with `output.mode: no-tty` writes `pipe` when stdout is not a terminal, `plain` instead of a color line, and `oops` on stderr
+- **THEN** standard output contains `[fe] pipe` and `[fe] plain` and does not contain an ANSI escape
+- **AND** standard error contains `[fe] oops` and standard output does not
+
+#### Scenario: Omitted mode is not a terminal
+
+- **WHEN** a watch sets no `output.mode` and the caller passes no default, and the command writes `tty` or `pipe` from whether stdout is a terminal
+- **THEN** standard output contains `[fe] pipe`
+
+#### Scenario: Caller default is a terminal
+
+- **WHEN** a watch sets no `output.mode`, the caller passes the default `tty`, and the command writes `tty` when stdout is a terminal
+- **THEN** `.cache/variant/watch.log` contains `[fe] tty`
+
+#### Scenario: Explicit mode wins
+
+- **WHEN** a watch sets `output.mode: no-tty` and the caller passes the default `tty`
+- **THEN** the process stdout is not a terminal
+
+#### Scenario: Dumb TERM becomes a color terminal
+
+- **WHEN** a watch sets `output.mode: tty` and `TERM` is `dumb`
+- **THEN** the process environment has `TERM` `xterm-256color`
+
+#### Scenario: Detached terminal output stays in the log
+
+- **WHEN** `watch` runs detached with `output.mode: tty` and the command writes an ANSI green line because stdout is a terminal
+- **THEN** `.cache/variant/watch.log` contains that line
+- **AND** the caller's standard output does not

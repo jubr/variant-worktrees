@@ -27,6 +27,22 @@ const config: BuildOptions = {
   logLevel: "info",
 };
 
+/** A spawnable relay. The extension bundle looks for this file beside `extension.cjs`. */
+export const watchRelayBundle: BuildOptions = {
+  entryPoints: ["../variant-api/src/watch-relay.ts"],
+  bundle: true,
+  platform: "node",
+  target: "node22",
+  format: "esm",
+  outfile: "./dist/watch-relay.js",
+  external: ["bun:sqlite"],
+  // AIDEV-NOTE: yaml's CJS build calls require("process"). An ESM bundle has no require unless this banner creates one.
+  banner: {
+    js: 'import { createRequire as __relayCreateRequire } from "node:module"; const require = __relayCreateRequire(import.meta.url);',
+  },
+  logLevel: "info",
+};
+
 export const mcpBundle: BuildOptions = {
   entryPoints: ["./src/mcp-entry.ts"],
   bundle: true,

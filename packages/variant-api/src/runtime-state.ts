@@ -27,7 +27,7 @@ export const variantConfigDir = (config: ResolvedConfig, worktree: string): stri
   }
 };
 
-/** The log file of the detached watch of the variant in `worktree`: `.cache/variant/watch.log`. */
+/** The log file of the watch of the variant in `worktree`: `.cache/variant/watch.log`. */
 export const watchLogPath = (config: ResolvedConfig, worktree: string): string =>
   join(variantConfigDir(config, worktree), ".cache", "variant", "watch.log");
 

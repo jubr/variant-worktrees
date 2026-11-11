@@ -28,7 +28,7 @@ export interface RuntimeStatus {
   slug?: string;
   mode?: "up" | "watch";
   dir?: string;
-  /** The log file of a detached watch. */
+  /** The log file of an attached or detached watch. */
   log?: string;
   /** Local time the variant was created, `YYYY-MM-DD_HH:MM:SS`. */
   createdAt?: string;
@@ -46,7 +46,7 @@ export interface VariantRecord extends VariantState {
   watches?: Record<string, WatchFacts>;
   /** The longest time any live recorded process of the variant has been running. */
   uptimeSeconds?: number;
-  /** The absolute path of the log file of its detached watch. */
+  /** The absolute path of the log file of its watch. */
   log?: string;
   /** All meta information of the runtime state; set by `status` and by `list` with `verbose`. */
   runtime?: RuntimeStatus;
@@ -129,10 +129,14 @@ export interface UpOptions {
 export interface WatchOptions extends UpOptions {
   /** Start the processes detached from the console and return without waiting. */
   detach?: boolean;
+  /** Output mode for a watch that does not set `output.mode`. Absent means pipes. */
+  outputMode?: "tty" | "no-tty";
   /** Drop the schemas and create them again before the watches start. */
   reprovision?: boolean;
   /** Ends an attached watch as an interrupt (exit code 130), like SIGINT. */
   signal?: AbortSignal;
+  /** Called once the processes are running and their pids are known, before an attached watch waits. */
+  onStarted?: (result: WatchResult) => void;
 }
 
 /** What `deprovision` dropped or ran. */

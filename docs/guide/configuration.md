@@ -93,7 +93,7 @@ The flag is left out when the project sets it: `clearScreen` in the Vite configu
 | `containerEngine` | `docker` or `podman`; `CONTAINER_ENGINE` wins; absent: `docker` if installed, else `podman` |
 | `mise` | `{ binPath }`: the Mise executable, when `mise` is not on `PATH`; the editor setting `variant.mise.binPath` wins |
 | `main` | The main checkout the worktrees are made from, relative to `variants.yaml`. Default: the directory a parent `AGENTS.md` symlink points into, else the git checkout |
-| `open` | `false` prints URLs without opening a browser; `VARIANT_OPEN=0` wins |
+| `open` | `false` does not open a browser; `VARIANT_OPEN=0` wins |
 | `prefix` | Starts every name derived from a slug, such as worktree directories (default `_v-`) |
 | `root` | Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into `main` (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `main` itself (`./_v-foo`). A worktree directory inside `main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created |
 | `ports` | `{ range }`: `LOW-HIGH` (1024 to 65535, default `42000-42999`) the free ports of watches and of `variant ui` are picked from. An explicit `VARIANT_<KEY>_PORT` or `runtime.watches.<key>.port` may lie anywhere |
@@ -141,7 +141,8 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 | `url` | URL template of the watch |
 | `env` | `sourceFile`: an env file in `dir`, copied once for a variant (from the primary worktree's file, its `.example`, or `VARIANT_ENV_SOURCE`). `overrides`: templated values for the watch's commands, written into the copy when it is created together with the storage variable. An existing copy is left alone |
 | `install` | Command that runs in `dir` when `dir` has no `node_modules` |
-| `ready` | URL path that answers with a success status when the watch serves |
+| `ready` | URL path. A probe counts only on status 200. The first probe and the first 200 log the full URL |
+| `output` | `{ mode }`: `tty` or `no-tty`. `tty` starts the process on a pseudo-terminal, so it prints color into `.cache/variant/watch.log`. A line that contains an ANSI escape gets a reset before the newline. The log starts with one line `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`. `no-tty` keeps pipes, and stdout and stderr stay separate. Absent: the editor uses `tty` when an enabled extension's description contains both `log` and `ansi`, and `no-tty` otherwise. The CLI does not see extensions, so an omitted mode stays `no-tty` there |
 | `container` | How `up` runs the watch |
 
 `container` takes `dockerfile` (relative to the worktree, built with the worktree as context into `v-<key>:v-<slug>`) and `internalPort` (the port inside the container, 80 when absent). The Dockerfile does the rest: build the app, serve it, and reach other containers by name (`v-<key>-<slug>` on the network `v-net-<slug>`); `example/fe/Dockerfile` builds a Vite app and serves it with `nginx:alpine`, proxying `/api/` to the `be` container. The container receives the `VARIANT_*` and database variables only: not `env.overrides`, and neither `SQLITE_DATABASE` nor the storage variable, which are host paths.
@@ -150,7 +151,7 @@ Every command runs after a `+ <command>` line on standard error: the install, `u
 
 `up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `.cache/variant/state.yaml`, then a free port of `variant.ports.range`), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
 
-Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for a detached `watch`, `log`: the path of `.cache/variant/watch.log`, which holds the output of its processes). An old `variants.local.yaml` or `.cache/variants/<slug>.yaml` is read only when `state.yaml` is absent, and is not written again. Attached, the command waits for every `ready` path and opens the URL of each watch with a `url` template.
+Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for attached or detached `watch`, `log`: the path of `.cache/variant/watch.log`). Each line in that file is prefixed `[name]`. `up` records no `log`. An old `variants.local.yaml` or `.cache/variants/<slug>.yaml` is read only when `state.yaml` is absent, and is not written again. Attached, the command waits for every `ready` path to return status 200 and opens the URL of each watch with a `url` template. The first probe writes `[watch] {name} URL try {url}` and the first 200 writes `[watch] {name} URL 200 {url}` once, to stderr and to the log.
 
 An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one watch ends or the worktree disappears, and 0 only when detached. The CLI sets the process exit code from it.
 

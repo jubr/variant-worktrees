@@ -313,6 +313,215 @@ describe("inline actions", () => {
     }
   });
 
+  it("keeps the loading icon until the last ready watch returns 200", async () => {
+    const rowUrl = "http://demo.vw.localhost:62100";
+    const beUrl = "http://demo.vw.localhost:62101";
+    const debug: string[] = [];
+    const beTimes: number[] = [];
+    let finishBe: (code: number) => void = () => {};
+    const beBody = new Promise<number>((resolve) => {
+      finishBe = resolve;
+    });
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(((input: string | URL | Request) => {
+      const target = String(input);
+      if (target.startsWith(beUrl)) {
+        beTimes.push(Date.now());
+        if (beTimes.length === 1) {
+          return Promise.resolve(new Response(null, { status: 503 }));
+        }
+        return beBody.then((code) => new Response(null, { status: code }));
+      }
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo", url: rowUrl });
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url: rowUrl,
+      mode: "watch",
+      watches: {
+        fe: { pid: 5151, url: rowUrl, alive: true },
+        be: { pid: 5152, url: beUrl, alive: true },
+      },
+    });
+    const fake = fakeClient([downDemo]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({
+        variant: {
+          watches: {
+            fe: { ready: "/index.html", dir: "." },
+            be: { ready: "/health", dir: "." },
+          },
+        },
+      }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo], {
+        loadClient: async () => client,
+        log: {
+          info: () => {},
+          error: () => {},
+          debug: (message) => debug.push(message),
+        },
+      });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      const icon = (): string => {
+        const found = tree.treeDataProvider
+          .getChildren()
+          .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+        if (!found) {
+          throw new Error("no demo");
+        }
+        return (tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id;
+      };
+
+      await command("variant.play")(node("demo"));
+      await Promise.resolve();
+
+      expect(icon()).toBe("loading~spin");
+      expect(openExternal).not.toHaveBeenCalled();
+      expect(debug).toContain("[watch] fe URL try http://demo.vw.localhost:62100/index.html");
+      expect(debug).toContain("[watch] fe URL 200 http://demo.vw.localhost:62100/index.html");
+      expect(beTimes).toHaveLength(1);
+
+      const deadline = Date.now() + 2000;
+      while (beTimes.length < 2 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      expect(beTimes).toHaveLength(2);
+      expect((beTimes[1] ?? 0) - (beTimes[0] ?? 0)).toBeGreaterThanOrEqual(900);
+      expect(debug.filter((line) => line.startsWith("[watch] fe "))).toEqual([
+        "[watch] fe URL try http://demo.vw.localhost:62100/index.html",
+        "[watch] fe URL 200 http://demo.vw.localhost:62100/index.html",
+      ]);
+      expect(icon()).toBe("loading~spin");
+      expect(openExternal).not.toHaveBeenCalled();
+
+      finishBe(200);
+      await beBody;
+      for (let turn = 0; turn < 10; turn += 1) {
+        await Promise.resolve();
+      }
+
+      expect(icon()).toBe("circle-filled");
+      expect(openExternal).toHaveBeenCalledTimes(1);
+      expect(String(openExternal.mock.calls[0]?.[0])).toBe(rowUrl);
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
+  it("leaves the loading icon and does not open when the be pid dies before 200", async () => {
+    const rowUrl = "http://demo.vw.localhost:62100";
+    const beUrl = "http://demo.vw.localhost:62101";
+    let beAlive = true;
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(((input: string | URL | Request) => {
+      const target = String(input);
+      if (target.startsWith(beUrl)) {
+        return new Promise(() => {});
+      }
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }) as typeof fetch);
+    const realKill = process.kill.bind(process);
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number | NodeJS.Signals) => {
+      if (signal === 0) {
+        if (pid === 5152 && !beAlive) {
+          throw new Error("ESRCH");
+        }
+        return true;
+      }
+      return realKill(pid, signal);
+    }) as typeof process.kill);
+    const downDemo = record("demo", { worktree: "/work/_v-demo", url: rowUrl });
+    const watchingDemo = record("demo", {
+      worktree: "/work/_v-demo",
+      url: rowUrl,
+      mode: "watch",
+      watches: {
+        fe: { pid: 5151, url: rowUrl, alive: true },
+        be: { pid: 5152, url: beUrl, alive: true },
+      },
+    });
+    const fake = fakeClient([downDemo]);
+    const watch = fake.client.watch.bind(fake.client);
+    fake.client.watch = async (slug, options) => {
+      const result = await watch(slug, options);
+      fake.publish([watchingDemo]);
+      return result;
+    };
+    const client = Object.assign(fake.client, {
+      config: () => ({
+        variant: {
+          watches: {
+            fe: { ready: "/index.html", dir: "." },
+            be: { ready: "/health", dir: "." },
+          },
+        },
+      }),
+    });
+
+    try {
+      const { command, node } = await open([downDemo], { loadClient: async () => client });
+      const tree = createTreeView.mock.calls[0]?.[1] as {
+        treeDataProvider: {
+          getChildren: () => VariantNode[];
+          getTreeItem: (node: VariantNode) => vscode.TreeItem;
+        };
+      };
+      const icon = (): string => {
+        const found = tree.treeDataProvider
+          .getChildren()
+          .find((entry) => entry.kind === "variant" && entry.record.slug === "demo");
+        if (!found) {
+          throw new Error("no demo");
+        }
+        return (tree.treeDataProvider.getTreeItem(found).iconPath as vscode.ThemeIcon).id;
+      };
+
+      await command("variant.play")(node("demo"));
+      await Promise.resolve();
+      expect(icon()).toBe("loading~spin");
+
+      beAlive = false;
+      fake.publish([
+        record("demo", {
+          worktree: "/work/_v-demo",
+          url: rowUrl,
+          mode: "watch",
+          watches: {
+            fe: { pid: 5151, url: rowUrl, alive: true },
+            be: { pid: 5152, url: beUrl, alive: false },
+          },
+        }),
+      ]);
+
+      expect(icon()).toBe("circle-filled");
+      expect(openExternal).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      killSpy.mockRestore();
+    }
+  });
+
   it("leaves the loading icon when the pid dies before the ready path returns 200", async () => {
     const url = "http://demo.vw.localhost:62100";
     const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((() => new Promise(() => {})) as typeof fetch);
