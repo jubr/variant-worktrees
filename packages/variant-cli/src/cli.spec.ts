@@ -8,7 +8,8 @@ import { runCli, runCommand } from "./test/cli.js";
 /** Package version plus `variantString` for this checkout. */
 const versionToken = (version: string): string => {
   const directory = join(import.meta.dir, "..");
-  const git = (args: string[]): string => execFileSync("git", ["-C", directory, ...args], { encoding: "utf8" }).trim();
+  const git = (args: string[]): string =>
+    execFileSync("git", ["-C", directory, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
   const commit = git(["rev-parse", "HEAD"]);
   let commits = git(["rev-list", "--count", "HEAD"]);
@@ -24,10 +25,14 @@ const versionToken = (version: string): string => {
 
 const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
 
-const expectVersionOutput = (stdout: string, token: string): void => {
+/** Empty variant (`main`, or no commit) is a UTC date. Any other variant is a UTC date and time. */
+const parenthetical = (token: string, version: string): string =>
+  token === version ? String.raw`\d{4}-\d{2}-\d{2}` : String.raw`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`;
+
+const expectVersionOutput = (stdout: string, token: string, version: string): void => {
   const lines = stdout.trimEnd().split("\n");
   expect(lines[0]).toMatch(
-    new RegExp(`^${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\)$`),
+    new RegExp(`^${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(${parenthetical(token, version)}\\)$`),
   );
   expect(lines).toHaveLength(2);
   expect(lines[1]).toBe(detailsLine);
@@ -60,7 +65,7 @@ describe("variant CLI", () => {
     expect(help.stdout).not.toContain(VERSION_BANNER);
     expect(help.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
     expect(flag.exitCode).toBe(0);
-    expectVersionOutput(flag.stdout, token);
+    expectVersionOutput(flag.stdout, token, version);
   });
 
   it("has no destroy command; implode replaces it", async () => {
@@ -172,7 +177,7 @@ describe("variant CLI", () => {
 
     expect(verbose.stdout).not.toContain(token);
     expect(verbose.stdout).not.toContain(VERSION_BANNER);
-    expectVersionOutput(flag.stdout, token);
+    expectVersionOutput(flag.stdout, token, version);
   });
 
   describe("warnings for extra properties", () => {

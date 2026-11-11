@@ -18,7 +18,8 @@ const { version } = (await Bun.file(join(root, "package.json")).json()) as { ver
 
 /** The version token this checkout would stamp: package version plus `variantString` from git. */
 const bakedToken = (): string => {
-  const git = (args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
+  const git = (args: string[]): string =>
+    execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
   const commit = git(["rev-parse", "HEAD"]);
   let commits = git(["rev-list", "--count", "HEAD"]);
@@ -34,10 +35,16 @@ const bakedToken = (): string => {
 
 const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
 
+/** Empty variant (`main`, or no commit) is a UTC date. Any other variant is a UTC date and time. */
+const parenthetical = (token: string): string =>
+  token === version ? String.raw`\d{4}-\d{2}-\d{2}` : String.raw`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`;
+
 const expectBakedVersion = (stdout: string): void => {
   const lines = stdout.trimEnd().split("\n");
-  const token = bakedToken().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  expect(lines[0]).toMatch(new RegExp(`^${token} \\(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\)$`));
+  const token = bakedToken();
+  expect(lines[0]).toMatch(
+    new RegExp(`^${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(${parenthetical(token)}\\)$`),
+  );
   expect(lines).toHaveLength(2);
   expect(lines[1]).toBe(detailsLine);
   expect(stdout).not.toContain(VERSION_BANNER);
