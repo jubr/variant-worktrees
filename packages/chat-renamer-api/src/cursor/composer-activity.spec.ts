@@ -31,6 +31,17 @@ describe("composerIsActive", () => {
     expect(composerIsActive({ status: "aborted", generatingBubbleIds: [], hasChatGeneration: true })).toBe(false);
     expect(composerIsActive({ status: "aborted", generatingBubbleIds: [], hasChatGeneration: false })).toBe(false);
   });
+
+  it("treats an aborted row with an unfinished run as active", () => {
+    expect(
+      composerIsActive({
+        status: "aborted",
+        generatingBubbleIds: [],
+        hasChatGeneration: true,
+        unfinishedRunAt: 1_762_000_000_000,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("composerRowsActive", () => {
@@ -41,6 +52,14 @@ describe("composerRowsActive", () => {
     ]);
 
     expect(composerRowsActive(json)).toBe(true);
+  });
+
+  it("is active when a saved aborted row has an unfinished run", () => {
+    const live = JSON.stringify([
+      { status: "aborted", continuation: 0, bubbles: 0, hasChatGen: 1, unfinished: 1_762_000_000_000 },
+    ]);
+
+    expect(composerRowsActive(live)).toBe(true);
   });
 
   it("is idle when a saved row is aborted but still has a generation uuid", () => {
@@ -67,7 +86,7 @@ describe("recent composer lookup", () => {
     expect(RECENT_COMPOSER_SQL).not.toContain("cursorDiskKV");
     expect(ids).toEqual(["abc-1", "ok_2"]);
     expect(composerDataActivitySql(ids)).toBe(
-      "select json_extract(value, '$.status') as status, json_extract(value, '$.isContinuationInProgress') as continuation, json_array_length(json_extract(value, '$.generatingBubbleIds')) as bubbles, json_extract(value, '$.chatGenerationUUID') is not null as hasChatGen, substr(key, 14) as id from cursorDiskKV where key in ('composerData:abc-1','composerData:ok_2')",
+      "select json_extract(value, '$.status') as status, json_extract(value, '$.isContinuationInProgress') as continuation, json_array_length(json_extract(value, '$.generatingBubbleIds')) as bubbles, json_extract(value, '$.chatGenerationUUID') is not null as hasChatGen, json_extract(value, '$.unfinishedRunAt') as unfinished, substr(key, 14) as id from cursorDiskKV where key in ('composerData:abc-1','composerData:ok_2')",
     );
     expect(composerDataActivitySql([])).toBeUndefined();
     expect(composerDataActivitySql(["quote'"])).toBeUndefined();
