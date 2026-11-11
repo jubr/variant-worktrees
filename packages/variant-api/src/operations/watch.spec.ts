@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
@@ -7,7 +8,10 @@ import { stringify as stringifyYaml } from "yaml";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
+import { relayModulePath, relaySpawnArgs } from "../watch-relay.js";
+import { downVariant } from "./down.js";
 import type { OperationContext } from "./types.js";
+import { upVariant } from "./up.js";
 import { watchVariant } from "./watch.js";
 
 const originalPath = process.env.PATH;
@@ -40,14 +44,42 @@ const untilDead = (pid: number): Promise<void> => until(() => !isProcessAlive(pi
 
 /** What every watched process runs: it records itself, then idles, or exits after `DIE_AFTER` milliseconds. */
 const WATCH_SCRIPT = `
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 const who = process.env.WHO ?? "variant";
 appendFileSync(process.env.ORDER_LOG ?? "order.log", who + " " + Date.now() + "\\n");
-writeFileSync("started-" + who + ".txt", String(process.pid));
 if (process.env.PRINT) {
   console.log("out " + who);
   console.error("err " + who);
 }
+if (process.env.STDOUT_LINE) console.log(process.env.STDOUT_LINE);
+if (process.env.STDERR_LINE) console.error(process.env.STDERR_LINE);
+if (process.env.TTY_PROBE) {
+  const terminal = process.stdout.isTTY === true;
+  console.log(terminal ? "tty" : "pipe");
+  console.log(terminal ? "\u001b[32mgreen\u001b[0m" : "plain");
+  // AIDEV-NOTE: console.error colors stderr on a Linux terminal. Write the plain oops the spec names.
+  process.stderr.write("oops\\n");
+  console.log("cols " + String(process.stdout.columns ?? 0));
+  console.log("term " + (process.env.TERM ?? ""));
+  process.stdin.resume();
+  process.stdin.on("end", () => {
+    console.log("stdin-end");
+    process.exit(0);
+  });
+  setTimeout(() => console.log("held"), 250);
+}
+if (process.env.WAIT_FILE) {
+  const deadline = Date.now() + 10000;
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  while (!existsSync(process.env.WAIT_FILE)) {
+    if (Date.now() > deadline) process.exit(2);
+    Atomics.wait(pause, 0, 0, 30);
+  }
+  console.log("ready");
+}
+if (process.env.PARTIAL_STDOUT) process.stdout.write(process.env.PARTIAL_STDOUT + "\\r");
+writeFileSync("started-" + who + ".txt", String(process.pid));
+if (process.env.PARTIAL_STDOUT) process.exit(0);
 setInterval(() => {}, 1000);
 if (process.env.DIE_AFTER) setTimeout(() => process.exit(3), Number(process.env.DIE_AFTER));
 `;
@@ -185,8 +217,11 @@ const withProject = async (
   }
 };
 
-/** An HTTP server whose `/health` answers 503 until `healthyAfterMs` have passed. */
-const healthServer = async (healthyAfterMs: number): Promise<{ port: number; healthyAt: () => number }> => {
+/** An HTTP server whose `/health` answers 503 until `healthyAfterMs` have passed, then `status`. */
+const healthServer = async (
+  healthyAfterMs: number,
+  status = 200,
+): Promise<{ port: number; healthyAt: () => number }> => {
   const born = Date.now();
   let healthyAt = 0;
   const server = createServer((request, response) => {
@@ -194,11 +229,11 @@ const healthServer = async (healthyAfterMs: number): Promise<{ port: number; hea
     if (healthy && healthyAt === 0) {
       healthyAt = Date.now();
     }
-    response.statusCode = healthy ? 200 : 503;
+    response.statusCode = healthy ? status : 503;
     response.end();
   });
   servers.push(server);
-  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  await new Promise<void>((done) => server.listen({ port: 0, host: "::", ipv6Only: false }, done));
   return { port: (server.address() as { port: number }).port, healthyAt: () => healthyAt };
 };
 
@@ -430,6 +465,34 @@ describe("watch readiness and opening", () => {
       ),
     );
 
+  it("logs the joined ready URL on the first probe", () =>
+    healthServer(0).then((health) =>
+      withProject(
+        async ({ attach, directory, messages }) => {
+          const { done, stop } = attach();
+          const url = `http://demo.vw.localhost:${health.port}/health`;
+          const tried = `[watch] be URL try ${url}`;
+          const ok = `[watch] be URL 200 ${url}`;
+          const log = join(directory, ".cache", "variant", "watch.log");
+          await until(
+            () => messages.includes(ok) && existsSync(log) && readFileSync(log, "utf8").includes(ok),
+            3000,
+          ).catch(() => {});
+          expect(messages).toContain(tried);
+          expect(messages.filter((line) => line === tried || line === ok)).toEqual([tried, ok]);
+          expect(readFileSync(log, "utf8")).toContain(`${tried}\n`);
+          expect(readFileSync(log, "utf8")).toContain(`${ok}\n`);
+          stop();
+          await done;
+        },
+        BASE.replace(
+          "kind: nestjs, dir: be,",
+          "kind: nestjs, dir: be, ready: /health, url: 'http://demo.vw.localhost:${port}',",
+        ),
+        { "variants.local.yaml": `runtime:\n  watches:\n    be: { port: ${health.port} }\n    fe: { port: 62060 }\n` },
+      ),
+    ));
+
   it("opens the URLs after the watch with ready answers", () =>
     withHealth(1500, async ({ attach, opened, messages }, health) => {
       const { done, stop } = attach();
@@ -440,20 +503,119 @@ describe("watch readiness and opening", () => {
 
       expect(opened).toEqual(["http://demo.vw.localhost:62060"]);
       expect(Date.now()).toBeGreaterThanOrEqual(health.healthyAt());
-      expect(messages).toContain("fe: http://demo.vw.localhost:62060");
+      expect(messages).not.toContain("fe: http://demo.vw.localhost:62060");
       stop();
       await done;
     }));
 
   it("opens right away when no watch sets ready", () =>
-    withProject(async ({ attach, opened }) => {
+    withProject(async ({ attach, opened, messages }) => {
       const { done, stop } = attach();
 
       await until(() => opened.length > 0, 1500);
 
       expect(opened).toEqual([expect.stringMatching(/^http:\/\/demo\.vw\.localhost:\d+$/)]);
+      expect(messages).not.toContain(expect.stringContaining("URL try"));
       stop();
       await done;
+    }));
+
+  it("does not treat status 204 as ready", () =>
+    healthServer(0, 204).then((health) =>
+      withProject(
+        async ({ attach, opened, messages, started }) => {
+          const { done, stop } = attach();
+          const be = await started("be");
+          await until(() => messages.some((line) => line.startsWith("Warning")), 4000);
+          expect(messages.some((line) => line.includes("URL 200"))).toBe(false);
+          expect(opened).toEqual([]);
+          expect(isProcessAlive(be)).toBe(true);
+          stop();
+          await done;
+        },
+        BASE.replace("readyTimeoutSeconds: 3", "readyTimeoutSeconds: 1").replace(
+          "kind: nestjs, dir: be,",
+          "kind: nestjs, dir: be, ready: /health,",
+        ),
+        { "variants.local.yaml": `runtime:\n  watches:\n    be: { port: ${health.port} }\n` },
+      ),
+    ));
+
+  it("logs the loopback URL when a ready watch has no URL template", () =>
+    withHealth(0, async ({ attach, messages }, health) => {
+      const { done, stop } = attach();
+      const line = `[watch] be URL try http://127.0.0.1:${health.port}/health`;
+      await until(() => messages.includes(line), 2000);
+      expect(messages).toContain(line);
+      stop();
+      await done;
+    }));
+
+  it("logs the 200 line and opens nothing when opening is disabled", () =>
+    withHealth(
+      0,
+      async ({ attach, opened, messages }, health) => {
+        const { done, stop } = attach();
+        const line = `[watch] be URL 200 http://127.0.0.1:${health.port}/health`;
+        await until(() => messages.includes(line), 2000);
+        expect(opened).toEqual([]);
+        stop();
+        await done;
+      },
+      BASE.replace("variant:\n", "variant:\n  open: false\n"),
+    ));
+
+  it("logs the 200 line and opens nothing when VARIANT_OPEN is 0", () =>
+    withHealth(
+      0,
+      async ({ attach, opened, messages }, health) => {
+        const { done, stop } = attach();
+        const line = `[watch] be URL 200 http://127.0.0.1:${health.port}/health`;
+        await until(() => messages.includes(line), 2000);
+        expect(opened).toEqual([]);
+        stop();
+        await done;
+      },
+      BASE,
+      { VARIANT_OPEN: "0" },
+    ));
+
+  it("does not repeat a ready line on a later poll", () =>
+    withHealth(
+      0,
+      async ({ attach, messages }, health) => {
+        const { done, stop } = attach();
+        const tried = `[watch] be URL try http://127.0.0.1:${health.port}/health`;
+        const ok = `[watch] be URL 200 http://127.0.0.1:${health.port}/health`;
+        await until(() => messages.includes(ok), 2000);
+        await sleep(1200);
+        expect(messages.filter((line) => line === tried)).toHaveLength(1);
+        expect(messages.filter((line) => line === ok)).toHaveLength(1);
+        stop();
+        await done;
+      },
+      BASE.replace(
+        `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
+        `    fe: ${watcher("fe", ", ready: /missing, url: 'http://${slug}.vw.localhost:${port}'")}`,
+      ),
+    ));
+
+  it("does not append ready lines to a watch log for up", () =>
+    withHealth(0, async ({ context, directory, messages }, health) => {
+      await upVariant(context, "demo", {
+        log: (line) => messages.push(line),
+        opener: () => {},
+      });
+      expect(messages).toContain(`[watch] be URL try http://127.0.0.1:${health.port}/health`);
+      expect(existsSync(join(directory, ".cache", "variant", "watch.log"))).toBe(false);
+    }));
+
+  it("does not probe or open URLs for a detached watch", () =>
+    withHealth(0, async ({ watch, opened, messages }) => {
+      await watch({ detach: true });
+      await sleep(400);
+      expect(messages.some((line) => line.includes("URL try"))).toBe(false);
+      expect(opened).toEqual([]);
     }));
 
   it("warns after readyTimeoutSeconds, opens nothing and keeps the watches running", () =>
@@ -473,13 +635,14 @@ describe("watch readiness and opening", () => {
       BASE.replace("readyTimeoutSeconds: 3", "readyTimeoutSeconds: 1"),
     ));
 
-  it("prints the URL but does not open it when variant.open is false", () =>
+  it("does not print or open the URL when variant.open is false", () =>
     withProject(
-      async ({ attach, opened, messages }) => {
+      async ({ attach, opened, messages, started }) => {
         const { done, stop } = attach();
 
-        await until(() => messages.some((line) => line.startsWith("fe: ")));
+        await started("fe");
 
+        expect(messages.some((line) => line.startsWith("fe: "))).toBe(false);
         expect(opened).toEqual([]);
         stop();
         await done;
@@ -489,11 +652,12 @@ describe("watch readiness and opening", () => {
 
   it("does not open URLs when VARIANT_OPEN is 0", () =>
     withProject(
-      async ({ attach, opened, messages }) => {
+      async ({ attach, opened, messages, started }) => {
         const { done, stop } = attach();
 
-        await until(() => messages.some((line) => line.startsWith("fe: ")));
+        await started("fe");
 
+        expect(messages.some((line) => line.startsWith("fe: "))).toBe(false);
         expect(opened).toEqual([]);
         stop();
         await done;
@@ -515,6 +679,247 @@ describe("watch readiness and opening", () => {
 
       stop();
       expect((await done).exitCode).toBe(130);
+    }));
+});
+
+/** Bytes written through a stream, including lines the watch relay prefixes onto the console. */
+const captureWrite = (stream: NodeJS.WriteStream): { text: () => string; stop: () => void } => {
+  const chunks: string[] = [];
+  const original = stream.write;
+  stream.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return original.call(stream, chunk, ...(args as []));
+  }) as typeof stream.write;
+  return {
+    text: () => chunks.join(""),
+    stop: () => {
+      stream.write = original;
+    },
+  };
+};
+
+describe("watch output log", () => {
+  const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
+  const withLine = (
+    who: string,
+    name: "STDOUT_LINE" | "STDERR_LINE" | "PARTIAL_STDOUT" | "WAIT_FILE",
+    value: string,
+  ): string =>
+    BASE.replace(
+      `    ${who}: ${watcher(who, who === "fe" ? ", url: 'http://${slug}.vw.localhost:${port}'" : "")}`,
+      `    ${who}: ${watcher(who, who === "fe" ? ", url: 'http://${slug}.vw.localhost:${port}'" : "").replace("ORDER_LOG:", `${name}: '${value}', ORDER_LOG:`)}`,
+    );
+
+  it("prefixes attached stdout and appends it to the log while the process runs", () =>
+    withProject(
+      async ({ attach, directory, started }) => {
+        const stdout = captureWrite(process.stdout);
+        const { done, stop } = attach();
+        try {
+          await started("fe");
+          const log = logIn(directory);
+          await until(
+            () =>
+              stdout.text().includes("[fe] ready") &&
+              existsSync(log) &&
+              readFileSync(log, "utf8").includes("[fe] ready"),
+            1500,
+          ).catch(() => {});
+          expect(stdout.text()).toContain("[fe] ready\n");
+          expect(existsSync(log) ? readFileSync(log, "utf8") : "").toContain("[fe] ready\n");
+          expect(isProcessAlive(await started("fe"))).toBe(true);
+        } finally {
+          stdout.stop();
+          stop();
+          await done;
+        }
+      },
+      withLine("fe", "STDOUT_LINE", "ready"),
+    ));
+
+  it("prefixes attached stderr onto stderr and the log, not stdout", () =>
+    withProject(
+      async ({ attach, directory, started }) => {
+        const stdout = captureWrite(process.stdout);
+        const stderr = captureWrite(process.stderr);
+        const { done, stop } = attach();
+        try {
+          await started("fe");
+          const log = logIn(directory);
+          await until(
+            () =>
+              stderr.text().includes("[fe] oops") && existsSync(log) && readFileSync(log, "utf8").includes("[fe] oops"),
+            1500,
+          ).catch(() => {});
+          expect(stderr.text()).toContain("[fe] oops\n");
+          expect(stdout.text()).not.toContain("oops");
+          expect(readFileSync(log, "utf8")).toContain("[fe] oops\n");
+        } finally {
+          stdout.stop();
+          stderr.stop();
+          stop();
+          await done;
+        }
+      },
+      withLine("fe", "STDERR_LINE", "oops"),
+    ));
+
+  it("prefixes a trailing partial stdout line when the stream ends", () =>
+    withProject(
+      async ({ attach, directory }) => {
+        const stdout = captureWrite(process.stdout);
+        const { done, stop } = attach();
+        try {
+          const log = logIn(directory);
+          await until(
+            () =>
+              stdout.text().includes("[fe] partial") &&
+              existsSync(log) &&
+              readFileSync(log, "utf8").includes("[fe] partial"),
+            1500,
+          ).catch(() => {});
+          expect(stdout.text()).toContain("[fe] partial\n");
+          expect(stdout.text()).not.toContain("[fe] partial\r");
+          expect(readFileSync(log, "utf8")).toContain("[fe] partial\n");
+        } finally {
+          stdout.stop();
+          stop();
+          await done;
+        }
+      },
+      withLine("fe", "PARTIAL_STDOUT", "partial"),
+    ));
+
+  it("truncates the log on the next run, records its absolute path, and writes each command first", () =>
+    withProject(
+      async ({ attach, directory, runtime, started }) => {
+        const log = logIn(directory);
+        mkdirSync(join(directory, ".cache", "variant"), { recursive: true });
+        writeFileSync(log, "old run\n");
+        const first = attach();
+        await started("fe");
+        await until(() => readFileSync(log, "utf8").includes(`[fe] ${process.execPath} ../watch.js`), 1500);
+        first.stop();
+        await first.done;
+        expect(readFileSync(log, "utf8")).not.toContain("old run");
+
+        writeFileSync(log, "old run\n");
+        for (const who of ["be", "fe"]) {
+          rmSync(join(directory, who, `started-${who}.txt`), { force: true });
+        }
+        const second = attach();
+        try {
+          await started("be");
+          await started("fe");
+          await until(() => {
+            const text = readFileSync(log, "utf8");
+            return text.includes("[be] out be") && text.includes("[fe] out fe") && !text.includes("old run");
+          }, 1500).catch(() => {});
+          const text = readFileSync(log, "utf8");
+          const beBanner = `[be] ${process.execPath} ../watch.js`;
+          const feBanner = `[fe] ${process.execPath} ../watch.js`;
+          expect(text).not.toContain("old run");
+          expect(text.indexOf(beBanner)).toBeGreaterThanOrEqual(0);
+          expect(text.indexOf(beBanner)).toBeLessThan(text.indexOf("[be] out be"));
+          expect(text.indexOf(feBanner)).toBeLessThan(text.indexOf("[fe] out fe"));
+          expect(runtime().log).toBe(log);
+        } finally {
+          second.stop();
+          await second.done;
+        }
+      },
+      BASE.replace(`    be: ${watcher("be")}`, `    be: ${printingWatcher("be")}`).replace(
+        `    fe: ${watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'")}`,
+        `    fe: ${printingWatcher("fe")}`,
+      ),
+    ));
+
+  it("drops the recorded log on down and keeps the file", () =>
+    withProject(async ({ attach, directory, context, started, runtime }) => {
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => runtime().log === log && existsSync(log), 1500);
+        await downVariant(context, "demo");
+        expect(runtime().log).toBeUndefined();
+        expect(readFileSync(log, "utf8").length).toBeGreaterThan(0);
+      } finally {
+        stop();
+        await done;
+      }
+    }));
+
+  it("prefixes detached stdout into the log and leaves it off the caller's stdout", () =>
+    withProject(
+      async ({ watch, directory, runtime }) => {
+        const stdout = captureWrite(process.stdout);
+        try {
+          const result = await watch({ detach: true });
+          const log = logIn(directory);
+          await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] ready"), 1500).catch(() => {});
+          expect(existsSync(log) ? readFileSync(log, "utf8") : "").toContain("[fe] ready\n");
+          expect(stdout.text()).not.toContain("[fe] ready");
+          expect(runtime().log).toBe(log);
+          expect(isProcessAlive(result.processes.find((process) => process.key === "fe")?.pid as number)).toBe(true);
+        } finally {
+          stdout.stop();
+        }
+      },
+      withLine("fe", "STDOUT_LINE", "ready"),
+    ));
+
+  it("appends detached output that arrives after the call returns", () =>
+    withProject(
+      async ({ watch, directory }) => {
+        const stdout = captureWrite(process.stdout);
+        try {
+          await watch({ detach: true });
+          const log = logIn(directory);
+          await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] "), 1500);
+          expect(readFileSync(log, "utf8")).not.toContain("[fe] ready");
+          writeFileSync(join(directory, "go.txt"), "go\n");
+          await until(() => readFileSync(log, "utf8").includes("[fe] ready"), 1500);
+          expect(stdout.text()).not.toContain("[fe] ready");
+        } finally {
+          stdout.stop();
+        }
+      },
+      withLine("fe", "WAIT_FILE", "../go.txt"),
+    ));
+
+  it("spawns the on-disk relay module for a detached watch", () =>
+    withProject(async ({ watch, started }) => {
+      await watch({ detach: true });
+      const commandOf = (pid: number): string =>
+        execFileSync("ps", ["-ww", "-o", "command=", "-p", String(pid)], { encoding: "utf8" }).trim();
+      const parentOf = (pid: number): number =>
+        Number(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).trim());
+      let current = await started("fe");
+      let command = "";
+      for (let hop = 0; hop < 5 && !command.includes("watch-relay.ts"); hop += 1) {
+        current = parentOf(current);
+        command = commandOf(current);
+      }
+      expect(command).toContain("watch-relay.ts");
+    }));
+
+  it("selects --internal-watch-relay when the program is a compiled executable", () => {
+    expect(relaySpawnArgs("/usr/bin/variant", "/$bunfs/root/cli", "/no/such/watch-relay.ts")).toEqual([
+      "/usr/bin/variant",
+      "--internal-watch-relay",
+    ]);
+    expect(relaySpawnArgs(process.execPath, process.argv[1], relayModulePath())).toEqual([
+      process.execPath,
+      relayModulePath(),
+    ]);
+  });
+
+  it("writes no watch log for up", () =>
+    withProject(async ({ directory, context, runtime }) => {
+      await upVariant(context, "demo", { log: () => {}, opener: () => {} });
+      expect(existsSync(logIn(directory))).toBe(false);
+      expect(runtime().log).toBeUndefined();
     }));
 });
 
@@ -566,16 +971,167 @@ describe("detached watch log", () => {
       },
       PRINTING.replace("dir: be", "dir: gone"),
     ));
+});
 
-  it("keeps the output of an attached watch on the console and writes no file", () =>
-    withProject(async ({ attach, directory, runtime, started }) => {
+describe("watch output terminal", () => {
+  const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
+  const green = "\u001b[32mgreen\u001b[0m";
+  const reset = "\u001b[0m";
+  const modeLine = (args = ""): string =>
+    `${args === "" ? "[watch] mode=tty" : `[watch] ${args} mode=tty`} # set to 'no-tty' likely suppresses ansi escape sequences\n`;
+  const feLine = watcher("fe", ", url: 'http://${slug}.vw.localhost:${port}'");
+  const probe = (mode?: "tty" | "no-tty"): string => {
+    const body = feLine.replace("ORDER_LOG:", "TTY_PROBE: '1', ORDER_LOG:");
+    const withMode = mode === undefined ? body : body.replace(/\}$/, `, output: { mode: ${mode} }}`);
+    return BASE.replace(`    fe: ${feLine}`, `    fe: ${withMode}`);
+  };
+
+  it("writes terminal color to stdout and the log, including stderr, without the allocator echo", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const stdout = captureWrite(process.stdout);
       const { done, stop } = attach();
-      await started("be");
-      await started("fe");
-      expect(runtime().log).toBeUndefined();
-      stop();
-      await done;
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] held"), 2000).catch(() => {});
+        const logged = existsSync(log) ? readFileSync(log, "utf8") : "";
+        expect(logged.startsWith(modeLine())).toBe(true);
+        expect(logged).not.toContain("stdin-end");
+        expect(stdout.text()).toContain("[fe] tty\n");
+        expect(stdout.text()).toContain(`[fe] ${green}${reset}\n`);
+        expect(stdout.text()).toContain("[fe] oops\n");
+        expect(stdout.text()).toContain("[fe] cols 10000\n");
+        expect(stdout.text()).not.toContain("^D\b\b");
+        expect(logged).toContain("[fe] tty\n");
+        expect(logged).toContain(`[fe] ${green}${reset}\n`);
+        expect(logged).toContain("[fe] oops\n");
+        expect(logged).not.toContain("^D\b\b");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("tty")));
 
-      expect(existsSync(logIn(directory))).toBe(false);
-    }));
+  it("keeps pipes when the mode is no-tty", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const stderr = captureWrite(process.stderr);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] pipe"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] pipe\n");
+        expect(stdout.text()).toContain("[fe] plain\n");
+        expect(stdout.text()).not.toContain("\u001b[32m");
+        expect(stdout.text()).not.toContain("oops");
+        expect(stderr.text()).toContain("[fe] oops\n");
+        expect(readFileSync(log, "utf8")).not.toContain("mode=tty");
+      } finally {
+        stdout.stop();
+        stderr.stop();
+        stop();
+        await done;
+      }
+    }, probe("no-tty")));
+
+  it("keeps pipes when the mode and the caller default are both omitted", () =>
+    withProject(async ({ attach, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        await until(() => stdout.text().includes("[fe] pipe"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] pipe\n");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe()));
+
+  it("uses a caller default of tty when the watch sets no mode", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const { done, stop } = attach({ outputMode: "tty" });
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] tty"), 2000).catch(() => {});
+        const logged = readFileSync(log, "utf8");
+        expect(logged.startsWith(modeLine())).toBe(true);
+        expect(logged).toContain("[fe] tty\n");
+      } finally {
+        stop();
+        await done;
+      }
+    }, probe()));
+
+  it("keeps an explicit no-tty when the caller asks for a terminal", () =>
+    withProject(async ({ attach, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach({ outputMode: "tty" });
+      try {
+        await started("fe");
+        await until(() => stdout.text().includes("[fe] pipe"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] pipe\n");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("no-tty")));
+
+  it("replaces a dumb TERM with a color terminal", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const previous = process.env.TERM;
+      process.env.TERM = "dumb";
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] term "), 2000).catch(() => {});
+        expect(readFileSync(log, "utf8")).toContain("[fe] term xterm-256color\n");
+      } finally {
+        if (previous === undefined) delete process.env.TERM;
+        else process.env.TERM = previous;
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("leaves a set TERM alone", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const previous = process.env.TERM;
+      process.env.TERM = "vt100";
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] term "), 2000).catch(() => {});
+        expect(readFileSync(log, "utf8")).toContain("[fe] term vt100\n");
+      } finally {
+        if (previous === undefined) delete process.env.TERM;
+        else process.env.TERM = previous;
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("keeps detached terminal color in the log and off the caller's stdout", () =>
+    withProject(async ({ watch, directory }) => {
+      const stdout = captureWrite(process.stdout);
+      try {
+        await watch({ detach: true });
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes(green), 2000).catch(() => {});
+        const logged = readFileSync(log, "utf8");
+        expect(logged.startsWith(modeLine("--detach"))).toBe(true);
+        expect(logged).toContain(`[fe] ${green}${reset}\n`);
+        expect(stdout.text()).not.toContain(green);
+        expect(stdout.text()).not.toContain("[fe] tty");
+      } finally {
+        stdout.stop();
+      }
+    }, probe("tty")));
 });

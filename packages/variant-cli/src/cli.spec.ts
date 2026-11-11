@@ -222,6 +222,47 @@ describe("variant CLI", () => {
     });
   });
 
+  it("prints the watch summary as soon as the pids are known", async () => {
+    const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
+    const configPath = join(directory, "variants.yaml");
+    writeFileSync(
+      configPath,
+      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: sleep 30 }\n",
+    );
+    const { FORCE_COLOR: _color, ...inherited } = process.env;
+    const proc = Bun.spawn(["bun", "run", "src/cli.ts", "watch", "-s", "demo"], {
+      cwd: join(import.meta.dir, ".."),
+      env: { ...inherited, NO_COLOR: "1", VARIANT_WORKTREE: "0", VARIANT_CONFIG: configPath },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const decoder = new TextDecoder();
+    let stdout = "";
+    const reading = (async () => {
+      for await (const chunk of proc.stdout) {
+        stdout += decoder.decode(chunk);
+      }
+    })();
+    const deadline = Date.now() + 3000;
+    try {
+      while (Date.now() < deadline && !stdout.includes("pid ")) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(proc.exitCode).toBeNull();
+      expect(stdout).toContain("Started demo (watch)");
+      expect(stdout).toMatch(/pid \d+/);
+      proc.kill("SIGINT");
+      const exitCode = await proc.exited;
+      await reading;
+      expect(exitCode).toBe(130);
+      expect(stdout.match(/Started demo \(watch\)/g)).toHaveLength(1);
+      expect(stdout).toMatch(/exit code:\s+130/);
+    } finally {
+      proc.kill();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("sets the exit code of an attached watch from its result", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-watch-"));
     const configPath = join(directory, "variants.yaml");
@@ -346,6 +387,49 @@ describe("variant CLI", () => {
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("bg, sync, or no");
       expect(existsSync(join(directory, "_v-demo"))).toBe(false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("internal watch relay", () => {
+  it("runs the relay before command parsing", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-relay-")));
+    const log = join(directory, "watch.log");
+    try {
+      const proc = Bun.spawn(["bun", "run", "src/cli.ts", "--internal-watch-relay"], {
+        cwd: join(import.meta.dir, ".."),
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      proc.stdin.write(
+        JSON.stringify({
+          launches: [
+            {
+              key: "fe",
+              command: "echo ready",
+              cwd: directory,
+              env: { PATH: process.env.PATH ?? "/usr/bin:/bin" },
+            },
+          ],
+          startDelayMs: 0,
+          logPath: log,
+        }),
+      );
+      proc.stdin.end();
+      const [exitCode, stdout, stderr] = await Promise.all([
+        proc.exited,
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('"pids"');
+      expect(stdout).not.toContain("Usage");
+      expect(stderr).not.toContain("Unknown command");
+      expect(readFileSync(log, "utf8")).toContain("[fe] ready\n");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

@@ -95,6 +95,8 @@ variant:
           PUBLIC_BASE_URL: '${url}'
       install: bun install --frozen-lockfile # runs in dir when dir has no node_modules
       ready: /index.html # URL path that answers with a success status when the watch serves
+      output: # absent: tty when an enabled extension description contains "log" and "ansi", otherwise no-tty
+        mode: tty # no-tty. tty gives the process a terminal so it prints color
       container: # how `up` runs the watch
         dockerfile: fe/Dockerfile # relative to the worktree, built with the worktree as context; FROM nginx:alpine, builds, serves and proxies
     be:

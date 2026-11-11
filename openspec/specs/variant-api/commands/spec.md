@@ -198,7 +198,7 @@ The system SHALL define the commands `up`, `down`, `watch` and `implode` next to
 
 ### Requirement: List default output
 
-The system SHALL print `variant list` as a text table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`, one row per variant sorted by slug, with `-` for a missing value. `url` SHALL be the complete URL of the first watch that has one, never shortened. `uptime` SHALL be the human-readable `uptimeSeconds` of the variant. `log` SHALL be the absolute path of the log file of its detached watch. `dir` SHALL be shown relative to the variant root. The `--table` flag SHALL NOT exist. `variant list --json` and `--yaml` SHALL print the records instead (see the output-formats capability).
+The system SHALL print `variant list` as a text table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`, one row per variant sorted by slug, with `-` for a missing value. `url` SHALL be the complete URL of the first watch that has one, never shortened. `uptime` SHALL be the human-readable `uptimeSeconds` of the variant. `log` SHALL be the absolute path of the log file of its watch when the runtime state records one. `dir` SHALL be shown relative to the variant root. The `--table` flag SHALL NOT exist. `variant list --json` and `--yaml` SHALL print the records instead (see the output-formats capability).
 
 #### Scenario: Table output
 
@@ -206,6 +206,11 @@ The system SHALL print `variant list` as a text table with the columns `slug`, `
 - **THEN** stdout holds a header row and two rows in that order
 - **AND** the `alpha` row shows `watch`, `5m`, the full URL, the absolute log path and its directory
 - **AND** `beta` shows `-` for mode, uptime, URL, log and directory
+
+#### Scenario: Attached watch log column
+
+- **WHEN** variant `alpha` has an attached watch whose state records `log` as `/work/_v-alpha/.cache/variant/watch.log` and a user runs `variant list`
+- **THEN** the `alpha` row shows that absolute path in the log column
 
 #### Scenario: Full URL
 

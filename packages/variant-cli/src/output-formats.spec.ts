@@ -169,6 +169,19 @@ describe("output formats", () => {
         expect(rows).toHaveLength(3);
       }));
 
+    it("shows the log of an attached watch in the log column", () =>
+      withVariants(
+        async (environment, directory) => {
+          const row = rowsOf((await runCli(["list"], environment)).stdout)[1] ?? [];
+
+          expect(row[0]).toBe("alpha");
+          expect(row[4]).toBe(`${directory}/_v-alpha/.cache/variant/watch.log`);
+        },
+        (directory) => ({
+          "_v-alpha/variants.local.yaml": `runtime:\n  slug: alpha\n  mode: watch\n  log: ${directory}/_v-alpha/.cache/variant/watch.log\n`,
+        }),
+      ));
+
     it("shows the uptime of a live watch and the absolute path of its log file", () => {
       const sleeper = spawn("sleep", ["30"], { stdio: "ignore" });
       sleepers.push(sleeper);

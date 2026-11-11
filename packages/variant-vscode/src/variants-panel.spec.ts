@@ -211,6 +211,43 @@ describe("variants panel", () => {
     expect(directories.filter((cwd) => cwd !== undefined)).toEqual(["/work/_v-foo", "/work/_v-foo", "/work/_v-foo"]);
   });
 
+  it("starts a watch on a terminal when an enabled extension describes ANSI logs", async () => {
+    const previous = vscode.extensions.all;
+    vscode.extensions.all = [{ id: "ansi.logs", packageJSON: { description: "View ANSI logs in the editor" } }];
+    try {
+      const { manager, page, fake } = await setup();
+      await manager.open();
+
+      await page.send({ type: "action", id: 7, action: "watch", slug: "demo" });
+
+      expect(fake.calls).toEqual([
+        { name: "watch", slug: "demo", options: expect.objectContaining({ detach: true, outputMode: "tty" }) },
+      ]);
+    } finally {
+      vscode.extensions.all = previous;
+    }
+  });
+
+  it("keeps pipes when no enabled extension description has both log and ansi", async () => {
+    const previous = vscode.extensions.all;
+    vscode.extensions.all = [
+      { id: "log.ultra", packageJSON: { description: "Log viewer Ultra" } },
+      { id: "ansi.paint", packageJSON: { description: "ANSI colors for the terminal" } },
+    ];
+    try {
+      const { manager, page, fake } = await setup();
+      await manager.open();
+
+      await page.send({ type: "action", id: 7, action: "watch", slug: "demo" });
+
+      expect(fake.calls).toEqual([
+        { name: "watch", slug: "demo", options: expect.objectContaining({ detach: true, outputMode: "no-tty" }) },
+      ]);
+    } finally {
+      vscode.extensions.all = previous;
+    }
+  });
+
   it("runs play of the page as a detached watch and shows the result", async () => {
     const { manager, page, fake } = await setup();
     await manager.open();

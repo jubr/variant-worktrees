@@ -168,6 +168,19 @@ describe("status runtime meta information", () => {
       expect(runtime?.watches?.fe?.startedAt).toBe("2026-11-04_12:30:00");
     }));
 
+  it("reports the log file of an attached watch on the record and in the runtime", () =>
+    withProject(async ({ put, client }) => {
+      put(
+        "_v-demo/variants.local.yaml",
+        runtimeFile("slug: demo", "mode: watch", "log: /work/_v-demo/.cache/variant/watch.log"),
+      );
+
+      const status = await client().status("demo");
+
+      expect(status.log).toBe("/work/_v-demo/.cache/variant/watch.log");
+      expect(status.runtime?.log).toBe("/work/_v-demo/.cache/variant/watch.log");
+    }));
+
   it("reports the log file of a detached watch on the record and in the runtime", () =>
     withProject(async ({ put, client }) => {
       put(

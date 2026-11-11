@@ -534,6 +534,7 @@ export type {
   VariantsLocal,
   VariantWatch,
   WatchContainer,
+  WatchOutputMode,
 } from "./schema.js";
 export {
   DEFAULT_PORT_RANGE,

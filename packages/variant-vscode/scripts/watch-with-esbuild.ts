@@ -1,10 +1,11 @@
 import esbuild from "esbuild";
-import config, { mcpBundle } from "./esbuild.config";
+import config, { mcpBundle, watchRelayBundle } from "./esbuild.config";
 
 try {
   const extension = await esbuild.context(config);
   const mcp = await esbuild.context(mcpBundle);
-  await Promise.all([extension.watch(), mcp.watch()]);
+  const relay = await esbuild.context(watchRelayBundle);
+  await Promise.all([extension.watch(), mcp.watch(), relay.watch()]);
 } catch (e) {
   process.exit(1);
 }

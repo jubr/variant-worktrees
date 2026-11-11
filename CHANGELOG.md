@@ -4,6 +4,7 @@
 
 ### Added
 
+- `variant.watches.<name>.output.mode` is `tty` or `no-tty`. `tty` starts that process on a pseudo-terminal, so color is written to `.cache/variant/watch.log`. A colored line gets an ANSI reset before the newline. The log starts with one line `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`. `no-tty` keeps pipes. When the mode is omitted, the extension uses `tty` if an enabled extension's description contains both `log` and `ansi`, and `no-tty` otherwise. The CLI does not see extensions, so an omitted mode stays `no-tty`.
 - Chat Renamer holds the Mac awake with one `caffeinate` process per host while a chat in that host is taking a turn or generating, including tool work of that turn. A chat in another workspace does not count. `awake.when` is `chatsActive` (default) or `never`. `awake.what` `screen` (default) runs `caffeinate -disu -w <host-pid>`; `cpu` runs `caffeinate -dis -w <host-pid>`. The child exits when that host exits. `awake.graceDelaySecs` (default `60`, `0` stops at once) keeps that process after the last turn. An open, selected, or idle chat does not count. The enable setting does not turn this off.
 - `variant-log` is the shared log event: a level, a message, and an optional slug and step. The library, the editor socket, and MCP emit on it. The CLI is the only place that colors a line.
 - The Variant Worktrees extension registers the `variant` MCP server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients.
@@ -13,6 +14,9 @@
 
 ### Changed
 
+- Attached and detached `watch` prefix each line with `[name]` and write `.cache/variant/watch.log`. The file is emptied when the watch starts. `down` keeps the file and clears `log` from state. `up` writes no log.
+- The first ready probe writes `[watch] {name} URL try {url}` and the first status 200 writes `[watch] {name} URL 200 {url}` once. Status 204 is not ready. Detach writes neither line and opens nothing.
+- In the Variants tree, the loading icon stays until every watch that has a URL and a `ready` path returns 200. The extension log records those two debug lines. The row URL opens once when the last 200 arrives.
 - The library factory is `createVariantClient`.
 - Startup expands the Explorer **Variant Worktrees** section without taking focus. The one-time onboarding notification focuses that section.
 - `implode` removes the local branch after the worktree. `--branch-rm=yes|no` chooses that step. The default is `yes`. `--branch-rm=no` keeps the branch. A `[debug]` line names the branch.

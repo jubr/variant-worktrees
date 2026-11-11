@@ -445,6 +445,21 @@ describe("watch container", () => {
   });
 });
 
+describe("watch output mode", () => {
+  const watch = (mode: string | undefined): string =>
+    `variant:\n  watches:\n    fe:\n      dir: fe\n${mode === undefined ? "" : `      output:\n        mode: ${mode}\n`}`;
+
+  it("accepts tty and no-tty and leaves an omitted mode unset", () => {
+    expect(loaded(watch("tty")).variant.watches.fe?.output?.mode).toBe("tty");
+    expect(loaded(watch("no-tty")).variant.watches.fe?.output?.mode).toBe("no-tty");
+    expect(loaded(watch(undefined)).variant.watches.fe?.output).toBeUndefined();
+  });
+
+  it("rejects a mode other than tty or no-tty", () => {
+    expect(variant({ watches: { fe: { dir: "fe", output: { mode: "color" } } } })).toBe(false);
+  });
+});
+
 describe("variant-wide commands", () => {
   it("ignores variant.up and variant.watch with a warning and keeps variant.seed", () => {
     expect(warned({ up: "bun run dev", watch: "bun run watch" }).sort()).toEqual(["up", "watch"]);

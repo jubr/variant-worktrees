@@ -65,7 +65,7 @@ The `runtime` object of a status result SHALL hold the operational state of the 
 
 ### Requirement: Uptime and watch log
 
-A variant record, in `status` and in `list`, SHALL carry `uptimeSeconds` when at least one of its watches has a recorded pid whose process is alive: the longest time any such process has been running, taken from the system process table. Each watch with such a process SHALL carry its own `uptimeSeconds`. A variant record SHALL carry `log`, the absolute path of the log file of its detached watch, when the runtime state records one. A variant without a live recorded process (for example one started with `up`) SHALL have no `uptimeSeconds`.
+A variant record, in `status` and in `list`, SHALL carry `uptimeSeconds` when at least one of its watches has a recorded pid whose process is alive: the longest time any such process has been running, taken from the system process table. Each watch with such a process SHALL carry its own `uptimeSeconds`. A variant record SHALL carry `log`, the absolute path of the log file of its watch, when the runtime state records one. A variant without a live recorded process (for example one started with `up`) SHALL have no `uptimeSeconds`.
 
 #### Scenario: Uptime of a watch
 
@@ -86,6 +86,11 @@ A variant record, in `status` and in `list`, SHALL carry `uptimeSeconds` when at
 
 - **WHEN** the runtime state records `log` as `/work/_v-demo/variants.watch.log`
 - **THEN** the status record has `log` `/work/_v-demo/variants.watch.log`
+
+#### Scenario: Attached watch log
+
+- **WHEN** the runtime state of an attached watch records `log` as `/work/_v-demo/.cache/variant/watch.log`
+- **THEN** the status record has `log` `/work/_v-demo/.cache/variant/watch.log`
 
 #### Scenario: Up has no uptime
 

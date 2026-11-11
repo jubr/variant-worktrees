@@ -1,5 +1,5 @@
 import { LOG_LEVELS } from "variant-log";
-import type { VariantClient } from "./types.js";
+import type { VariantClient, WatchResult } from "./types.js";
 
 /** Command names the extension socket refuses. The views call these in-process. */
 export const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provision", "up", "down", "watch", "implode"]);
@@ -200,6 +200,7 @@ export const commands: CommandDefinition[] = [
         ...miseInstallOf(args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
         ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
+        ...(typeof args.onStarted === "function" ? { onStarted: args.onStarted as (result: WatchResult) => void } : {}),
       }),
     mcpFixed: { detach: true },
   },

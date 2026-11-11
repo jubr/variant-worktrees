@@ -4,12 +4,17 @@ import { parseArgs } from "node:util";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SetLevelRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createVariantClient, loadVariantConfig } from "variant-api";
+import { createVariantClient, loadVariantConfig, runWatchRelay } from "variant-api";
 import { commands } from "variant-api/commands";
 import { LogLevel, setLogSink } from "variant-log";
 import { z } from "zod/v4";
 import { finishEditorLog, sendEditorLog } from "./editor-log.js";
 import { loggingData } from "./logging-data.js";
+
+if (process.argv.includes("--internal-watch-relay")) {
+  await runWatchRelay();
+  process.exit(process.exitCode ?? 0);
+}
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
