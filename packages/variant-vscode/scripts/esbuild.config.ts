@@ -36,6 +36,10 @@ export const watchRelayBundle: BuildOptions = {
   format: "esm",
   outfile: "./dist/watch-relay.js",
   external: ["bun:sqlite"],
+  // AIDEV-NOTE: yaml's CJS build calls require("process"). An ESM bundle has no require unless this banner creates one.
+  banner: {
+    js: 'import { createRequire as __relayCreateRequire } from "node:module"; const require = __relayCreateRequire(import.meta.url);',
+  },
   logLevel: "info",
 };
 
