@@ -57,7 +57,8 @@ if (process.env.TTY_PROBE) {
   const terminal = process.stdout.isTTY === true;
   console.log(terminal ? "tty" : "pipe");
   console.log(terminal ? "\u001b[32mgreen\u001b[0m" : "plain");
-  console.error("oops");
+  // AIDEV-NOTE: console.error colors stderr on a Linux terminal. Write the plain oops the spec names.
+  process.stderr.write("oops\\n");
   console.log("cols " + String(process.stdout.columns ?? 0));
   console.log("term " + (process.env.TERM ?? ""));
   process.stdin.resume();
