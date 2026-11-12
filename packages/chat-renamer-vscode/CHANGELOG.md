@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Added
+
+- Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds. The startup line names `agentHost+poll` or `poll`. `variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`. The standalone key is `chat-renamer.log.highVolumeCategories`.
+
 ## [0.0.8] - 2026-11-11
 
 ### Added
