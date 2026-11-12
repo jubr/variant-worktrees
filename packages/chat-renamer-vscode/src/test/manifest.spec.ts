@@ -5,6 +5,19 @@ import { join } from "node:path";
 const manifest = JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "package.json"), "utf8"));
 
 describe("extension manifest", () => {
+  it("offers the registered high-volume categories as checkboxes", async () => {
+    await import("chat-renamer-api");
+    const { listHighVolumeCategories } = await import("variant-log");
+    const property = manifest.contributes.configuration.properties["chat-renamer.log.highVolumeCategories"];
+
+    expect(property).toMatchObject({
+      type: "array",
+      uniqueItems: true,
+      default: [],
+      items: { type: "string", enum: [...listHighVolumeCategories()] },
+    });
+  });
+
   it("contributes the settings the trigger reads", () => {
     expect(Object.keys(manifest.contributes.configuration.properties).sort()).toEqual([
       "chat-renamer.activationPatterns",
@@ -12,6 +25,7 @@ describe("extension manifest", () => {
       "chat-renamer.awake.what",
       "chat-renamer.awake.when",
       "chat-renamer.hookScope",
+      "chat-renamer.log.highVolumeCategories",
       "chat-renamer.renameExistingDays",
       "chat-renamer.titleEventPromptLines",
       "chat-renamer.trigger",

@@ -128,6 +128,21 @@
           "default": 60,
           "markdownDescription": "Seconds to keep the machine awake after the last active chat goes idle. `0` stops immediately. Default `60`. Changing it applies without a reload."
         },
+        "chat-renamer.log.highVolumeCategories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "awake.agentHostEvents"
+            ],
+            "enumDescriptions": [
+              "Trace each agent-host turn start and end. These lines are high volume."
+            ]
+          },
+          "default": [],
+          "markdownDescription": "High-volume log categories to emit. Empty by default, so an unchecked category is not written at any level. `awake.agentHostEvents` traces each turn start and end. Changing it applies without a reload."
+        },
         "chat-renamer.hookScope": {
           "type": "string",
           "enum": [

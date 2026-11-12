@@ -1590,5 +1590,58 @@ describe("trigger", () => {
         vscodeMock.cursor.createAgentHostTurnWatcher = undefined;
       }
     });
+
+    it("applies a checked high-volume category on the next turn event", async () => {
+      const captured = captureLog();
+      const values: Record<string, unknown> = { renameExistingDays: 0, "awake.when": "chatsActive" };
+      configure(values);
+      let emitStart: (event: { sessionId: string; turnId: string }) => void = () => {};
+      let emitEnd: (event: { sessionId: string; turnId: string }) => void = () => {};
+      vscodeMock.cursor.createAgentHostTurnWatcher = () => ({
+        onDidStartTurn: (listener) => {
+          emitStart = listener;
+          return { dispose: () => {} };
+        },
+        onDidEndTurn: (listener) => {
+          emitEnd = listener;
+          return { dispose: () => {} };
+        },
+        dispose: () => {},
+      });
+      const children: Child[] = [];
+      const ctx = context("jubr.variant-worktrees");
+
+      try {
+        await registerChatRenamer(ctx, {
+          commandPrefix: "variant",
+          configSection: "variant",
+          log: captured.log,
+          awakeSpawn: fakeSpawn(children),
+          caffeinateAvailable: () => true,
+          parentPid: 5151,
+        }).ready;
+
+        emitStart({ sessionId: "sess-1", turnId: "turn-1" });
+        expect(captured.entries.some((entry) => entry.message.includes("sess-1"))).toBe(false);
+
+        values["log.highVolumeCategories"] = ["awake.agentHostEvents"];
+        emitEnd({ sessionId: "sess-1", turnId: "turn-1" });
+
+        expect(
+          captured.entries.some(
+            (entry) =>
+              entry.level === "trace" &&
+              entry.message.includes("sess-1") &&
+              entry.message.includes("turn-1") &&
+              entry.message.includes("end"),
+          ),
+        ).toBe(true);
+      } finally {
+        vscodeMock.cursor.createAgentHostTurnWatcher = undefined;
+        for (const disposable of ctx.subscriptions) {
+          disposable.dispose();
+        }
+      }
+    });
   });
 });
