@@ -6,6 +6,10 @@
 
 - A focused file inside the main checkout or a variant worktree highlights that row in a visible Variant Worktrees tree and does not take editor focus.
 
+### Changed
+
+- A `tty` watch allocates a terminal in process on Bun, then tries `mise exec -- bun`, `mise exec bun@latest -- bun`, `bun` on `PATH`, and `script`, and otherwise runs with pipes and a warning.
+
 ## [0.0.8] - 2026-11-11
 
 ### Added
