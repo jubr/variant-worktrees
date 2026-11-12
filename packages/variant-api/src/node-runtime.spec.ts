@@ -10,6 +10,11 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const dist = join(import.meta.dir, "../dist");
+/**
+ * `bunfig.toml` sets `[run] bun = true`, so `bun run` puts bun on `PATH` as `node`.
+ * The Node install from Mise is the process these tests mean by Node.
+ */
+const hostNode = execFileSync("mise", ["which", "node"], { encoding: "utf8" }).trim();
 const entries = {
   index: pathToFileURL(join(dist, "index.js")).href,
   commands: pathToFileURL(join(dist, "commands.js")).href,
@@ -176,7 +181,6 @@ interface NodeTtyProbe {
 const watchTtyOnNode = async (
   probe: NodeTtyProbe,
 ): Promise<{ stdout: string; stderr: string; log: string; calls: string; exitCode: number }> => {
-  const nodeBin = execFileSync("which", ["node"], { encoding: "utf8" }).trim();
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-node-tty-")));
   const bin = join(directory, "bin");
   const calls = join(directory, "calls");
@@ -205,7 +209,7 @@ const watchTtyOnNode = async (
       "  watches:",
       "    fe:",
       "      dir: .",
-      `      watch: ${JSON.stringify(`${nodeBin} probe.js`)}`,
+      `      watch: ${JSON.stringify(`${hostNode} probe.js`)}`,
       "      output: { mode: tty }",
       "",
     ].join("\n"),
@@ -216,6 +220,10 @@ const watchTtyOnNode = async (
       'import { readFileSync } from "node:fs";',
       'import { setTimeout as delay } from "node:timers/promises";',
       "const { createVariantClient, setLogSink } = await import(process.env.API);",
+      'if (typeof globalThis.Bun === "function" || typeof globalThis.Bun === "object") {',
+      '  console.error("driver is " + process.execPath + " and it has Bun");',
+      "  process.exit(2);",
+      "}",
       "const warns = [];",
       'setLogSink((event) => { if (event.level === "warn") warns.push(event.message); });',
       "const abort = new AbortController();",
@@ -290,7 +298,7 @@ const watchTtyOnNode = async (
   }
   const path = probe.script ? `${bin}:${process.env.PATH ?? ""}` : `${bin}:/bin`;
   try {
-    const proc = Bun.spawn([nodeBin, join(directory, "drive.mjs")], {
+    const proc = Bun.spawn([hostNode, join(directory, "drive.mjs")], {
       stdout: "pipe",
       stderr: "pipe",
       env: {
