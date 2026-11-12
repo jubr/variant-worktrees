@@ -3,7 +3,10 @@ import { registerHighVolumeCategory } from "variant-log";
 
 import type { Logger } from "./log";
 
-registerHighVolumeCategory("awake.agentHostEvents");
+/** High-volume traces for agent-host turn start and end. Off until the checkbox is set. */
+export const AWAKE_AGENT_HOST_EVENTS = "awake.agentHostEvents";
+
+registerHighVolumeCategory(AWAKE_AGENT_HOST_EVENTS);
 
 /** One `caffeinate` child. The caller must not detach it. */
 export type AwakeProcess = {
