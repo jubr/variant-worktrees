@@ -1,9 +1,10 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { logW } from "./log.js";
 import { stopProcessTree } from "./processes.js";
 import { sleep } from "./sleep.js";
 
@@ -34,6 +35,8 @@ export interface LaunchWatchesOptions {
   onBanner?: (line: string) => void;
   /** Flags of this watch invocation, such as `--detach`. Empty when none were set. */
   args?: string;
+  /** Mise executable this process already resolved. Absent when none was found. */
+  mise?: string;
 }
 
 export interface LaunchedWatch extends WatchLaunch {
@@ -280,13 +283,77 @@ const spawnOnScript = (launch: WatchLaunch): ChildProcess =>
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-/** A Bun process allocates the terminal itself. Any other process still uses `script`. */
-const spawnOnTerminal = (launch: WatchLaunch): { child: ChildProcess; stripEof: boolean } => {
-  const runtime = ptyRuntime();
-  if (runtime !== undefined) {
-    return { child: spawnOnBunTerminal(runtime, launch), stripEof: false };
+const probeOk = (command: string, args: readonly string[], env: NodeJS.ProcessEnv): boolean =>
+  spawnSync(command, args, { env, stdio: "ignore" }).status === 0;
+
+/** A Bun child runs the in-process allocator and writes the transcript to stdout. */
+const spawnOnHop = (launch: WatchLaunch, command: string, prefix: readonly string[]): ChildProcess => {
+  const child = spawn(command, [...prefix, relayModulePath(), "--internal-pty"], {
+    cwd: launch.cwd,
+    env: colorTerm(launch.env),
+    detached: true,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  child.stdin?.end(JSON.stringify({ command: launch.command, cwd: launch.cwd, env: colorTerm(launch.env) }));
+  return child;
+};
+
+const spawnPipes = (launch: WatchLaunch, inheritStdin: boolean | undefined): ChildProcess =>
+  spawn("sh", ["-c", launch.command], {
+    cwd: launch.cwd,
+    env: launch.env,
+    detached: true,
+    stdio: [inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
+  });
+
+type Allocation =
+  | { kind: "bun" }
+  | { kind: "hop"; command: string; args: readonly string[] }
+  | { kind: "script" }
+  | { kind: "pipes" };
+
+/**
+ * First allocator that works: this Bun, `mise exec -- bun`, `mise exec bun@latest -- bun`, `bun` on `PATH`, `script`.
+ * `pipes` is the last resort and does not start the watch command during the probes.
+ */
+const allocateTerminal = (launch: WatchLaunch, mise: string | undefined): Allocation => {
+  if (ptyRuntime() !== undefined) {
+    return { kind: "bun" };
   }
-  return { child: spawnOnScript(launch), stripEof: true };
+  const env = colorTerm(launch.env);
+  if (mise !== undefined && probeOk(mise, ["exec", "--", "bun", "-e", "process.exit(0)"], env)) {
+    return { kind: "hop", command: mise, args: ["exec", "--", "bun"] };
+  }
+  if (mise !== undefined && probeOk(mise, ["exec", "bun@latest", "--", "bun", "-e", "process.exit(0)"], env)) {
+    return { kind: "hop", command: mise, args: ["exec", "bun@latest", "--", "bun"] };
+  }
+  if (probeOk("bun", ["-e", "process.exit(0)"], env)) {
+    return { kind: "hop", command: "bun", args: [] };
+  }
+  if (probeOk("sh", ["-c", "command -v script >/dev/null"], env)) {
+    return { kind: "script" };
+  }
+  return { kind: "pipes" };
+};
+
+const spawnAllocated = (
+  launch: WatchLaunch,
+  allocation: Allocation,
+  inheritStdin: boolean | undefined,
+): { child: ChildProcess; stripEof: boolean; terminal: boolean } => {
+  if (allocation.kind === "bun") {
+    const runtime = ptyRuntime();
+    if (runtime !== undefined) {
+      return { child: spawnOnBunTerminal(runtime, launch), stripEof: false, terminal: true };
+    }
+  }
+  if (allocation.kind === "hop") {
+    return { child: spawnOnHop(launch, allocation.command, allocation.args), stripEof: false, terminal: true };
+  }
+  if (allocation.kind === "script") {
+    return { child: spawnOnScript(launch), stripEof: true, terminal: true };
+  }
+  return { child: spawnPipes(launch, inheritStdin), stripEof: false, terminal: false };
 };
 
 /**
@@ -297,33 +364,34 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
   const log = options.logPath === undefined ? undefined : openLog(options.logPath);
   const processes: LaunchedWatch[] = [];
   const finished: Promise<void>[] = [];
-  if (options.launches.some((launch) => launch.outputMode === "tty")) {
+  const allocations = options.launches.map((launch) =>
+    launch.outputMode === "tty" ? allocateTerminal(launch, options.mise) : ({ kind: "pipes" } as const),
+  );
+  if (allocations.some((allocation) => allocation.kind !== "pipes")) {
     log?.write(ttyModeLine(options.args ?? ""));
   }
   try {
-    for (const launch of options.launches) {
+    for (const [index, launch] of options.launches.entries()) {
       if (processes.length > 0 && options.startDelayMs > 0) {
         await sleep(options.startDelayMs);
+      }
+      const allocation = allocations[index] ?? { kind: "pipes" as const };
+      if (launch.outputMode === "tty" && allocation.kind === "pipes") {
+        const sentence = `${launch.key} terminal was not allocated`;
+        logW(sentence);
+        log?.write(`${sentence}\n`);
       }
       const banner = `[${launch.key}] ${launch.command}`;
       options.onBanner?.(banner);
       log?.write(`${banner}\n`);
-      const terminal = launch.outputMode === "tty";
       let child: ChildProcess;
       let stripEof = false;
+      let terminal = false;
       try {
-        if (terminal) {
-          const spawned = spawnOnTerminal(launch);
-          child = spawned.child;
-          stripEof = spawned.stripEof;
-        } else {
-          child = spawn("sh", ["-c", launch.command], {
-            cwd: launch.cwd,
-            env: launch.env,
-            detached: true,
-            stdio: [options.inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
-          });
-        }
+        const spawned = spawnAllocated(launch, allocation, options.inheritStdin);
+        child = spawned.child;
+        stripEof = spawned.stripEof;
+        terminal = spawned.terminal;
       } catch {
         throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
       }
@@ -396,6 +464,8 @@ export interface RelayPlan {
   logPath: string;
   /** Flags of this watch invocation, such as `--detach`. */
   args?: string;
+  /** Mise executable this process already resolved. Absent when none was found. */
+  mise?: string;
 }
 
 const readStdin = async (): Promise<string> => {
@@ -431,6 +501,7 @@ export const runWatchRelay = async (): Promise<void> => {
       startDelayMs: plan.startDelayMs,
       logPath: plan.logPath,
       ...(plan.args === undefined ? {} : { args: plan.args }),
+      ...(plan.mise === undefined ? {} : { mise: plan.mise }),
     });
     const pids = Object.fromEntries(launched.processes.map(({ key, pid }) => [key, pid]));
     writeSync(1, `${JSON.stringify({ pids })}\n`);
@@ -493,6 +564,33 @@ export const startDetachedRelay = async (plan: RelayPlan): Promise<Record<string
   return pids;
 };
 
+/** Entry a `bun` hop runs: one JSON launch on stdin, then the terminal transcript on stdout. */
+const runInternalPty = async (): Promise<void> => {
+  const runtime = ptyRuntime();
+  if (runtime === undefined) {
+    process.exitCode = 1;
+    return;
+  }
+  const request = JSON.parse(await readStdin()) as { command: string; cwd: string; env: NodeJS.ProcessEnv };
+  const child = spawnOnBunTerminal(runtime, {
+    key: "pty",
+    command: request.command,
+    cwd: request.cwd,
+    env: request.env,
+    outputMode: "tty",
+  });
+  child.stdout?.on("data", (chunk: Buffer | string) => {
+    writeSync(1, chunk);
+  });
+  await new Promise<void>((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    child.once("exit", () => resolve());
+  });
+};
+
 const invokedDirectly = (): boolean => {
   const script = process.argv[1];
   // A bundled CLI shares this module. Only the spawned source file should enter the relay on its own.
@@ -506,7 +604,10 @@ const invokedDirectly = (): boolean => {
   }
 };
 
-if (invokedDirectly()) {
+if (process.argv.includes("--internal-pty")) {
+  // AIDEV-NOTE: No top-level await. The VS Code extension bundles this module as CommonJS.
+  void runInternalPty();
+} else if (invokedDirectly()) {
   // AIDEV-NOTE: No top-level await. The VS Code extension bundles this module as CommonJS.
   void runWatchRelay();
 }

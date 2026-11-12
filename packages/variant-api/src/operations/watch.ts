@@ -1,6 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { miseBinaryFor } from "../mise.js";
 import { stopProcessTree } from "../processes.js";
 import { announce, logToStderr } from "../ready.js";
 import { commandEnvironment, expandSetting, type VariantRun } from "../run-context.js";
@@ -130,6 +131,7 @@ export const watchVariant = async (
   // AIDEV-NOTE: detach cannot prefix from this process, because the CLI exits. A child runs the same relay and
   // outlives the call. Attached capture stays in this process. The log is truncated when that relay starts.
   const logFile = toStart.length === 0 ? undefined : watchLogPath(config, run.worktree);
+  const mise = miseBinaryFor(config, context.miseBinPath);
   let closeLog: () => Promise<void> = async () => {};
   let record: ((line: string) => void) | undefined;
   let detachedPids: Record<string, number> | undefined;
@@ -144,6 +146,7 @@ export const watchVariant = async (
           startDelayMs: delay,
           logPath: logFile,
           args,
+          ...(mise === undefined ? {} : { mise }),
         });
       } catch (error) {
         rmSync(logFile, { force: true });
@@ -161,6 +164,7 @@ export const watchVariant = async (
         inheritStdin: true,
         onBanner: log,
         args,
+        ...(mise === undefined ? {} : { mise }),
       });
       closeLog = launched.close;
       if (launched.writeLog) {
