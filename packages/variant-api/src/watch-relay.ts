@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -202,7 +203,74 @@ const ttySpawnArgs = (): string[] =>
     ? ["-q", "-e", "-f", "-c", TTY_WRAPPER, "/dev/null"]
     : ["-q", "/dev/null", "sh", "-c", TTY_WRAPPER];
 
-const spawnOnTerminal = (launch: WatchLaunch): ChildProcess =>
+interface PtyTerminal {
+  close: () => void;
+}
+
+interface PtyRuntime {
+  spawn: (
+    command: string[],
+    options: {
+      cwd: string;
+      env: NodeJS.ProcessEnv;
+      terminal: {
+        cols: number;
+        rows: number;
+        data: (terminal: PtyTerminal, data: Uint8Array) => void;
+        exit: (terminal: PtyTerminal, exitCode: number, signal: string | null) => void;
+      };
+    },
+  ) => { pid: number; exited: Promise<number>; terminal: PtyTerminal };
+}
+
+/** The runtime pty, when this process is Bun. Property access stays `.Bun` so the bundle has no `Bun.` token. */
+const ptyRuntime = (): PtyRuntime | undefined => {
+  const runtime = (globalThis as { Bun?: PtyRuntime }).Bun;
+  return typeof runtime?.spawn === "function" ? runtime : undefined;
+};
+
+/** Kept alive so a terminal is not closed by collection while its command runs. */
+const openTerminals = new Set<PtyTerminal>();
+
+const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProcess => {
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  const child = new EventEmitter() as ChildProcess;
+  const finish = (code: number | null): void => {
+    child.exitCode = code;
+    stdout.end();
+    stderr.end();
+  };
+  const proc = runtime.spawn(["sh", "-c", launch.command], {
+    cwd: launch.cwd,
+    env: colorTerm(launch.env),
+    terminal: {
+      cols: 10000,
+      rows: 200,
+      data(_terminal, data) {
+        stdout.write(data);
+      },
+      exit() {
+        finish(child.exitCode);
+      },
+    },
+  });
+  openTerminals.add(proc.terminal);
+  child.pid = proc.pid;
+  child.stdout = stdout;
+  child.stderr = stderr;
+  child.exitCode = null;
+  child.signalCode = null;
+  void proc.exited.then((code) => {
+    openTerminals.delete(proc.terminal);
+    proc.terminal.close();
+    finish(code);
+    child.emit("exit", code, null);
+  });
+  return child;
+};
+
+const spawnOnScript = (launch: WatchLaunch): ChildProcess =>
   // AIDEV-NOTE: `/dev/null` is immediate EOF. script writes that EOF into the terminal, and a program such as vite exits.
   // bash holds the read end open with `tail -f /dev/null`, then becomes `script`, so the watched pid is still script.
   spawn("bash", ["-c", 'exec < <(tail -f /dev/null); exec "$@"', "bash", "script", ...ttySpawnArgs()], {
@@ -211,6 +279,15 @@ const spawnOnTerminal = (launch: WatchLaunch): ChildProcess =>
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
+
+/** A Bun process allocates the terminal itself. Any other process still uses `script`. */
+const spawnOnTerminal = (launch: WatchLaunch): { child: ChildProcess; stripEof: boolean } => {
+  const runtime = ptyRuntime();
+  if (runtime !== undefined) {
+    return { child: spawnOnBunTerminal(runtime, launch), stripEof: false };
+  }
+  return { child: spawnOnScript(launch), stripEof: true };
+};
 
 /**
  * Starts each watch, prefixes its stdout and stderr, and tees those lines to the console sinks and the log file.
@@ -233,15 +310,20 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
       log?.write(`${banner}\n`);
       const terminal = launch.outputMode === "tty";
       let child: ChildProcess;
+      let stripEof = false;
       try {
-        child = terminal
-          ? spawnOnTerminal(launch)
-          : spawn("sh", ["-c", launch.command], {
-              cwd: launch.cwd,
-              env: launch.env,
-              detached: true,
-              stdio: [options.inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
-            });
+        if (terminal) {
+          const spawned = spawnOnTerminal(launch);
+          child = spawned.child;
+          stripEof = spawned.stripEof;
+        } else {
+          child = spawn("sh", ["-c", launch.command], {
+            cwd: launch.cwd,
+            env: launch.env,
+            detached: true,
+            stdio: [options.inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
+          });
+        }
       } catch {
         throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
       }
@@ -251,7 +333,7 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
       }
       // AIDEV-NOTE: a terminal mixes the process stderr into the transcript. That transcript is the stdout stream.
       relay(
-        terminal ? withoutScriptEof(child.stdout) : child.stdout,
+        stripEof ? withoutScriptEof(child.stdout) : child.stdout,
         launch.key,
         options.stdout,
         log?.write,

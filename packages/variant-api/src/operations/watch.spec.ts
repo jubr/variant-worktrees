@@ -973,6 +973,41 @@ describe("detached watch log", () => {
     ));
 });
 
+/** Command lines of `root` and every descendant. */
+const processCommands = (root: number): string[] => {
+  const table = execFileSync("ps", ["-A", "-o", "pid=,ppid=,command="], { encoding: "utf8" });
+  const children = new Map<number, number[]>();
+  const command = new Map<number, string>();
+  for (const line of table.split("\n")) {
+    const match = /^(\d+)\s+(\d+)\s+(.*)$/.exec(line.trim());
+    if (match?.[1] === undefined || match[2] === undefined || match[3] === undefined) {
+      continue;
+    }
+    const pid = Number(match[1]);
+    const parent = Number(match[2]);
+    command.set(pid, match[3]);
+    children.set(parent, [...(children.get(parent) ?? []), pid]);
+  }
+  const found: string[] = [];
+  const queue = [root];
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+    const text = command.get(next);
+    if (text !== undefined) {
+      found.push(text);
+    }
+    for (const child of children.get(next) ?? []) {
+      queue.push(child);
+    }
+  }
+  return found;
+};
+
+/** Whether `command` is the program `name`, not merely an argument that contains that word. */
+const isProgram = (command: string, name: string): boolean => {
+  const token = command.trim().split(/\s+/)[0] ?? "";
+  return token === name || token.endsWith(`/${name}`);
+};
+
 describe("watch output terminal", () => {
   const logIn = (directory: string): string => join(directory, ".cache", "variant", "watch.log");
   const green = "\u001b[32mgreen\u001b[0m";
@@ -1133,5 +1168,37 @@ describe("watch output terminal", () => {
       } finally {
         stdout.stop();
       }
+    }, probe("tty")));
+
+  it("allocates the terminal in process when the host is Bun", () =>
+    withProject(async ({ attach, directory, started, runtime }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach();
+      try {
+        const watchPid = await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] held"), 2000).catch(() => {});
+        const logged = existsSync(log) ? readFileSync(log, "utf8") : "";
+        const commands = processCommands(runtime().watches.fe?.pid as number);
+        expect(logged).toContain("[fe] tty\n");
+        expect(logged).toContain(`[fe] ${green}${reset}\n`);
+        expect(stdout.text()).toContain("[fe] tty\n");
+        expect(commands.some((command) => isProgram(command, "script"))).toBe(false);
+        expect(commands.some((command) => isProgram(command, "mise"))).toBe(false);
+        expect(isProcessAlive(watchPid)).toBe(true);
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("stops a terminal watch on down", () =>
+    withProject(async ({ watch, context, started }) => {
+      await watch({ detach: true });
+      const watchPid = await started("fe");
+      await downVariant(context, "demo");
+      await untilDead(watchPid);
+      expect(isProcessAlive(watchPid)).toBe(false);
     }, probe("tty")));
 });
