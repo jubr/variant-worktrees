@@ -235,10 +235,19 @@ const ptyRuntime = (): PtyRuntime | undefined => {
 /** Kept alive so a terminal is not closed by collection while its command runs. */
 const openTerminals = new Set<PtyTerminal>();
 
+/** The fields `launchWatches` reads. `ChildProcess` marks them readonly, so the stand-in is its own type. */
+interface PtyChild extends EventEmitter {
+  pid?: number;
+  stdout: PassThrough;
+  stderr: PassThrough;
+  exitCode: number | null;
+  signalCode: NodeJS.Signals | null;
+}
+
 const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProcess => {
   const stdout = new PassThrough();
   const stderr = new PassThrough();
-  const child = new EventEmitter() as ChildProcess;
+  const child = new EventEmitter() as PtyChild;
   const finish = (code: number | null): void => {
     child.exitCode = code;
     stdout.end();
@@ -270,7 +279,7 @@ const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProc
     finish(code);
     child.emit("exit", code, null);
   });
-  return child;
+  return child as unknown as ChildProcess;
 };
 
 const spawnOnScript = (launch: WatchLaunch): ChildProcess =>
@@ -580,7 +589,8 @@ const runInternalPty = async (): Promise<void> => {
     outputMode: "tty",
   });
   child.stdout?.on("data", (chunk: Buffer | string) => {
-    writeSync(1, chunk);
+    if (typeof chunk === "string") writeSync(1, chunk);
+    else writeSync(1, chunk);
   });
   await new Promise<void>((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null) {
