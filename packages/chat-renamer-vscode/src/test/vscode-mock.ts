@@ -15,6 +15,11 @@ export const vscodeMock = {
       limit?: number,
     ) => Promise<Array<{ sessionId: string; title?: string; updatedAt?: number }>>;
     projectAgentHostSessionTitle?: (sessionId: string, title: string) => Promise<void>;
+    createAgentHostTurnWatcher?: () => {
+      onDidStartTurn: (listener: (event: { sessionId: string; turnId: string }) => void) => { dispose(): void };
+      onDidEndTurn: (listener: (event: { sessionId: string; turnId: string }) => void) => { dispose(): void };
+      dispose(): void;
+    };
   },
   commands: {
     registerCommand: (_command: string, _callback: (...args: unknown[]) => unknown) => ({ dispose: () => {} }),

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import * as fs from "node:fs";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1482,6 +1483,112 @@ describe("trigger", () => {
       }
 
       expect(children[0]?.killed).toContain("SIGTERM");
+    });
+
+    it("follows this window's turns and polls the focused composers every 5 seconds", async () => {
+      const children: Child[] = [];
+      const commands: string[] = [];
+      const walks: string[] = [];
+      const delays: number[] = [];
+      let starts = 0;
+      let disposed = 0;
+      let emitStart: (event: { sessionId: string; turnId: string }) => void = () => {};
+      let emitEnd: (event: { sessionId: string; turnId: string }) => void = () => {};
+      const previousGetExtension = vscodeMock.extensions.getExtension;
+      vscodeMock.extensions.getExtension = (id) =>
+        id === "anysphere.cursor-retrieval"
+          ? {
+              packageJSON: {
+                identifier: { value: id, _lower: id },
+                isBuiltin: true,
+                enabledApiProposals: ["cursorAgentHost"],
+              },
+            }
+          : previousGetExtension(id);
+      vscodeMock.workspace.workspaceFolders = [{ uri: { fsPath: "/tmp/awake-focused-workspace" } }];
+      vscodeMock.cursor.createAgentHostTurnWatcher = () => {
+        starts += 1;
+        return {
+          onDidStartTurn: (listener) => {
+            emitStart = listener;
+            return { dispose: () => {} };
+          },
+          onDidEndTurn: (listener) => {
+            emitEnd = listener;
+            return { dispose: () => {} };
+          },
+          dispose: () => {
+            disposed += 1;
+          },
+        };
+      };
+      const execute = spyOn(vscode.commands, "executeCommand");
+      execute.mockImplementation((async (command: string) => {
+        commands.push(command);
+        return [];
+      }) as typeof vscode.commands.executeCommand);
+      const originalReadDir = fs.readdirSync;
+      const readDir = spyOn(fs, "readdirSync");
+      readDir.mockImplementation(((...args: Parameters<typeof fs.readdirSync>) => {
+        walks.push(String(args[0]));
+        return originalReadDir(...args);
+      }) as typeof fs.readdirSync);
+      const originalTimeout = globalThis.setTimeout;
+      const timeout = spyOn(globalThis, "setTimeout");
+      timeout.mockImplementation(((handler: TimerHandler, ms?: number, ...args: unknown[]) => {
+        delays.push(ms ?? 0);
+        return originalTimeout(handler, ms, ...(args as []));
+      }) as typeof setTimeout);
+      const configListeners: Array<(event: { affectsConfiguration: (section: string) => boolean }) => void> = [];
+      spyOn(vscode.workspace, "onDidChangeConfiguration").mockImplementation(((listener: never) => {
+        configListeners.push(listener);
+        return { dispose: () => {} };
+      }) as unknown as typeof vscode.workspace.onDidChangeConfiguration);
+      configure({ renameExistingDays: 0, "awake.when": "chatsActive" });
+      const ctx = context("jubr.variant-worktrees");
+
+      try {
+        await registerChatRenamer(ctx, {
+          commandPrefix: "variant",
+          configSection: "variant",
+          log: quiet,
+          awakeSpawn: fakeSpawn(children),
+          caffeinateAvailable: () => true,
+          parentPid: 5151,
+          now: () => 1_000_000,
+        }).ready;
+
+        expect(starts).toBe(1);
+        expect(delays).toContain(5000);
+        expect(delays).not.toContain(1000);
+        expect(commands).not.toContain("composer.getOrderedSelectedComposerIds");
+        expect(walks.some((path) => path.includes("agent-transcripts"))).toBe(false);
+
+        emitStart({ sessionId: "sess-1", turnId: "turn-1" });
+        expect(children.map((child) => child.args)).toEqual([["-disu", "-w", "5151"]]);
+
+        emitEnd({ sessionId: "sess-1", turnId: "turn-1" });
+        expect(delays).toContain(60_000);
+
+        configure({ renameExistingDays: 0, "awake.when": "never" });
+        for (const listener of configListeners) {
+          listener({ affectsConfiguration: () => true });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(disposed).toBeGreaterThan(0);
+
+        for (const disposable of ctx.subscriptions) {
+          disposable.dispose();
+        }
+        expect(children[0]?.killed).toContain("SIGTERM");
+      } finally {
+        timeout.mockRestore();
+        readDir.mockRestore();
+        execute.mockRestore();
+        vscodeMock.extensions.getExtension = previousGetExtension;
+        vscodeMock.workspace.workspaceFolders = undefined;
+        vscodeMock.cursor.createAgentHostTurnWatcher = undefined;
+      }
     });
   });
 });
