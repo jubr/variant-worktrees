@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { listHighVolumeCategories } from "variant-log";
 
 import { type AwakeInput, type AwakeProcess, createAwakeController } from "./awake";
 import { createLogger, type LogSink } from "./log";
@@ -107,6 +108,12 @@ const idle = (over: Partial<AwakeInput> = {}): AwakeInput => active({ active: fa
 const infos = (entries: Entry[]) => entries.filter((entry) => entry.level === "info").map((entry) => entry.message);
 const traces = (entries: Entry[]) => entries.filter((entry) => entry.level === "trace").map((entry) => entry.message);
 const debugs = (entries: Entry[]) => entries.filter((entry) => entry.level === "debug").map((entry) => entry.message);
+
+describe("high-volume categories", () => {
+  it("registers awake.agentHostEvents when the awake module loads", () => {
+    expect(listHighVolumeCategories()).toContain("awake.agentHostEvents");
+  });
+});
 
 describe("createAwakeController", () => {
   it("logs the binary once at startup and spawns caffeinate -disu while a chat is active", () => {

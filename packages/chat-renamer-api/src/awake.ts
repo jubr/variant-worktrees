@@ -1,6 +1,9 @@
 import type { AwakeWhat, AwakeWhen } from "chat-renamer-config";
+import { registerHighVolumeCategory } from "variant-log";
 
 import type { Logger } from "./log";
+
+registerHighVolumeCategory("awake.agentHostEvents");
 
 /** One `caffeinate` child. The caller must not detach it. */
 export type AwakeProcess = {
