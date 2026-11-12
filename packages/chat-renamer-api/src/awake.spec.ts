@@ -13,7 +13,9 @@ type Fake = AwakeProcess & {
   finish: () => void;
 };
 
-const harness = (available = true) => {
+type Detection = "agentHost+poll" | "poll";
+
+const harness = (available = true, detection: Detection = "poll") => {
   const entries: Entry[] = [];
   const children: Fake[] = [];
   let pid = 4242;
@@ -62,6 +64,7 @@ const harness = (available = true) => {
     spawn,
     parentPid: 5151,
     caffeinateAvailable: () => available,
+    detection,
     log: createLogger(sink),
     now: () => clock,
     schedule: (ms, run) => {
@@ -116,16 +119,29 @@ describe("high-volume categories", () => {
 });
 
 describe("createAwakeController", () => {
+  it("names the detection method once on the startup info line", () => {
+    const withWatcher = harness(true, "agentHost+poll");
+    expect(infos(withWatcher.entries)).toEqual(['[awake] caffeinate available method="agentHost+poll"']);
+    withWatcher.controller.update(active());
+    expect(infos(withWatcher.entries)).toEqual(['[awake] caffeinate available method="agentHost+poll"']);
+
+    const pollOnly = harness(true, "poll");
+    expect(infos(pollOnly.entries)).toEqual(['[awake] caffeinate available method="poll"']);
+
+    const missingBinary = harness(false, "agentHost+poll");
+    expect(infos(missingBinary.entries)).toEqual(["[awake] caffeinate unavailable"]);
+  });
+
   it("logs the binary once at startup and spawns caffeinate -disu while a chat is active", () => {
     const { controller, children, entries } = harness();
 
-    expect(infos(entries)).toEqual(["[awake] caffeinate available"]);
+    expect(infos(entries)).toEqual(['[awake] caffeinate available method="poll"']);
     controller.update(active());
 
     expect(children.map((child) => child.args)).toEqual([["-disu", "-w", "5151"]]);
     expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu -w 5151" pid=4242 reason="activity"');
     expect(traces(entries).some((line) => line.includes("caffeinate"))).toBe(false);
-    expect(infos(entries)).toEqual(["[awake] caffeinate available"]);
+    expect(infos(entries)).toEqual(['[awake] caffeinate available method="poll"']);
 
     controller.update(active());
     expect(children).toHaveLength(1);

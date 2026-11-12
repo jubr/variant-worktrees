@@ -118,6 +118,7 @@ export const startChatRenameTrigger = (
           spawn: host.awakeSpawn ?? spawnCaffeinate,
           parentPid: host.parentPid ?? process.pid,
           caffeinateAvailable: host.caffeinateAvailable ?? caffeinateOnPath,
+          detection: "poll",
           log,
           now,
           schedule: (ms, run) => {

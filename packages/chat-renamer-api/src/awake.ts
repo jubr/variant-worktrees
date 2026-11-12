@@ -20,12 +20,16 @@ export type AwakeInput = {
   graceDelaySecs: number;
 };
 
+export type AwakeDetection = "agentHost+poll" | "poll";
+
 export type AwakeControllerDeps = {
   spawn: (argv: readonly string[]) => AwakeProcess;
   /** Pid of the extension host. `caffeinate -w` exits when this process exits. */
   parentPid: number;
   /** Called once, when the controller is created. */
   caffeinateAvailable: () => boolean;
+  /** `agentHost+poll` when the turn watcher was created, otherwise `poll`. */
+  detection: AwakeDetection;
   log: Logger;
   now: () => number;
   schedule: (ms: number, run: () => void) => { cancel(): void };
@@ -66,13 +70,14 @@ export const createAwakeController = ({
   spawn,
   parentPid,
   caffeinateAvailable,
+  detection,
   log,
   now,
   schedule,
 }: AwakeControllerDeps): AwakeController => {
   const awake = log.child("awake");
   const available = caffeinateAvailable();
-  awake.info(available ? "caffeinate available" : "caffeinate unavailable");
+  awake.info(available ? `caffeinate available method="${detection}"` : "caffeinate unavailable");
 
   let tracked: Tracked | null = null;
   let pendingArgs: readonly string[] | null = null;
