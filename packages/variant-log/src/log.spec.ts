@@ -5,12 +5,14 @@ import {
   type LogEvent,
   LogLevel,
   LogOrigin,
+  listHighVolumeCategories,
   log,
   logD,
   logE,
   logI,
   logT,
   logW,
+  registerHighVolumeCategory,
   setLogSink,
 } from "./index.js";
 
@@ -59,6 +61,23 @@ describe("origin enum", () => {
       setLogSink(undefined);
     }
     expect(events).toEqual([{ level: LogLevel.info, message: "ready", origin: LogOrigin.cli }]);
+  });
+});
+
+describe("high-volume categories", () => {
+  it("lists a category once in registration order", () => {
+    registerHighVolumeCategory("alpha");
+    registerHighVolumeCategory("beta");
+    registerHighVolumeCategory("alpha");
+
+    const ids = listHighVolumeCategories();
+    const alpha = ids.indexOf("alpha");
+    const beta = ids.indexOf("beta");
+
+    expect(alpha).toBeGreaterThanOrEqual(0);
+    expect(beta).toBeGreaterThan(alpha);
+    expect(ids.filter((id) => id === "alpha")).toEqual(["alpha"]);
+    expect(ids.filter((id) => id === "beta")).toEqual(["beta"]);
   });
 });
 
