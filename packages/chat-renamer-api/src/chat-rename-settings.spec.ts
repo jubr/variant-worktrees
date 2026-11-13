@@ -23,7 +23,7 @@ describe("readTriggerSettings", () => {
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
     });
   });
 
@@ -39,7 +39,7 @@ describe("readTriggerSettings", () => {
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
     });
   });
 
@@ -53,7 +53,7 @@ describe("readTriggerSettings", () => {
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
     });
   });
 
@@ -86,11 +86,11 @@ describe("readTriggerSettings", () => {
     }
   });
 
-  it("defaults awake to chatsActive, the detected caffeinate command, and 60 seconds", () => {
+  it("defaults awake to chatsActive, the detected caffeinate command, and 180 seconds", () => {
     expect(readTriggerSettings(settings({}))).toMatchObject({
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
     });
   });
 
@@ -113,7 +113,7 @@ describe("readTriggerSettings", () => {
     ).toMatchObject({
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
     });
   });
 

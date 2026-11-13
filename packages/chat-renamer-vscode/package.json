@@ -117,8 +117,8 @@
         "chat-renamer.awake.graceDelaySecs": {
           "type": "integer",
           "minimum": 0,
-          "default": 60,
-          "markdownDescription": "Seconds to keep the machine awake after the last active chat goes idle. `0` stops immediately. Default `60`. Changing it applies without a reload."
+          "default": 180,
+          "markdownDescription": "Seconds to keep the machine awake after the last active chat goes idle. `0` stops immediately. Default `180`. Changing it applies without a reload."
         },
         "chat-renamer.log.highVolumeCategories": {
           "type": "array",

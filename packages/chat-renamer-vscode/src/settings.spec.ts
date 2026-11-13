@@ -32,7 +32,7 @@ describe("readSettings", () => {
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
       enabled: true,
     });
   });
@@ -100,7 +100,7 @@ describe("readSettings", () => {
     expect(readSettings("chat-renamer")).toMatchObject({
       awakeWhen: "chatsActive",
       awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
-      graceDelaySecs: 60,
+      graceDelaySecs: 180,
     });
 
     configure({}, {});

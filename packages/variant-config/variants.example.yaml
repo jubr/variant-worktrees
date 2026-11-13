@@ -133,4 +133,4 @@ chatRenamer:
     # list whose first entry is awake.agentHostEvents.
     when: chatsActive # never; hold the Mac awake while a chat is taking a turn or generating
     cmd: "caffeinate -disu -w ${extensionHostPid}" # detected default; ${extensionHostPid} is this host's pid
-    graceDelaySecs: 60 # seconds to stay awake after the last turn; 0 stops at once. An idle chat does not count
+    graceDelaySecs: 180 # seconds to stay awake after the last turn; 0 stops at once. An idle chat does not count

@@ -46,4 +46,4 @@ export const DEFAULT_AWAKE_WHEN: AwakeWhen = "chatsActive";
 export const DEFAULT_AWAKE_CMD = "caffeinate -disu -w ${extensionHostPid}";
 
 /** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
-export const DEFAULT_AWAKE_GRACE_DELAY_SECS = 60;
+export const DEFAULT_AWAKE_GRACE_DELAY_SECS = 180;

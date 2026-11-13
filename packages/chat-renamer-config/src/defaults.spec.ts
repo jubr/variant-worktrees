@@ -17,7 +17,7 @@ describe("defaults", () => {
     expect(defaults.DEFAULT_TITLE_EVENT_PROMPT_LINES).toBe(10);
     expect(defaults.DEFAULT_AWAKE_WHEN).toBe("chatsActive");
     expect(defaults.DEFAULT_AWAKE_CMD).toBe("caffeinate -disu -w ${extensionHostPid}");
-    expect(defaults.DEFAULT_AWAKE_GRACE_DELAY_SECS).toBe(60);
+    expect(defaults.DEFAULT_AWAKE_GRACE_DELAY_SECS).toBe(180);
   });
 
   it("lists the allowed trigger and hook scope values", () => {

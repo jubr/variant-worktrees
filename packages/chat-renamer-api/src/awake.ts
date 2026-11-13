@@ -1,4 +1,4 @@
-import { type AwakeWhen, DEFAULT_AWAKE_CMD } from "chat-renamer-config";
+import { type AwakeWhen, DEFAULT_AWAKE_CMD, DEFAULT_AWAKE_GRACE_DELAY_SECS } from "chat-renamer-config";
 import { registerHighVolumeCategory } from "variant-log";
 
 import type { Logger } from "./log";
@@ -93,7 +93,7 @@ export const createAwakeController = ({
     cmd: DEFAULT_AWAKE_CMD,
     active: false,
     owned: true,
-    graceDelaySecs: 60,
+    graceDelaySecs: DEFAULT_AWAKE_GRACE_DELAY_SECS,
   };
   let disposed = false;
 
