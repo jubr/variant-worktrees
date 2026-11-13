@@ -22,6 +22,6 @@ The awake poll point-reads the first composers in pane order. A live turn furthe
 
 - `chat-renamer-vscode` awake path: subscribe to `cursor.createAgentHostTurnWatcher`, and poll the focused composers every 5 seconds. `chat-renamer-api` registers the high-volume category and keeps the caffeinate controller. `variant-log` holds the category registry. Both extension manifests gain the checkbox setting. `chat-renamer-api` depends on `variant-log`.
 - Docs and changelogs that say which chats hold the machine awake, and the log setting: `docs/chat-renamer/index.md`, `docs/chat-renamer/configuration.md`, the chat-renamer README, and the root, `packages/chat-renamer-vscode`, and `packages/variant-vscode` changelogs.
-- `chatRenamer.awake.cmd` replaces `awake.what`. The default is the detected `caffeinate -disu -w ${extensionHostPid}`. `awake.when` and `awake.graceDelaySecs` stay.
+- `chatRenamer.awake.cmd` replaces `awake.what`. The default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. `awake.when` and `awake.graceDelaySecs` stay.
 
 Out of scope: a second client of `agent.v1.AgentHostService` (`watchTurns`, `watchSessionInteractions`, `watchSessionBackgroundWork`). That stream stays inside Cursor's agent host. The workbench already reduces it to start and settled before an extension sees it. VS Code's public chat APIs are not that service. Also out of scope: pane-order polling, session-file walks for awake, a `variants.yaml` key for the log categories, and any change to rename triggers.
