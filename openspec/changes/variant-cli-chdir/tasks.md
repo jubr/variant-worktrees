@@ -1,0 +1,19 @@
+## 1. Directory option
+
+- [ ] 1.1 Add failing tests for [specs/variant-cli/working-directory | Directory option before configuration](../../specs/variant-cli/working-directory/spec.md#requirement-directory-option-before-configuration) in a sibling spec next to the argv scan. `variant -C <project> config` and `variant config -C <project>` print `<project>`'s configuration, not the starting directory's. `variant -C<project> config` does the same. From `<parent>`, `variant -C child config` prints `<parent>/child`. `variant -C <parent> -C child config` prints `<parent>/child`. `variant -C <project> --log-level=error config` exits 0 and prints `<project>`. `variant -C` with no path exits non-zero, standard error contains `-C`, and the command does not run. When the starting directory's configuration is invalid and `<absent>` is not a directory, `variant -C <absent> config` exits non-zero, standard error contains `-C` and `<absent>`, and it does not contain the starting configuration error. `variant --chdir <project> config` exits non-zero and does not print `<project>`'s configuration. Run the tests in a child process and restore the working directory if a test changes it in-process. Verify the tests fail first. Scan `-C` and `-C<path>` left to right before `attachLogLevel`, `chdir` on each hit, and pass the remaining argv to the existing log-level and format scans. Do not register a long option. Verify the new spec passes.
+
+## 2. Help layout
+
+- [ ] 2.1 Add failing tests for [specs/variant-api/output-formats | Global flags are listed apart in help](../../specs/variant-api/output-formats/spec.md#requirement-global-flags-are-listed-apart-in-help) in `packages/variant-cli/src/help.spec.ts`. `variant --help` and `variant watch --help` list `-C` with `<path>` in `Global flags`, do not list `--chdir`, and have no empty line from the first flag line of that section through the last. `variant watch --help` still lists `--detach` and `--slug` under `Flags` and does not list `--json` there. Render the same help with `process.stdout.columns` unset, at 60, and at 120, and restore the previous columns value. Do not use the section helper that stops at the first empty line for the empty-line assertion. Verify the narrow render fails first. Give the global section its own breakpoint map with `paddingBottom` 0 on every column, including the `> 0` entry's `columns`, without changing the command `Flags` table. Put a short-only `-C <path>` row first. Verify `bun test packages/variant-cli/src/help.spec.ts` passes.
+
+## 3. Completions
+
+- [ ] 3.1 Add failing tests for [specs/variant-cli/completions | Completion coverage](../../specs/variant-cli/completions/spec.md#requirement-completion-coverage) in `packages/variant-cli/src/completions.spec.ts`. Each shell script offers `-C` for `variant`, `list`, `ui`, and `completions`, and does not offer `--chdir`. `--json` stays absent from `ui` and `completions`. Verify the tests fail first. Make `FlagModel.long` optional and emit a short-only flag: bash word lists and the top-level flag list, fish `-s` without `-l`, zsh `'-C+[description]'` with no long exclusion. Append that flag on every command model, separate from `outputFlags`. Verify `bun test packages/variant-cli/src/completions.spec.ts` passes.
+
+## 4. Docs
+
+- [ ] 4.1 Update the repository README "Global flags" subsection for [specs/docs/readmes | Repository README content](../../specs/docs/readmes/spec.md#requirement-repository-readme-content) so it lists `-C <path>`, says the directory changes before configuration is read, and does not list `--chdir`. Update the same section in `docs/guide/core.md`. Record the flag under `## Unreleased` in `CHANGELOG.md`. Verify the README subsection lists `-C`, `--json`, and `--yaml` and does not list `--chdir`, and `task docs:build` passes.
+
+## 5. Check
+
+- [ ] 5.1 Verify `task lint`, `task test`, `task build`, and `mise x -- openspec validate --all --strict --no-interactive` pass.
