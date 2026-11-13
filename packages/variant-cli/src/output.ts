@@ -23,7 +23,7 @@ export interface OutputOptions {
 }
 
 /** True when config text should be colored: a terminal, and `NO_COLOR` not set at all. An empty value still disables it. */
-export const stdoutColor = (stdout: { isTTY?: boolean }, env: { NO_COLOR?: string }): boolean =>
+export const stdoutColor = (stdout: { isTTY?: boolean }, env: NodeJS.ProcessEnv): boolean =>
   stdout.isTTY === true && env.NO_COLOR === undefined;
 
 /** The result of a command as the string the CLI prints for the format, with secrets redacted. */
