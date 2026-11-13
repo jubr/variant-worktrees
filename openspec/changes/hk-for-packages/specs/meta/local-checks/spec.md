@@ -1,18 +1,19 @@
 ## Purpose
 
-How the repository's local checks run through `hk`: each package contributes its own lint and format step, the repository
-contributes the workspace-wide steps, and three `task` entry points select the scope. Contributors and CI see the same
+How the repository's local checks run through `hk`: each package contributes its own lint, format and test steps, the
+repository contributes the workspace-wide steps, and three `task` entry points select the scope. Contributors and CI see the same
 step names.
 
 ## ADDED Requirements
 
-### Requirement: Every package owns its lint step
+### Requirement: Every package owns its lint and test steps
 
 Every directory `packages/<name>` that has a `package.json` SHALL have a `packages/<name>/hk.pkl`, and the root
 `hk.pkl` SHALL list `packages/<name>` under `subprojects`. The `hk check --all --plan` output SHALL contain one Biome
 step per package, named with that package, and SHALL NOT contain a Biome step that spans several packages. Each
-package's `hk.pkl` SHALL contribute that Biome step to the `check`, `fix` and `pre-commit` hooks from one shared
-definition, so changing the step once changes it for every package.
+package's `hk.pkl` SHALL contribute that Biome step to the `check`, `fix` and `pre-commit` hooks, and a `test` step to the
+`check` hook, from one shared definition, so changing a step once changes it for every package. A package's `test`
+step SHALL run that package's own test script from the package directory.
 
 #### Scenario: Plan lists a Biome step per package
 
@@ -20,9 +21,14 @@ definition, so changing the step once changes it for every package.
 - **THEN** the plan selects a Biome step for each directory under `packages/`
 - **AND** no selected Biome step is named without a package
 
+#### Scenario: Plan lists a test step per package
+
+- **WHEN** `hk check --all --profile ci --plan` runs at the repository root
+- **THEN** the plan selects a `test` step for each directory under `packages/`, named with that package
+
 #### Scenario: Package missing from the configuration
 
-- **WHEN** `packages/<name>/package.json` exists and `packages/<name>/hk.pkl` is missing, or the root `subprojects` omits it
+- **WHEN** `packages/<name>/package.json` exists and `packages/<name>/hk.pkl` is missing, or the root `subprojects` does not include it
 - **THEN** the contract test for the local checks fails and names `packages/<name>`
 
 #### Scenario: Package lints only its own files
@@ -33,21 +39,29 @@ definition, so changing the step once changes it for every package.
 
 ### Requirement: Profiles select the heavy checks
 
-The steps `test`, `build` and `commitlint` SHALL run in the `ci` profile only, and `docs:build` SHALL run in the `full`
-profile only. The default `check` plan and the `pre-commit` plan SHALL contain none of them. The `pre-commit` and `fix`
+The package `test` steps, the workspace `build`, the root script tests and `commitlint` SHALL run in the `ci` profile
+only, and `docs:build` SHALL run in the `full` profile only. The default `check` plan and the `pre-commit` plan SHALL
+contain none of them. The package `test` steps SHALL depend on the workspace `build` step, and SHALL NOT depend on
+each other, so that they start when the build has finished and run concurrently. The `pre-commit` and `fix`
 hooks SHALL run only the per-package Biome steps. The `commit-msg` hook SHALL run commitlint on the message file.
 
 #### Scenario: Default check is quick
 
 - **WHEN** `hk check --all --plan` runs without a profile
 - **THEN** the plan selects the per-package Biome steps
-- **AND** does not select `test`, `build`, `commitlint` or `docs:build`
+- **AND** does not select a `test` step, `build`, `commitlint` or `docs:build`
 
 #### Scenario: CI profile
 
 - **WHEN** `hk check --all --profile ci --plan` runs
-- **THEN** the plan also selects `test`, `build` and `commitlint`
+- **THEN** the plan also selects the package `test` steps, `build`, the root script tests and `commitlint`
 - **AND** does not select `docs:build`
+
+#### Scenario: Tests wait for the build, not for each other
+
+- **WHEN** `hk check --all --profile ci` runs
+- **THEN** no package `test` step starts before `build` has finished
+- **AND** the package `test` steps run at the same time
 
 #### Scenario: Full profile
 
