@@ -84,6 +84,15 @@ const signal = (pid: number, name: NodeJS.Signals, group: boolean): void => {
   }
 };
 
+/** Sends `name` to `pid`, its process group, and each descendant. */
+export const signalProcessTree = (pid: number, name: NodeJS.Signals): void => {
+  const everyone = [pid, ...descendants(pid)];
+  signal(pid, name, true);
+  for (const target of everyone) {
+    signal(target, name, false);
+  }
+};
+
 /**
  * Ends a process with everything it started: SIGTERM to its process group and to each descendant, then SIGKILL to what is
  * still running after `graceMs`. Resolves when none of them is left.

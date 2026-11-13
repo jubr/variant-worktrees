@@ -31,6 +31,12 @@ const YELLOW = `${ESC}[33m`;
 /** Dark gray, the same code yq uses for a comment. */
 const COMMENT = `${ESC}[90m`;
 
+/** A `[watch]` comment introducing the last 50 log lines. The `#` clause uses the yq comment gray. */
+export const watchTailComment = (color: boolean): string => {
+  const comment = "# already running: reattached, showing last 50 lines";
+  return color ? `[watch] ${COMMENT}${comment}${RESET}` : `[watch] ${comment}`;
+};
+
 /** The key hint. Numbers use the HEAD color, the words use the Nest yellow, and the parenthetical is a comment. */
 const interactiveWatchLine = (color: boolean): string => {
   const key = (value: string): string => (color ? `${HEAD}${value}${RESET}` : value);
@@ -38,6 +44,9 @@ const interactiveWatchLine = (color: boolean): string => {
   const hint = "(press number + ⏎)";
   return `[watch] Interactive:   ${key("1")} ${word("restart")}   ${key("2")} ${word("detach")}   ${key("3")} ${word("quit")}   ${color ? `${COMMENT}${hint}${RESET}` : hint}`;
 };
+
+/** The interactive command line, colored when `color` is set. */
+export const watchCommandLine = (color: boolean): string => interactiveWatchLine(color);
 
 /** Launches the system browser for `url`. Rejects when the launcher cannot be started. */
 export const openInBrowser = (url: string): Promise<void> =>
@@ -74,6 +83,26 @@ const answers = async (url: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+/** `[watch] {name} URL 200 {url}` for every watch whose `ready` URL answers 200, in config order. */
+export const readyStatusLines = async (context: OperationContext, run: VariantRun): Promise<string[]> => {
+  const waiting = Object.entries(context.config.variant.watches).flatMap(([key, watch]) => {
+    if (watch.ready === undefined) {
+      return [];
+    }
+    const url = run.urls[key]
+      ? joinReady(run.urls[key], watch.ready)
+      : `http://127.0.0.1:${run.ports[key]}${watch.ready}`;
+    return [{ key, url }];
+  });
+  const lines: string[] = [];
+  for (const item of waiting) {
+    if (await answers(item.url)) {
+      lines.push(readyProbeLine(item.key, "200", item.url));
+    }
+  }
+  return lines;
 };
 
 /**

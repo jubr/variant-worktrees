@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, realpathSync, rmSync, writeFileSync, writeSync } from "node:fs";
+import { createServer, type Server } from "node:net";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -54,6 +55,8 @@ export interface LaunchResult {
   writeLog?: (text: string) => void;
   /** Waits until every captured stream has ended, then flushes the log. */
   close: () => Promise<void>;
+  /** Writes to every watch stdin. A later attach reaches this through the socket beside the log. */
+  writeStdin?: (text: string) => void;
 }
 
 /** A log file that accepts lines without delaying the console write that queued them. */
@@ -143,15 +146,22 @@ const relay = (
   stream.on("data", (chunk: string) => take(chunk));
   finished.push(
     new Promise((resolve) => {
-      stream.on("end", () => {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         if (buffer.length > 0) {
           const line = buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer;
           buffer = "";
           emit(line);
         }
         resolve();
-      });
-      stream.on("error", () => resolve());
+      };
+      stream.on("end", finish);
+      stream.on("close", finish);
+      stream.on("error", finish);
     }),
   );
 };
@@ -213,6 +223,7 @@ const ttySpawnArgs = (): string[] =>
 
 interface PtyTerminal {
   close: () => void;
+  write: (data: string) => number;
 }
 
 interface PtyRuntime {
@@ -283,6 +294,9 @@ const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProc
     (proc as { unref?: () => void }).unref?.();
     (stdout as { unref?: () => void }).unref?.();
     (stderr as { unref?: () => void }).unref?.();
+  };
+  (child as PtyChild & { writeStdin: (text: string) => void }).writeStdin = (text) => {
+    proc.terminal.write(text);
   };
   void proc.exited.then((code) => {
     openTerminals.delete(proc.terminal);
@@ -441,10 +455,40 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
     await log?.close();
     throw error;
   }
+  const writeStdin = (text: string): void => {
+    for (const { child } of processes) {
+      const pty = child as ChildProcess & { writeStdin?: (text: string) => void };
+      if (pty.writeStdin !== undefined) pty.writeStdin(text);
+      else child.stdin?.write(text);
+    }
+  };
+  const stdinPath = options.logPath === undefined ? undefined : join(dirname(options.logPath), "in.sock");
+  let stdinServer: Server | undefined;
+  if (stdinPath !== undefined) {
+    rmSync(stdinPath, { force: true });
+    stdinServer = createServer((socket) => {
+      socket.on("error", () => socket.destroy());
+      socket.on("data", (chunk: Buffer | string) => {
+        writeStdin(typeof chunk === "string" ? chunk : chunk.toString("utf8"));
+      });
+    });
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error): void => reject(error);
+      stdinServer?.once("error", onError);
+      stdinServer?.listen(stdinPath, () => {
+        stdinServer?.off("error", onError);
+        resolve();
+      });
+    });
+    stdinServer?.unref();
+  }
   return {
     processes,
     ...(log ? { writeLog: (text: string) => log.write(text) } : {}),
+    writeStdin,
     close: async () => {
+      stdinServer?.close();
+      if (stdinPath !== undefined) rmSync(stdinPath, { force: true });
       await Promise.all(finished);
       await log?.close();
     },
@@ -525,6 +569,7 @@ export const runWatchRelay = async (): Promise<void> => {
       launches: plan.launches,
       startDelayMs: plan.startDelayMs,
       logPath: plan.logPath,
+      holdStdin: true,
       ...(plan.args === undefined ? {} : { args: plan.args }),
       ...(plan.mise === undefined ? {} : { mise: plan.mise }),
     });
