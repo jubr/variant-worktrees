@@ -281,8 +281,8 @@ const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProc
   // AIDEV-NOTE: detach must drop this subprocess or the parent event loop never empties.
   (child as PtyChild & { release: () => void }).release = () => {
     (proc as { unref?: () => void }).unref?.();
-    stdout.unref();
-    stderr.unref();
+    (stdout as { unref?: () => void }).unref?.();
+    (stderr as { unref?: () => void }).unref?.();
   };
   void proc.exited.then((code) => {
     openTerminals.delete(proc.terminal);
