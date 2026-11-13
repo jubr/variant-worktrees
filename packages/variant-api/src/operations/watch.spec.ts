@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
+import { PassThrough } from "node:stream";
 import { loadConfig, readRuntime } from "variant-config";
 import { stringify as stringifyYaml } from "yaml";
 import { isProcessAlive } from "../runtime-state.js";
@@ -243,6 +244,62 @@ const orderLog = (directory: string): { who: string; at: number }[] =>
     .filter((line) => line !== "")
     .map((line) => ({ who: line.split(" ")[0] as string, at: Number(line.split(" ")[1]) }));
 
+/** Runs attached `watch` on a terminal. Does not force exit 0, so a stuck event loop stays a hang. */
+const shellWatch = async (
+  directory: string,
+  drive: (terminal: { write: (data: string) => void }, output: () => string) => Promise<void>,
+): Promise<number | "hang"> => {
+  const driver = `
+    import { loadConfig } from "variant-config";
+    import { watchVariant } from ${JSON.stringify(join(import.meta.dir, "watch.ts"))};
+    const directory = ${JSON.stringify(directory)};
+    const result = await watchVariant({
+      config: loadConfig({ cwd: directory }),
+      variantRoot: directory,
+      stateDir: ${JSON.stringify(join(directory, ".cache", "variants"))},
+      cwd: directory,
+      useWorktree: false,
+      adapter: {
+        dialect: "sqlite",
+        create: async (slug) => slug,
+        createSchema: async () => {},
+        matchingSchemas: async () => [],
+        dropSchema: async () => {},
+        destroy: async () => true,
+        list: async () => [],
+        target: (slug) => "v_" + slug,
+        close: async () => {},
+      },
+    }, "demo", { opener: () => {} });
+    if (result.exitCode !== 0) process.exit(result.exitCode);
+  `;
+  let text = "";
+  const proc = Bun.spawn(["bun", "-e", driver], {
+    cwd: join(import.meta.dir, "../.."),
+    env: process.env,
+    terminal: {
+      cols: 80,
+      rows: 24,
+      data(_terminal, data) {
+        text += new TextDecoder().decode(data);
+      },
+    },
+  });
+  try {
+    const deadline = Date.now() + 2000;
+    while (!text.includes("Interactive") && Date.now() < deadline) {
+      await sleep(25);
+    }
+    if (!text.includes("Interactive")) {
+      throw new Error(text === "" ? "no terminal output" : text);
+    }
+    await drive(proc.terminal, () => text);
+    return await Promise.race([proc.exited, sleep(2500).then(() => "hang" as const)]);
+  } finally {
+    proc.kill();
+  }
+};
+
 describe("watch starts host processes", () => {
   it("starts every watch with a watch command in order, waits between them and records the pids", () =>
     withProject(
@@ -399,6 +456,103 @@ describe("watch supervision", () => {
       },
       BASE.replace("overrides: { WHO: be,", "overrides: { DIE_AFTER: '600', WHO: be,"),
     ));
+
+  it("stops the watches and returns when the terminal sends 3", () =>
+    withProject(async ({ watch, started }) => {
+      const input = new PassThrough();
+      const done = watch({ input });
+      const be = await started("be");
+      await started("fe");
+      input.end("3\n");
+      const result = await done;
+
+      expect(result.exitCode).toBe(0);
+      expect(isProcessAlive(be)).toBe(false);
+    }));
+
+  it("leaves the watches running and returns when the terminal sends 2", () =>
+    withProject(async ({ watch, started }) => {
+      const input = new PassThrough();
+      const done = watch({ input });
+      const be = await started("be");
+      input.end("2\n");
+      const result = await done;
+
+      expect(result.exitCode).toBe(0);
+      expect(isProcessAlive(be)).toBe(true);
+    }));
+
+  it("returns the shell when a terminal sends 2 and leaves the watch running", () =>
+    withProject(async ({ directory }) => {
+      const exitCode = await shellWatch(directory, (terminal) => {
+        terminal.write("2\r");
+        return Promise.resolve();
+      });
+      const marker = join(directory, "be", "started-be.txt");
+      await until(() => existsSync(marker));
+      const be = Number(readFileSync(marker, "utf8"));
+      killAtEnd.push(be);
+
+      expect(exitCode).toBe(0);
+      expect(isProcessAlive(be)).toBe(true);
+    }));
+
+  it("returns the shell when a terminal sends 3 and stops the watch", () =>
+    withProject(async ({ directory }) => {
+      const exitCode = await shellWatch(directory, (terminal) => {
+        terminal.write("3\r");
+        return Promise.resolve();
+      });
+      const marker = join(directory, "be", "started-be.txt");
+      await until(() => existsSync(marker));
+      const be = Number(readFileSync(marker, "utf8"));
+      killAtEnd.push(be);
+
+      expect(exitCode).toBe(0);
+      expect(isProcessAlive(be)).toBe(false);
+    }));
+
+  it("accepts 3 after a restart", () =>
+    withProject(async ({ directory }) => {
+      const marker = join(directory, "be", "started-be.txt");
+      const exitCode = await shellWatch(directory, async (terminal, output) => {
+        await until(() => existsSync(marker));
+        const first = Number(readFileSync(marker, "utf8"));
+        const hints = () => output().split("Interactive").length - 1;
+        const before = hints();
+        terminal.write("1\r");
+        await until(() => {
+          if (!existsSync(marker)) return false;
+          const next = Number(readFileSync(marker, "utf8"));
+          return next !== first && isProcessAlive(next) && hints() > before;
+        });
+        killAtEnd.push(first);
+        terminal.write("3\r");
+      });
+      const be = Number(readFileSync(marker, "utf8"));
+      killAtEnd.push(be);
+
+      expect(exitCode).toBe(0);
+      expect(isProcessAlive(be)).toBe(false);
+    }));
+
+  it("replaces the watch processes when the terminal sends 1", () =>
+    withProject(async ({ watch, started, directory }) => {
+      const input = new PassThrough();
+      const abort = new AbortController();
+      const done = watch({ input, signal: abort.signal });
+      const be = await started("be");
+      input.write("1\n");
+      const marker = join(directory, "be", "started-be.txt");
+      await until(() => {
+        const next = Number(readFileSync(marker, "utf8"));
+        return next !== be && isProcessAlive(next);
+      });
+
+      expect(isProcessAlive(be)).toBe(false);
+      abort.abort();
+      expect((await done).exitCode).toBe(130);
+    }));
 
   it("drops the database target and ends with 1 when the worktree disappears", () =>
     withProject(

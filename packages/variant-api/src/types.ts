@@ -137,6 +137,8 @@ export interface WatchOptions extends UpOptions {
   signal?: AbortSignal;
   /** Called once the processes are running and their pids are known, before an attached watch waits. */
   onStarted?: (result: WatchResult) => void;
+  /** Interactive commands, one per line: `1` restart, `2` detach, `3` quit. A terminal supplies this. */
+  input?: NodeJS.ReadableStream;
 }
 
 /** What `deprovision` dropped or ran. */

@@ -16,7 +16,28 @@ export interface AnnounceOptions {
   signal?: AbortSignal;
   /** Appends the same ready line to the watch log. `up` leaves this unset. */
   record?: (line: string) => void;
+  /** Attached `watch` whose stderr is a terminal. Prints the key hint once every ready watch has returned 200. */
+  tty?: boolean;
+  /** Fires when the watches are up, after the hint when `tty` is set. */
+  onRunning?: () => void;
 }
+
+const ESC = "\u001b";
+const RESET = `${ESC}[0m`;
+/** Bold cyan, the same code git uses for `HEAD`. */
+const HEAD = `${ESC}[1;36m`;
+/** Yellow, the same code the Nest log text uses. */
+const YELLOW = `${ESC}[33m`;
+/** Dark gray, the same code yq uses for a comment. */
+const COMMENT = `${ESC}[90m`;
+
+/** The key hint. Numbers use the HEAD color, the words use the Nest yellow, and the parenthetical is a comment. */
+const interactiveWatchLine = (color: boolean): string => {
+  const key = (value: string): string => (color ? `${HEAD}${value}${RESET}` : value);
+  const word = (value: string): string => (color ? `${YELLOW}${value}${RESET}` : value);
+  const hint = "(press number + ⏎)";
+  return `[watch] Interactive:   ${key("1")} ${word("restart")}   ${key("2")} ${word("detach")}   ${key("3")} ${word("quit")}   ${color ? `${COMMENT}${hint}${RESET}` : hint}`;
+};
 
 /** Launches the system browser for `url`. Rejects when the launcher cannot be started. */
 export const openInBrowser = (url: string): Promise<void> =>
@@ -134,6 +155,10 @@ export const announce = async (
     );
     return false;
   }
+  if (options.tty === true) {
+    log(interactiveWatchLine(process.env.NO_COLOR === undefined));
+  }
+  options.onRunning?.();
   const opener = options.opener ?? openInBrowser;
   for (const url of Object.values(run.urls)) {
     if (context.config.variant.open) {

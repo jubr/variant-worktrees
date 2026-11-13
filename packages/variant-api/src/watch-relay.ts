@@ -31,6 +31,10 @@ export interface LaunchWatchesOptions {
   logPath?: string;
   /** Attached watches keep the caller's stdin. */
   inheritStdin?: boolean;
+  /** Keeps a pipe watch's stdin open without taking the caller's terminal. */
+  holdStdin?: boolean;
+  /** Appends to the log instead of replacing it. A restart uses this. */
+  appendLog?: boolean;
   /** `[key] command`, without a trailing newline. The relay also writes that line to the log. */
   onBanner?: (line: string) => void;
   /** Flags of this watch invocation, such as `--detach`. Empty when none were set. */
@@ -53,10 +57,11 @@ export interface LaunchResult {
 }
 
 /** A log file that accepts lines without delaying the console write that queued them. */
-const openLog = (path: string): { write: (text: string) => void; close: () => Promise<void> } => {
+const openLog = (path: string, append: boolean): { write: (text: string) => void; close: () => Promise<void> } => {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, "");
+  if (!append) writeFileSync(path, "");
   const stream = createWriteStream(path, { flags: "a" });
+  (stream as { unref?: () => void }).unref?.();
   // AIDEV-NOTE: a full file buffer queues lines in order and writes them on drain; the console write does not wait.
   const pending: string[] = [];
   let blocked = false;
@@ -273,6 +278,12 @@ const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProc
   child.stderr = stderr;
   child.exitCode = null;
   child.signalCode = null;
+  // AIDEV-NOTE: detach must drop this subprocess or the parent event loop never empties.
+  (child as PtyChild & { release: () => void }).release = () => {
+    (proc as { unref?: () => void }).unref?.();
+    stdout.unref();
+    stderr.unref();
+  };
   void proc.exited.then((code) => {
     openTerminals.delete(proc.terminal);
     proc.terminal.close();
@@ -307,12 +318,16 @@ const spawnOnHop = (launch: WatchLaunch, command: string, prefix: readonly strin
   return child;
 };
 
-const spawnPipes = (launch: WatchLaunch, inheritStdin: boolean | undefined): ChildProcess =>
+const spawnPipes = (
+  launch: WatchLaunch,
+  inheritStdin: boolean | undefined,
+  holdStdin: boolean | undefined,
+): ChildProcess =>
   spawn("sh", ["-c", launch.command], {
     cwd: launch.cwd,
     env: launch.env,
     detached: true,
-    stdio: [inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
+    stdio: [inheritStdin === true ? "inherit" : holdStdin === true ? "pipe" : "ignore", "pipe", "pipe"],
   });
 
 type Allocation =
@@ -349,6 +364,7 @@ const spawnAllocated = (
   launch: WatchLaunch,
   allocation: Allocation,
   inheritStdin: boolean | undefined,
+  holdStdin: boolean | undefined,
 ): { child: ChildProcess; stripEof: boolean; terminal: boolean } => {
   if (allocation.kind === "bun") {
     const runtime = ptyRuntime();
@@ -362,7 +378,7 @@ const spawnAllocated = (
   if (allocation.kind === "script") {
     return { child: spawnOnScript(launch), stripEof: true, terminal: true };
   }
-  return { child: spawnPipes(launch, inheritStdin), stripEof: false, terminal: false };
+  return { child: spawnPipes(launch, inheritStdin, holdStdin), stripEof: false, terminal: false };
 };
 
 /**
@@ -370,7 +386,7 @@ const spawnAllocated = (
  * Specification: openspec/specs/variant-api/runtime/spec.md
  */
 export const launchWatches = async (options: LaunchWatchesOptions): Promise<LaunchResult> => {
-  const log = options.logPath === undefined ? undefined : openLog(options.logPath);
+  const log = options.logPath === undefined ? undefined : openLog(options.logPath, options.appendLog === true);
   const processes: LaunchedWatch[] = [];
   const finished: Promise<void>[] = [];
   const allocations = options.launches.map((launch) =>
@@ -397,7 +413,7 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
       let stripEof = false;
       let terminal = false;
       try {
-        const spawned = spawnAllocated(launch, allocation, options.inheritStdin);
+        const spawned = spawnAllocated(launch, allocation, options.inheritStdin, options.holdStdin);
         child = spawned.child;
         stripEof = spawned.stripEof;
         terminal = spawned.terminal;
