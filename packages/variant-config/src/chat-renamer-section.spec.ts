@@ -70,11 +70,11 @@ describe("readChatRenamerConfig awake", () => {
     withDirectory((directory) => {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "chatRenamer:\n  awake:\n    when: never\n    cmd: caffeinate -disu -w ${extensionHostPid}\n    graceDelaySecs: 0\n",
+        "chatRenamer:\n  awake:\n    when: never\n    cmd: /usr/bin/caffeinate -disu -w ${extensionHostPid}\n    graceDelaySecs: 0\n",
       );
 
       expect(readChatRenamerConfig(directory)).toEqual({
-        awake: { when: "never", cmd: "caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
+        awake: { when: "never", cmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
       });
     }));
 });

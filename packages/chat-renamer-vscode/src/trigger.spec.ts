@@ -1417,7 +1417,7 @@ describe("trigger", () => {
         parentPid: 5151,
       }).ready;
 
-      expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
+      expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
     });
 
     it("stops caffeinate without a reload when awake.when becomes never", async () => {
@@ -1565,10 +1565,10 @@ describe("trigger", () => {
         expect(walks.some((path) => path.includes("agent-transcripts"))).toBe(false);
 
         emitStart({ sessionId: "sess-1", turnId: "turn-1" });
-        expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
+        expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
 
         emitEnd({ sessionId: "sess-1", turnId: "turn-1" });
-        expect(delays).toContain(60_000);
+        expect(delays).toContain(180_000);
 
         configure({ renameExistingDays: 0, "awake.when": "never" });
         for (const listener of configListeners) {

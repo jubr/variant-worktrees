@@ -31,7 +31,7 @@ describe("readSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
       enabled: true,
     });
@@ -99,18 +99,18 @@ describe("readSettings", () => {
     configure({});
     expect(readSettings("chat-renamer")).toMatchObject({
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
     });
 
     configure({}, {});
     expect(
       readSettings("chat-renamer", {
-        awake: { when: "never", cmd: "caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
+        awake: { when: "never", cmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
       }),
     ).toMatchObject({
       awakeWhen: "never",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 0,
     });
 

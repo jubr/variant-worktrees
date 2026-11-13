@@ -97,7 +97,7 @@ export const createAwakeController = ({
   };
   let disposed = false;
 
-  const oneArgv = (): readonly string[] => ["caffeinate", "-disu", "-w", String(parentPid)];
+  const oneArgv = (): readonly string[] => ["/usr/bin/caffeinate", "-disu", "-w", String(parentPid)];
 
   const isOneCommand = (cmd: string): boolean => {
     const argv = argvFor(cmd, parentPid);

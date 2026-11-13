@@ -84,7 +84,7 @@ describe("awake schemas", () => {
     expect(awakeWhenSchema.safeParse("chatsActive").success).toBe(true);
     expect(awakeWhenSchema.safeParse("never").success).toBe(true);
     expect(awakeWhenSchema.safeParse("always").success).toBe(false);
-    expect(awakeCmdSchema.safeParse("caffeinate -disu -w ${extensionHostPid}").success).toBe(true);
+    expect(awakeCmdSchema.safeParse("/usr/bin/caffeinate -disu -w ${extensionHostPid}").success).toBe(true);
     expect(awakeCmdSchema.safeParse("").success).toBe(false);
   });
 
@@ -107,7 +107,7 @@ describe("ChatRenamerConfigSchema", () => {
         worktreePrefixes: ["_v-"],
         renameExistingDays: 30,
         titleEventPromptLines: 20,
-        awake: { when: "never", cmd: "caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
+        awake: { when: "never", cmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
       }).success,
     ).toBe(true);
     expect(ChatRenamerConfigSchema.safeParse({ awake: {} }).success).toBe(true);

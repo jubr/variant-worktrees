@@ -139,8 +139,8 @@ describe("createAwakeController", () => {
     expect(infos(entries)).toEqual(['[awake] caffeinate available method="poll"']);
     controller.update(active());
 
-    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
-    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu -w 5151" pid=4242 reason="activity"');
+    expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
+    expect(debugs(entries).at(-1)).toBe('[awake] + "/usr/bin/caffeinate -disu -w 5151" pid=4242 reason="activity"');
     expect(traces(entries).some((line) => line.includes("caffeinate"))).toBe(false);
     expect(infos(entries)).toEqual(['[awake] caffeinate available method="poll"']);
 
@@ -152,13 +152,16 @@ describe("createAwakeController", () => {
   it("spawns only caffeinate -disu with the extension host pid", () => {
     const { controller, children, entries } = harness();
 
+    controller.update(active({ cmd: "caffeinate -disu -w ${extensionHostPid}" }));
+    expect(children).toHaveLength(0);
+
     controller.update(active({ cmd: "caffeinate -dis -w ${extensionHostPid}" }));
 
     expect(children).toHaveLength(0);
     expect(debugs(entries).some((line) => line.includes("caffeinate -dis "))).toBe(false);
 
     controller.update(active());
-    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
+    expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
   });
 
   it("keeps the process for the grace delay, logs that only at trace, then stops it", () => {
@@ -246,7 +249,7 @@ describe("createAwakeController", () => {
     expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="mode changed"');
 
     children[0]?.finish();
-    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
+    expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
   });
 
   it("starts a replacement when the process exits while a session is still active", () => {

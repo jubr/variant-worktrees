@@ -43,7 +43,7 @@ export const DEFAULT_AWAKE_WHEN: AwakeWhen = "chatsActive";
  * Command that holds the machine awake when `caffeinate` is detected.
  * `${extensionHostPid}` is replaced with the extension host pid at spawn.
  */
-export const DEFAULT_AWAKE_CMD = "caffeinate -disu -w ${extensionHostPid}";
+export const DEFAULT_AWAKE_CMD = "/usr/bin/caffeinate -disu -w ${extensionHostPid}";
 
 /** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
 export const DEFAULT_AWAKE_GRACE_DELAY_SECS = 180;

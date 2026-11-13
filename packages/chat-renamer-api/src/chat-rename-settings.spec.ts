@@ -22,7 +22,7 @@ describe("readTriggerSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
     });
   });
@@ -38,7 +38,7 @@ describe("readTriggerSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
     });
   });
@@ -52,7 +52,7 @@ describe("readTriggerSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
     });
   });
@@ -89,7 +89,7 @@ describe("readTriggerSettings", () => {
   it("defaults awake to chatsActive, the detected caffeinate command, and 180 seconds", () => {
     expect(readTriggerSettings(settings({}))).toMatchObject({
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
     });
   });
@@ -99,20 +99,20 @@ describe("readTriggerSettings", () => {
       readTriggerSettings(
         settings({
           "awake.when": "never",
-          "awake.cmd": "caffeinate -disu -w ${extensionHostPid}",
+          "awake.cmd": "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
           "awake.graceDelaySecs": 0,
         }),
       ),
     ).toMatchObject({
       awakeWhen: "never",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 0,
     });
     expect(
       readTriggerSettings(settings({ "awake.when": "always", "awake.cmd": "  ", "awake.graceDelaySecs": -1 })),
     ).toMatchObject({
       awakeWhen: "chatsActive",
-      awakeCmd: "caffeinate -disu -w ${extensionHostPid}",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
       graceDelaySecs: 180,
     });
   });

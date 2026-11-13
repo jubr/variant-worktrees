@@ -301,8 +301,8 @@
         },
         "variant.awake.cmd": {
           "type": "string",
-          "default": "caffeinate -disu -w ${extensionHostPid}",
-          "markdownDescription": "Command that holds this Mac awake. `${extensionHostPid}` is replaced with this extension host's pid. Default is the detected `caffeinate -disu -w ${extensionHostPid}`. Changing it applies without a reload."
+          "default": "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+          "markdownDescription": "Command that holds this Mac awake. `${extensionHostPid}` is replaced with this extension host's pid. Default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. Changing it applies without a reload."
         },
         "variant.awake.graceDelaySecs": {
           "type": "integer",
