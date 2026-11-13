@@ -55,6 +55,11 @@ export const fillDbOrigins = (
     if (origins[path] !== undefined) {
       continue;
     }
+    if (field === "dialect") {
+      const variable = detected.source === "env" ? dialectVariable(env) : undefined;
+      origins[path] = variable ? `# from env ${variable}` : "# default";
+      continue;
+    }
     const variable = detected.variables[field];
     if (variable) {
       origins[path] = `# from env ${variable}`;

@@ -85,6 +85,7 @@ describe("config origins", () => {
 
       expect(config.db.host).toBe("db.example");
       expect(configOrigins(config)["db.host"]).toBe("# from env POSTGRES_HOST");
+      expect(configOrigins(config)["db.dialect"]).toBe("# from env POSTGRES_HOST");
     }));
 
   it("names a ${POSTGRES_HOST} written in the file as # from env POSTGRES_HOST", () =>
