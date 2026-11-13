@@ -203,6 +203,7 @@ flags in `variant --help` and `variant <command> --help`.
 
 | Flag | Effect |
 | --- | --- |
+| `-C <path>` | Change directory before configuration is read |
 | `--json` | Print the result as JSON |
 | `--yaml` | Print the result as YAML |
 | `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn` |

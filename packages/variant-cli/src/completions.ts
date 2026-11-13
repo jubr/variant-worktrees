@@ -15,7 +15,8 @@ export const SHELLS = ["zsh", "bash", "fish"] as const;
 export type Shell = (typeof SHELLS)[number];
 
 export interface FlagModel {
-  long: string;
+  /** Absent for a short-only flag. A script must not invent a long name for it. */
+  long?: string;
   short?: string;
   description: string;
   takesValue: boolean;
@@ -50,6 +51,13 @@ export const completionsCommand: CommandModel = {
 const HELP: FlagModel = { long: "help", short: "h", description: "Show help", takesValue: false };
 const VERSION: FlagModel = { long: "version", description: "Show version", takesValue: false };
 
+/** `-C <path>` on every invocation, including `ui` and `completions`. It has no long name. */
+const DIRECTORY: FlagModel = {
+  short: "C",
+  description: "Change directory before reading configuration",
+  takesValue: true,
+};
+
 /** `variant ui`, which is CLI-only like `completions`. */
 const uiCommandModel: CommandModel = {
   name: "ui",
@@ -68,28 +76,34 @@ const outputFlags: FlagModel[] = [
   { long: LOG_LEVEL_FLAG.name, description: LOG_LEVEL_FLAG.description, takesValue: true },
 ];
 
-export const describeCli = (): CommandModel[] => [
-  ...commands.map(
-    (definition): CommandModel => ({
-      name: String(definition.name),
-      description: definition.description,
-      takesSlug: definition.args.some((arg) => arg.name === "slug"),
-      flags: [
-        ...flagSpecsFor(definition).map(
-          (flag): FlagModel => ({
-            long: flag.name.replaceAll(/\B([A-Z])/g, "-$1").toLowerCase(),
-            ...(flag.short ? { short: flag.short } : {}),
-            description: flag.description,
-            takesValue: flag.type !== "boolean",
-          }),
-        ),
-        ...outputFlags,
-      ],
-    }),
-  ),
-  uiCommandModel,
-  completionsCommand,
-];
+const withDirectory = (command: CommandModel): CommandModel => ({
+  ...command,
+  flags: [...command.flags, DIRECTORY],
+});
+
+export const describeCli = (): CommandModel[] =>
+  [
+    ...commands.map(
+      (definition): CommandModel => ({
+        name: String(definition.name),
+        description: definition.description,
+        takesSlug: definition.args.some((arg) => arg.name === "slug"),
+        flags: [
+          ...flagSpecsFor(definition).map(
+            (flag): FlagModel => ({
+              long: flag.name.replaceAll(/\B([A-Z])/g, "-$1").toLowerCase(),
+              ...(flag.short ? { short: flag.short } : {}),
+              description: flag.description,
+              takesValue: flag.type !== "boolean",
+            }),
+          ),
+          ...outputFlags,
+        ],
+      }),
+    ),
+    uiCommandModel,
+    completionsCommand,
+  ].map(withDirectory);
 
 /** A string as one single-quoted shell word (bash, zsh). */
 const quoteSh = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
@@ -104,7 +118,10 @@ const zshExplanation = (value: string): string => value.replace(/[\\[\]]/g, "\\$
 const zshDescribeName = (value: string): string => value.replaceAll(":", "\\:");
 
 const flagWords = (command: CommandModel): string[] => [
-  ...command.flags.flatMap((flag) => [`--${flag.long}`, ...(flag.short ? [`-${flag.short}`] : [])]),
+  ...command.flags.flatMap((flag) => [
+    ...(flag.long ? [`--${flag.long}`] : []),
+    ...(flag.short ? [`-${flag.short}`] : []),
+  ]),
   `--${HELP.long}`,
   `-${HELP.short}`,
 ];
@@ -294,7 +311,7 @@ const bash = (model: CommandModel[]): string => {
     "  done",
     '  if [[ -z "$cmd" ]]; then',
     '    if [[ "$cur" == -* ]]; then',
-    `      COMPREPLY=($(compgen -W ${quoteSh(`--${HELP.long} -${HELP.short} --${VERSION.long}`)} -- "$cur"))`,
+    `      COMPREPLY=($(compgen -W ${quoteSh(`--${HELP.long} -${HELP.short} --${VERSION.long} -${DIRECTORY.short}`)} -- "$cur"))`,
     "    else",
     `      COMPREPLY=($(compgen -W ${quoteSh(names)} -- "$cur"))`,
     "    fi",
@@ -325,6 +342,7 @@ const fish = (model: CommandModel[]): string => {
     "complete -c variant -f",
     `complete -c variant -n __fish_use_subcommand -l ${HELP.long} -s ${HELP.short} -d ${quoteFish(HELP.description)}`,
     `complete -c variant -n __fish_use_subcommand -l ${VERSION.long} -d ${quoteFish(VERSION.description)}`,
+    `complete -c variant -n __fish_use_subcommand -s ${DIRECTORY.short} -r -d ${quoteFish(DIRECTORY.description)}`,
   ];
   for (const command of model) {
     lines.push(
@@ -337,9 +355,10 @@ const fish = (model: CommandModel[]): string => {
     for (const flag of command.flags) {
       const values =
         flag === slugFlag ? ` -x -a ${quoteFish("(__variant_slug_candidates)")}` : flag.takesValue ? " -r" : "";
-      lines.push(
-        `complete -c variant -n ${scope}${flag.short ? ` -s ${flag.short}` : ""} -l ${flag.long}${values} -d ${quoteFish(flag.description)}`,
-      );
+      const names = [flag.short ? `-s ${flag.short}` : "", flag.long ? `-l ${flag.long}` : ""]
+        .filter(Boolean)
+        .join(" ");
+      lines.push(`complete -c variant -n ${scope} ${names}${values} -d ${quoteFish(flag.description)}`);
     }
     if (command.takesSlug) {
       lines.push(`complete -c variant -n ${scope} -a ${quoteFish("(__variant_slug_candidates)")}`);
@@ -354,12 +373,16 @@ const fish = (model: CommandModel[]): string => {
 
 const zshFlagSpec = (flag: FlagModel, slugFlag: FlagModel | undefined): string => {
   const explanation = `[${zshExplanation(flag.description)}]`;
-  const action = flag.takesValue ? `:${flag.long}:${flag === slugFlag ? "_variant_slugs" : "_nothing"}` : "";
-  if (!flag.short) {
-    return quoteSh(`--${flag.long}${flag.takesValue ? "=" : ""}${explanation}${action}`);
+  const long = flag.long;
+  if (!long) {
+    return flag.short ? quoteSh(`-${flag.short}${flag.takesValue ? "+" : ""}${explanation}`) : "";
   }
-  const exclusive = quoteSh(`(--${flag.long} -${flag.short})`);
-  const forms = `{--${flag.long}${flag.takesValue ? "=" : ""},-${flag.short}${flag.takesValue ? "+" : ""}}`;
+  const action = flag.takesValue ? `:${long}:${flag === slugFlag ? "_variant_slugs" : "_nothing"}` : "";
+  if (!flag.short) {
+    return quoteSh(`--${long}${flag.takesValue ? "=" : ""}${explanation}${action}`);
+  }
+  const exclusive = quoteSh(`(--${long} -${flag.short})`);
+  const forms = `{--${long}${flag.takesValue ? "=" : ""},-${flag.short}${flag.takesValue ? "+" : ""}}`;
   return `${exclusive}${forms}${quoteSh(`${explanation}${action}`)}`;
 };
 
@@ -397,6 +420,7 @@ const zsh = (model: CommandModel[]): string => {
     "  _arguments -C \\",
     `    ${zshHelpSpec} \\`,
     `    '(- *)--${VERSION.long}[${VERSION.description}]' \\`,
+    `    ${zshFlagSpec(DIRECTORY, undefined)} \\`,
     "    '1: :->command' \\",
     "    '*:: :->args' && ret=0",
     "  case $state in",

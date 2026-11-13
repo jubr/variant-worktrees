@@ -94,9 +94,13 @@ export const createActivityWatch = ({
 /** `caffeinate` on macOS. Missing file means the platform cannot run it. */
 export const caffeinateOnPath = (): boolean => existsSync("/usr/bin/caffeinate");
 
-/** Not detached, so dispose can signal the child. `-w` in `argv` exits it when the host dies. */
+/** Not detached, so dispose can signal the child. `argv[0]` is the program from `awake.cmd`. */
 export const spawnCaffeinate = (argv: readonly string[]): AwakeProcess => {
-  const child = spawn("caffeinate", [...argv], { stdio: "ignore" });
+  const [command, ...args] = argv;
+  if (!command) {
+    throw new Error("awake command is empty");
+  }
+  const child = spawn(command, args, { stdio: "ignore" });
   return {
     pid: child.pid ?? -1,
     kill: (signal = "SIGTERM") => child.kill(signal),

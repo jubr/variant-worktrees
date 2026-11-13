@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type AwakeProcess,
   activationPatternSources,
@@ -8,6 +8,7 @@ import {
   claimRenamer,
   compilePatterns,
   createAwakeController,
+  type Description,
   type FirstPrompt,
   type FirstPromptStoreProbe,
   handleChatRenameUri,
@@ -27,11 +28,16 @@ import {
 import * as vscode from "vscode";
 
 import { caffeinateOnPath, createActivityWatch, spawnCaffeinate } from "./awake-watch";
-import { readComposerActivity } from "./cursor/composer-activity";
 import { resolveChatRenameDeps } from "./cursor/cursor-host";
+import { readFocusedComposersActive } from "./cursor/focused-composers";
 import { orderedSelectedComposers } from "./cursor/selected-composers";
-import { newestSessionAgeMs, PROJECT_SESSION_FRESH_MS, projectSessionsDir } from "./cursor/session-activity";
 import { cursorStateDbPath } from "./cursor/state-db";
+import {
+  type AgentHostTurnWatcher,
+  RETRIEVAL_EXTENSION_ID,
+  retrievalDonor,
+  startTurnWatch,
+} from "./cursor/turn-watcher";
 import type { ExistingChatsRunner, ExistingChatsTrigger } from "./existing-chats";
 import { type HostSettings, readSettings } from "./settings";
 
@@ -114,64 +120,77 @@ export const startChatRenameTrigger = (
   const awake = claim.owned
     ? (() => {
         const settingsNow = () => readSettings(names.configSection, host.fileConfig);
+        const highVolumeCategories = (): readonly string[] => {
+          const value = vscode.workspace.getConfiguration(names.configSection).get("log.highVolumeCategories");
+          return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+        };
+        const schedule = (ms: number, run: () => void) => {
+          const timer = setTimeout(run, ms);
+          return { cancel: () => clearTimeout(timer) };
+        };
+        let publishActivity = (_poll?: boolean): void => {};
+        const listed = vscode.extensions?.getExtension(RETRIEVAL_EXTENSION_ID)?.packageJSON as Description | undefined;
+        const turns = startTurnWatch({
+          mine: context.extension.packageJSON as Description,
+          donor: retrievalDonor(listed),
+          create: () => {
+            const cursor = (
+              vscode as unknown as { cursor?: { createAgentHostTurnWatcher?: () => AgentHostTurnWatcher } }
+            ).cursor;
+            const create = cursor?.createAgentHostTurnWatcher;
+            if (typeof create !== "function") {
+              throw new Error("cursor.createAgentHostTurnWatcher is not available");
+            }
+            return create.call(cursor);
+          },
+          log,
+          highVolumeCategories,
+          onTurn: () => publishActivity(),
+        });
         const controller = createAwakeController({
           spawn: host.awakeSpawn ?? spawnCaffeinate,
           parentPid: host.parentPid ?? process.pid,
           caffeinateAvailable: host.caffeinateAvailable ?? caffeinateOnPath,
+          detection: turns.created ? "agentHost+poll" : "poll",
           log,
           now,
-          schedule: (ms, run) => {
-            const timer = setTimeout(run, ms);
-            return { cancel: () => clearTimeout(timer) };
-          },
+          schedule,
         });
+        publishActivity = (poll) => {
+          const settings = settingsNow();
+          if (settings.awakeWhen !== "chatsActive") {
+            turns.dispose();
+          } else if (poll !== undefined) {
+            turns.setPollActive(poll);
+          }
+          controller.update({
+            when: settings.awakeWhen,
+            cmd: settings.awakeCmd,
+            graceDelaySecs: settings.graceDelaySecs,
+            active: settings.awakeWhen === "chatsActive" && turns.active(),
+            owned: true,
+          });
+        };
+        const readFocused = async (): Promise<boolean> => {
+          const storageFsPath = context.storageUri?.fsPath;
+          if (storageFsPath === undefined) {
+            return false;
+          }
+          return readFocusedComposersActive(dbPath, join(dirname(storageFsPath), "state.vscdb"));
+        };
         const watch = createActivityWatch({
-          read:
-            host.readAwakeActivity ??
-            (async () => {
-              let openIds: string[] = [];
-              try {
-                const selected = await orderedSelectedComposers();
-                if (Array.isArray(selected)) {
-                  openIds = selected.filter((id): id is string => typeof id === "string");
-                }
-              } catch {
-                openIds = [];
-              }
-              const composerActive = await readComposerActivity(dbPath, openIds);
-              // AIDEV-NOTE: composer status drops mid-turn. A recent session file resets the grace timer.
-              const folders = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? [];
-              let sessionAgeMs: number | undefined;
-              for (const folder of folders) {
-                const age = newestSessionAgeMs(projectSessionsDir(folder));
-                if (age !== undefined && (sessionAgeMs === undefined || age < sessionAgeMs)) {
-                  sessionAgeMs = age;
-                }
-              }
-              const sessionActive = sessionAgeMs !== undefined && sessionAgeMs <= PROJECT_SESSION_FRESH_MS;
-              return composerActive || sessionActive;
-            }),
-          schedule: (ms, run) => {
-            const timer = setTimeout(run, ms);
-            return { cancel: () => clearTimeout(timer) };
-          },
+          read: host.readAwakeActivity ?? readFocused,
+          everyMs: 5000,
+          schedule,
           shouldPoll: () => settingsNow().awakeWhen === "chatsActive",
           trace: (message, fields) => log.child("awake").trace(message, fields),
-          onActive: (active) => {
-            const settings = settingsNow();
-            controller.update({
-              when: settings.awakeWhen,
-              what: settings.awakeWhat,
-              graceDelaySecs: settings.graceDelaySecs,
-              active,
-              owned: true,
-            });
-          },
+          onActive: (active) => publishActivity(active),
         });
         return {
           publish: (): Promise<void> => watch.sync().then(() => undefined),
           dispose: (): void => {
             watch.dispose();
+            turns.dispose();
             controller.dispose();
           },
         };

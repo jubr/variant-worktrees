@@ -66,7 +66,7 @@ describe("describeCli", () => {
     const from = byName("create").flags.find((flag) => flag.long === "from");
     expect(from).toMatchObject({ long: "from", takesValue: true });
     expect(from?.short).toBeUndefined();
-    expect(byName("create").flags.map((flag) => flag.long)).toEqual([
+    expect(byName("create").flags.flatMap((flag) => (flag.long ? [flag.long] : []))).toEqual([
       "slug",
       "from",
       "pull-ff",
@@ -81,14 +81,19 @@ describe("describeCli", () => {
   it("describes the flags of watch, implode and list, with the output flags last", () => {
     expect(byName("watch").flags.map((flag) => flag.long)).toContain("detach");
     expect(byName("implode").flags.map((flag) => flag.long)).toContain("force");
-    expect(byName("list").flags.map((flag) => flag.long)).toEqual(["verbose", "json", "yaml", "log-level"]);
+    expect(byName("list").flags.flatMap((flag) => (flag.long ? [flag.long] : []))).toEqual([
+      "verbose",
+      "json",
+      "yaml",
+      "log-level",
+    ]);
     expect(byName("list").flags.find((flag) => flag.long === "json")?.takesValue).toBe(false);
   });
 
   it("describes the flags of init: prefix takes a value, the steps and force are switches", () => {
     const flags = byName("init").flags;
 
-    expect(flags.map((flag) => flag.long)).toEqual([
+    expect(flags.flatMap((flag) => (flag.long ? [flag.long] : []))).toEqual([
       "prefix",
       "file",
       "gitignore",
@@ -104,7 +109,7 @@ describe("describeCli", () => {
   });
 
   it("describes ui with its two flags and no slug", () => {
-    expect(byName("ui").flags.map((flag) => flag.long)).toEqual(["detach", "stop"]);
+    expect(byName("ui").flags.flatMap((flag) => (flag.long ? [flag.long] : []))).toEqual(["detach", "stop"]);
     expect(byName("ui").takesSlug).toBe(false);
   });
 });

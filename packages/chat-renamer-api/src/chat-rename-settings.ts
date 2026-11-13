@@ -1,8 +1,7 @@
 import {
-  type AwakeWhat,
   type AwakeWhen,
+  DEFAULT_AWAKE_CMD,
   DEFAULT_AWAKE_GRACE_DELAY_SECS,
-  DEFAULT_AWAKE_WHAT,
   DEFAULT_AWAKE_WHEN,
   DEFAULT_HOOK_SCOPE,
   DEFAULT_RENAME_EXISTING_DAYS,
@@ -10,8 +9,8 @@ import {
   DEFAULT_TRIGGER,
   DEFAULT_WORKTREE_PREFIXES,
   type HookScope,
+  isAwakeCmd,
   isAwakeGraceDelaySecs,
-  isAwakeWhat,
   isAwakeWhen,
   isHookScope,
   isPromptLineLimit,
@@ -24,8 +23,8 @@ import { DEFAULT_ACTIVATION_PATTERNS } from "./chat-rename-patterns";
 
 /** The defaults live in chat-renamer-config, which owns the full set of options. */
 export {
+  DEFAULT_AWAKE_CMD,
   DEFAULT_AWAKE_GRACE_DELAY_SECS,
-  DEFAULT_AWAKE_WHAT,
   DEFAULT_AWAKE_WHEN,
   DEFAULT_RENAME_EXISTING_DAYS,
   DEFAULT_TITLE_EVENT_PROMPT_LINES,
@@ -47,8 +46,8 @@ export type TriggerSettings = {
   titleEventPromptLines: number;
   /** Hold the machine awake while a chat is active, or never. */
   awakeWhen: AwakeWhen;
-  /** `screen` runs `caffeinate -disu`. `cpu` runs `caffeinate -dis`. */
-  awakeWhat: AwakeWhat;
+  /** Command that holds the machine awake. `${extensionHostPid}` is this host's pid. */
+  awakeCmd: string;
   /** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
   graceDelaySecs: number;
 };
@@ -62,7 +61,7 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
   const trigger = get("trigger");
   const hookScope = get("hookScope");
   const awakeWhen = get("awake.when");
-  const awakeWhat = get("awake.what");
+  const awakeCmd = get("awake.cmd");
   const graceDelaySecs = get("awake.graceDelaySecs");
   return {
     trigger: isTrigger(trigger) ? trigger : DEFAULT_TRIGGER,
@@ -76,7 +75,7 @@ export const readTriggerSettings = (get: (key: string) => unknown): TriggerSetti
     renameExistingDays: isRenameExistingDays(days) ? days : DEFAULT_RENAME_EXISTING_DAYS,
     titleEventPromptLines: isPromptLineLimit(promptLines) ? promptLines : DEFAULT_TITLE_EVENT_PROMPT_LINES,
     awakeWhen: isAwakeWhen(awakeWhen) ? awakeWhen : DEFAULT_AWAKE_WHEN,
-    awakeWhat: isAwakeWhat(awakeWhat) ? awakeWhat : DEFAULT_AWAKE_WHAT,
+    awakeCmd: isAwakeCmd(awakeCmd) ? awakeCmd.trim() : DEFAULT_AWAKE_CMD,
     graceDelaySecs: isAwakeGraceDelaySecs(graceDelaySecs) ? graceDelaySecs : DEFAULT_AWAKE_GRACE_DELAY_SECS,
   };
 };

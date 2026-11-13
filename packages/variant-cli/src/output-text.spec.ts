@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { parse as parseYaml } from "yaml";
 import { formatDuration } from "./duration.js";
-import { renderOutput } from "./output.js";
+import { renderOutput, stdoutColor } from "./output.js";
 
 const text = (command: string, result: unknown): string =>
   renderOutput(command, result, { format: "text", variantRoot: "/work" });
@@ -293,5 +293,87 @@ describe("list text", () => {
 
     expect(JSON.parse(json)[0].schemas).toEqual(["v_demo-east", "v_demo-west", "v_demo-north"]);
     expect(parseYaml(yaml)[0].schemas).toEqual(["v_demo-east", "v_demo-west", "v_demo-north"]);
+  });
+});
+
+const ESC = "\u001b";
+const cyan = (value: string): string => `${ESC}[36m${value}${ESC}[0m`;
+const green = (value: string): string => `${ESC}[32m${value}${ESC}[0m`;
+const magenta = (value: string): string => `${ESC}[95m${value}${ESC}[0m`;
+const gray = (value: string): string => `${ESC}[90m${value}${ESC}[0m`;
+
+const coloredConfig = (): object => {
+  const value = {
+    name: "#tag",
+    count: 2,
+    open: true,
+    url: null,
+    tags: [] as unknown[],
+    extra: {},
+    items: [1],
+  };
+  Object.defineProperty(value, "origins", {
+    enumerable: false,
+    value: {
+      name: "# from ./variants.yaml",
+      count: "# default",
+      open: "# default",
+      url: "# autodetect connection",
+      tags: "# default",
+      extra: "# default",
+      items: "# default",
+      "items.0": "# default",
+    },
+  });
+  return value;
+};
+
+describe("config text color", () => {
+  const plain = [
+    'name: "#tag" # from ./variants.yaml',
+    "count: 2 # default",
+    "open: true # default",
+    "url: null # autodetect connection",
+    "tags: [] # default",
+    "extra: {} # default",
+    "items: # default",
+    "  - 1",
+  ].join("\n");
+
+  it("colors keys, strings, numbers, booleans, and comments the way yq does", () => {
+    const out = renderOutput("config", coloredConfig(), { format: "text", variantRoot: "/work", color: true });
+
+    expect(out).toBe(
+      [
+        `${cyan("name")}: ${green('"#tag"')} ${gray("# from ./variants.yaml")}`,
+        `${cyan("count")}: ${magenta("2")} ${gray("# default")}`,
+        `${cyan("open")}: ${magenta("true")} ${gray("# default")}`,
+        `${cyan("url")}: null ${gray("# autodetect connection")}`,
+        `${cyan("tags")}: [] ${gray("# default")}`,
+        `${cyan("extra")}: {} ${gray("# default")}`,
+        `${cyan("items")}: ${gray("# default")}`,
+        `  - ${magenta("1")}`,
+      ].join("\n"),
+    );
+  });
+
+  it("prints the same characters with no ESC when color is off", () => {
+    const out = renderOutput("config", coloredConfig(), { format: "text", variantRoot: "/work", color: false });
+
+    expect(out).toBe(plain);
+    expect(out).not.toContain(ESC);
+  });
+
+  it("leaves --json and --yaml uncolored", () => {
+    const options = { variantRoot: "/work", color: true } as const;
+    expect(renderOutput("config", coloredConfig(), { ...options, format: "json" })).not.toContain(ESC);
+    expect(renderOutput("config", coloredConfig(), { ...options, format: "yaml" })).not.toContain(ESC);
+  });
+
+  it("turns color on only for a terminal with NO_COLOR unset", () => {
+    expect(stdoutColor({ isTTY: true }, {})).toBe(true);
+    expect(stdoutColor({ isTTY: false }, {})).toBe(false);
+    expect(stdoutColor({ isTTY: true }, { NO_COLOR: "1" })).toBe(false);
+    expect(stdoutColor({ isTTY: true }, { NO_COLOR: "" })).toBe(false);
   });
 });

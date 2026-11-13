@@ -4,6 +4,10 @@
 
 ### Added
 
+- `-C <path>` changes directory before configuration is read. There is no long option.
+- Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds. The startup line names `agentHost+poll` or `poll`. `variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`.
+- `chatRenamer.awake.cmd` replaces `awake.what`. The default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`.
+- `awake.graceDelaySecs` defaults to `180`.
 - A focused file inside the main checkout or a variant worktree highlights that row in a visible Variant Worktrees tree and does not take editor focus.
 
 ### Changed
@@ -12,6 +16,7 @@
 - A `tty` watch allocates a terminal in process on Bun, then tries `mise exec -- bun`, `mise exec bun@latest -- bun`, `bun` on `PATH`, and `script`, and otherwise runs with pipes and a warning.
 - Omitted `--mise-install` stays `bg` on `create`. On `provision` and `watch` the omitted value is `sync`, so those commands wait for `mise install`. Pass `--mise-install=bg` to keep the background run.
 - An attached `watch` on a terminal prints `[watch] Interactive:   1 restart   2 detach   3 quit   (press number + ⏎)` once every ready watch has returned 200. The numbers are bold cyan, the words are yellow, and the parenthetical is dark gray. `1` restarts the processes and keeps listening, `2` leaves them running and returns the shell, and `3` stops them and returns the shell. The line is not written to the watch log.
+- `variant config` prints YAML with an origin comment on each value: `# from <path>` for the loaded file (relative to the working directory), `# from env NAME` for an environment variable, `# autodetect <reason>` or `# autodetect from <source>` for a discovered value, or `# default` for a built-in. A shared origin is commented on the parent only, including items of an array. A comment that only repeats its key is omitted, and `source` is not printed. On a terminal, with `NO_COLOR` unset, keys, strings, numbers, booleans, and comments use the same colors as yq. A pipe or any `NO_COLOR` value, including empty, keeps the comments and drops the color. `--json` and `--yaml` stay plain. A password is `***` in all three.
 
 ## [0.0.8] - 2026-11-11
 

@@ -8,12 +8,21 @@ import {
   detectConnection,
   detectOnboarding,
   detectVariantMain,
+  detectVariantPlace,
   detectVariantRoot,
   detectWatches,
   type EnvironmentProvider,
 } from "./autodetect.js";
 import { migrateLegacy } from "./legacy.js";
 import { readRuntimeState } from "./local.js";
+import {
+  applyTemplateOrigins,
+  configFileOrigin,
+  fillDbOrigins,
+  fillDefaultOrigins,
+  fillGapOrigins,
+  originsFromRaw,
+} from "./origins.js";
 import { type ParsedConfig, parseConfig } from "./parse.js";
 import {
   type DbConfig,
@@ -437,9 +446,47 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
       ),
     },
     source: {
-      enumerable: true,
+      enumerable: false,
       configurable: true,
       get: () => (config.db ? "config" : detected().source),
+    },
+    origins: {
+      enumerable: false,
+      configurable: true,
+      get: memoize(() => {
+        const origins = originsFromRaw(config, configFileOrigin(cwd, configPath));
+        applyTemplateOrigins(origins, config, environment());
+        fillDefaultOrigins(origins, variant.watches);
+        if (config.db?.dialect !== "sqlite") {
+          fillDbOrigins(origins, detected(), environment());
+        }
+        fillGapOrigins(origins, variant, "variant");
+        if (config.variant?.abbr === undefined) {
+          origins["variant.abbr"] = `# autodetect from "${basename(variant.main)}"`;
+        }
+        if (config.variant?.main === undefined) {
+          const via = detectVariantPlace(configDir).via;
+          if (via === "agents") {
+            origins["variant.main"] = "# autodetect from AGENTS.md";
+          } else if (via === "git") {
+            origins["variant.main"] = "# autodetect from `git rev-parse --git-common-dir`";
+          } else {
+            delete origins["variant.main"];
+          }
+        }
+        if (config.variant?.root === undefined) {
+          if (variant.root !== variant.main) {
+            origins["variant.root"] = "# autodetect from AGENTS.md";
+          } else {
+            delete origins["variant.root"];
+          }
+        }
+        fillGapOrigins(origins, configPath, "configPath");
+        fillGapOrigins(origins, configDir, "configDir");
+        fillGapOrigins(origins, resolved.warnings, "warnings");
+        fillGapOrigins(origins, resolved.migrations, "migrations");
+        return origins;
+      }),
     },
   });
   return resolved as ResolvedConfig;
@@ -519,6 +566,7 @@ export {
   multiSchemaName,
   parseMultiList,
 } from "./multi.js";
+export { configOrigins } from "./origins.js";
 export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {

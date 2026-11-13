@@ -28,6 +28,48 @@ const flagRow = (name: string, description: string): [FlagCell, FlagCell] => {
   ];
 };
 
+/** `-C <path>` with no long name. It is the first global flag. */
+const directoryRow = (): [FlagCell, FlagCell] => {
+  const data = {
+    name: "C",
+    flag: {
+      type: String,
+      description: "Change to <path> before reading configuration",
+      placeholder: "<path>",
+    },
+    flagFormatted: "-C",
+    aliasesEnabled: false,
+  };
+  return [
+    { type: "flagName", data },
+    { type: "flagDescription", data },
+  ];
+};
+
+interface Column {
+  paddingBottom?: number;
+}
+
+/** A copy of cleye's flag-table breakpoints with no blank line after a global flag row. */
+const withoutBottomPadding = (breakpoints: unknown): unknown => {
+  if (typeof breakpoints !== "object" || breakpoints === null) {
+    return breakpoints;
+  }
+  const zero = (columns: readonly Column[]): Column[] => columns.map((column) => ({ ...column, paddingBottom: 0 }));
+  return Object.fromEntries(
+    Object.entries(breakpoints).map(([name, value]) => {
+      if (Array.isArray(value)) {
+        return [name, zero(value as Column[])];
+      }
+      if (typeof value === "object" && value !== null && Array.isArray((value as { columns?: unknown }).columns)) {
+        const entry = value as { columns: Column[] };
+        return [name, { ...entry, columns: zero(entry.columns) }];
+      }
+      return [name, value];
+    }),
+  );
+};
+
 const isFlagsSection = (node: unknown): node is Section => (node as { id?: string }).id === "flags";
 
 const flagsSection = (nodes: readonly unknown[]): Section | undefined => nodes.find(isFlagsSection);
@@ -51,7 +93,9 @@ export const withGlobalFlags = <Node>(nodes: Node[]): Node[] => {
         ...(flags?.data.body ?? { type: "table" }),
         data: {
           ...(flags?.data.body.data ?? {}),
+          tableBreakpoints: withoutBottomPadding(flags?.data.body.data.tableBreakpoints),
           tableData: [
+            directoryRow(),
             ...GLOBAL_FLAGS.map(({ name, description }) => flagRow(name, description)),
             flagRow(LOG_LEVEL_FLAG.name, LOG_LEVEL_FLAG.description),
             ...builtIn,

@@ -67,3 +67,12 @@ export const logD = (message: string, fields?: LogFields): void => {
 export const logE = (message: string, fields?: LogFields): void => {
   log(LogLevel.error, message, fields);
 };
+
+const highVolumeCategories: string[] = [];
+
+export const registerHighVolumeCategory = (id: string): void => {
+  if (highVolumeCategories.includes(id)) return;
+  highVolumeCategories.push(id);
+};
+
+export const listHighVolumeCategories = (): readonly string[] => [...highVolumeCategories];

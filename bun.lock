@@ -19,6 +19,7 @@
       "version": "0.0.8",
       "dependencies": {
         "chat-renamer-config": "workspace:*",
+        "variant-log": "workspace:*",
       },
     },
     "packages/chat-renamer-config": {
