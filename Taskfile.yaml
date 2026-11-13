@@ -99,7 +99,7 @@ tasks:
       - bun scripts/package-vsix-unpacked.ts
 
   bleed:cli:
-    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant"
+    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4>"
     cmds:
       - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
       - task: build

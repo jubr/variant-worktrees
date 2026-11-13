@@ -8,6 +8,7 @@
 
 ### Changed
 
+- `task bleed:cli` writes `vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4>` and points `bin/variant` at that file. That version and slug keep the three newest binaries. Other versions and slugs stay. On `main` the file is `bin/variant-<version>`.
 - A `tty` watch allocates a terminal in process on Bun, then tries `mise exec -- bun`, `mise exec bun@latest -- bun`, `bun` on `PATH`, and `script`, and otherwise runs with pipes and a warning.
 
 ## [0.0.8] - 2026-11-11

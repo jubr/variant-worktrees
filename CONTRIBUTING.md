@@ -127,6 +127,11 @@ invocations — they are the single source of truth for how each tool runs.
 Some OpenSpec changes narrow or extend these commands. Treat the change's task
 list as the verification checklist for that work.
 
+A change that affects the `variant` command also runs `task bleed:cli`. That
+publishes the host executable to `vw-bleeds/variant-cli/bin/`. The last step is
+a minimal command in chat, with the command and its output, proving the bled
+binary does the new thing.
+
 ## Continuous integration
 
 GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
