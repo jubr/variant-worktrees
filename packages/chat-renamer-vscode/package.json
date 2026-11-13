@@ -1,6 +1,6 @@
 {
   "name": "chat-renamer",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Rename Cursor chats from the first prompt. Runs `caffeinate` to keep awake during agent activity.",
   "displayName": "Chat Renamer",
   "publisher": "jubr",

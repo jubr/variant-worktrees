@@ -1,6 +1,6 @@
 {
   "name": "variant-log",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Shared log events for variant packages",
   "type": "module",
   "main": "dist/index.js",

@@ -4,13 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## [0.0.9] - 2026-11-13
 
 ### Added
 
 - Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds. The startup line names `agentHost+poll` or `poll`. `variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`. The standalone key is `chat-renamer.log.highVolumeCategories`.
 - `chat-renamer.awake.cmd` replaces `awake.what`. The default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`.
 - `chat-renamer.awake.graceDelaySecs` defaults to `180`.
+
+### Release notes
+
+- feat(vscode): highlight the variant of the active file by @jubr in https://github.com/jubr/variant-worktrees/pull/62
+- feat(chat-renamer): follow turn events while awake by @jubr in https://github.com/jubr/variant-worktrees/pull/63
+- feat(variant-cli): change directory with -C before config is read by @jubr in https://github.com/jubr/variant-worktrees/pull/64
+- feat: comment where variant config values come from by @jubr in https://github.com/jubr/variant-worktrees/pull/65
+- feat: native tty watches with reattach and SIGINT quit by @jubr in https://github.com/jubr/variant-worktrees/pull/66
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.8...v0.0.9
 
 ## [0.0.8] - 2026-11-11
 
