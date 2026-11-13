@@ -56,7 +56,7 @@ Unless `--list-slugs` is given, `variant completions` SHALL fail when `<shell>` 
 
 ### Requirement: Completion coverage
 
-Every generated script SHALL complete the following for `variant`: each subcommand of the CLI, including `ui` and `completions` themselves; for each subcommand, its flags and their short aliases, including the global output flags `--json` and `--yaml` on the lifecycle subcommands; the global flags `--help` and `--version`; and the values `zsh`, `bash`, `fish` as the argument of `completions`. Where the shell supports completion descriptions (`zsh`, `fish`), each subcommand SHALL be offered with its description. The set of completed subcommands and flags SHALL be the set the CLI accepts, so a command or flag added to the CLI is completed without a separate update.
+Every generated script SHALL complete the following for `variant`: each subcommand of the CLI, including `ui` and `completions` themselves; for each subcommand, its flags and their short aliases, including the global output flags `--json` and `--yaml` on the lifecycle subcommands; the global flags `--help` and `--version`; the short option `-C` for `variant` and for every subcommand, including `ui` and `completions`; and the values `zsh`, `bash`, `fish` as the argument of `completions`. The scripts SHALL NOT offer `--chdir`. Where the shell supports completion descriptions (`zsh`, `fish`), each subcommand SHALL be offered with its description. The set of completed subcommands and flags SHALL be the set the CLI accepts, so a command or flag added to the CLI is completed without a separate update.
 
 #### Scenario: Subcommands completed
 
@@ -79,6 +79,12 @@ Every generated script SHALL complete the following for `variant`: each subcomma
 
 - **WHEN** the script for any supported shell is generated
 - **THEN** it offers `--help` and `--version` for `variant`
+
+#### Scenario: Directory option
+
+- **WHEN** the script for any supported shell is generated
+- **THEN** it offers `-C` for `variant`, for `list`, for `ui`, and for `completions`
+- **AND** it does not offer `--chdir`
 
 #### Scenario: Shell names after completions
 
