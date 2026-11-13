@@ -30,6 +30,17 @@ describe("loadConfig", () => {
     }
   });
 
+  it("keeps source readable and leaves it out of the printed keys", () => {
+    const directory = tempDirectory();
+    try {
+      const config = loadConfig({ cwd: directory, environment: () => ({}) });
+      expect(config.source).toBe("default");
+      expect(Object.keys(config)).not.toContain("source");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("uses a default SQLite file when no connection environment exists", () => {
     const directory = tempDirectory();
     try {

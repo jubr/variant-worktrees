@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { configOrigins, loadConfig } from "./index.js";
 
 /** Specification: openspec/specs/variant-config/core/spec.md */
@@ -39,6 +39,37 @@ describe("config origins", () => {
       expect(configOrigins(config)["variant.prefix"]).toBe("# from ../variants.yaml");
     }));
 
+  it("names an omitted abbr from the main directory name", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
+
+      const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+      expect(configOrigins(config)["variant.abbr"]).toBe(`# autodetect from "${basename(directory)}"`);
+    }));
+
+  it("does not comment runtime", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "variant: {}\n");
+      mkdirSync(join(directory, ".cache", "variant"), { recursive: true });
+      writeFileSync(join(directory, ".cache", "variant", "state.yaml"), "slug: demo\nmode: watch\n");
+
+      const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+      expect(config.runtime?.slug).toBe("demo");
+      expect(configOrigins(config).runtime).toBeUndefined();
+    }));
+
+  it("names a file array item as the file, not # default", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  implode:\n    preRm: [dist, node_modules]\n");
+
+      const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+      expect(configOrigins(config)["variant.implode.preRm.0"]).toBe("# from ./variants.yaml");
+      expect(configOrigins(config)["variant.implode.preRm.1"]).toBe("# from ./variants.yaml");
+    }));
+
   it("names an omitted prefix as # default", () =>
     withDirectory((directory) => {
       writeFileSync(join(directory, "variants.yaml"), "variant:\n  seed: ./seed.sh\n");
@@ -49,7 +80,18 @@ describe("config origins", () => {
       expect(configOrigins(config)["variant.prefix"]).toBe("# default");
     }));
 
-  it("names omitted main and root as autodetect", () =>
+  it("names main from git rev-parse when the common dir decides it", () =>
+    withDirectory((directory) => {
+      execFileSync("git", ["init"], { cwd: directory });
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
+
+      const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+      expect(config.variant.main).toBe(directory);
+      expect(configOrigins(config)["variant.main"]).toBe("# autodetect from `git rev-parse --git-common-dir`");
+    }));
+
+  it("leaves main and root uncommented when the path is only the config directory", () =>
     withDirectory((directory) => {
       writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
 
@@ -57,8 +99,8 @@ describe("config origins", () => {
 
       expect(config.variant.main).toBe(directory);
       expect(config.variant.root).toBe(directory);
-      expect(configOrigins(config)["variant.main"]).toBe("# autodetect main");
-      expect(configOrigins(config)["variant.root"]).toBe("# autodetect root");
+      expect(configOrigins(config)["variant.main"]).toBeUndefined();
+      expect(configOrigins(config)["variant.root"]).toBeUndefined();
     }));
 
   it("names a discovered Vite watch as # autodetect watch", () =>
@@ -182,6 +224,6 @@ describe("config origins", () => {
       };
       walk(config, "");
 
-      expect(missing).toEqual([]);
+      expect(missing).toEqual(["variant.main", "variant.root"]);
     }));
 });

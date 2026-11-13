@@ -65,15 +65,17 @@ const gitCommonRoot = (startDir: string): string | undefined => {
   }
 };
 
+export type VariantMainVia = "agents" | "git" | "config";
+
 /**
- * The main tree the worktrees are made from: the directory of the real file behind a parent `AGENTS.md` symlink,
+ * The main tree the worktrees are made from, and which signal found it: a parent `AGENTS.md` symlink,
  * else the git carrying directory, else `configDir`.
  */
-export const detectVariantMain = (configDir: string): string => {
+export const detectVariantPlace = (configDir: string): { main: string; via: VariantMainVia } => {
   const parentAgents = join(dirname(resolve(configDir)), "AGENTS.md");
   try {
     if (lstatSync(parentAgents).isSymbolicLink()) {
-      return dirname(realpathSync(parentAgents));
+      return { main: dirname(realpathSync(parentAgents)), via: "agents" };
     }
   } catch {
     // Continue with git metadata fallback.
@@ -83,12 +85,15 @@ export const detectVariantMain = (configDir: string): string => {
   if (commonRoot) {
     const realAgents = join(commonRoot, "AGENTS.md");
     if (existsSync(realAgents)) {
-      return dirname(resolve(realAgents));
+      return { main: dirname(resolve(realAgents)), via: "git" };
     }
-    return realpathSync(commonRoot);
+    return { main: realpathSync(commonRoot), via: "git" };
   }
-  return realpathSync(resolve(configDir));
+  return { main: realpathSync(resolve(configDir)), via: "config" };
 };
+
+/** The main tree the worktrees are made from. */
+export const detectVariantMain = (configDir: string): string => detectVariantPlace(configDir).main;
 
 const realpathOrResolve = (path: string): string => {
   try {

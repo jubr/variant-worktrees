@@ -8,6 +8,7 @@ import {
   detectConnection,
   detectOnboarding,
   detectVariantMain,
+  detectVariantPlace,
   detectVariantRoot,
   detectWatches,
   type EnvironmentProvider,
@@ -445,7 +446,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
       ),
     },
     source: {
-      enumerable: true,
+      enumerable: false,
       configurable: true,
       get: () => (config.db ? "config" : detected().source),
     },
@@ -460,16 +461,30 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
           fillDbOrigins(origins, detected(), environment());
         }
         fillGapOrigins(origins, variant, "variant");
+        if (config.variant?.abbr === undefined) {
+          origins["variant.abbr"] = `# autodetect from "${basename(variant.main)}"`;
+        }
+        if (config.variant?.main === undefined) {
+          const via = detectVariantPlace(configDir).via;
+          if (via === "agents") {
+            origins["variant.main"] = "# autodetect from AGENTS.md";
+          } else if (via === "git") {
+            origins["variant.main"] = "# autodetect from `git rev-parse --git-common-dir`";
+          } else {
+            delete origins["variant.main"];
+          }
+        }
+        if (config.variant?.root === undefined) {
+          if (variant.root !== variant.main) {
+            origins["variant.root"] = "# autodetect from AGENTS.md";
+          } else {
+            delete origins["variant.root"];
+          }
+        }
         fillGapOrigins(origins, configPath, "configPath");
         fillGapOrigins(origins, configDir, "configDir");
         fillGapOrigins(origins, resolved.warnings, "warnings");
         fillGapOrigins(origins, resolved.migrations, "migrations");
-        if (runtime) {
-          fillGapOrigins(origins, runtime, "runtime");
-        }
-        if (origins.source === undefined) {
-          origins.source = "# autodetect connection";
-        }
         return origins;
       }),
     },

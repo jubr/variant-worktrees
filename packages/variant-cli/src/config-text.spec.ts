@@ -102,6 +102,21 @@ describe("config text origins", () => {
       expect(line(result.stdout, "host")).toContain("# from env POSTGRES_HOST");
     }));
 
+  it("keeps a file list under the file comment and leaves a default sibling marked", () =>
+    withProject(
+      "variant:\n  implode:\n    preRm: [dist, node_modules, .cache, out]\n    discard: [bun.lock]\n",
+      async (directory) => {
+        const result = await config(directory, ["config"]);
+        const items = result.stdout.split("\n").filter((item) => item.trimStart().startsWith("- "));
+
+        expect(result.exitCode).toBe(0);
+        expect(items.some((item) => item.includes("#"))).toBe(false);
+        expect(commentCovers(result.stdout, "preRm", "# from ./variants.yaml")).toBe(true);
+        expect(line(result.stdout, "requireMerged")).toContain("# default");
+        expect(line(result.stdout, "maxDiffLines")).toContain("# default");
+      },
+    ));
+
   it("comments a main-file prefix on variant and leaves the prefix line bare", () =>
     withProject("variant:\n  prefix: _work-\n", async (directory) => {
       const result = await config(directory, ["config"]);
@@ -171,17 +186,19 @@ describe("config text origins", () => {
       expect(hasOrigin(line(result.stdout, "kind"))).toBe(false);
     }));
 
-  it("comments omitted main and root, and --json still has both paths", () =>
+  it("prints omitted main and root with no repeated autodetect comment, and --json still has both paths", () =>
     withProject("variant: {}\n", async (directory) => {
       const text = await config(directory, ["config"]);
       const json = await config(directory, ["config", "--json"]);
 
       expect(text.exitCode).toBe(0);
-      expect(line(text.stdout, "main")).toContain("# autodetect main");
-      expect(line(text.stdout, "root")).toContain("# autodetect root");
-      const parsed = JSON.parse(json.stdout) as { variant: { main: string; root: string } };
+      expect(line(text.stdout, "main")).not.toContain("# autodetect main");
+      expect(line(text.stdout, "root")).not.toContain("# autodetect root");
+      expect(json.stdout).not.toContain('"source"');
+      const parsed = JSON.parse(json.stdout) as { variant: { main: string; root: string }; source?: string };
       expect(parsed.variant.main).toBe(directory);
       expect(parsed.variant.root).toBe(directory);
+      expect(parsed.source).toBeUndefined();
     }));
 
   it("comments a ${POSTGRES_HOST} in the file as # from env POSTGRES_HOST", () =>

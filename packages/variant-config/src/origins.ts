@@ -160,9 +160,6 @@ const gapOrigin = (path: string): string => {
   if (path === "migrations" || path.startsWith("migrations.")) {
     return "# autodetect config";
   }
-  if (path === "runtime" || path.startsWith("runtime.")) {
-    return "# autodetect runtime";
-  }
   if (path === "source" || path === "db" || path.startsWith("db.")) {
     return "# autodetect connection";
   }
@@ -197,6 +194,12 @@ export const originsFromRaw = (raw: unknown, origin: string): Record<string, str
   const walk = (value: unknown, path: string): void => {
     if (path !== "") {
       origins[path] = origin;
+    }
+    if (Array.isArray(value)) {
+      for (const [index, child] of value.entries()) {
+        walk(child, `${path}.${index}`);
+      }
+      return;
     }
     if (!isRecord(value)) {
       return;
