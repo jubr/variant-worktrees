@@ -151,3 +151,22 @@ When the CLI finishes and the log sink is attached, including when the command f
 - **WHEN** the threshold is `warn`, a listener is accepting connections, and an info event is emitted
 - **THEN** standard error does not contain that event's message
 - **AND** the listener receives a `log` request for that info event
+
+### Requirement: Lifecycle invocation
+
+When the CLI runs a lifecycle command and the arguments do not include `--help` or `-h`, it SHALL emit one `info` event with no step. The message SHALL be the command name and the arguments typed after it, joined by single spaces. The lifecycle commands are `create`, `list`, `provision`, `up`, `down`, `watch`, and `implode`. `config` SHALL NOT emit this event. A command outside that set SHALL NOT emit it. `--help` and `-h` SHALL NOT emit it.
+
+#### Scenario: Flags stay as typed
+
+- **WHEN** a user runs `variant create --from abc --pull-ff=no`
+- **THEN** one info event has no step and the message `create --from abc --pull-ff=no`
+
+#### Scenario: Config is not an invocation
+
+- **WHEN** a user runs `variant config --verbose`
+- **THEN** no info event has a message that starts with `config`
+
+#### Scenario: Help is not an invocation
+
+- **WHEN** a user runs `variant watch --help`
+- **THEN** no info event has the message `watch --help`

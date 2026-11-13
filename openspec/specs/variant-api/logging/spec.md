@@ -84,10 +84,10 @@ When the selected directory matches, the library SHALL emit that event at `trace
 - **THEN** the event is `trace`, the step is `provision`, the slug is `test-feature`, and the message names the schema
 - **AND** no info event is emitted for that schema creation
 
-#### Scenario: Same line outside the known directories stays info
+#### Scenario: Same line outside the known directories stays debug
 
 - **WHEN** provisioning variant `demo` whose project directory is `/work/demo` logs schema creation
-- **THEN** the event is `info`
+- **THEN** the event is `debug`
 
 #### Scenario: User and process temporary directories match
 
@@ -130,8 +130,9 @@ A shell command on the log stream SHALL use the message `+"<command>"`: a plus, 
 
 #### Scenario: Mise
 
-- **WHEN** `mise trust --all` and `mise install` are logged for step `watch`
+- **WHEN** `mise trust --all` and `mise install` are logged for step `watch` and the project directory is not a known temporary directory
 - **THEN** the messages are `+"mise trust --all"` and `+"mise install"`
+- **AND** both events are `debug`
 - **AND** neither message contains `cmd=`
 
 #### Scenario: Schema line stays plain

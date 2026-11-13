@@ -169,14 +169,14 @@ export const runProvisioning = async (
         if (run.multi) {
           for (const tenant of run.multi.tenants()) {
             const schema = multiSchemaName(run.multi.prefix, run.slug, tenant);
-            log(levelForDirectory(LogLevel.info, run.projectDir), `create schema ${schema}`, {
+            log(levelForDirectory(LogLevel.debug, run.projectDir), `create schema ${schema}`, {
               slug: run.slug,
               step: name,
             });
             await context.adapter.createSchema(schema);
           }
         } else {
-          log(levelForDirectory(LogLevel.info, run.projectDir), `create schema ${context.adapter.target(run.slug)}`, {
+          log(levelForDirectory(LogLevel.debug, run.projectDir), `create schema ${context.adapter.target(run.slug)}`, {
             slug: run.slug,
             step: name,
           });

@@ -12,6 +12,7 @@
 
 ### Changed
 
+- `+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug. A lifecycle command logs one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`. `config` does not.
 - `task bleed:cli` writes `vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4>` and points `bin/variant` at that file. That version and slug keep the three newest binaries. Other versions and slugs stay. On `main` the file is `bin/variant-<version>`.
 - A `tty` watch allocates a terminal in process on Bun, then tries `mise exec -- bun`, `mise exec bun@latest -- bun`, `bun` on `PATH`, and `script`, and otherwise runs with pipes and a warning.
 - Omitted `--mise-install` stays `bg` on `create`. On `provision` and `watch` the omitted value is `sync`, so those commands wait for `mise install`. Pass `--mise-install=bg` to keep the background run.

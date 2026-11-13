@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { cli, command } from "cleye";
 import {
   createVariantClient,
+  LogLevel,
   listSlugs,
+  log,
   platformToken,
   renderVersion,
   repositoryUrl,
@@ -13,7 +15,7 @@ import {
   versionColor,
   type WatchResult,
 } from "variant-api";
-import { type CommandDefinition, commands } from "variant-api/commands";
+import { type CommandDefinition, commands, LIFECYCLE_COMMANDS } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
 import { takeDirectory } from "./chdir.js";
 import { collectArgs } from "./cli-args.js";
@@ -165,6 +167,12 @@ if (process.argv.includes("--internal-watch-relay")) {
         }),
       );
     } else {
+      if (!args.includes("--help") && !args.includes("-h")) {
+        const name = args.find((arg) => !arg.startsWith("-"));
+        if (name !== undefined && name !== "config" && LIFECYCLE_COMMANDS.has(name)) {
+          log(LogLevel.info, args.slice(args.indexOf(name)).join(" "));
+        }
+      }
       await cli(
         {
           name: "variant",

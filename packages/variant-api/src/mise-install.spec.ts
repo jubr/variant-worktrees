@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
@@ -92,6 +93,38 @@ describe("create installs Mise tools", () => {
       expect(stderr.indexOf("MISE_TRUST")).toBeGreaterThan(-1);
       expect(stderr.indexOf("MISE_TRUST")).toBeLessThan(stderr.indexOf("MISE_INSTALL"));
     } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("logs each mise command at debug outside /tmp, quoted, with step create and the slug", async () => {
+    const parent = realpathSync(mkdtempSync(join(homedir(), "variant-mise-log-")));
+    const repo = join(parent, "repo");
+    const events: LogEvent[] = [];
+    try {
+      initRepo(repo);
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      git(repo, "add", "mise.toml");
+      git(repo, "commit", "-q", "-m", "mise");
+      const mise = stubMise(parent, "exit 0");
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
+      const client = createVariantClient({
+        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        miseBinPath: mise.binary,
+      });
+      setLogSink((event) => events.push(event));
+
+      await client.create("add-auth", { miseInstall: "sync" });
+
+      expect(parent.startsWith("/tmp/") || parent.startsWith("/private/tmp/")).toBe(false);
+      expect(events.filter((event) => event.message.startsWith("+"))).toEqual([
+        { level: "debug", message: '+"mise trust --all"', step: "create", slug: "add-auth" },
+        { level: "debug", message: '+"mise install"', step: "create", slug: "add-auth" },
+      ]);
+    } finally {
+      setLogSink(undefined);
       rmSync(parent, { recursive: true, force: true });
     }
   });

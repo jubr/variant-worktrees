@@ -45,7 +45,7 @@ const writeOutput = (output: string): void => {
 
 const announceMise = (action: string, command: string, slug: string, directory: string): void => {
   log(
-    levelForDirectory(LogLevel.info, directory),
+    levelForDirectory(LogLevel.debug, directory),
     commandMessage(command),
     slug === "" ? { step: action } : { step: action, slug },
   );
