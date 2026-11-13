@@ -113,9 +113,9 @@ describe("command line arguments", () => {
 
     expect(seen).toEqual([
       ["create", "demo", { from: "abc123", miseInstall: "bg" }],
-      ["provision", "demo", { from: "abc123", miseInstall: "bg" }],
+      ["provision", "demo", { from: "abc123", miseInstall: "sync" }],
       ["up", "demo", { from: "abc123" }],
-      ["watch", "demo", { from: "abc123", miseInstall: "bg" }],
+      ["watch", "demo", { from: "abc123", miseInstall: "sync" }],
     ]);
   });
 

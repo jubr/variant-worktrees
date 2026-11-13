@@ -162,7 +162,7 @@ The tools `variant_create`, `variant_provision`, `variant_up`, and `variant_watc
 
 ### Requirement: miseInstall on create, provision, and watch
 
-The tools `variant_create`, `variant_provision`, and `variant_watch` SHALL accept an optional string `miseInstall` whose only values are `bg`, `sync`, and `no`. When `miseInstall` is omitted, the tool SHALL run as `bg` as the core capability specifies. When the value is `no`, the tool SHALL NOT run Mise. A value other than those three SHALL be rejected and SHALL NOT create a worktree. No other variant tool SHALL accept `miseInstall`.
+The tools `variant_create`, `variant_provision`, and `variant_watch` SHALL accept an optional string `miseInstall` whose only values are `bg`, `sync`, and `no`. When `miseInstall` is omitted, `variant_create` SHALL run as `bg` and `variant_provision` and `variant_watch` SHALL run as `sync`, as the core capability specifies. When the value is `no`, the tool SHALL NOT run Mise. A value other than those three SHALL be rejected and SHALL NOT create a worktree. No other variant tool SHALL accept `miseInstall`.
 
 #### Scenario: Omitted means background
 

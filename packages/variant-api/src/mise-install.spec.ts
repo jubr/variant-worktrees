@@ -417,6 +417,62 @@ describe("create installs Mise tools", () => {
     }
   });
 
+  it("waits on an omitted watch until install exits", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mise-watch-omit-")));
+    const repo = join(parent, "repo");
+    const marker = join(parent, "finished");
+    try {
+      initRepo(repo);
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      git(repo, "add", "mise.toml");
+      git(repo, "commit", "-q", "-m", "mise");
+      const mise = stubMise(parent, `case "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0`);
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
+      const client = createVariantClient({
+        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        miseBinPath: mise.binary,
+      });
+
+      const stderr = await captureStderr(() => client.watch("add-auth", { detach: true }));
+
+      expect(existsSync(marker)).toBe(true);
+      expect(stderr).not.toContain("started in the background");
+      expect(mise.calls()[0]).toContain("trust --all");
+      expect(mise.calls()[1]).toContain("install");
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("returns from a background watch while install is still running", async () => {
+    const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mise-watch-bg-")));
+    const repo = join(parent, "repo");
+    const marker = join(parent, "finished");
+    try {
+      initRepo(repo);
+      writeFileSync(join(repo, "mise.toml"), "[tools]\n");
+      git(repo, "add", "mise.toml");
+      git(repo, "commit", "-q", "-m", "mise");
+      const mise = stubMise(parent, `case "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0`);
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
+      const client = createVariantClient({
+        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+        miseBinPath: mise.binary,
+      });
+
+      const stderr = await captureStderr(() => client.watch("add-auth", { detach: true, miseInstall: "bg" }));
+
+      expect(existsSync(marker)).toBe(false);
+      expect(stderr).toContain("mise install started in the background");
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
   it("runs trust and install from watch when asked to sync", async () => {
     const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mise-watch-")));
     const repo = join(parent, "repo");

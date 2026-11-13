@@ -53,7 +53,13 @@ export const createVariant = async (
 ): Promise<VariantRecord> => {
   const command = options?.command ?? "create";
   const installs = command === "create" || command === "provision" || command === "watch";
-  const mode = installs ? parseMiseInstall(options?.miseInstall) : "no";
+  const mode = !installs
+    ? "no"
+    : options?.miseInstall === undefined
+      ? command === "create"
+        ? "bg"
+        : "sync"
+      : parseMiseInstall(options.miseInstall);
   await context.adapter.assertReachable?.();
   const slug = resolveSlug(requestedSlug, context.cwd, context.config.variant.branchPrefixes, context.config.variant);
   const existing = readState(context.stateDir, slug);

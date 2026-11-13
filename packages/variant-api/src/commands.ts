@@ -68,13 +68,16 @@ const pullFfOf = (args: Record<string, unknown>): { pullFf?: boolean } =>
 const miseInstallArg: ArgDefinition = {
   name: "miseInstall",
   description:
-    "Install Mise tools in the worktree: bg, sync, or no. Omit to install in the background when the worktree has a Mise config",
+    "Install Mise tools in the worktree: bg, sync, or no. Omit on create to install in the background. Omit on provision and watch to wait",
   type: "string",
   required: false,
 };
 
-const miseInstallOf = (args: Record<string, unknown>): { miseInstall: "bg" | "sync" | "no" } => {
-  const value = args.miseInstall ?? "bg";
+const miseInstallOf = (
+  command: "create" | "provision" | "watch",
+  args: Record<string, unknown>,
+): { miseInstall: "bg" | "sync" | "no" } => {
+  const value = args.miseInstall ?? (command === "create" ? "bg" : "sync");
   if (value !== "bg" && value !== "sync" && value !== "no") {
     throw new Error(`miseInstall must be bg, sync, or no, not ${String(value)}`);
   }
@@ -126,7 +129,7 @@ export const commands: CommandDefinition[] = [
     description: "Create or refresh a database variant",
     args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
     execute: (client, args) =>
-      client.create(slugString(args), { ...fromOf(args), ...pullFfOf(args), ...miseInstallOf(args) }),
+      client.create(slugString(args), { ...fromOf(args), ...pullFfOf(args), ...miseInstallOf("create", args) }),
   },
   {
     name: "list",
@@ -149,7 +152,7 @@ export const commands: CommandDefinition[] = [
         ...verbose(args),
         ...fromOf(args),
         ...pullFfOf(args),
-        ...miseInstallOf(args),
+        ...miseInstallOf("provision", args),
       }),
   },
   {
@@ -197,7 +200,7 @@ export const commands: CommandDefinition[] = [
         ...verbose(args),
         ...fromOf(args),
         ...pullFfOf(args),
-        ...miseInstallOf(args),
+        ...miseInstallOf("watch", args),
         ...(args.detach === undefined ? {} : { detach: args.detach === true }),
         ...(args.reprovision === undefined ? {} : { reprovision: args.reprovision === true }),
         ...(typeof args.onStarted === "function" ? { onStarted: args.onStarted as (result: WatchResult) => void } : {}),

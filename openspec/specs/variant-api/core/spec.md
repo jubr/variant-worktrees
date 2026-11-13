@@ -516,7 +516,7 @@ When `pullFf` is set and the operation creates a new variant branch, the system 
 
 ### Requirement: Create installs Mise tools
 
-`create`, `provision`, and `watch` SHALL accept `miseInstall` of `bg`, `sync`, or `no`. When the value is omitted on those calls, it SHALL mean `bg`. `up` SHALL NOT accept `miseInstall` and SHALL NOT run this install. When the value is anything else, the call SHALL fail before it creates a worktree.
+`create`, `provision`, and `watch` SHALL accept `miseInstall` of `bg`, `sync`, or `no`. When the value is omitted on `create`, it SHALL mean `bg`. When the value is omitted on `provision` or `watch`, it SHALL mean `sync`. `up` SHALL NOT accept `miseInstall` and SHALL NOT run this install. When the value is anything else, the call SHALL fail before it creates a worktree.
 
 `bg` and `sync` SHALL run only when the worktree contains a Mise config: `mise.toml`, `.mise.toml`, `.config/mise/config.toml`, `mise/config.toml`, or `.tool-versions`, in that worktree and not in a parent directory. When none of those files is present, the call SHALL NOT run Mise and SHALL NOT fail because Mise is absent. `no` SHALL NOT run Mise.
 
@@ -589,6 +589,12 @@ When the slug resolves to `main`, or the call produces no worktree, it SHALL NOT
 
 - **WHEN** `create("add-auth")` creates a worktree that contains `mise.toml` and `miseInstall` is omitted
 - **THEN** the call returns while `install` is still running
+
+#### Scenario: Omitted provision and watch wait
+
+- **WHEN** `provision("add-auth")` or `watch("add-auth")` creates a worktree that contains `mise.toml` and `miseInstall` is omitted
+- **THEN** the call returns only after `install` has exited
+- **AND** standard error does not say the install started in the background
 
 #### Scenario: Omitted create skips a worktree with no Mise config
 
