@@ -40,6 +40,43 @@ const expectVersionOutput = (stdout: string, token: string, version: string): vo
 };
 
 describe("variant CLI", () => {
+  it("logs a lifecycle command and the arguments typed after it at info", async () => {
+    const result = await runCli(["list", "-v", "--log-level=info"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toContain("[info] list -v\n");
+  });
+
+  it("does not log config", async () => {
+    const result = await runCli(["config", "--verbose", "--log-level=info"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).not.toContain("[info] config");
+  });
+
+  it("does not log a lifecycle command when the user asks for help", async () => {
+    const result = await runCli(["watch", "--help", "--log-level=info"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).not.toContain("[info] watch");
+  });
+
+  it("logs a lifecycle command with the flags as they were typed", async () => {
+    const directory = mkdtempSync(join("/tmp", "variant-cli-log-"));
+    const configPath = join(directory, "variants.yaml");
+    writeFileSync(configPath, "db:\n  dialect: sqlite\n");
+    try {
+      const result = await runCli(["create", "--from", "abc", "--pull-ff=no", "--log-level=info"], {
+        VARIANT_CONFIG: configPath,
+        VARIANT_WORKTREE: "0",
+      });
+
+      expect(result.stderr).toContain("[info] create --from abc --pull-ff=no\n");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("lists lifecycle commands in help", async () => {
     const result = await runCli(["--help"]);
     expect(result.exitCode).toBe(0);

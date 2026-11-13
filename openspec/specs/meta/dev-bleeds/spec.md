@@ -43,28 +43,29 @@ Publish a local extension, CLI, and MCP server into one directory beside the che
 
 ### Requirement: CLI bleed
 
-`task bleed:cli` SHALL build the `variant` executable for the host platform and place it at `vw-bleeds/variant-cli/bin/variant`, executable. That directory SHALL be the install root `mise link github:jubr/variant-worktrees@bleed` accepts. The task SHALL NOT run `mise link` or any other Mise command. When the destination already holds files the new package does not contain, `vw-bleeds/variant-cli` SHALL hold exactly `bin/variant`. A failed compile SHALL leave the previous destination in place.
+`task bleed:cli` SHALL build the `variant` executable for the host platform and place it at `vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4>`, executable. `<version>` is the `variant-cli` package version. `<slug>-<n>-<hash4>` is the checkout variant printed by `variant --version`. On `main` the file is `bin/variant-<version>`. The task SHALL replace `vw-bleeds/variant-cli/bin/variant` with a symlink to that file. Of the files named `variant-<version>-<slug>-*`, only the three newest SHALL remain. Binaries for another version or slug SHALL stay. The task SHALL NOT run `mise link` or any other Mise command. A failed compile SHALL leave the directory unchanged.
 
 #### Scenario: Host executable
 
-- **WHEN** `task bleed:cli` succeeds on the host
-- **THEN** `vw-bleeds/variant-cli/bin/variant` exists and is executable
-- **AND** no versioned `variant-<version>-<os>-<arch>` name is required inside `vw-bleeds/variant-cli`
+- **WHEN** `task bleed:cli` succeeds on a feature checkout
+- **THEN** `vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4>` exists and is executable
+- **AND** `vw-bleeds/variant-cli/bin/variant` is a symlink to that file
 
 #### Scenario: Mise is not invoked
 
 - **WHEN** `task bleed:cli` runs
 - **THEN** it does not execute `mise`
 
-#### Scenario: Stale CLI files replaced
+#### Scenario: Other versions stay
 
-- **WHEN** `vw-bleeds/variant-cli` already holds a file other than `bin/variant`
-- **THEN** after a successful task that file is gone
+- **WHEN** `vw-bleeds/variant-cli/bin` already holds a versioned binary from another checkout
+- **THEN** after a successful task that binary is still there
+- **AND** `bin/variant` points at the binary just written
 
 #### Scenario: Failed compile keeps the previous executable
 
-- **WHEN** compiling the CLI fails and `vw-bleeds/variant-cli/bin/variant` already exists
-- **THEN** the task exits non-zero and that executable is unchanged
+- **WHEN** compiling the CLI fails and `vw-bleeds/variant-cli` already holds a binary
+- **THEN** the task exits non-zero and that directory is unchanged
 
 ### Requirement: MCP bleed
 

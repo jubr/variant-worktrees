@@ -127,9 +127,9 @@ describe("command registry", () => {
     await definition("down").execute(client, { slug: "demo" });
 
     expect(calls).toEqual([
-      ["watch", "demo", { detach: true, miseInstall: "bg" }],
+      ["watch", "demo", { detach: true, miseInstall: "sync" }],
       ["implode", "demo", { force: true }],
-      ["provision", "demo", { miseInstall: "bg", verbose: true }],
+      ["provision", "demo", { miseInstall: "sync", verbose: true }],
       ["up", "demo", { verbose: true }],
       ["down", "demo"],
     ]);

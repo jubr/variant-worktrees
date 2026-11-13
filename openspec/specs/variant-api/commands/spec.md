@@ -334,7 +334,7 @@ A command argument that selects from a closed set of tokens SHALL be a choice of
 
 ### Requirement: Mise install flag
 
-The commands `create`, `provision`, and `watch` SHALL accept an optional string `miseInstall` whose only values are `bg`, `sync`, and `no`. No other command SHALL take `miseInstall`. The CLI, the MCP server, and the webview forms SHALL derive the flag, tool input, and field from that definition. The CLI flag SHALL be `--mise-install` and SHALL have no short flag. When the flag is omitted, the parsed arguments SHALL NOT include `miseInstall`, and the command SHALL run as `bg` as the core capability specifies. A value other than `bg`, `sync`, or `no` SHALL be rejected and SHALL NOT create a worktree.
+The commands `create`, `provision`, and `watch` SHALL accept an optional string `miseInstall` whose only values are `bg`, `sync`, and `no`. No other command SHALL take `miseInstall`. The CLI, the MCP server, and the webview forms SHALL derive the flag, tool input, and field from that definition. The CLI flag SHALL be `--mise-install` and SHALL have no short flag. When the flag is omitted, the parsed arguments SHALL NOT include `miseInstall`. An omitted `create` SHALL run as `bg`, and an omitted `provision` or `watch` SHALL run as `sync`, as the core capability specifies. A value other than `bg`, `sync`, or `no` SHALL be rejected and SHALL NOT create a worktree.
 
 #### Scenario: Sync value
 
@@ -356,6 +356,11 @@ The commands `create`, `provision`, and `watch` SHALL accept an optional string 
 - **WHEN** a user runs `variant create --slug demo` in a worktree that contains `mise.toml` and `install` sleeps
 - **THEN** the parsed arguments do not include `miseInstall`
 - **AND** the command returns while `install` is still running
+
+#### Scenario: Omitted provision and watch wait
+
+- **WHEN** a user runs `variant provision --slug demo` or `variant watch --slug demo` and omits `--mise-install`
+- **THEN** `execute()` receives `miseInstall` of `sync` for that command
 
 #### Scenario: No skips install
 

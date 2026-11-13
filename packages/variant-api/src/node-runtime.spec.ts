@@ -5,11 +5,25 @@
  */
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const dist = join(import.meta.dir, "../dist");
+/**
+ * `bunfig.toml` sets `[run] bun = true`, so `bun run` puts bun on `PATH` as `node`.
+ * The Node install from Mise is the process these tests mean by Node.
+ */
+const hostNode = execFileSync("mise", ["which", "node"], { encoding: "utf8" }).trim();
 const entries = {
   index: pathToFileURL(join(dist, "index.js")).href,
   commands: pathToFileURL(join(dist, "commands.js")).href,
@@ -154,4 +168,237 @@ describe("variant-api on Node and Bun", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+});
+
+const writeExecutable = (path: string, body: string): void => {
+  writeFileSync(path, body);
+  chmodSync(path, 0o755);
+};
+
+interface NodeTtyProbe {
+  /** Exit status of the `mise exec -- bun` probe. */
+  project: number;
+  /** Exit status of the `mise exec bun@latest -- bun` probe. */
+  latest: number;
+  /** Exit status of the `bun` on `PATH` probe. */
+  pathBun: number;
+  /** `script` on `PATH` runs the real program. Absent means `script` is not on `PATH`. */
+  script: boolean;
+}
+
+/** A Node process, stub allocators, and one attached `tty` watch. The call log is every stub invocation. */
+const watchTtyOnNode = async (
+  probe: NodeTtyProbe,
+): Promise<{ stdout: string; stderr: string; log: string; calls: string; exitCode: number }> => {
+  const directory = realpathSync(mkdtempSync(join("/tmp", "variant-node-tty-")));
+  const bin = join(directory, "bin");
+  const calls = join(directory, "calls");
+  mkdirSync(bin);
+  writeFileSync(calls, "");
+  writeFileSync(
+    join(directory, "probe.js"),
+    [
+      "const tty = process.stdout.isTTY === true;",
+      'console.log(tty ? "tty" : "pipe");',
+      'console.log(tty ? "\\u001b[32mgreen\\u001b[0m" : "plain");',
+      'process.stderr.write("oops\\n");',
+      "process.stdin.resume();",
+      'process.stdin.on("end", () => { if (tty) { console.log("stdin-end"); process.exit(0); } });',
+      "setInterval(() => {}, 1000);",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(directory, "variants.yaml"),
+    [
+      "db:",
+      "  dialect: sqlite",
+      "variant:",
+      "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 1, checkoutPollSeconds: 0 }",
+      "  watches:",
+      "    fe:",
+      "      dir: .",
+      `      watch: ${JSON.stringify(`${hostNode} probe.js`)}`,
+      "      output: { mode: tty }",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(directory, "drive.mjs"),
+    [
+      'import { readFileSync } from "node:fs";',
+      'import { setTimeout as delay } from "node:timers/promises";',
+      "const { createVariantClient, setLogSink } = await import(process.env.API);",
+      'if (typeof globalThis.Bun === "function" || typeof globalThis.Bun === "object") {',
+      '  console.error("driver is " + process.execPath + " and it has Bun");',
+      "  process.exit(2);",
+      "}",
+      "const warns = [];",
+      'setLogSink((event) => { if (event.level === "warn") warns.push(event.message); });',
+      "const abort = new AbortController();",
+      "let pid = 0;",
+      "const client = createVariantClient({",
+      "  cwd: process.env.PROJECT,",
+      '  configPath: process.env.PROJECT + "/variants.yaml",',
+      "  worktree: false,",
+      "  miseBinPath: process.env.MISE,",
+      "});",
+      'const done = client.watch("main", {',
+      '  outputMode: "tty",',
+      "  signal: abort.signal,",
+      "  log() {},",
+      "  onStarted(result) { pid = result.processes[0]?.pid ?? 0; },",
+      "});",
+      'const logPath = process.env.PROJECT + "/.cache/variant/watch.log";',
+      "let seen = false;",
+      "for (let i = 0; i < 80; i++) {",
+      "  try {",
+      '    const text = readFileSync(logPath, "utf8");',
+      '    if (text.includes("[fe] tty") || text.includes("[fe] pipe")) { seen = true; break; }',
+      "  } catch {}",
+      "  await delay(100);",
+      "}",
+      "let alive = false;",
+      "try { process.kill(pid, 0); alive = true; } catch {}",
+      'console.log("ALIVE " + alive);',
+      'console.log("WARNS " + JSON.stringify(warns));',
+      "abort.abort();",
+      "await done;",
+      'if (!seen) { console.error("watch log never showed [fe]"); process.exitCode = 1; }',
+      "",
+    ].join("\n"),
+  );
+  const mise = join(bin, "mise");
+  writeExecutable(
+    mise,
+    [
+      "#!/bin/sh",
+      'printf "%s\\n" "$*" >> "$CALLS"',
+      '[ "$1" = "-C" ] && exit 0',
+      'relay=""',
+      'prev=""',
+      'for arg in "$@"; do',
+      '  [ "$arg" = "--internal-pty" ] && relay="$prev"',
+      '  prev="$arg"',
+      "done",
+      'if [ -n "$relay" ]; then exec "$REAL_BUN" "$relay" --internal-pty; fi',
+      'case "$*" in',
+      '  *bun@latest*) exit "$MISE_LATEST" ;;',
+      "esac",
+      'exit "$MISE_PROJECT"',
+      "",
+    ].join("\n"),
+  );
+  writeExecutable(
+    join(bin, "bun"),
+    [
+      "#!/bin/sh",
+      'printf "%s\\n" "bun $*" >> "$CALLS"',
+      '[ "$2" = "--internal-pty" ] && exec "$REAL_BUN" "$@"',
+      'exit "$BUN_PROBE"',
+      "",
+    ].join("\n"),
+  );
+  if (probe.script) {
+    writeExecutable(
+      join(bin, "script"),
+      ["#!/bin/sh", 'printf "%s\\n" "script $*" >> "$CALLS"', 'exec /usr/bin/script "$@"', ""].join("\n"),
+    );
+  }
+  if (!probe.script) {
+    // AIDEV-NOTE: Ubuntu ships `script` in `/bin`. A PATH of `bin:/bin` would still allocate a terminal.
+    symlinkSync("/bin/sh", join(bin, "sh"));
+  }
+  const path = probe.script ? `${bin}:${process.env.PATH ?? ""}` : bin;
+  try {
+    const proc = Bun.spawn([hostNode, join(directory, "drive.mjs")], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        ...process.env,
+        PATH: path,
+        REAL_BUN: process.execPath,
+        CALLS: calls,
+        MISE_PROJECT: String(probe.project),
+        MISE_LATEST: String(probe.latest),
+        BUN_PROBE: String(probe.pathBun),
+        API: entries.index,
+        PROJECT: directory,
+        MISE: mise,
+        VARIANT_WORKTREE: "0",
+      },
+    });
+    const [exitCode, stdout, stderr] = await Promise.all([
+      proc.exited,
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    let log = "";
+    try {
+      log = readFileSync(join(directory, ".cache/variant/watch.log"), "utf8");
+    } catch {
+      throw new Error(`no watch log\nexit ${exitCode}\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+    }
+    return { stdout, stderr, log, calls: readFileSync(calls, "utf8"), exitCode };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
+describe("tty allocators on Node", () => {
+  it("uses mise exec -- bun and skips later allocators", async () => {
+    const result = await watchTtyOnNode({ project: 0, latest: 0, pathBun: 0, script: true });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("[fe] tty");
+    expect(result.log).toContain("[fe] tty");
+    expect(result.log).toContain("\u001b[32mgreen");
+    expect(result.calls).toContain("--internal-pty");
+    expect(result.calls).not.toContain("bun@latest");
+    expect(result.calls.split("\n").some((line) => line.startsWith("bun "))).toBe(false);
+    expect(result.calls.split("\n").some((line) => line.startsWith("script "))).toBe(false);
+  }, 20000);
+
+  it("uses mise exec bun@latest when the project bun fails", async () => {
+    const result = await watchTtyOnNode({ project: 1, latest: 0, pathBun: 0, script: true });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("[fe] tty");
+    expect(result.calls).toContain("bun@latest");
+    expect(result.calls).toContain("--internal-pty");
+    expect(result.calls.split("\n").some((line) => line.startsWith("bun "))).toBe(false);
+    expect(result.calls.split("\n").some((line) => line.startsWith("script "))).toBe(false);
+  }, 20000);
+
+  it("uses bun on PATH when both mise probes fail", async () => {
+    const result = await watchTtyOnNode({ project: 1, latest: 1, pathBun: 0, script: true });
+    const lines = result.calls.split("\n");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("[fe] tty");
+    expect(lines.some((line) => line.startsWith("bun ") && line.includes("--internal-pty"))).toBe(true);
+    expect(lines.some((line) => line.includes("--internal-pty") && !line.startsWith("bun "))).toBe(false);
+    expect(lines.some((line) => line.startsWith("script "))).toBe(false);
+  }, 20000);
+
+  it("uses script when mise and path bun fail", async () => {
+    const result = await watchTtyOnNode({ project: 1, latest: 1, pathBun: 1, script: true });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("[fe] tty");
+    expect(result.log).toContain("[fe] tty");
+    expect(result.log).toContain("\u001b[32mgreen");
+    expect(result.stdout).not.toContain("\u0004");
+    expect(result.log).not.toContain("\u0004");
+    expect(result.log).not.toContain("stdin-end");
+    expect(result.stdout).toContain("ALIVE true");
+    expect(result.calls.split("\n").some((line) => line.startsWith("script "))).toBe(true);
+    expect(result.calls.split("\n").some((line) => line.includes("--internal-pty"))).toBe(false);
+  }, 20000);
+
+  it("warns and uses pipes when no allocator works", async () => {
+    const result = await watchTtyOnNode({ project: 1, latest: 1, pathBun: 1, script: false });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("[fe] pipe");
+    expect(result.stdout).toContain("ALIVE true");
+    expect(result.stdout).toContain('WARNS ["fe terminal was not allocated"]');
+    expect(result.log).toContain("fe terminal was not allocated");
+    expect(result.log).not.toContain("mode=tty");
+  }, 20000);
 });

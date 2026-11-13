@@ -61,7 +61,7 @@ Configured at [variants.yaml](variants.yaml).
 
 - `variant create -s $slug [--from {branch}] [--pull-ff] [--mise-install=bg|sync|no]` creates the feature worktree and its state. Omit `--from` to start at `variant.baseBranch`. `--pull-ff` fast-forwards that start branch before a new variant branch is created. `--mise-install` defaults to `bg`: when the worktree has a Mise config, `create` runs `mise trust --all` and `mise install` in the background. Schema creation is `provision`.
 - `variant provision` creates the schema and runs install, env, up, and seed. Creates the worktree when it is missing.
-- `variant watch [--detach] [--reprovision]` runs the watches on the host when UI or tests need them. Creates and provisions when those are missing. `--reprovision` drops the schemas before provisioning again.
+- `variant watch [--detach] [--reprovision] [--mise-install=bg|sync|no]` runs the watches on the host when UI or tests need them. Creates and provisions when those are missing. `--reprovision` drops the schemas before provisioning again. Omit `--mise-install` and the install waits; `create` is the command that still installs in the background.
 - `variant down` stops the watches and containers and leaves schemas, data, and the worktree.
 - `variant deprovision` stops the watches and drops that slug's schemas. The worktree stays.
 - `variant implode [--force] [--branch-rm=yes|no]` deprovisions, drops storage, and removes the worktree when the branch is merged, then removes the local branch. `--branch-rm=no` keeps it. The default is `yes`. `--force` only when the user explicitly allows it.

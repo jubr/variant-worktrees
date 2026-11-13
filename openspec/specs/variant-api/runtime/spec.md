@@ -121,12 +121,27 @@ The system SHALL start the `watch` command of every watch as a process in the wa
 
 ### Requirement: Watch supervision
 
-The system SHALL keep an attached `watch` running until it is interrupted, a watch process ends, or the worktree directory disappears. On SIGINT or SIGTERM it SHALL terminate every watch process together with its descendants, remove the process ids from the runtime state, and end with exit status 130. When one watch process ends it SHALL terminate the others and end with exit status 1. When the worktree directory disappears (checked every `supervise.checkoutPollSeconds`) it SHALL terminate the processes, drop the variant's database target unless it is the main target, clear the runtime state and end with exit status 1. When `watch` is given the `detach` option it SHALL start the processes detached from the console, write the runtime state, and return without waiting, readiness checks or opening URLs.
+The system SHALL keep an attached `watch` running until it is interrupted, a watch process ends, or the worktree directory disappears. On SIGINT or SIGTERM before a line `3`, including Ctrl+C from a terminal whose key reader is in raw mode, it SHALL terminate every watch process together with its descendants, remove the process ids from the runtime state, and end with exit status 130. When one watch process ends before a line `3`, it SHALL terminate the others and end with exit status 1. After a line `3`, a watch process ending SHALL leave the others running, and the call SHALL end with exit status 0 once none remain. When the worktree directory disappears (checked every `supervise.checkoutPollSeconds`) it SHALL terminate the processes, drop the variant's database target unless it is the main target, clear the runtime state and end with exit status 1. When `watch` is given the `detach` option it SHALL start the processes detached from the console, write the runtime state, and return without waiting, readiness checks or opening URLs. When every watch command already has a live process, `watch` SHALL leave those processes running and return their process ids. It SHALL then write `[watch] # already running: reattached, showing last 50 lines` (the `#` clause in comment gray when color is on), the last 50 lines of `.cache/variant/watch.log`, `[watch] {name} URL 200 {url}` for each ready watch that answers 200, and the interactive command line. With `detach` it SHALL then return. Without `detach` it SHALL then follow lines appended to that log and SHALL read `1`, `2`, and `3` as the first run does. A line `2` SHALL return with exit status 0 and leave the processes running. A line `3` SHALL send SIGINT to the recorded processes and wait. The call SHALL end with exit status 0 once they have exited. A Ctrl+C less than 1 second after that SIGINT SHALL be ignored. A Ctrl+C at least 1 second later SHALL send SIGTERM and end with exit status 0. A line `1` SHALL stop them and start them again under this call. Any other line SHALL be written to the stdin of each running watch. An interrupt of that follow SHALL end with exit status 130 and SHALL NOT stop those processes. A recorded process that has exited SHALL still be replaced. On a terminal, a line `3` SHALL send SIGINT to every watch process and its descendants and then wait. The process SHALL exit with status 0 once every watch process has exited. A Ctrl+C less than 1 second after that SIGINT SHALL be ignored. A Ctrl+C at least 1 second later SHALL send SIGTERM to every watch process still running and the process SHALL exit with status 0. A line `2` SHALL return with exit status 0, the process SHALL exit so the shell returns, and the watch processes SHALL keep running. A line `1` SHALL stop the watch processes and start them again, and the watch SHALL keep running and SHALL accept `1`, `2`, and `3` again. Any other line SHALL be written to the stdin of each watch this call started.
 
 #### Scenario: Interrupt
 
 - **WHEN** an attached watch is interrupted with SIGINT
 - **THEN** both watch processes and their children are terminated, no pid remains in the runtime state, and the exit status is 130
+
+#### Scenario: Terminal Ctrl+C
+
+- **WHEN** an attached watch is running on a terminal and the terminal sends Ctrl+C
+- **THEN** the watch processes are terminated and the exit status is 130
+
+#### Scenario: Quit waits for the watches
+
+- **WHEN** an attached watch reads a line `3` and a watch process stays up after SIGINT
+- **THEN** that process receives SIGINT, the call keeps waiting, and a Ctrl+C less than 1 second later does not send SIGTERM
+
+#### Scenario: Second Ctrl+C after quit
+
+- **WHEN** an attached watch reads a line `3` and Ctrl+C arrives at least 1 second later while a watch process is still running
+- **THEN** that process receives SIGTERM and the exit status is 0
 
 #### Scenario: One watch dies
 
@@ -148,10 +163,20 @@ The system SHALL keep an attached `watch` running until it is interrupted, a wat
 - **WHEN** `watch` runs with `detach`
 - **THEN** the call returns with the pids recorded in `.cache/variant/state.yaml` while the processes keep running
 
-#### Scenario: Re-run replaces leftovers
+#### Scenario: Re-run leaves a live watch in place
 
-- **WHEN** a watch for slug `demo` is already running and `watch` runs again
-- **THEN** the recorded processes are terminated before new ones start
+- **WHEN** a watch for slug `demo` is already running and `watch` runs again with `detach`
+- **THEN** the recorded processes keep running, the call returns those same process ids, and the report is `[watch] # already running: reattached, showing last 50 lines`, then at most the last 50 lines of `.cache/variant/watch.log`, then `[watch] {name} URL 200 {url}` for each ready watch that answers 200, then the interactive command line
+
+#### Scenario: Attached re-run follows the log
+
+- **WHEN** a watch for slug `demo` is already running and `watch` runs again without `detach`, and a line is appended to `.cache/variant/watch.log` after the report
+- **THEN** that line is written to stderr, an interrupt ends the call with exit status 130, and the recorded processes keep running
+
+#### Scenario: Attached re-run reads keys and stdin
+
+- **WHEN** a watch is already running and `watch` runs again without `detach`
+- **THEN** a line `3` sends SIGINT and returns exit status 0 once the recorded processes have exited, a Ctrl+C at least 1 second later sends SIGTERM and returns exit status 0, a line `2` returns exit status 0 and leaves them running, a line `1` starts them again, and any other line is written to each watch's stdin
 
 ### Requirement: Mode switch
 
@@ -208,7 +233,7 @@ The system SHALL write `.cache/variant/state.yaml` and `.cache/variant/runtime.y
 
 ### Requirement: Readiness and opening
 
-The system SHALL, after watches start in attached `up` and attached `watch`, poll once per second for every watch that sets `ready`, up to `supervise.readyTimeoutSeconds`. When that watch has a URL template, the polled URL SHALL be the rendered watch URL joined with `ready`, keeping one slash. Otherwise the polled URL SHALL be `http://127.0.0.1:<port><ready>`. A response SHALL count only when its status is 200. On the first poll of a watch the command SHALL write `[watch] {name} URL try {url}` to standard error, where `{name}` is the watch key and `{url}` is the polled URL. On the first status 200 it SHALL write `[watch] {name} URL 200 {url}` to standard error. It SHALL NOT write either line again for that watch. When `watch` is writing `.cache/variant/watch.log`, those same lines SHALL be appended there. When every such watch has returned 200, the command SHALL open the URL of each watch with a `url` template in the system browser, unless opening is disabled. When no watch sets `ready` it SHALL print and open the URLs right after start and SHALL NOT write a URL try line. On timeout it SHALL print a warning, open nothing, and leave the watches running. Failure to launch a browser SHALL NOT fail the command. `variant.open` set to false, and `VARIANT_OPEN=0`, SHALL disable opening. A detached `watch` SHALL NOT poll and SHALL NOT open URLs.
+The system SHALL, after watches start in attached `up` and attached `watch`, poll once per second for every watch that sets `ready`, up to `supervise.readyTimeoutSeconds`. When that watch has a URL template, the polled URL SHALL be the rendered watch URL joined with `ready`, keeping one slash. Otherwise the polled URL SHALL be `http://127.0.0.1:<port><ready>`. A response SHALL count only when its status is 200. On the first poll of a watch the command SHALL write `[watch] {name} URL try {url}` to standard error, where `{name}` is the watch key and `{url}` is the polled URL. On the first status 200 it SHALL write `[watch] {name} URL 200 {url}` to standard error. It SHALL NOT write either line again for that watch. When `watch` is writing `.cache/variant/watch.log`, those same lines SHALL be appended there. When attached `watch` has standard error on a terminal and every such watch has returned 200, standard error SHALL then gain one line `[watch] Interactive:   1 restart   2 detach   3 quit   (press number + ⏎)`, with three spaces between those parts. The numbers SHALL be bold cyan, the words SHALL be yellow, and the parenthetical SHALL be dark gray. `NO_COLOR` SHALL leave that line plain. That line SHALL NOT be appended to the watch log. It SHALL NOT be written before the last of those 200 lines, and a later poll SHALL NOT write it again. When no watch sets `ready`, that line SHALL be written once the processes are running. `up`, a detached `watch`, and a `watch` whose standard error is not a terminal SHALL NOT write it. When every such watch has returned 200, the command SHALL open the URL of each watch with a `url` template in the system browser, unless opening is disabled. When no watch sets `ready` it SHALL print and open the URLs right after start and SHALL NOT write a URL try line. On timeout it SHALL print a warning, open nothing, and leave the watches running. Failure to launch a browser SHALL NOT fail the command. `variant.open` set to false, and `VARIANT_OPEN=0`, SHALL disable opening. A detached `watch` SHALL NOT poll and SHALL NOT open URLs.
 
 #### Scenario: Open after ready
 
@@ -241,6 +266,13 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 - **WHEN** that URL then returns status 200 for the first time
 - **THEN** standard error contains `[watch] be URL 200 http://demo.vw.localhost:62061/health`
 - **AND** a later poll of `be` does not write that try line or that 200 line again
+
+#### Scenario: Terminal hint after the last 200
+
+- **WHEN** attached `watch` has standard error on a terminal, `be` returns status 200, and `fe` returns status 200 later
+- **THEN** the line after `fe`'s URL 200 line is `[watch] Interactive:   1 restart   2 detach   3 quit   (press number + ⏎)`, with the numbers bold cyan, the words yellow, and the parenthetical dark gray
+- **AND** that line is not written after `be`'s URL 200 while `fe` is still waiting
+- **AND** `.cache/variant/watch.log` does not contain that line
 
 #### Scenario: Status 204 is not ready
 
@@ -372,7 +404,7 @@ The system SHALL print a warning to the progress log when `watch` starts no proc
 
 ### Requirement: Watch output terminal
 
-A watch's output mode SHALL be `tty` or `no-tty`. `variant.watches.<name>.output.mode` sets it. When that is unset, the mode SHALL be the default the caller passed, and `no-tty` when the caller passed none. An explicit mode SHALL win over the caller's default. `no-tty` SHALL start the process with pipes, so neither stdout nor stderr is a terminal. `tty` SHALL start the process with stdout and stderr attached to one pseudo-terminal, so both are a terminal, and that terminal SHALL be at least 1000 columns wide. When `TERM` is unset or `dumb`, the process environment SHALL set `TERM` to `xterm-256color`. Any other `TERM` SHALL be left as it is. A line the process writes only because it has a terminal, including an ANSI color sequence, SHALL appear in `.cache/variant/watch.log` and, for an attached watch, on standard output. A `tty` line that contains an ANSI escape SHALL have the reset sequence ESC `[0m` appended before the newline. When any watch runs as `tty`, the first line of `.cache/variant/watch.log` SHALL be one line, `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, before the `[name] {command}` banners. `{args}` is the flags of this invocation, such as `--detach`, and is omitted when none were set. The terminal's stdin SHALL stay open for the life of the process, so a program that exits on end-of-file keeps running. A line the process writes to stderr SHALL be part of that same transcript. The four bytes `^D` and two backspaces that the terminal allocator writes when its input is closed SHALL NOT appear in the log or on standard output. A detached `tty` watch SHALL write that transcript to the log and SHALL NOT write it to the caller's terminal.
+A watch's output mode SHALL be `tty` or `no-tty`. `variant.watches.<name>.output.mode` sets it. When that is unset, the mode SHALL be the default the caller passed, and `no-tty` when the caller passed none. An explicit mode SHALL win over the caller's default. `no-tty` SHALL start the process with pipes, so neither stdout nor stderr is a terminal. `tty` SHALL start the process with stdout and stderr attached to one pseudo-terminal, so both are a terminal, and that terminal SHALL be at least 1000 columns wide, by the first allocator that works. A later allocator SHALL NOT be tried after an earlier one works. When this process is Bun, the terminal SHALL be allocated in this process, and Mise, a `bun` on `PATH`, and `script` SHALL NOT be run. Otherwise the watch SHALL try `mise exec -- bun` with the Mise executable this process already resolves, otherwise `mise exec bun@latest -- bun`, otherwise `bun` on `PATH`. Each of those SHALL run the same in-process allocator. Otherwise the watch SHALL try the `script` program. When none of these works, that watch SHALL start with pipes, as `no-tty` does, SHALL emit a warn-level log whose message names the watch and says the terminal was not allocated, SHALL append that same sentence to `.cache/variant/watch.log`, SHALL NOT write the `mode=tty` line because of that watch, and SHALL leave the watch command running. When `TERM` is unset or `dumb`, the process environment SHALL set `TERM` to `xterm-256color`. Any other `TERM` SHALL be left as it is. A line the process writes only because it has a terminal, including an ANSI color sequence, SHALL appear in `.cache/variant/watch.log` and, for an attached watch, on standard output. A `tty` line that contains an ANSI escape SHALL have the reset sequence ESC `[0m` appended before the newline. When any watch runs as `tty`, the first line of `.cache/variant/watch.log` SHALL be one line, `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, before the `[name] {command}` banners. `{args}` is the flags of this invocation, such as `--detach`, and is omitted when none were set. The terminal's stdin SHALL stay open for the life of the process, so a program that exits on end-of-file keeps running. A line the process writes to stderr SHALL be part of that same transcript. The four bytes `^D` and two backspaces that the terminal allocator writes when its input is closed SHALL NOT appear in the log or on standard output. A detached `tty` watch SHALL write that transcript to the log and SHALL NOT write it to the caller's terminal. `down` SHALL stop a running `tty` watch command.
 
 #### Scenario: A terminal prints color
 
@@ -413,3 +445,48 @@ A watch's output mode SHALL be `tty` or `no-tty`. `variant.watches.<name>.output
 - **WHEN** `watch` runs detached with `output.mode: tty` and the command writes an ANSI green line because stdout is a terminal
 - **THEN** `.cache/variant/watch.log` contains that line
 - **AND** the caller's standard output does not
+
+#### Scenario: Bun allocates a terminal in process
+
+- **WHEN** Bun runs an attached `watch` with `output.mode: tty`, `script` is on `PATH`, Mise is available, and the command writes `tty` and an ANSI green line only when stdout is a terminal
+- **THEN** standard output and `.cache/variant/watch.log` contain `[fe] tty` and the green line
+- **AND** no process of the watch is the program `script`
+- **AND** Mise was not run
+
+#### Scenario: Mise project bun wins over later allocators
+
+- **WHEN** the process is not Bun, `mise exec -- bun` can allocate a terminal, `mise exec bun@latest -- bun` would also succeed, `PATH` contains `bun`, and `script` is on `PATH`
+- **THEN** the watch command's stdout is a terminal
+- **AND** `mise exec bun@latest -- bun`, the `bun` on `PATH`, and `script` were not run
+
+#### Scenario: Latest bun is next
+
+- **WHEN** the process is not Bun, `mise exec -- bun` fails, `mise exec bun@latest -- bun` can allocate a terminal, `PATH` contains `bun`, and `script` is on `PATH`
+- **THEN** the watch command's stdout is a terminal
+- **AND** the `bun` on `PATH` and `script` were not run
+
+#### Scenario: Path bun is next
+
+- **WHEN** the process is not Bun, both `mise exec -- bun` and `mise exec bun@latest -- bun` fail, `PATH` contains `bun`, and `script` is on `PATH`
+- **THEN** the watch command's stdout is a terminal
+- **AND** `script` was not run
+
+#### Scenario: Script is next
+
+- **WHEN** the process is not Bun, both Mise `bun` attempts fail, `PATH` has no `bun`, `script` is on `PATH`, and the command writes `tty` and an ANSI green line only when stdout is a terminal
+- **THEN** standard output and `.cache/variant/watch.log` contain `[fe] tty` and the green line
+- **AND** neither contains the `^D` terminal-allocator echo
+- **AND** the process is still running, because stdin did not end
+
+#### Scenario: No allocator uses pipes and warns
+
+- **WHEN** the process is not Bun, both Mise `bun` attempts fail, `PATH` has no `bun`, `script` is absent, and the command writes `pipe` when stdout is not a terminal
+- **THEN** standard output contains `[fe] pipe`
+- **AND** a warn-level log names the watch and says the terminal was not allocated
+- **AND** `.cache/variant/watch.log` contains that same sentence and does not contain `mode=tty`
+- **AND** the watch command is running
+
+#### Scenario: Down stops a terminal watch
+
+- **WHEN** a `tty` watch is running and `down` runs for that variant
+- **THEN** the watch command is not running

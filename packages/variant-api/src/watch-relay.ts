@@ -1,8 +1,11 @@
-import { type ChildProcess, spawn } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, realpathSync, writeFileSync, writeSync } from "node:fs";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { createWriteStream, existsSync, mkdirSync, realpathSync, rmSync, writeFileSync, writeSync } from "node:fs";
+import { createServer, type Server } from "node:net";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { logW } from "./log.js";
 import { stopProcessTree } from "./processes.js";
 import { sleep } from "./sleep.js";
 
@@ -29,10 +32,16 @@ export interface LaunchWatchesOptions {
   logPath?: string;
   /** Attached watches keep the caller's stdin. */
   inheritStdin?: boolean;
+  /** Keeps a pipe watch's stdin open without taking the caller's terminal. */
+  holdStdin?: boolean;
+  /** Appends to the log instead of replacing it. A restart uses this. */
+  appendLog?: boolean;
   /** `[key] command`, without a trailing newline. The relay also writes that line to the log. */
   onBanner?: (line: string) => void;
   /** Flags of this watch invocation, such as `--detach`. Empty when none were set. */
   args?: string;
+  /** Mise executable this process already resolved. Absent when none was found. */
+  mise?: string;
 }
 
 export interface LaunchedWatch extends WatchLaunch {
@@ -46,13 +55,16 @@ export interface LaunchResult {
   writeLog?: (text: string) => void;
   /** Waits until every captured stream has ended, then flushes the log. */
   close: () => Promise<void>;
+  /** Writes to every watch stdin. A later attach reaches this through the socket beside the log. */
+  writeStdin?: (text: string) => void;
 }
 
 /** A log file that accepts lines without delaying the console write that queued them. */
-const openLog = (path: string): { write: (text: string) => void; close: () => Promise<void> } => {
+const openLog = (path: string, append: boolean): { write: (text: string) => void; close: () => Promise<void> } => {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, "");
+  if (!append) writeFileSync(path, "");
   const stream = createWriteStream(path, { flags: "a" });
+  (stream as { unref?: () => void }).unref?.();
   // AIDEV-NOTE: a full file buffer queues lines in order and writes them on drain; the console write does not wait.
   const pending: string[] = [];
   let blocked = false;
@@ -134,15 +146,22 @@ const relay = (
   stream.on("data", (chunk: string) => take(chunk));
   finished.push(
     new Promise((resolve) => {
-      stream.on("end", () => {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         if (buffer.length > 0) {
           const line = buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer;
           buffer = "";
           emit(line);
         }
         resolve();
-      });
-      stream.on("error", () => resolve());
+      };
+      stream.on("end", finish);
+      stream.on("close", finish);
+      stream.on("error", finish);
     }),
   );
 };
@@ -202,7 +221,93 @@ const ttySpawnArgs = (): string[] =>
     ? ["-q", "-e", "-f", "-c", TTY_WRAPPER, "/dev/null"]
     : ["-q", "/dev/null", "sh", "-c", TTY_WRAPPER];
 
-const spawnOnTerminal = (launch: WatchLaunch): ChildProcess =>
+interface PtyTerminal {
+  close: () => void;
+  write: (data: string) => number;
+}
+
+interface PtyRuntime {
+  spawn: (
+    command: string[],
+    options: {
+      cwd: string;
+      env: NodeJS.ProcessEnv;
+      terminal: {
+        cols: number;
+        rows: number;
+        data: (terminal: PtyTerminal, data: Uint8Array) => void;
+        exit: (terminal: PtyTerminal, exitCode: number, signal: string | null) => void;
+      };
+    },
+  ) => { pid: number; exited: Promise<number>; terminal: PtyTerminal };
+}
+
+/** The runtime pty, when this process is Bun. Property access stays `.Bun` so the bundle has no `Bun.` token. */
+const ptyRuntime = (): PtyRuntime | undefined => {
+  const runtime = (globalThis as { Bun?: PtyRuntime }).Bun;
+  return typeof runtime?.spawn === "function" ? runtime : undefined;
+};
+
+/** Kept alive so a terminal is not closed by collection while its command runs. */
+const openTerminals = new Set<PtyTerminal>();
+
+/** The fields `launchWatches` reads. `ChildProcess` marks them readonly, so the stand-in is its own type. */
+interface PtyChild extends EventEmitter {
+  pid?: number;
+  stdout: PassThrough;
+  stderr: PassThrough;
+  exitCode: number | null;
+  signalCode: NodeJS.Signals | null;
+}
+
+const spawnOnBunTerminal = (runtime: PtyRuntime, launch: WatchLaunch): ChildProcess => {
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  const child = new EventEmitter() as PtyChild;
+  const finish = (code: number | null): void => {
+    child.exitCode = code;
+    stdout.end();
+    stderr.end();
+  };
+  const proc = runtime.spawn(["sh", "-c", launch.command], {
+    cwd: launch.cwd,
+    env: colorTerm(launch.env),
+    terminal: {
+      cols: 10000,
+      rows: 200,
+      data(_terminal, data) {
+        stdout.write(data);
+      },
+      exit() {
+        finish(child.exitCode);
+      },
+    },
+  });
+  openTerminals.add(proc.terminal);
+  child.pid = proc.pid;
+  child.stdout = stdout;
+  child.stderr = stderr;
+  child.exitCode = null;
+  child.signalCode = null;
+  // AIDEV-NOTE: detach must drop this subprocess or the parent event loop never empties.
+  (child as PtyChild & { release: () => void }).release = () => {
+    (proc as { unref?: () => void }).unref?.();
+    (stdout as { unref?: () => void }).unref?.();
+    (stderr as { unref?: () => void }).unref?.();
+  };
+  (child as PtyChild & { writeStdin: (text: string) => void }).writeStdin = (text) => {
+    proc.terminal.write(text);
+  };
+  void proc.exited.then((code) => {
+    openTerminals.delete(proc.terminal);
+    proc.terminal.close();
+    finish(code);
+    child.emit("exit", code, null);
+  });
+  return child as unknown as ChildProcess;
+};
+
+const spawnOnScript = (launch: WatchLaunch): ChildProcess =>
   // AIDEV-NOTE: `/dev/null` is immediate EOF. script writes that EOF into the terminal, and a program such as vite exits.
   // bash holds the read end open with `tail -f /dev/null`, then becomes `script`, so the watched pid is still script.
   spawn("bash", ["-c", 'exec < <(tail -f /dev/null); exec "$@"', "bash", "script", ...ttySpawnArgs()], {
@@ -212,36 +317,120 @@ const spawnOnTerminal = (launch: WatchLaunch): ChildProcess =>
     stdio: ["ignore", "pipe", "pipe"],
   });
 
+const probeOk = (command: string, args: readonly string[], env: NodeJS.ProcessEnv): boolean =>
+  spawnSync(command, args, { env, stdio: "ignore" }).status === 0;
+
+/** A Bun child runs the in-process allocator and writes the transcript to stdout. */
+const spawnOnHop = (launch: WatchLaunch, command: string, prefix: readonly string[]): ChildProcess => {
+  const child = spawn(command, [...prefix, relayModulePath(), "--internal-pty"], {
+    cwd: launch.cwd,
+    env: colorTerm(launch.env),
+    detached: true,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  child.stdin?.end(JSON.stringify({ command: launch.command, cwd: launch.cwd, env: colorTerm(launch.env) }));
+  return child;
+};
+
+const spawnPipes = (
+  launch: WatchLaunch,
+  inheritStdin: boolean | undefined,
+  holdStdin: boolean | undefined,
+): ChildProcess =>
+  spawn("sh", ["-c", launch.command], {
+    cwd: launch.cwd,
+    env: launch.env,
+    detached: true,
+    stdio: [inheritStdin === true ? "inherit" : holdStdin === true ? "pipe" : "ignore", "pipe", "pipe"],
+  });
+
+type Allocation =
+  | { kind: "bun" }
+  | { kind: "hop"; command: string; args: readonly string[] }
+  | { kind: "script" }
+  | { kind: "pipes" };
+
+/**
+ * First allocator that works: this Bun, `mise exec -- bun`, `mise exec bun@latest -- bun`, `bun` on `PATH`, `script`.
+ * `pipes` is the last resort and does not start the watch command during the probes.
+ */
+const allocateTerminal = (launch: WatchLaunch, mise: string | undefined): Allocation => {
+  if (ptyRuntime() !== undefined) {
+    return { kind: "bun" };
+  }
+  const env = colorTerm(launch.env);
+  if (mise !== undefined && probeOk(mise, ["exec", "--", "bun", "-e", "process.exit(0)"], env)) {
+    return { kind: "hop", command: mise, args: ["exec", "--", "bun"] };
+  }
+  if (mise !== undefined && probeOk(mise, ["exec", "bun@latest", "--", "bun", "-e", "process.exit(0)"], env)) {
+    return { kind: "hop", command: mise, args: ["exec", "bun@latest", "--", "bun"] };
+  }
+  if (probeOk("bun", ["-e", "process.exit(0)"], env)) {
+    return { kind: "hop", command: "bun", args: [] };
+  }
+  if (probeOk("sh", ["-c", "command -v script >/dev/null"], env)) {
+    return { kind: "script" };
+  }
+  return { kind: "pipes" };
+};
+
+const spawnAllocated = (
+  launch: WatchLaunch,
+  allocation: Allocation,
+  inheritStdin: boolean | undefined,
+  holdStdin: boolean | undefined,
+): { child: ChildProcess; stripEof: boolean; terminal: boolean } => {
+  if (allocation.kind === "bun") {
+    const runtime = ptyRuntime();
+    if (runtime !== undefined) {
+      return { child: spawnOnBunTerminal(runtime, launch), stripEof: false, terminal: true };
+    }
+  }
+  if (allocation.kind === "hop") {
+    return { child: spawnOnHop(launch, allocation.command, allocation.args), stripEof: false, terminal: true };
+  }
+  if (allocation.kind === "script") {
+    return { child: spawnOnScript(launch), stripEof: true, terminal: true };
+  }
+  return { child: spawnPipes(launch, inheritStdin, holdStdin), stripEof: false, terminal: false };
+};
+
 /**
  * Starts each watch, prefixes its stdout and stderr, and tees those lines to the console sinks and the log file.
  * Specification: openspec/specs/variant-api/runtime/spec.md
  */
 export const launchWatches = async (options: LaunchWatchesOptions): Promise<LaunchResult> => {
-  const log = options.logPath === undefined ? undefined : openLog(options.logPath);
+  const log = options.logPath === undefined ? undefined : openLog(options.logPath, options.appendLog === true);
   const processes: LaunchedWatch[] = [];
   const finished: Promise<void>[] = [];
-  if (options.launches.some((launch) => launch.outputMode === "tty")) {
+  const allocations = options.launches.map((launch) =>
+    launch.outputMode === "tty" ? allocateTerminal(launch, options.mise) : ({ kind: "pipes" } as const),
+  );
+  if (allocations.some((allocation) => allocation.kind !== "pipes")) {
     log?.write(ttyModeLine(options.args ?? ""));
   }
   try {
-    for (const launch of options.launches) {
+    for (const [index, launch] of options.launches.entries()) {
       if (processes.length > 0 && options.startDelayMs > 0) {
         await sleep(options.startDelayMs);
+      }
+      const allocation = allocations[index] ?? { kind: "pipes" as const };
+      if (launch.outputMode === "tty" && allocation.kind === "pipes") {
+        const sentence = `${launch.key} terminal was not allocated`;
+        logW(sentence);
+        log?.write(`${sentence}\n`);
       }
       const banner = `[${launch.key}] ${launch.command}`;
       options.onBanner?.(banner);
       log?.write(`${banner}\n`);
-      const terminal = launch.outputMode === "tty";
       let child: ChildProcess;
+      let stripEof = false;
+      let terminal = false;
       try {
-        child = terminal
-          ? spawnOnTerminal(launch)
-          : spawn("sh", ["-c", launch.command], {
-              cwd: launch.cwd,
-              env: launch.env,
-              detached: true,
-              stdio: [options.inheritStdin === true ? "inherit" : "ignore", "pipe", "pipe"],
-            });
+        const spawned = spawnAllocated(launch, allocation, options.inheritStdin, options.holdStdin);
+        child = spawned.child;
+        stripEof = spawned.stripEof;
+        terminal = spawned.terminal;
       } catch {
         throw new Error(`Could not start ${launch.key} in ${launch.cwd}: ${launch.command}`);
       }
@@ -251,7 +440,7 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
       }
       // AIDEV-NOTE: a terminal mixes the process stderr into the transcript. That transcript is the stdout stream.
       relay(
-        terminal ? withoutScriptEof(child.stdout) : child.stdout,
+        stripEof ? withoutScriptEof(child.stdout) : child.stdout,
         launch.key,
         options.stdout,
         log?.write,
@@ -266,10 +455,40 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
     await log?.close();
     throw error;
   }
+  const writeStdin = (text: string): void => {
+    for (const { child } of processes) {
+      const pty = child as ChildProcess & { writeStdin?: (text: string) => void };
+      if (pty.writeStdin !== undefined) pty.writeStdin(text);
+      else child.stdin?.write(text);
+    }
+  };
+  const stdinPath = options.logPath === undefined ? undefined : join(dirname(options.logPath), "in.sock");
+  let stdinServer: Server | undefined;
+  if (stdinPath !== undefined) {
+    rmSync(stdinPath, { force: true });
+    stdinServer = createServer((socket) => {
+      socket.on("error", () => socket.destroy());
+      socket.on("data", (chunk: Buffer | string) => {
+        writeStdin(typeof chunk === "string" ? chunk : chunk.toString("utf8"));
+      });
+    });
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error): void => reject(error);
+      stdinServer?.once("error", onError);
+      stdinServer?.listen(stdinPath, () => {
+        stdinServer?.off("error", onError);
+        resolve();
+      });
+    });
+    stdinServer?.unref();
+  }
   return {
     processes,
     ...(log ? { writeLog: (text: string) => log.write(text) } : {}),
+    writeStdin,
     close: async () => {
+      stdinServer?.close();
+      if (stdinPath !== undefined) rmSync(stdinPath, { force: true });
       await Promise.all(finished);
       await log?.close();
     },
@@ -314,6 +533,8 @@ export interface RelayPlan {
   logPath: string;
   /** Flags of this watch invocation, such as `--detach`. */
   args?: string;
+  /** Mise executable this process already resolved. Absent when none was found. */
+  mise?: string;
 }
 
 const readStdin = async (): Promise<string> => {
@@ -348,7 +569,9 @@ export const runWatchRelay = async (): Promise<void> => {
       launches: plan.launches,
       startDelayMs: plan.startDelayMs,
       logPath: plan.logPath,
+      holdStdin: true,
       ...(plan.args === undefined ? {} : { args: plan.args }),
+      ...(plan.mise === undefined ? {} : { mise: plan.mise }),
     });
     const pids = Object.fromEntries(launched.processes.map(({ key, pid }) => [key, pid]));
     writeSync(1, `${JSON.stringify({ pids })}\n`);
@@ -411,6 +634,34 @@ export const startDetachedRelay = async (plan: RelayPlan): Promise<Record<string
   return pids;
 };
 
+/** Entry a `bun` hop runs: one JSON launch on stdin, then the terminal transcript on stdout. */
+const runInternalPty = async (): Promise<void> => {
+  const runtime = ptyRuntime();
+  if (runtime === undefined) {
+    process.exitCode = 1;
+    return;
+  }
+  const request = JSON.parse(await readStdin()) as { command: string; cwd: string; env: NodeJS.ProcessEnv };
+  const child = spawnOnBunTerminal(runtime, {
+    key: "pty",
+    command: request.command,
+    cwd: request.cwd,
+    env: request.env,
+    outputMode: "tty",
+  });
+  child.stdout?.on("data", (chunk: Buffer | string) => {
+    if (typeof chunk === "string") writeSync(1, chunk);
+    else writeSync(1, chunk);
+  });
+  await new Promise<void>((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    child.once("exit", () => resolve());
+  });
+};
+
 const invokedDirectly = (): boolean => {
   const script = process.argv[1];
   // A bundled CLI shares this module. Only the spawned source file should enter the relay on its own.
@@ -424,7 +675,10 @@ const invokedDirectly = (): boolean => {
   }
 };
 
-if (invokedDirectly()) {
+if (process.argv.includes("--internal-pty")) {
+  // AIDEV-NOTE: No top-level await. The VS Code extension bundles this module as CommonJS.
+  void runInternalPty();
+} else if (invokedDirectly()) {
   // AIDEV-NOTE: No top-level await. The VS Code extension bundles this module as CommonJS.
   void runWatchRelay();
 }

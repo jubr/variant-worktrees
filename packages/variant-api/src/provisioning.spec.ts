@@ -135,7 +135,7 @@ describe("step log", () => {
       },
     ));
 
-  it("keeps schema creation at info when the project directory is outside /tmp", async () => {
+  it("keeps schema creation at debug when the project directory is outside /tmp", async () => {
     const parent = mkdtempSync(join(homedir(), "variant-outside-"));
     try {
       await withProject(
@@ -152,7 +152,7 @@ describe("step log", () => {
             false,
           );
           expect(events.find((event) => event.step === "provision")).toEqual({
-            level: "info",
+            level: "debug",
             step: "provision",
             slug: "demo",
             message: `create schema ${directory}/.cache/variants/demo.db`,
