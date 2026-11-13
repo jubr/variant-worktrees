@@ -6,6 +6,10 @@
 
 - A focused file inside the main checkout or a variant worktree highlights that row in a visible Variant Worktrees tree and does not take editor focus.
 
+### Changed
+
+- `variant config` prints YAML with an origin comment on each value: `# from <path>` for the loaded file (relative to the working directory), `# from env NAME` for an environment variable, `# autodetect <reason>` for a discovered value, or `# default` for a built-in. A shared origin is commented on the parent only. On a terminal, with `NO_COLOR` unset, keys, strings, numbers, booleans, and comments use the same colors as yq. A pipe or any `NO_COLOR` value, including empty, keeps the comments and drops the color. `--json` and `--yaml` stay plain. A password is `***` in all three.
+
 ## [0.0.8] - 2026-11-11
 
 ### Added
