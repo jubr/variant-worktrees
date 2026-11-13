@@ -2,7 +2,7 @@
  * Specification: openspec/specs/meta/local-checks/spec.md
  */
 import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
@@ -64,6 +64,15 @@ describe.skipIf(!hkAvailable)("local checks through hk", () => {
     const names = plan("run", "pre-commit", "--all");
     expect(names.length).toBeGreaterThan(0);
     expect(names.filter((name) => !name.endsWith(":biome"))).toEqual([]);
+  });
+
+  // AIDEV-NOTE: the plan does not show `exclusive`, so the contract reads the package files. These suites use real
+  // shells, git worktrees and file watches; run next to other suites they time out.
+  test("packages with timing-sensitive tests run their test step alone", () => {
+    for (const name of ["variant-cli", "variant-api"]) {
+      const text = readFileSync(join(root, "packages", name, "hk.pkl"), "utf8");
+      expect(text).toMatch(/\["test"\]\s*\{[^}]*exclusive\s*=\s*true/);
+    }
   });
 
   test("a changed file selects only the Biome step of its package", () => {

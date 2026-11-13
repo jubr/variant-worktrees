@@ -1,1 +1,12 @@
 amends "../../hk.package.pkl"
+
+// AIDEV-NOTE: real shells, git repos and file watches: timing breaks next to other suites
+hooks {
+  ["check"] {
+    steps {
+      ["test"] {
+        exclusive = true
+      }
+    }
+  }
+}
