@@ -8,8 +8,11 @@ An origin comment SHALL be one of:
 
 - `# from <path>` when a file sets the value. `<path>` SHALL be that file relative to the process cwd, using `/` separators. A file inside the cwd SHALL start with `./`. A file outside it SHALL start with `..`.
 - `# from env <NAME>` when environment variable `<NAME>` supplies the printed value, including a `${NAME}` in the loaded file whose variable is set
-- `# autodetect <reason>` when the value is discovered and the loaded file does not set it. `<reason>` SHALL be one word: `main`, `root`, `watch`, `config`, `runtime`, `connection`, or `abbr`
+- `# autodetect <reason>` when the value is discovered and the loaded file does not set it. `<reason>` SHALL be one word: `watch`, `config`, or `connection`
+- `# autodetect from <source>` when a discovered value has a source the key does not already name. `variant.abbr` SHALL use the main directory's base name in quotes. `variant.main` SHALL use `AGENTS.md` when a parent `AGENTS.md` symlink decides it, and `` `git rev-parse --git-common-dir` `` when the git common directory decides it. `variant.root` SHALL use `AGENTS.md` when that symlink puts it somewhere other than `variant.main`
 - `# default` when a built-in default supplies a key the loaded file omits
+
+A comment that only repeats its key SHALL be omitted. That includes `runtime`, and `variant.main` or `variant.root` when the path is only the directory of the loaded file. An array item written in the loaded file SHALL use that file's origin, the same as the key that holds the array. The printed document SHALL omit `source`. The loaded object SHALL still expose `source` to library callers.
 
 A `${NAME:-fallback}` whose variable is unset SHALL be commented as the loaded file, because the fallback text is in that file. The worktree file SHALL NOT be merged with the main file: keys come from the one file that was loaded.
 
@@ -62,9 +65,10 @@ When stdout is a terminal and `NO_COLOR` is unset, the text SHALL be colored in 
 
 #### Scenario: Resolved main and root
 
-- **WHEN** `variants.yaml` sets neither `variant.main` nor `variant.root` and a user runs `variant config`
-- **THEN** the `main` line is commented `# autodetect main` and the `root` line is commented `# autodetect root`
-- **AND** `variant config --json` includes both paths
+- **WHEN** `variants.yaml` sets neither `variant.main` nor `variant.root`, the directory is a git checkout, and a user runs `variant config`
+- **THEN** the `main` line includes `# autodetect from` and `git rev-parse --git-common-dir`
+- **AND** the `root` line has no origin comment when `root` is that same path
+- **AND** `variant config --json` includes both paths and omits `source`
 
 #### Scenario: Variable written in the file
 

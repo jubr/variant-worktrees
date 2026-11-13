@@ -30,8 +30,8 @@ The published wording of this requirement still says the command prints JSON. Th
 - A key the file omits and a built-in `??` fills (prefix, ports, supervise, implode, steps, chat-renamer defaults, the sqlite fallback connection) is `# default`.
 - A database field named in `variables` is `# from env NAME`. The dialect, which is not one of those fields, is `# from env <NAME>` for the variable `detectDialect` consulted when `source` is `env`, and `# default` when `source` is `default`.
 - A database field with no variable is `# autodetect connection` on a detected connection (the null slots included) and `# default` on the sqlite fallback.
-- Discovered values the file does not set use one reason word: `main`, `root`, `abbr`, `watch`, `config` (`configPath` and `configDir`), `runtime` (operational state). `source` is `# autodetect connection`.
-- Items of a sequence share that sequence's origin.
+- Discovered values the file does not set use one reason word, `watch`, `config`, or `connection`, or `# autodetect from <source>` when the source is not the key. `abbr` quotes the main directory name. `main` names `AGENTS.md` or `git rev-parse --git-common-dir`. `root` names `AGENTS.md` only when the path differs from `main`. `runtime`, and `main` or `root` that is only the config directory, have no comment. `source` stays on the object for callers and is omitted from the printed document.
+- Items of a sequence share that sequence's origin, including items written in the file.
 - There is no `# from env` without a variable name. A value the environment supplied with no recorded variable is `# autodetect connection`.
 
 Alternative: store the origin on every leaf as a `{ value, origin }` pair inside the resolved object. Rejected: every consumer of `db.host` and `variant.prefix` would have to unwrap it.
