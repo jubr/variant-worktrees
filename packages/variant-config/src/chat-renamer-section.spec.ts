@@ -66,15 +66,15 @@ describe("readChatRenamerConfig titleEventPromptLines", () => {
 });
 
 describe("readChatRenamerConfig awake", () => {
-  it("returns when, what, and the grace delay", () =>
+  it("returns when, the command, and the grace delay", () =>
     withDirectory((directory) => {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "chatRenamer:\n  awake:\n    when: never\n    what: cpu\n    graceDelaySecs: 0\n",
+        "chatRenamer:\n  awake:\n    when: never\n    cmd: caffeinate -disu -w ${extensionHostPid}\n    graceDelaySecs: 0\n",
       );
 
       expect(readChatRenamerConfig(directory)).toEqual({
-        awake: { when: "never", what: "cpu", graceDelaySecs: 0 },
+        awake: { when: "never", cmd: "caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
       });
     }));
 });

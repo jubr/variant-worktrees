@@ -21,8 +21,8 @@ describe("extension manifest", () => {
   it("contributes the settings the trigger reads", () => {
     expect(Object.keys(manifest.contributes.configuration.properties).sort()).toEqual([
       "chat-renamer.activationPatterns",
+      "chat-renamer.awake.cmd",
       "chat-renamer.awake.graceDelaySecs",
-      "chat-renamer.awake.what",
       "chat-renamer.awake.when",
       "chat-renamer.hookScope",
       "chat-renamer.log.highVolumeCategories",
@@ -47,8 +47,8 @@ describe("extension manifest", () => {
 
   it("keeps the other defaults in step with the shared defaults", async () => {
     const {
+      DEFAULT_AWAKE_CMD,
       DEFAULT_AWAKE_GRACE_DELAY_SECS,
-      DEFAULT_AWAKE_WHAT,
       DEFAULT_AWAKE_WHEN,
       DEFAULT_RENAME_EXISTING_DAYS,
       DEFAULT_TITLE_EVENT_PROMPT_LINES,
@@ -72,10 +72,9 @@ describe("extension manifest", () => {
       enum: ["chatsActive", "never"],
       default: DEFAULT_AWAKE_WHEN,
     });
-    expect(properties["chat-renamer.awake.what"]).toMatchObject({
+    expect(properties["chat-renamer.awake.cmd"]).toMatchObject({
       type: "string",
-      enum: ["screen", "cpu"],
-      default: DEFAULT_AWAKE_WHAT,
+      default: DEFAULT_AWAKE_CMD,
     });
     expect(properties["chat-renamer.awake.graceDelaySecs"]).toMatchObject({
       type: "integer",

@@ -2,7 +2,7 @@ import { readTriggerSettings, type TriggerSettings } from "chat-renamer-api";
 import * as vscode from "vscode";
 
 /** `awake` object from `variants.yaml`. Editor keys stay dotted (`awake.when`). */
-export type HostAwake = { when?: unknown; what?: unknown; graceDelaySecs?: unknown };
+export type HostAwake = { when?: unknown; cmd?: unknown; graceDelaySecs?: unknown };
 
 /** Options a host extension supplies, such as the `chatRenamer` section of `variants.yaml`. */
 export type HostSettings = Partial<TriggerSettings> & { awake?: HostAwake };
@@ -30,8 +30,8 @@ const hostValue = (host: HostSettings, key: string): unknown => {
   if (key === "awake.when") {
     return host.awake?.when;
   }
-  if (key === "awake.what") {
-    return host.awake?.what;
+  if (key === "awake.cmd") {
+    return host.awake?.cmd;
   }
   if (key === "awake.graceDelaySecs") {
     return host.awake?.graceDelaySecs;

@@ -299,18 +299,10 @@
           ],
           "markdownDescription": "Hold this Mac awake while a chat session is in a turn. Default `chatsActive`. Changing it applies without a reload. The enable setting does not turn this off."
         },
-        "variant.awake.what": {
+        "variant.awake.cmd": {
           "type": "string",
-          "enum": [
-            "screen",
-            "cpu"
-          ],
-          "default": "screen",
-          "enumDescriptions": [
-            "caffeinate -disu: keep the display, system, and user session awake.",
-            "caffeinate -dis: keep the system awake and let the display sleep."
-          ],
-          "markdownDescription": "Which `caffeinate` flags to use. `screen` passes `-disu`. `cpu` passes `-dis`. Default `screen`."
+          "default": "caffeinate -disu -w ${extensionHostPid}",
+          "markdownDescription": "Command that holds this Mac awake. `${extensionHostPid}` is replaced with this extension host's pid. Default is the detected `caffeinate -disu -w ${extensionHostPid}`. Changing it applies without a reload."
         },
         "variant.awake.graceDelaySecs": {
           "type": "integer",

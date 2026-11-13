@@ -39,10 +39,11 @@ export const AWAKE_WHENS = ["chatsActive", "never"] as const;
 export type AwakeWhen = (typeof AWAKE_WHENS)[number];
 export const DEFAULT_AWAKE_WHEN: AwakeWhen = "chatsActive";
 
-/** Which caffeinate assertions to hold. `screen` is `-disu`, `cpu` is `-dis`. */
-export const AWAKE_WHATS = ["screen", "cpu"] as const;
-export type AwakeWhat = (typeof AWAKE_WHATS)[number];
-export const DEFAULT_AWAKE_WHAT: AwakeWhat = "screen";
+/**
+ * Command that holds the machine awake when `caffeinate` is detected.
+ * `${extensionHostPid}` is replaced with the extension host pid at spawn.
+ */
+export const DEFAULT_AWAKE_CMD = "caffeinate -disu -w ${extensionHostPid}";
 
 /** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
 export const DEFAULT_AWAKE_GRACE_DELAY_SECS = 60;

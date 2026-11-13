@@ -132,5 +132,5 @@ chatRenamer:
     # The startup line names agentHost+poll or poll. variant.log.highVolumeCategories is an opt-in checkbox
     # list whose first entry is awake.agentHostEvents.
     when: chatsActive # never; hold the Mac awake while a chat is taking a turn or generating
-    what: screen # cpu; screen runs caffeinate -disu -w <host-pid>, cpu runs caffeinate -dis -w <host-pid>
+    cmd: "caffeinate -disu -w ${extensionHostPid}" # detected default; ${extensionHostPid} is this host's pid
     graceDelaySecs: 60 # seconds to stay awake after the last turn; 0 stops at once. An idle chat does not count

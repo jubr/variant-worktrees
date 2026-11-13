@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { DEFAULT_AWAKE_CMD } from "chat-renamer-config";
 import { listHighVolumeCategories } from "variant-log";
 
 import { type AwakeInput, type AwakeProcess, createAwakeController } from "./awake";
@@ -99,7 +100,7 @@ const harness = (available = true, detection: Detection = "poll") => {
 
 const active = (over: Partial<AwakeInput> = {}): AwakeInput => ({
   when: "chatsActive",
-  what: "screen",
+  cmd: DEFAULT_AWAKE_CMD,
   active: true,
   owned: true,
   graceDelaySecs: 60,
@@ -138,7 +139,7 @@ describe("createAwakeController", () => {
     expect(infos(entries)).toEqual(['[awake] caffeinate available method="poll"']);
     controller.update(active());
 
-    expect(children.map((child) => child.args)).toEqual([["-disu", "-w", "5151"]]);
+    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
     expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -disu -w 5151" pid=4242 reason="activity"');
     expect(traces(entries).some((line) => line.includes("caffeinate"))).toBe(false);
     expect(infos(entries)).toEqual(['[awake] caffeinate available method="poll"']);
@@ -148,14 +149,16 @@ describe("createAwakeController", () => {
     expect(infos(entries).filter((line) => line.includes("caffeinate available"))).toHaveLength(1);
   });
 
-  it("spawns caffeinate -dis for cpu", () => {
+  it("spawns only caffeinate -disu with the extension host pid", () => {
     const { controller, children, entries } = harness();
 
-    controller.update(active({ what: "cpu" }));
+    controller.update(active({ cmd: "caffeinate -dis -w ${extensionHostPid}" }));
 
-    expect(children.map((child) => child.args)).toEqual([["-dis", "-w", "5151"]]);
-    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -dis -w 5151" pid=4242 reason="activity"');
-    expect(traces(entries).some((line) => line.includes("caffeinate"))).toBe(false);
+    expect(children).toHaveLength(0);
+    expect(debugs(entries).some((line) => line.includes("caffeinate -dis "))).toBe(false);
+
+    controller.update(active());
+    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
   });
 
   it("keeps the process for the grace delay, logs that only at trace, then stops it", () => {
@@ -234,19 +237,16 @@ describe("createAwakeController", () => {
     expect(disposed.children).toHaveLength(1);
   });
 
-  it("replaces the process when the mode changes, only after the first child exits", () => {
+  it("stops when the command is not caffeinate -disu and does not start another", () => {
     const { controller, children, entries } = harness();
     controller.update(active());
 
-    controller.update(active({ what: "cpu" }));
+    controller.update(active({ cmd: "caffeinate -dis -w ${extensionHostPid}" }));
     expect(children).toHaveLength(1);
     expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="mode changed"');
 
     children[0]?.finish();
-    expect(children.map((child) => child.args)).toEqual([
-      ["-disu", "-w", "5151"],
-      ["-dis", "-w", "5151"],
-    ]);
+    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-disu", "-w", "5151"]]);
   });
 
   it("starts a replacement when the process exits while a session is still active", () => {

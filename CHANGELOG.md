@@ -5,6 +5,7 @@
 ### Added
 
 - Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds. The startup line names `agentHost+poll` or `poll`. `variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`.
+- `chatRenamer.awake.cmd` replaces `awake.what`. The default is the detected `caffeinate -disu -w ${extensionHostPid}`.
 - A focused file inside the main checkout or a variant worktree highlights that row in a visible Variant Worktrees tree and does not take editor focus.
 
 ## [0.0.8] - 2026-11-11

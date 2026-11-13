@@ -1,4 +1,4 @@
-import type { AwakeWhat, AwakeWhen } from "chat-renamer-config";
+import { type AwakeWhen, DEFAULT_AWAKE_CMD } from "chat-renamer-config";
 import { registerHighVolumeCategory } from "variant-log";
 
 import type { Logger } from "./log";
@@ -17,7 +17,8 @@ export type AwakeProcess = {
 
 export type AwakeInput = {
   when: AwakeWhen;
-  what: AwakeWhat;
+  /** Command template. `${extensionHostPid}` is this host's pid. */
+  cmd: string;
   active: boolean;
   owned: boolean;
   graceDelaySecs: number;
@@ -50,11 +51,13 @@ type Grace = { since: number; delaySecs: number; timer: { cancel(): void } | nul
 const sameArgv = (left: readonly string[], right: readonly string[]): boolean =>
   left.length === right.length && left.every((part, index) => part === right[index]);
 
-const argsFor = (what: AwakeWhat, pid: number): readonly string[] => [
-  what === "cpu" ? "-dis" : "-disu",
-  "-w",
-  String(pid),
-];
+/** Split `cmd` into a program and arguments, substituting this host's pid. */
+const argvFor = (cmd: string, pid: number): readonly string[] =>
+  cmd
+    .replaceAll("${extensionHostPid}", String(pid))
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0);
 
 const signal = (child: AwakeProcess, name: NodeJS.Signals): void => {
   try {
@@ -87,14 +90,25 @@ export const createAwakeController = ({
   let grace: Grace | null = null;
   let latest: AwakeInput = {
     when: "chatsActive",
-    what: "screen",
+    cmd: DEFAULT_AWAKE_CMD,
     active: false,
     owned: true,
     graceDelaySecs: 60,
   };
   let disposed = false;
 
-  const wantsRun = (): boolean => latest.owned && latest.when === "chatsActive" && latest.active && available;
+  const oneArgv = (): readonly string[] => ["caffeinate", "-disu", "-w", String(parentPid)];
+
+  const isOneCommand = (cmd: string): boolean => {
+    const argv = argvFor(cmd, parentPid);
+    const expected = oneArgv();
+    return argv.length === expected.length && argv.every((part, index) => part === expected[index]);
+  };
+
+  const runnable = (cmd: string): boolean => available && isOneCommand(cmd);
+
+  const wantsRun = (): boolean =>
+    latest.owned && latest.when === "chatsActive" && latest.active && runnable(latest.cmd);
 
   const dropGrace = (): void => {
     grace?.timer?.cancel();
@@ -142,7 +156,7 @@ export const createAwakeController = ({
   };
 
   const start = (args: readonly string[]): void => {
-    if (!available || tracked) {
+    if (tracked || !runnable(latest.cmd)) {
       return;
     }
     try {
@@ -150,7 +164,7 @@ export const createAwakeController = ({
       const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false };
       tracked = running;
       child.once("exit", () => onExit(running));
-      awake.debug(`+ "caffeinate ${args.join(" ")}"`, { pid: child.pid, reason: "activity" });
+      awake.debug(`+ "${args.join(" ")}"`, { pid: child.pid, reason: "activity" });
     } catch (error) {
       awake.error("start failed", error);
     }
@@ -213,13 +227,19 @@ export const createAwakeController = ({
   };
 
   const update = (input: AwakeInput): void => {
-    if (disposed || !available) {
+    if (disposed) {
       return;
     }
     latest = input;
     if (wantsRun()) {
       cancelGrace();
-      ensure(argsFor(input.what, parentPid));
+      ensure(oneArgv());
+      return;
+    }
+    if (input.owned && input.when === "chatsActive" && input.active && available && !isOneCommand(input.cmd)) {
+      pendingArgs = null;
+      cancelGrace();
+      stop("mode changed");
       return;
     }
     if (!input.owned) {

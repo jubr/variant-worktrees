@@ -16,7 +16,7 @@ describe("defaults", () => {
     expect(defaults.DEFAULT_RENAME_EXISTING_DAYS).toBe(7);
     expect(defaults.DEFAULT_TITLE_EVENT_PROMPT_LINES).toBe(10);
     expect(defaults.DEFAULT_AWAKE_WHEN).toBe("chatsActive");
-    expect(defaults.DEFAULT_AWAKE_WHAT).toBe("screen");
+    expect(defaults.DEFAULT_AWAKE_CMD).toBe("caffeinate -disu -w ${extensionHostPid}");
     expect(defaults.DEFAULT_AWAKE_GRACE_DELAY_SECS).toBe(60);
   });
 
@@ -24,7 +24,8 @@ describe("defaults", () => {
     expect(defaults.TRIGGERS).toEqual(["titleEvent", "hook"]);
     expect(defaults.HOOK_SCOPES).toEqual(["workspace", "user"]);
     expect(defaults.AWAKE_WHENS).toEqual(["chatsActive", "never"]);
-    expect(defaults.AWAKE_WHATS).toEqual(["screen", "cpu"]);
+    expect(Object.keys(defaults)).not.toContain("AWAKE_WHATS");
+    expect(Object.keys(defaults)).not.toContain("DEFAULT_AWAKE_WHAT");
   });
 
   it("does not own the variant prefix", () => {

@@ -165,7 +165,7 @@ export const startChatRenameTrigger = (
           }
           controller.update({
             when: settings.awakeWhen,
-            what: settings.awakeWhat,
+            cmd: settings.awakeCmd,
             graceDelaySecs: settings.graceDelaySecs,
             active: settings.awakeWhen === "chatsActive" && turns.active(),
             owned: true,
