@@ -9,7 +9,7 @@ step names.
 ### Requirement: Every package owns its lint and test steps
 
 Every directory `packages/<name>` that has a `package.json` SHALL have a `packages/<name>/hk.pkl`, and the root
-`hk.pkl` SHALL list `packages/<name>` under `subprojects`. The `hk check --all --plan` output SHALL contain one Biome
+`hk.pkl` SHALL include every such directory under `subprojects`. The `hk check --all --plan` output SHALL contain one Biome
 step per package, named with that package, and SHALL NOT contain a Biome step that spans several packages. Each
 package's `hk.pkl` SHALL contribute that Biome step to the `check`, `fix` and `pre-commit` hooks, and a `test` step to the
 `check` hook, from one shared definition, so changing a step once changes it for every package. A package's `test`

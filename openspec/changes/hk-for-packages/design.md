@@ -13,18 +13,19 @@ A reference project nests `hk.pkl` files with `subprojects = List(...)` on hk 2.
 **Goals:**
 
 - One definition of the per-package steps, applied to all twelve packages.
+- Package tests that run concurrently, after the workspace build.
 - A new package fails a test until it has an `hk.pkl` and a `subprojects` entry.
 - Plan output that names the package for every lint step.
 
 **Non-Goals:**
 
-- Per-package `test` or `build` steps.
+- Per-package `build` steps.
 - Changing Biome rules, `biome.json`, or the `bun run lint` scripts.
 
 ## Decisions
 
 1. **Shared module amended by each package.** A root `hk.package.pkl` amends hk's `Config.pkl` and defines the
-   `check`, `fix` and `pre-commit` hooks with the Biome step. Each `packages/<name>/hk.pkl` is
+   `check`, `fix` and `pre-commit` hooks with the Biome step, and the `check` hook with the `test` step. Each `packages/<name>/hk.pkl` is
    `amends "../../hk.package.pkl"`. A package that later needs an extra step overrides one hook in its own file.
    Alternative: every package imports a `linters` mapping and repeats the `hooks { }` block. Rejected: repeats about
    fifteen lines twelve times, and the hook wiring is the part that should not drift. Fallback if `hk` cannot load a
@@ -35,13 +36,24 @@ A reference project nests `hk.pkl` files with `subprojects = List(...)` on hk 2.
    its `files.includes` is root-relative and already matches the package files. This aligns the hk glob with
    `task lint`, which also covers `.tsx` in `variant-ui`.
 
-3. **Heavy steps stay at the root.** `test`, `build` and `docs:build` call the existing sequenced tasks. hk runs steps of
-   a group in parallel, and package builds depend on each other's `dist/`, so per-package parallel builds would race.
-   Alternative: per-package `build` with `depends`. Rejected: step names across subprojects are prefixed, so the
-   dependency edges would duplicate the order already encoded in `package.json` `build`.
+3. **Package tests are nested steps; the build is one root step they depend on.** The shared `test` step runs
+   `bun run test` in the package directory, so each package's own script (including `VARIANT_OPEN=0` where set) is the
+   single source of truth. The step has `profiles = List("ci")` and `depends = List("build")`. The root `build` step
+   keeps calling the sequenced `task --silent build`, because package builds depend on each other's `dist/` and hk would
+   run per-package builds in parallel. A scratch run of hk 2.8.0 showed that a nested step's `depends` resolves a root
+   step by its unprefixed name, that `build` runs alongside the lint steps, and that the package tests start
+   only after it has finished, concurrently with each other. The tests do not depend on each other. The `task test`
+   entry point stays for people.
+   Alternatives: root `exclusive` build (also holds the lint steps back until it finishes; rejected), per-package
+   `build` steps with `depends` (duplicates the order that `package.json` `build` already encodes; rejected).
 
-4. **Explicit `subprojects` list, enforced by a test.** Pkl could glob, but an explicit list is reviewable and the
-   test compares it with the `packages/*/package.json` directories, which also catches a missing `hk.pkl`.
+   The root also gets a `test:scripts` step (`bun test scripts`, `ci` profile, `depends = List("build")`) for the
+   repository script tests that `task test` runs after the package tests. `docs:build` stays a root step in the `full`
+   profile.
+
+4. **`subprojects = List("packages/*")`.** hk accepts globs, so a new package directory with an `hk.pkl` is picked
+   up without editing the root. The test compares `packages/*/package.json` directories with the `hk.pkl` files and
+   the plan, which also catches a missing `hk.pkl`.
 
 5. **Contract test through `hk --plan`.** `scripts/hk-config.spec.ts` shells out to `hk ... --plan` (inspect-only) and
    asserts step names for the default, `ci`, `full` and pre-commit plans. It is skipped with a clear message when `hk`
@@ -59,6 +71,7 @@ A reference project nests `hk.pkl` files with `subprojects = List(...)` on hk 2.
   on a deliberately mis-formatted file in two packages, then discard it.
 - [Linting `.tsx` through hk surfaces findings hk did not see before] → they are already findings of `task lint`; fix
   or confirm there are none before enabling.
+- [Twelve test steps at once load the machine, and some tests bind sockets or share fixtures] → they run under hk's `--jobs` limit; the first full run checks for interference, and a package that needs it can set `exclusive` in its own `hk.pkl`.
 - [Twelve nested steps lengthen the plan] → they run in parallel and only on matching files.
 
 ## Migration Plan
