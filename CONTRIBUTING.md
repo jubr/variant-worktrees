@@ -75,15 +75,29 @@ should use mise-managed versions.
 **AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash; set -x)";` at start of each shell series.
 This will set all relevant env vars, including $PATH. Then `-x` echos, so no need for `echo '---what---'`. The `mise x --` prefix is a shorthand for this.
 
-Local lint and format use [hk](https://hk.jdx.dev/) (`hk.pkl` at root) wrapping
-Biome. Git `pre-commit` and `commit-msg` live under `.githooks/` and call hk /
+Local lint, format and tests use [hk](https://hk.jdx.dev/) (2.x, pinned in `mise.toml`) wrapping
+Biome and `bun test`. Git `pre-commit` and `commit-msg` live under `.githooks/` and call hk /
 commitlint. `package.json` `prepare` sets `core.hooksPath` to `.githooks`.
+
+Every package owns its steps. `packages/<name>/hk.pkl` is one line,
+`amends "../../hk.package.pkl"`, and the shared `hk.package.pkl` defines the per-package
+steps once: `<name>:biome` (check, fix, pre-commit) and `<name>:test` (`bun run test` in
+the package, `ci` profile). The root `hk.pkl` takes `packages/*` as `subprojects` and keeps the
+workspace-wide steps and the hook-wide settings: `commitlint`, `build` (the one sequenced
+workspace build), `test:scripts` (`bun test scripts`) and `docs:build`.
+The package tests depend on `build` and not on each other, so they run concurrently once it is done.
+A new package needs its own `hk.pkl` (copy the one-liner); `scripts/hk-config.spec.ts` fails without it.
+A package-specific step goes into that package's `hk.pkl` below the `amends` line, in the hook that should run it.
+
+Profiles: no profile runs only Biome; `ci` adds the package tests, `build`, `test:scripts` and
+`commitlint`; `full` adds `docs:build`. `pre-commit` and `fix` run only Biome. Use `hk check --plan`
+(add `--all`, `--profile ci`) to see what a run would do.
 
 ```bash
 hk fix                # apply biome fixes on staged/configured files
-task check:changed    # hk check on git-changed files (no install)
-task check:all        # hk check --all --profile ci (no install)
-task check:full       # bun install, then hk --all --profile ci --profile full
+task check:changed    # hk check on git-changed files: per-package biome (no install, no tests)
+task check:all        # hk check --all --profile ci: biome, tests, build, script tests, commitlint (no install)
+task check:full       # bun install, then hk check --all --profile ci --profile full (adds the docs build)
 ```
 
 CI is GitHub Actions. Do not treat `hk check` as a workflow replacement, but
