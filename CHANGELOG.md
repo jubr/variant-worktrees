@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.9] - 2026-11-13
 
 ### Added
 
@@ -19,6 +19,16 @@
 - An attached `watch` on a terminal prints `[watch] Interactive:   1 restart   2 detach   3 quit   (press number + ⏎)` once every ready watch has returned 200. The numbers are bold cyan, the words are yellow, and the parenthetical is dark gray. `1` restarts the processes and keeps listening, `2` leaves them running and returns the shell, and `3` sends Ctrl+C to every watch and waits. A second Ctrl+C at least 1 second later sends SIGTERM and returns the shell. The line is not written to the watch log.
 - A second `watch` leaves live processes running. It prints `[watch] # already running: reattached, showing last 50 lines`, the last 50 lines of `.cache/variant/watch.log`, `[watch] {name} URL 200 {url}` for each ready watch that answers 200, and the command line. Without `--detach` it then follows new log lines, accepts `1`, `2`, and `3`, and writes any other line to the watches' stdin. Ctrl+C on the first watch stops its processes.
 - `variant config` prints YAML with an origin comment on each value: `# from <path>` for the loaded file (relative to the working directory), `# from env NAME` for an environment variable, `# autodetect <reason>` or `# autodetect from <source>` for a discovered value, or `# default` for a built-in. A shared origin is commented on the parent only, including items of an array. A comment that only repeats its key is omitted, and `source` is not printed. On a terminal, with `NO_COLOR` unset, keys, strings, numbers, booleans, and comments use the same colors as yq. A pipe or any `NO_COLOR` value, including empty, keeps the comments and drops the color. `--json` and `--yaml` stay plain. A password is `***` in all three.
+
+### Release notes
+
+- feat(vscode): highlight the variant of the active file by @jubr in https://github.com/jubr/variant-worktrees/pull/62
+- feat(chat-renamer): follow turn events while awake by @jubr in https://github.com/jubr/variant-worktrees/pull/63
+- feat(variant-cli): change directory with -C before config is read by @jubr in https://github.com/jubr/variant-worktrees/pull/64
+- feat: comment where variant config values come from by @jubr in https://github.com/jubr/variant-worktrees/pull/65
+- feat: native tty watches with reattach and SIGINT quit by @jubr in https://github.com/jubr/variant-worktrees/pull/66
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.8...v0.0.9
 
 ## [0.0.8] - 2026-11-11
 
