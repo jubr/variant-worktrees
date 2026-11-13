@@ -22,8 +22,8 @@ describe("readTriggerSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeWhat: "screen",
-      graceDelaySecs: 60,
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+      graceDelaySecs: 180,
     });
   });
 
@@ -38,8 +38,8 @@ describe("readTriggerSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeWhat: "screen",
-      graceDelaySecs: 60,
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+      graceDelaySecs: 180,
     });
   });
 
@@ -52,8 +52,8 @@ describe("readTriggerSettings", () => {
       renameExistingDays: 7,
       titleEventPromptLines: 10,
       awakeWhen: "chatsActive",
-      awakeWhat: "screen",
-      graceDelaySecs: 60,
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+      graceDelaySecs: 180,
     });
   });
 
@@ -86,21 +86,35 @@ describe("readTriggerSettings", () => {
     }
   });
 
-  it("defaults awake to chatsActive, screen, and 60 seconds", () => {
+  it("defaults awake to chatsActive, the detected caffeinate command, and 180 seconds", () => {
     expect(readTriggerSettings(settings({}))).toMatchObject({
       awakeWhen: "chatsActive",
-      awakeWhat: "screen",
-      graceDelaySecs: 60,
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+      graceDelaySecs: 180,
     });
   });
 
   it("reads awake values and falls back when they are unknown", () => {
     expect(
-      readTriggerSettings(settings({ "awake.when": "never", "awake.what": "cpu", "awake.graceDelaySecs": 0 })),
-    ).toMatchObject({ awakeWhen: "never", awakeWhat: "cpu", graceDelaySecs: 0 });
+      readTriggerSettings(
+        settings({
+          "awake.when": "never",
+          "awake.cmd": "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+          "awake.graceDelaySecs": 0,
+        }),
+      ),
+    ).toMatchObject({
+      awakeWhen: "never",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+      graceDelaySecs: 0,
+    });
     expect(
-      readTriggerSettings(settings({ "awake.when": "always", "awake.what": "gpu", "awake.graceDelaySecs": -1 })),
-    ).toMatchObject({ awakeWhen: "chatsActive", awakeWhat: "screen", graceDelaySecs: 60 });
+      readTriggerSettings(settings({ "awake.when": "always", "awake.cmd": "  ", "awake.graceDelaySecs": -1 })),
+    ).toMatchObject({
+      awakeWhen: "chatsActive",
+      awakeCmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
+      graceDelaySecs: 180,
+    });
   });
 
   it("reads worktree prefixes, drops non-strings, and lets an empty list switch them off", () => {

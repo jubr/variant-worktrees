@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 
 import {
   activationPatternsSchema,
+  awakeCmdSchema,
   awakeGraceDelaySecsSchema,
-  awakeWhatSchema,
   awakeWhenSchema,
   ChatRenamerConfigSchema,
   hookScopeSchema,
@@ -84,9 +84,8 @@ describe("awake schemas", () => {
     expect(awakeWhenSchema.safeParse("chatsActive").success).toBe(true);
     expect(awakeWhenSchema.safeParse("never").success).toBe(true);
     expect(awakeWhenSchema.safeParse("always").success).toBe(false);
-    expect(awakeWhatSchema.safeParse("screen").success).toBe(true);
-    expect(awakeWhatSchema.safeParse("cpu").success).toBe(true);
-    expect(awakeWhatSchema.safeParse("gpu").success).toBe(false);
+    expect(awakeCmdSchema.safeParse("/usr/bin/caffeinate -disu -w ${extensionHostPid}").success).toBe(true);
+    expect(awakeCmdSchema.safeParse("").success).toBe(false);
   });
 
   it("accepts zero and 60 and rejects a negative and a fraction", () => {
@@ -108,7 +107,7 @@ describe("ChatRenamerConfigSchema", () => {
         worktreePrefixes: ["_v-"],
         renameExistingDays: 30,
         titleEventPromptLines: 20,
-        awake: { when: "never", what: "cpu", graceDelaySecs: 0 },
+        awake: { when: "never", cmd: "/usr/bin/caffeinate -disu -w ${extensionHostPid}", graceDelaySecs: 0 },
       }).success,
     ).toBe(true);
     expect(ChatRenamerConfigSchema.safeParse({ awake: {} }).success).toBe(true);
@@ -120,6 +119,8 @@ describe("ChatRenamerConfigSchema", () => {
     expect(ChatRenamerConfigSchema.safeParse({ titleEventPromptLines: 0 }).success).toBe(false);
     expect(ChatRenamerConfigSchema.safeParse({ awake: { colour: "red" } }).success).toBe(false);
     expect(ChatRenamerConfigSchema.safeParse({ awake: { when: "always" } }).success).toBe(false);
+    expect(ChatRenamerConfigSchema.safeParse({ awake: { what: "screen" } }).success).toBe(false);
+    expect(ChatRenamerConfigSchema.safeParse({ awake: { cmd: "" } }).success).toBe(false);
     expect(ChatRenamerConfigSchema.safeParse({ awake: { graceDelaySecs: -1 } }).success).toBe(false);
   });
 });

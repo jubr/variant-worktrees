@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { AWAKE_WHATS, AWAKE_WHENS, HOOK_SCOPES, TRIGGERS } from "./defaults";
+import { AWAKE_WHENS, HOOK_SCOPES, TRIGGERS } from "./defaults";
 import { isWorktreePrefix } from "./rules";
 
 /** `titleEvent` (default) or `hook`. */
@@ -42,8 +42,11 @@ export const awakeWhenSchema = z
   .enum(AWAKE_WHENS)
   .describe("When to hold the machine awake: while a chat is active, or never.");
 
-/** `screen` (default, caffeinate -disu) or `cpu` (caffeinate -dis). */
-export const awakeWhatSchema = z.enum(AWAKE_WHATS).describe("Which caffeinate assertions to hold.");
+/** Command that holds the machine awake. `${extensionHostPid}` is this extension host's pid. */
+export const awakeCmdSchema = z
+  .string()
+  .min(1)
+  .describe("Command that holds the machine awake. ${extensionHostPid} is this extension host's pid.");
 
 /** Seconds to keep caffeinate after the last active chat goes idle. 0 stops at once. */
 export const awakeGraceDelaySecsSchema = z
@@ -63,7 +66,7 @@ export const ChatRenamerConfigSchema = z.strictObject({
   awake: z
     .strictObject({
       when: awakeWhenSchema.optional(),
-      what: awakeWhatSchema.optional(),
+      cmd: awakeCmdSchema.optional(),
       graceDelaySecs: awakeGraceDelaySecsSchema.optional(),
     })
     .optional(),
