@@ -916,20 +916,22 @@ describe("MCP logging", () => {
       expect(notes.some((note) => note.level === "debug")).toBe(false);
     }, loudParent()));
 
-  it("sends a schema create at info when the client asks for info", async () => {
+  it("sends a schema create at debug when the client asks for debug", async () => {
     const directory = realpathSync(mkdtempSync(join(loudParent(), "variant-mcp-info-")));
     try {
       const result = await mcp(
-        [...initMessages(), setLevel(2, "info"), call(3, "variant_provision", { slug: "test-feature" })],
+        [...initMessages(), setLevel(2, "debug"), call(3, "variant_provision", { slug: "test-feature" })],
         configFile(directory, true),
         { cwd: directory },
       );
-      const messages = logging(result)
-        .filter((note) => note.level === "info")
-        .map((note) => (note.data as { message?: string }).message ?? "");
-      expect(messages.some((message) => message.includes("create schema"))).toBe(true);
-      expect(messages).toContain('+"printf seeded"');
-      expect(messages.join("\n")).not.toContain("cmd=");
+      const messages = (level: string): string[] =>
+        logging(result)
+          .filter((note) => note.level === level)
+          .map((note) => (note.data as { message?: string }).message ?? "");
+      expect(messages("debug").some((message) => message.includes("create schema"))).toBe(true);
+      expect(messages("info").some((message) => message.includes("create schema"))).toBe(false);
+      expect(messages("info")).toContain('+"printf seeded"');
+      expect([...messages("debug"), ...messages("info")].join("\n")).not.toContain("cmd=");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
