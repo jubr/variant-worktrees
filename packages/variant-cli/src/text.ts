@@ -18,6 +18,8 @@ export interface TextOptions {
   variantRoot: string;
   /** Print what `--verbose` asks for: a block per variant, as `status` shows it, instead of the list table. */
   verbose?: boolean;
+  /** Color the config text. Other commands ignore it. */
+  color?: boolean;
 }
 
 const isScalar = (value: unknown): boolean => value === null || typeof value !== "object";
@@ -38,6 +40,82 @@ const scalarLines = (value: unknown, pad: string): string[] =>
         .split("\n")
         .map((line) => `${pad}  ${line}`)
     : [];
+
+const originsOf = (value: unknown): Readonly<Record<string, string>> =>
+  (value as { origins?: Readonly<Record<string, string>> }).origins ?? {};
+
+const ESC = "\u001b";
+
+const paint = (text: string, code: string, color: boolean): string =>
+  color ? `${ESC}[${code}m${text}${ESC}[0m` : text;
+
+/** A scalar in its YAML role. Null stays plain. Strings include their quotes. */
+const paintedScalar = (value: unknown, color: boolean): string => {
+  const text = scalarText(value);
+  if (typeof value === "string") {
+    return paint(text, "32", color);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return paint(text, "95", color);
+  }
+  return text;
+};
+
+const commentOf = (origin: string | undefined, covering: string | undefined, color: boolean): string =>
+  origin !== undefined && origin !== covering ? ` ${paint(origin, "90", color)}` : "";
+
+/**
+ * Config text: the outline, plus an origin comment on a key whose origin differs from its ancestor.
+ * Descendants that share that origin stay uncommented. Undefined values are left out so the YAML
+ * parses to the same document as `--json`. Color follows the value's type when `color` is set.
+ */
+export const outlineConfig = (value: unknown, color = false): string[] => {
+  const origins = originsOf(value);
+  const walk = (node: unknown, path: string, covering: string | undefined, indent: number): string[] => {
+    const pad = "  ".repeat(indent);
+    if (Array.isArray(node)) {
+      return node.flatMap((item, index) => {
+        const childPath = `${path}.${index}`;
+        const origin = origins[childPath];
+        const comment = commentOf(origin, covering, color);
+        const next = origin ?? covering;
+        if (item === undefined) {
+          return [];
+        }
+        if (isScalar(item)) {
+          return [`${pad}- ${paintedScalar(item, color)}${comment}`];
+        }
+        return isEmpty(item)
+          ? [`${pad}- ${Array.isArray(item) ? "[]" : "{}"}${comment}`]
+          : [`${pad}-${comment}`, ...walk(item, childPath, next, indent + 1)];
+      });
+    }
+    return Object.entries(node as Record<string, unknown>).flatMap(([key, child]) => {
+      if (child === undefined) {
+        return [];
+      }
+      const childPath = path === "" ? key : `${path}.${key}`;
+      const origin = origins[childPath];
+      const comment = commentOf(origin, covering, color);
+      const next = origin ?? covering;
+      const keyText = paint(key, "36", color);
+      if (isScalar(child)) {
+        const multiline = scalarLines(child, pad);
+        if (multiline.length > 0) {
+          const colored = color
+            ? multiline.map((line) => `${pad}  ${paint(line.slice(pad.length + 2), "32", true)}`)
+            : multiline;
+          return [`${pad}${keyText}:${comment}`, ...colored];
+        }
+        return [`${pad}${keyText}: ${paintedScalar(child, color)}${comment}`];
+      }
+      return isEmpty(child)
+        ? [`${pad}${keyText}: ${Array.isArray(child) ? "[]" : "{}"}${comment}`]
+        : [`${pad}${keyText}:${comment}`, ...walk(child, childPath, next, indent + 1)];
+    });
+  };
+  return walk(value, "", undefined, 0);
+};
 
 /** Any value as indented `key: value` lines; arrays as `- item` lines. The text form of a result without a layout. */
 export const outline = (value: unknown, indent = 0): string[] => {
@@ -206,8 +284,11 @@ const layouts: Record<string, (result: never, options: TextOptions) => string[] 
         ],
 };
 
-/** The text a command result is printed as: its own layout, else the outline. */
+/** The text a command result is printed as: its own layout, else the outline. Config carries origin comments. */
 export const renderText = (command: string, result: unknown, options: TextOptions): string => {
+  if (command === "config") {
+    return outlineConfig(result, options.color === true).join("\n");
+  }
   const layout = layouts[command];
   if (!layout) {
     return outline(result).join("\n");

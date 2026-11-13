@@ -24,7 +24,19 @@ variant init --force
 
 ## config
 
-Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment. The printed object includes the resolved `variant.main` and `variant.root` even though `init` does not write them. Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not. `db.port` may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
+Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment. The printed object includes the resolved `variant.main` and `variant.root` even though `init` does not write them, and it includes built-in defaults and discovered watches. Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not. `db.port` may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
+
+The text is YAML. A comment names where a value came from, on that key. A child with the same origin is not commented again. A child from somewhere else is commented on its own line. The file path is relative to the working directory and uses `/`: `./variants.yaml` when the file is there, `../variants.yaml` when it is a parent.
+
+- `# from <path>` — the loaded file set the value
+- `# from env NAME` — that variable supplied the value, including a `${NAME}` in the file when `NAME` is set. A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
+- `# autodetect <reason>` — the value was discovered. `<reason>` is one word: `watch`, `config`, or `connection`
+- `# autodetect from <source>` — the discovery names a source the key does not. `abbr` quotes the main directory's base name. `main` names `AGENTS.md` or `` `git rev-parse --git-common-dir` ``. `root` names `AGENTS.md` only when it is not the same path as `main`
+- `# default` — a built-in default filled a key the file omits
+
+A comment that only repeats its key is left off, including `runtime` and a `main` or `root` that is only the config directory. Items of an array written in the file use that file's origin, so the comment sits on the key that holds the array. `source` is not printed; where `db` came from is the comment on those fields.
+
+On a terminal, with `NO_COLOR` unset, keys are cyan, strings green, numbers and booleans bright magenta, and comments bright black. Null, `[]`, `{}`, colons, and dashes stay the default color. A pipe, or `NO_COLOR` set to any value including empty, prints the same characters with the comments and no color. `--json` and `--yaml` print the same document with no comments and no color. A password is `***` in all three.
 
 ```bash
 variant config

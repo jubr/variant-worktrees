@@ -23,7 +23,7 @@ import { renderHelp } from "./help.js";
 import { takeLogLevel } from "./ipc-log.js";
 import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.js";
 import { migrateConfigFiles } from "./migration.js";
-import { GLOBAL_FLAGS, type OutputFormat, renderOutput } from "./output.js";
+import { GLOBAL_FLAGS, type OutputFormat, renderOutput, stdoutColor } from "./output.js";
 import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
 import { printWarnings } from "./warnings.js";
 
@@ -71,6 +71,7 @@ const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
         format,
         variantRoot: client.config().variant.root,
         verbose: flags.verbose === true,
+        color: stdoutColor(process.stdout, process.env),
       };
       let printedStart = false;
       if (definition.name === "watch" && format === "text" && args.detach !== true) {
