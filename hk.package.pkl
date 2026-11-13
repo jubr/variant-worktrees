@@ -1,0 +1,35 @@
+amends "package://github.com/jdx/hk/releases/download/v2.8.0/hk@2.8.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.8.0/hk@2.8.0#/Builtins.pkl"
+
+// AIDEV-NOTE: shared by every packages/<name>/hk.pkl (`amends "../../hk.package.pkl"`).
+// hk runs each step with the package as cwd and prefixes its name: packages/<name>:biome.
+// Hook-wide fix/stash/profiles live in the root hk.pkl; subprojects only contribute steps.
+local linters = new Mapping<String, Step> {
+  ["biome"] = (Builtins.biome) {
+    prefix = List("bunx", "--bun")
+    glob = List("src/**/*.ts", "src/**/*.tsx")
+    exclude = List("**/dist/**", "**/node_modules/**")
+  }
+}
+
+hooks {
+  ["check"] {
+    steps {
+      ...linters
+      // AIDEV-NOTE: package builds import each other's dist/, so they stay one sequenced root
+      // step. Tests start when it has finished and then run concurrently with each other.
+      ["test"] {
+        glob = List("src/**", "package.json", "tsconfig.json", "bunfig.toml")
+        check = "bun run test"
+        depends = List("build")
+        profiles = List("ci")
+      }
+    }
+  }
+  ["fix"] {
+    steps = linters
+  }
+  ["pre-commit"] {
+    steps = linters
+  }
+}
