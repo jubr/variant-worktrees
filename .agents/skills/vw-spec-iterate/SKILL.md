@@ -8,7 +8,7 @@ description: >
 
 # vw-spec-iterate
 
-Implement `$slug` in the feature worktree until local quality gates pass. No push/PR here.
+Implement `$slug` in the feature worktree until local quality gates pass. No push/PR here. Work only in the initially mentioned worktree, ask before doing work somewhere else.
 
 ## Hard gate — read IN FULL before implementation
 
