@@ -10,7 +10,7 @@ description: >
 # vw-spec-wrapup
 
 Close out `$slug` after implementation CI is green.
-**Sync-archive** (sync delta specs into `openspec/specs/`, then move the change under `openspec/changes/archive/`) lives on the **same feature branch** (`$type/$slug` or current).
+**Sync-archive** (sync delta specs into `openspec/specs/`, then move the change under `openspec/changes/archive/`) lives on the **same feature branch** (`$type/$slug` or current). Work only in the initially mentioned worktree, ask before doing work somewhere else.
 
 ## Required reads (MUST)
 

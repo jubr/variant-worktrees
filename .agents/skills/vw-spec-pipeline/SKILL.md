@@ -7,7 +7,7 @@ description: >
 
 # vw-spec-pipeline
 
-Ship `$slug` through GitHub Actions. Assume local `task check:full` already passed (`vw-spec-iterate`). Assume `gh auth status` succeeded in `vw-spec-start`.
+Ship `$slug` through GitHub Actions. Assume local `task check:full` already passed (`vw-spec-iterate`). Assume `gh auth status` succeeded in `vw-spec-start`. Work only in the initially mentioned worktree, ask before doing work somewhere else.
 
 ## Required reads (MUST)
 

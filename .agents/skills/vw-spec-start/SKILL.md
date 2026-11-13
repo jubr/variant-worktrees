@@ -8,7 +8,7 @@ description: >
 
 # vw-spec-start
 
-Bootstrap one OpenSpec change `$slug` (kebab-case). For slugs, prefer a prefix similar to existing `openspec/changes/archive/*` for sortability. Planning + workspace only. Stop when propose artifacts exist. Do not implement product code here.
+Bootstrap one OpenSpec change `$slug` (kebab-case). For slugs, prefer a prefix similar to existing `openspec/changes/archive/*` for sortability. Planning + workspace only. Stop when propose artifacts exist. Do not implement product code here. Work only in the initially mentioned worktree, ask before doing work somewhere else.
 
 ## Hard gate — read IN FULL before any work
 
