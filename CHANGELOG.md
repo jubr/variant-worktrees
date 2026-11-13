@@ -4,6 +4,7 @@
 
 ### Added
 
+- `-C <path>` changes directory before configuration is read. There is no long option.
 - Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds. The startup line names `agentHost+poll` or `poll`. `variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`.
 - `chatRenamer.awake.cmd` replaces `awake.what`. The default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`.
 - `awake.graceDelaySecs` defaults to `180`.

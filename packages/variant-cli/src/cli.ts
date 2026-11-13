@@ -15,6 +15,7 @@ import {
 } from "variant-api";
 import { type CommandDefinition, commands } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
+import { takeDirectory } from "./chdir.js";
 import { collectArgs } from "./cli-args.js";
 import { flagSpecsFor } from "./cli-flags.js";
 import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
@@ -135,7 +136,8 @@ if (process.argv.includes("--internal-watch-relay")) {
   await runWatchRelay();
 } else {
   try {
-    const { args: withoutLevel, level } = takeLogLevel(process.argv.slice(2));
+    const { args: withoutDir } = takeDirectory(process.argv.slice(2));
+    const { args: withoutLevel, level } = takeLogLevel(withoutDir);
     const slug = explicitSlug(withoutLevel);
     attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
     const { args, format } = takeFormat(withoutLevel);

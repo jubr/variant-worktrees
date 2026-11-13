@@ -226,3 +226,50 @@ describe("variant completions --list-slugs", () => {
       expect(listing.stdout.trim().split("\n")).toEqual(["alpha", "beta", "gamma"]);
     }));
 });
+
+/** The part of a script that completes one subcommand. */
+const commandSection = (shell: string, script: string, name: string): string => {
+  const lines = script.split("\n");
+  if (shell === "bash") {
+    return lines.find((line) => line.startsWith(`    ${name})`)) ?? "";
+  }
+  if (shell === "fish") {
+    return lines.filter((line) => line.includes(`__fish_seen_subcommand_from ${name}`)).join("\n");
+  }
+  const start = lines.findIndex((line) => line.startsWith(`        (${name})`));
+  const end = lines.findIndex((line, index) => index > start && line.trim().endsWith(";;"));
+  return lines.slice(start, end + 1).join("\n");
+};
+
+/** The flags offered for `variant` itself, before a subcommand. */
+const topLevelFlags = (shell: string, script: string): string => {
+  const lines = script.split("\n");
+  if (shell === "bash") {
+    return lines.find((line) => line.includes("compgen -W") && line.includes("--version")) ?? "";
+  }
+  if (shell === "fish") {
+    return lines.filter((line) => line.includes("__fish_use_subcommand")).join("\n");
+  }
+  const start = script.indexOf("_arguments -C");
+  return script.slice(start, script.indexOf("case $state", start));
+};
+
+const directoryToken = (shell: string): string => (shell === "fish" ? "-s C" : shell === "zsh" ? "'-C+" : "-C");
+
+describe("directory option in completions", () => {
+  it("offers -C for variant, list, ui, and completions and does not offer --chdir", async () => {
+    for (const shell of ["bash", "zsh", "fish"]) {
+      const script = (await runCli(["completions", shell])).stdout;
+
+      expect(script).not.toContain("--chdir");
+      expect(topLevelFlags(shell, script)).toContain(directoryToken(shell));
+      for (const name of ["list", "ui", "completions"]) {
+        const part = commandSection(shell, script, name);
+        expect(part).toContain(directoryToken(shell));
+        if (name !== "list") {
+          expect(part).not.toContain("--json");
+        }
+      }
+    }
+  });
+});

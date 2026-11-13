@@ -55,6 +55,9 @@ describe("README CLI section", () => {
     for (const { name } of GLOBAL_FLAGS) {
       expect(globals).toContain(`--${name}`);
     }
+    expect(globals).toContain("-C");
+    expect(globals).toContain("<path>");
+    expect(globals).not.toContain("--chdir");
     for (const flag of ["--slug", "--detach", "--force", "--verbose"]) {
       expect(globals).not.toContain(flag);
     }
@@ -78,6 +81,8 @@ describe("documentation", () => {
     const core = read("docs/guide/core.md");
 
     expect(core).toContain("## Global flags");
+    expect(core).toContain("-C");
+    expect(core).not.toContain("--chdir");
     for (const { name } of GLOBAL_FLAGS) {
       expect(core).toContain(`--${name}`);
     }

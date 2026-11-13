@@ -193,6 +193,7 @@ These flags work on every command, before or after the command name. `variant --
 
 | Flag | Effect |
 | --- | --- |
+| `-C <path>` | Change directory before configuration is read |
 | `--json` | Print the result as JSON, exactly what the command returned |
 | `--yaml` | Print the same result as YAML |
 | `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn`. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, then the step when the event has one. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, and the step is cyan |
