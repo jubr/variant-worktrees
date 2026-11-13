@@ -29,6 +29,19 @@ interface Manifest {
 const manifest: Manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 const build = readFileSync(new URL("../../scripts/esbuild.config.ts", import.meta.url), "utf8");
 
+describe("high-volume log categories", () => {
+  it("offers the registered categories as checkboxes, default none", async () => {
+    await import("chat-renamer-api");
+    const { listHighVolumeCategories } = await import("variant-log");
+    const property = manifest.contributes.configuration.properties["variant.log.highVolumeCategories"] as
+      | { items?: { enum?: string[] } }
+      | undefined;
+
+    expect(property?.items?.enum).toEqual([...listHighVolumeCategories()]);
+    expect(property).toMatchObject({ type: "array", uniqueItems: true, default: [] });
+  });
+});
+
 describe("variants view manifest", () => {
   describe("host requirement", () => {
     it("needs VS Code 1.101, whose Node.js reads sqlite through node:sqlite", () => {

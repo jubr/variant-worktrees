@@ -1,13 +1,4 @@
-import {
-  AWAKE_WHATS,
-  AWAKE_WHENS,
-  type AwakeWhat,
-  type AwakeWhen,
-  HOOK_SCOPES,
-  type HookScope,
-  TRIGGERS,
-  type Trigger,
-} from "./defaults";
+import { AWAKE_WHENS, type AwakeWhen, HOOK_SCOPES, type HookScope, TRIGGERS, type Trigger } from "./defaults";
 
 /** A worktree prefix entry: a non-empty string without path separators. It holds its own connector (`_v-`). */
 export const isWorktreePrefix = (value: unknown): value is string =>
@@ -27,7 +18,8 @@ export const isHookScope = (value: unknown): value is HookScope => HOOK_SCOPES.i
 
 export const isAwakeWhen = (value: unknown): value is AwakeWhen => AWAKE_WHENS.includes(value as AwakeWhen);
 
-export const isAwakeWhat = (value: unknown): value is AwakeWhat => AWAKE_WHATS.includes(value as AwakeWhat);
+/** A non-empty command. Blank and non-strings are not a command. */
+export const isAwakeCmd = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
 
 /** Seconds to hold caffeinate after the last active chat. A non-negative integer. 0 stops at once. */
 export const isAwakeGraceDelaySecs = (value: unknown): value is number =>
