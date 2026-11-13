@@ -19,7 +19,7 @@ The last-focused id list is the workspace `state.vscdb` `ItemTable` key `compose
 - Calling `watchTurns` or the other `AgentHostService` streams from this extension.
 - A `variants.yaml` key for the categories.
 - Session-file walks, pane-order ids, or a one-second poll.
-- Changing `composerIsActive` or the caffeinate argv.
+- Changing `composerIsActive`.
 
 ## Decisions
 

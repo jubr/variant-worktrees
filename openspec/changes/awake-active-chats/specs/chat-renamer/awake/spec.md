@@ -2,17 +2,18 @@
 
 ### Requirement: One caffeinate process while a chat session is active
 
-With `awake.when` equal to `chatsActive`, the owning instance SHALL keep the machine awake while at least one chat turn that this host's turn watcher has started and not ended is in progress, and SHALL NOT keep it awake otherwise. The watcher reports a turn start and a turn end, each with a session id and a turn id. A start SHALL mark that turn active. An end SHALL mark that same turn idle. The host SHALL stay active while any such turn is still open, including while that turn is between tool calls and the watcher has not ended it. The host SHALL also poll every 5 seconds. The ids that poll examines SHALL be the first 20 ids in that workspace's last-focused composer list. The pane order of selected chats SHALL NOT supply that list. A composer among those 20 SHALL count as active while it is taking a turn or generating, including tool work whose row is aborted while the turn is still unfinished, even when the watcher has not reported that turn. A composer id outside those 20 SHALL NOT count on the poll. The host SHALL NOT read session files to decide awake. When the watcher cannot be created, the poll SHALL still run. A missing, empty, or unreadable last-focused list SHALL leave that poll sample idle and SHALL NOT throw. A chat that is only open, selected, or idle SHALL NOT count. A turn in a workspace this host does not have open SHALL NOT count, including a turn that is visible only because every host reads one shared composer store. Two hosts that both have the same workspace open MAY each count a focused turn in that workspace. The host SHALL stay active while the watcher has an open turn or the latest poll sample is active. A watcher end while the latest poll sample is still active SHALL NOT start the grace delay. Awake SHALL be one child process named `caffeinate` per owning host. `awake.what` `screen` SHALL pass the arguments `-disu` and `-w` followed by the pid of the extension host that spawned the child. `awake.what` `cpu` SHALL pass the arguments `-dis` and `-w` followed by that same pid. The child SHALL exit when that pid exits, including when the host is killed without running dispose, and SHALL NOT remain running after that host process is gone. The extension SHALL track that single pid. It SHALL start the process when a session of that host becomes active and no tracked process is running with those arguments. It SHALL NOT start a second process while that one is still running with the same arguments, including when another session of that host becomes active. When the last active session of that host ends, the extension SHALL keep the tracked process until `awake.graceDelaySecs` seconds have passed with no active session of that host, and SHALL then kill it. A session of another host SHALL NOT cancel that delay and SHALL NOT keep the process alive. `0` SHALL kill it at once. A session of that host that becomes active during that delay SHALL keep the same process and cancel the delay. Changing `awake.graceDelaySecs` during the delay SHALL apply the new value measured from when the session went idle, and SHALL kill at once when the new value has already elapsed. When `awake.what` changes while a session of that host is active, the extension SHALL kill the tracked process and start one with the new arguments without waiting. When the tracked process exits on its own while a session of that host is still active and the host process is still running, the extension SHALL start one replacement. With `awake.when` equal to `never`, the extension SHALL NOT start a process and SHALL kill a tracked one at once, including during the delay. Disposal of the owner, and loss of ownership, SHALL kill a tracked process at once. An instance that does not own renaming SHALL NOT start a process. A failed start SHALL be logged, SHALL NOT throw out of the extension, and SHALL be tried again the next time a session of that host is active and no process is tracked. When the owner starts, it SHALL check once whether `caffeinate` can be run. When it cannot, the extension SHALL NOT start a process.
+With `awake.when` equal to `chatsActive`, the owning instance SHALL keep the machine awake while at least one chat turn that this host's turn watcher has started and not ended is in progress, and SHALL NOT keep it awake otherwise. The watcher reports a turn start and a turn end, each with a session id and a turn id. A start SHALL mark that turn active. An end SHALL mark that same turn idle. The host SHALL stay active while any such turn is still open, including while that turn is between tool calls and the watcher has not ended it. The host SHALL also poll every 5 seconds. The ids that poll examines SHALL be the first 20 ids in that workspace's last-focused composer list. The pane order of selected chats SHALL NOT supply that list. A composer among those 20 SHALL count as active while it is taking a turn or generating, including tool work whose row is aborted while the turn is still unfinished, even when the watcher has not reported that turn. A composer id outside those 20 SHALL NOT count on the poll. The host SHALL NOT read session files to decide awake. When the watcher cannot be created, the poll SHALL still run. A missing, empty, or unreadable last-focused list SHALL leave that poll sample idle and SHALL NOT throw. A chat that is only open, selected, or idle SHALL NOT count. A turn in a workspace this host does not have open SHALL NOT count, including a turn that is visible only because every host reads one shared composer store. Two hosts that both have the same workspace open MAY each count a focused turn in that workspace. The host SHALL stay active while the watcher has an open turn or the latest poll sample is active. A watcher end while the latest poll sample is still active SHALL NOT start the grace delay. Awake SHALL be one child process per owning host. The only command SHALL be `caffeinate -disu -w ${extensionHostPid}`. `${extensionHostPid}` SHALL be replaced with the pid of the extension host that spawned the child. Any other `awake.cmd` SHALL NOT start a process. The child SHALL exit when that pid exits, including when the host is killed without running dispose, and SHALL NOT remain running after that host process is gone. The extension SHALL track that single pid. It SHALL start the process when a session of that host becomes active and no tracked process is running with those arguments. It SHALL NOT start a second process while that one is still running with the same arguments, including when another session of that host becomes active. When the last active session of that host ends, the extension SHALL keep the tracked process until `awake.graceDelaySecs` seconds have passed with no active session of that host, and SHALL then kill it. A session of another host SHALL NOT cancel that delay and SHALL NOT keep the process alive. `0` SHALL kill it at once. A session of that host that becomes active during that delay SHALL keep the same process and cancel the delay. Changing `awake.graceDelaySecs` during the delay SHALL apply the new value measured from when the session went idle, and SHALL kill at once when the new value has already elapsed. When `awake.cmd` changes to anything other than `caffeinate -disu -w ${extensionHostPid}` while a session of that host is active, the extension SHALL kill the tracked process and SHALL NOT start a different command. When the tracked process exits on its own while a session of that host is still active and the host process is still running, the extension SHALL start one replacement. With `awake.when` equal to `never`, the extension SHALL NOT start a process and SHALL kill a tracked one at once, including during the delay. Disposal of the owner, and loss of ownership, SHALL kill a tracked process at once. An instance that does not own renaming SHALL NOT start a process. A failed start SHALL be logged, SHALL NOT throw out of the extension, and SHALL be tried again the next time a session of that host is active and no process is tracked. When the owner starts, it SHALL check once whether `caffeinate` can be run. When it cannot, the extension SHALL NOT start a process.
 
 #### Scenario: Generation holds the display
 
-- **WHEN** `awake.when` is `chatsActive`, `awake.what` is `screen`, and a chat session of this host starts generating
+- **WHEN** `awake.when` is `chatsActive`, `awake.cmd` is unset, `caffeinate` is detected, and a chat session of this host starts generating
 - **THEN** one `caffeinate` process is running with arguments `-disu` and `-w` followed by this host's pid
 
 #### Scenario: Cpu mode
 
-- **WHEN** `awake.what` is `cpu` and a chat session of this host is taking a turn
-- **THEN** one `caffeinate` process is running with arguments `-dis` and `-w` followed by this host's pid
+- **WHEN** `awake.cmd` is `caffeinate -dis -w ${extensionHostPid}` and a chat session of this host is taking a turn
+- **THEN** no `caffeinate` process is running
+- **AND** the only command that runs for an active session is `caffeinate -disu -w` followed by this host's pid
 
 #### Scenario: Idle chat does not count
 
@@ -91,8 +92,9 @@ With `awake.when` equal to `chatsActive`, the owning instance SHALL keep the mac
 
 #### Scenario: Mode change replaces the process
 
-- **WHEN** `awake.what` changes from `screen` to `cpu` while a session of this host is generating
-- **THEN** the process started with `-disu` is no longer running and one process started with `-dis` and `-w` followed by this host's pid is running
+- **WHEN** `awake.cmd` changes from `caffeinate -disu -w ${extensionHostPid}` to `caffeinate -dis -w ${extensionHostPid}` while a session of this host is generating
+- **THEN** the process started with `-disu` is no longer running
+- **AND** no process started with `-dis` is running
 
 #### Scenario: Unexpected exit
 
@@ -152,7 +154,7 @@ With `awake.when` equal to `chatsActive`, the owning instance SHALL keep the mac
 
 ### Requirement: Awake activity is logged
 
-Every log line about awake SHALL start with `[awake]`. Starting the process SHALL log, at debug, `+ "caffeinate -disu -w <host-pid>"` or `+ "caffeinate -dis -w <host-pid>"`, the child pid, and the reason `activity`. Killing it SHALL log, at debug, `+ "kill <pid>"` and a reason of `idle`, `never`, `disposed`, `not owner`, or `mode changed`, and SHALL NOT repeat the `caffeinate` command. An exit of the tracked process while a session is still active SHALL be logged at warn before the replacement is started. A failed start SHALL be logged at error. Starting the idle delay, cancelling it, and the delay elapsing SHALL be logged at trace and SHALL NOT be logged at info or above. When the owner starts, whether `caffeinate` can be run SHALL be logged once at info and SHALL NOT be logged again when a session later generates. When the binary can be run and the turn watcher was created, that info line SHALL be `[awake] caffeinate available method="agentHost+poll"`. When the binary can be run and the watcher was not created, that info line SHALL be `[awake] caffeinate available method="poll"`. When the binary cannot be run, that info line SHALL be `[awake] caffeinate unavailable` and SHALL NOT name a method. Start and kill lines SHALL NOT be logged at info or above.
+Every log line about awake SHALL start with `[awake]`. Starting the process SHALL log, at debug, `+ "caffeinate -disu -w <host-pid>"`, the child pid, and the reason `activity`. Killing it SHALL log, at debug, `+ "kill <pid>"` and a reason of `idle`, `never`, `disposed`, `not owner`, or `mode changed`, and SHALL NOT repeat the `caffeinate` command. An exit of the tracked process while a session is still active SHALL be logged at warn before the replacement is started. A failed start SHALL be logged at error. Starting the idle delay, cancelling it, and the delay elapsing SHALL be logged at trace and SHALL NOT be logged at info or above. When the owner starts, whether `caffeinate` can be run SHALL be logged once at info and SHALL NOT be logged again when a session later generates. When the binary can be run and the turn watcher was created, that info line SHALL be `[awake] caffeinate available method="agentHost+poll"`. When the binary can be run and the watcher was not created, that info line SHALL be `[awake] caffeinate available method="poll"`. When the binary cannot be run, that info line SHALL be `[awake] caffeinate unavailable` and SHALL NOT name a method. Start and kill lines SHALL NOT be logged at info or above.
 
 #### Scenario: Start
 
@@ -194,6 +196,45 @@ Every log line about awake SHALL start with `[awake]`. Starting the process SHAL
 
 - **WHEN** the owner starts, `caffeinate` can be run, and the turn watcher is not created
 - **THEN** the log has one info line `[awake] caffeinate available method="poll"`
+
+### Requirement: Awake settings
+
+The renamer SHALL read `awake.when`, `awake.cmd`, and `awake.graceDelaySecs` from its settings section. `awake.when` SHALL be `chatsActive` or `never`, default `chatsActive`. `awake.cmd` SHALL be a non-empty string. When it is unset, blank, or not a string, the renamer SHALL use `caffeinate -disu -w ${extensionHostPid}`, the command detected for `caffeinate`. `${extensionHostPid}` SHALL be replaced with the pid of the extension host when the command is started. `awake.graceDelaySecs` SHALL be an integer of at least 0, default 60. A `when` or `graceDelaySecs` outside those sets SHALL be treated as the default. `awake.what` SHALL NOT be a setting. Standalone keys SHALL be `chat-renamer.awake.when`, `chat-renamer.awake.cmd`, and `chat-renamer.awake.graceDelaySecs`. When embedded in Variant the keys SHALL be `variant.awake.when`, `variant.awake.cmd`, and `variant.awake.graceDelaySecs`. A host MAY supply the same options from `variants.yaml` under `chatRenamer.awake.when`, `chatRenamer.awake.cmd`, and `chatRenamer.awake.graceDelaySecs`. A value the user set in the editor SHALL win over the host-supplied value, which SHALL win over the default. Changing any of these settings SHALL apply without a reload. `enable` SHALL NOT change whether awake runs: with `variant.enable` false and `awake.when` left at `chatsActive`, an active chat session SHALL still be held awake. The standalone manifest and the Variant manifest SHALL contribute all three settings with the same types, minimum, and defaults.
+
+#### Scenario: Defaults
+
+- **WHEN** neither setting is set and `caffeinate` is detected
+- **THEN** `awake.when` is `chatsActive`, `awake.cmd` is `caffeinate -disu -w ${extensionHostPid}`, and `awake.graceDelaySecs` is 60
+
+#### Scenario: Unknown values
+
+- **WHEN** `awake.when` is `always`, `awake.cmd` is blank, and `awake.graceDelaySecs` is `-1`
+- **THEN** the renamer uses `chatsActive`, `caffeinate -disu -w ${extensionHostPid}`, and 60
+
+#### Scenario: Editor wins over the file
+
+- **WHEN** `variants.yaml` sets `chatRenamer.awake.when` to `never` and the user set `chatsActive` in the editor
+- **THEN** the renamer uses `chatsActive`
+
+#### Scenario: File wins over the default
+
+- **WHEN** the user set nothing in the editor and `variants.yaml` sets `chatRenamer.awake.cmd` to `caffeinate -disu -w ${extensionHostPid}`
+- **THEN** the renamer uses that command
+
+#### Scenario: Variant enable stays out of it
+
+- **WHEN** `variant.enable` is false, `awake.when` is `chatsActive`, and a chat session is generating
+- **THEN** the machine is held awake
+
+#### Scenario: Manifest copy
+
+- **WHEN** the standalone manifest contributes `chat-renamer.awake.when`, `chat-renamer.awake.cmd`, and `chat-renamer.awake.graceDelaySecs`
+- **THEN** the Variant manifest contributes `variant.awake.when`, `variant.awake.cmd`, and `variant.awake.graceDelaySecs` with the same types, minimum, and defaults
+
+#### Scenario: Setting change applies without a reload
+
+- **WHEN** `awake.when` changes from `chatsActive` to `never` while a chat session is generating
+- **THEN** the machine is no longer held awake, without a reload
 
 ## ADDED Requirements
 
