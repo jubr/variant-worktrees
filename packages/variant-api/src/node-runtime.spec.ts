@@ -5,7 +5,16 @@
  */
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -296,7 +305,11 @@ const watchTtyOnNode = async (
       ["#!/bin/sh", 'printf "%s\\n" "script $*" >> "$CALLS"', 'exec /usr/bin/script "$@"', ""].join("\n"),
     );
   }
-  const path = probe.script ? `${bin}:${process.env.PATH ?? ""}` : `${bin}:/bin`;
+  if (!probe.script) {
+    // AIDEV-NOTE: Ubuntu ships `script` in `/bin`. A PATH of `bin:/bin` would still allocate a terminal.
+    symlinkSync("/bin/sh", join(bin, "sh"));
+  }
+  const path = probe.script ? `${bin}:${process.env.PATH ?? ""}` : bin;
   try {
     const proc = Bun.spawn([hostNode, join(directory, "drive.mjs")], {
       stdout: "pipe",
