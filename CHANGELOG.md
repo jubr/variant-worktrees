@@ -4,6 +4,7 @@
 
 ### Added
 
+- `-C <path>` changes directory before configuration is read. There is no long option.
 - A focused file inside the main checkout or a variant worktree highlights that row in a visible Variant Worktrees tree and does not take editor focus.
 
 ## [0.0.8] - 2026-11-11
