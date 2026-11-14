@@ -42,9 +42,7 @@ step SHALL run that package's own test script from the package directory.
 The package `test` steps, the workspace `build`, the root script tests and `commitlint` SHALL run in the `ci` profile
 only, and `docs:build` SHALL run in the `full` profile only. The default `check` plan and the `pre-commit` plan SHALL
 contain none of them. The package `test` steps SHALL depend on the workspace `build` step, and SHALL NOT depend on
-each other, so that they start when the build has finished and run concurrently. A package whose tests depend on
-an otherwise idle machine (real shells, git repositories, file watches) MAY declare its `test` step exclusive in its own
-`hk.pkl`; that step then runs alone. The `pre-commit` and `fix`
+each other, so that they start when the build has finished and run concurrently. The `pre-commit` and `fix`
 hooks SHALL run only the per-package Biome steps. The `commit-msg` hook SHALL run commitlint on the message file.
 
 #### Scenario: Default check is quick
@@ -63,12 +61,7 @@ hooks SHALL run only the per-package Biome steps. The `commit-msg` hook SHALL ru
 
 - **WHEN** `hk check --all --profile ci` runs
 - **THEN** no package `test` step starts before `build` has finished
-- **AND** the package `test` steps that are not exclusive run at the same time
-
-#### Scenario: Exclusive package tests run alone
-
-- **WHEN** a package's `hk.pkl` declares its `test` step exclusive and `hk check --all --profile ci` runs
-- **THEN** no other step runs while that package's `test` step runs
+- **AND** the package `test` steps run at the same time
 
 #### Scenario: Full profile
 

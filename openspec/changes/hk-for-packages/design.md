@@ -47,13 +47,6 @@ A reference project nests `hk.pkl` files with `subprojects = List(...)` on hk 2.
    Alternatives: root `exclusive` build (also holds the lint steps back until it finishes; rejected), per-package
    `build` steps with `depends` (duplicates the order that `package.json` `build` already encodes; rejected).
 
-   Running every suite at once proved flaky: `variant-cli` (real zsh, bash and fish prefetch timing) failed in 4 of 8
-   full runs and `variant-api` (git worktrees, file watches) failed once. Lowering hk's job count to 4 did not remove it. These two
-   packages declare `exclusive = true` on their `test` step in their own `hk.pkl`, so they run alone after the
-   builds and the other ten suites run concurrently; three full runs then passed (about 5 minutes against about
-   3 without the flakes). Alternative: fixing each timing-sensitive test; deferred, since the tests need a quiet
-   machine by design.
-
    The root also gets a `test:scripts` step (`bun test scripts`, `ci` profile, `depends = List("build")`) for the
    repository script tests that `task test` runs after the package tests. `docs:build` stays a root step in the `full`
    profile.
@@ -78,7 +71,7 @@ A reference project nests `hk.pkl` files with `subprojects = List(...)` on hk 2.
   on a deliberately mis-formatted file in two packages, then discard it.
 - [Linting `.tsx` through hk surfaces findings hk did not see before] → they are already findings of `task lint`; fix
   or confirm there are none before enabling.
-- [Test suites that need a quiet machine fail when others run beside them] → `variant-cli` and `variant-api` declare their `test` step exclusive in their own `hk.pkl`; a new package with timing-sensitive tests does the same.
+- [Twelve test steps at once load the machine, and some tests bind sockets or share fixtures] → they run under hk's `--jobs` limit; the first full run checks for interference, and a package that needs it can set `exclusive` in its own `hk.pkl`.
 - [Twelve nested steps lengthen the plan] → they run in parallel and only on matching files.
 
 ## Migration Plan
