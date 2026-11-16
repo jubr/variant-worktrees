@@ -328,6 +328,27 @@ describe("extension socket", () => {
     expect(existsSync(layout.socketFile)).toBe(false);
   });
 
+  it("deactivates and removes the socket while a client holds a connection open", async () => {
+    const layout = linkedLayout();
+    roots.push(layout.root);
+    useFolders(layout.main);
+    await activate(context());
+    const client = createConnection(layout.socketFile);
+    await new Promise<void>((resolve, reject) => {
+      client.once("connect", () => resolve());
+      client.once("error", reject);
+    });
+
+    const outcome = await Promise.race([
+      deactivate().then(() => "deactivated"),
+      new Promise<string>((resolve) => setTimeout(() => resolve("blocked"), 1000)),
+    ]);
+
+    expect(outcome).toBe("deactivated");
+    expect(existsSync(layout.socketFile)).toBe(false);
+    client.destroy();
+  });
+
   it("leaves a live foreign socket in place on deactivate", async () => {
     const layout = singleRepoLayout();
     roots.push(layout.root);
