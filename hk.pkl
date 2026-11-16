@@ -22,6 +22,17 @@ local heavy = new Mapping<String, Step> {
     depends = List("build")
     profiles = List("ci")
   }
+  ["lint:workflows"] {
+    check = "task --silent lint:workflows"
+    glob = List(".github/workflows/**")
+    profiles = List("ci")
+  }
+  // AIDEV-NOTE: packages what build produced; package:vsix:pack does not build again
+  ["package:vsix"] {
+    check = "task --silent package:vsix:pack"
+    depends = List("build")
+    profiles = List("full")
+  }
   ["docs:build"] {
     check = "task --silent docs:build"
     profiles = List("full")

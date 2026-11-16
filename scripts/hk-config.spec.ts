@@ -60,6 +60,15 @@ describe.skipIf(!hkAvailable)("local checks through hk", () => {
     expect(bare(names, "docs:build")).toEqual(["docs:build"]);
   });
 
+  test("the workflow lint runs in the ci profile and the extension packaging in the full profile", () => {
+    expect(bare(plan("check", "--all"), "lint:workflows")).toEqual([]);
+    expect(bare(plan("check", "--all"), "package:vsix")).toEqual([]);
+    const ci = plan("check", "--all", "--profile", "ci");
+    expect(bare(ci, "lint:workflows")).toEqual(["lint:workflows"]);
+    expect(bare(ci, "package:vsix")).toEqual([]);
+    expect(bare(plan("check", "--all", "--profile", "ci", "--profile", "full"), "package:vsix")).toEqual(["package:vsix"]);
+  });
+
   test("pre-commit runs only Biome steps", () => {
     const names = plan("run", "pre-commit", "--all");
     expect(names.length).toBeGreaterThan(0);

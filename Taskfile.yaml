@@ -87,6 +87,11 @@ tasks:
     desc: "Build, then package variant-worktrees and chat-renamer into out/*.vsix"
     cmds:
       - task: build
+      - task: package:vsix:pack
+
+  package:vsix:pack:
+    desc: "Package variant-worktrees and chat-renamer into out/*.vsix from an existing build"
+    cmds:
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun run --filter ./packages/chat-renamer-vscode vsce-package
 
