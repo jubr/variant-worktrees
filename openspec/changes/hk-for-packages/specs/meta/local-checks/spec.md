@@ -88,11 +88,12 @@ The root `hk.pkl` SHALL contain a `lint:workflows` step (lint of the GitHub Acti
 - **WHEN** `hk check --all --plan` runs without a profile
 - **THEN** the plan selects neither `lint:workflows` nor `package:vsix`
 
-#### Scenario: Docs build after the build
+#### Scenario: Writers run after the tests
 
 - **WHEN** `hk check --all --profile ci --profile full --plan` runs
-- **THEN** `docs:build` and `package:vsix` each depend on `build`
-- **AND** neither rebuilds a package, so no step rewrites a `dist/` that package tests read
+- **THEN** `test:scripts` depends on `build` and on every package's test step
+- **AND** `docs:build` and `package:vsix` each depend on `build`, `test:scripts` and every package's test step
+- **AND** no step that rewrites a `dist/` or `out/` that package tests read runs beside them
 
 #### Scenario: Workflow
 
