@@ -86,6 +86,7 @@ const acceptsConnections = (path: string): Promise<boolean> =>
 export const createListener = (path: string, handler: IpcHandler): SocketListener => {
   let server: Server | undefined;
   let bound = false;
+  const connections = new Set<Socket>();
 
   return {
     start: async () => {
@@ -104,6 +105,8 @@ export const createListener = (path: string, handler: IpcHandler): SocketListene
       }
 
       const next = createServer((connection) => {
+        connections.add(connection);
+        connection.once("close", () => connections.delete(connection));
         let buffer = "";
         let chain = Promise.resolve();
         connection.on("data", (chunk: Buffer) => {
@@ -147,12 +150,17 @@ export const createListener = (path: string, handler: IpcHandler): SocketListene
       const current = server;
       server = undefined;
       bound = false;
-      await new Promise<void>((resolve, reject) => {
-        current.close((error) => (error ? reject(error) : resolve()));
-      });
+      // AIDEV-NOTE: unlink first and destroy open connections: `close()` waits for every client, and a host that dies
+      // mid-stop must already have removed the file.
       if (existsSync(path)) {
         unlinkSync(path);
       }
+      for (const connection of connections) {
+        connection.destroy();
+      }
+      await new Promise<void>((resolve, reject) => {
+        current.close((error) => (error ? reject(error) : resolve()));
+      });
     },
   };
 };

@@ -368,6 +368,32 @@ describe("unix socket", () => {
     }
   });
 
+  it("removes the socket and closes the client when a client holds a connection open", async () => {
+    const root = tempDirectory();
+    const path = join(root, ".vscode", "variant-worktrees.sock");
+    const listener = createListener(path, () => ({ ok: true }));
+    try {
+      await listener.start();
+      const client = createConnection(path);
+      await new Promise<void>((resolve, reject) => {
+        client.once("connect", () => resolve());
+        client.once("error", reject);
+      });
+      const closed = new Promise<void>((resolve) => client.once("close", () => resolve()));
+
+      const outcome = await Promise.race([
+        listener.stop().then(() => "stopped"),
+        new Promise<string>((resolve) => setTimeout(() => resolve("blocked"), 1000)),
+      ]);
+
+      expect(outcome).toBe("stopped");
+      expect(existsSync(path)).toBe(false);
+      await closed;
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("leaves the live socket in place when a failed listener stops", async () => {
     const root = tempDirectory();
     const path = join(root, ".vscode", "variant-worktrees.sock");
