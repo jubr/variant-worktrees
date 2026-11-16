@@ -73,6 +73,27 @@ hooks SHALL run only the per-package Biome steps. The `commit-msg` hook SHALL ru
 - **WHEN** `hk run pre-commit --plan` runs
 - **THEN** the plan selects only Biome steps
 
+### Requirement: Workflow lint and extension packaging are hk steps
+
+The root `hk.pkl` SHALL contain a `lint:workflows` step (lint of the GitHub Actions workflows) in the `ci` profile, and a `package:vsix` step (both extensions packaged into `out/*.vsix`) in the `full` profile. The `package:vsix` step SHALL depend on the workspace `build` step and SHALL NOT build again. The CI workflow for feature branches SHALL run these checks only through `task check:full`, and SHALL still attach the packaged `.vsix` files to the run.
+
+#### Scenario: Plans
+
+- **WHEN** `hk check --all --profile ci --plan` runs
+- **THEN** the plan selects `lint:workflows` and does not select `package:vsix`
+- **AND** with `--profile full` added the plan also selects `package:vsix`
+
+#### Scenario: Default check
+
+- **WHEN** `hk check --all --plan` runs without a profile
+- **THEN** the plan selects neither `lint:workflows` nor `package:vsix`
+
+#### Scenario: Workflow
+
+- **WHEN** the feature-branch CI workflow runs
+- **THEN** it does not call `task lint:workflows` or `task package:vsix` itself
+- **AND** the run still has the `vsix` artifact
+
 ### Requirement: Task entry points for the checks
 
 `Taskfile.yaml` SHALL offer `check:changed` (`hk check` on git-changed files, no install), `check:all` (`hk check --all

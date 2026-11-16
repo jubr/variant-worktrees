@@ -19,6 +19,9 @@ without twelve copies of the same configuration.
   the single workspace build step has finished.
 - Add a contract test that evaluates `hk ... --plan` and fails when a package lacks its `hk.pkl`, is missing from
   `subprojects`, or a heavy check lands in the default or pre-commit plan.
+- Move the workflow lint (`task lint:workflows`) and the `.vsix` packaging (`task package:vsix`) out of `ci-branch.yaml`
+  into hk: a `lint:workflows` step in the `ci` profile and a `package:vsix` step in the `full` profile. The workflow
+  keeps the artifact upload.
 - Keep `task check:changed`, `task check:all` and `task check:full`; rewrite their descriptions for the nested
   layout. Update `CONTRIBUTING.md` and `AGENTS.md` for the layout, the profiles, and the three tasks.
 
@@ -39,4 +42,5 @@ Non-goals: per-package `build` steps (the workspace build order stays one sequen
 - `mise.toml` (hk pin), root `hk.pkl`, new shared package `hk.pkl`, twelve `packages/*/hk.pkl`.
 - `Taskfile.yaml` descriptions of `check:changed`, `check:all`, `check:full`.
 - New `scripts/hk-config.spec.ts`; the root `test` step splits into the per-package `test` steps and a root script-test step. `CONTRIBUTING.md`, `AGENTS.md`.
-- CI is unchanged: `ci-branch.yaml` already calls `task check:full`; the mise-installed `hk` follows the pin.
+- `.github/workflows/ci-branch.yaml` drops the `task lint:workflows` and `task package:vsix` steps; `task check:full` covers them. The mise-installed `hk` follows the pin.
+- `Taskfile.yaml` gains `package:vsix:pack` (package without building), which `package:vsix` and the hk step share.
