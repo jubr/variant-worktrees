@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, unlinkSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, statSync, unlinkSync } from "node:fs";
 import { createConnection, createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
 import { resolveMainVscodeDir } from "variant-config";
@@ -83,9 +83,35 @@ const acceptsConnections = (path: string): Promise<boolean> =>
     socket.once("error", () => finish(false));
   });
 
+type FileId = { dev: number; ino: number };
+
+const fileId = (path: string): FileId | undefined => {
+  try {
+    const { dev, ino } = statSync(path);
+    return { dev, ino };
+  } catch {
+    return undefined;
+  }
+};
+
 export const createListener = (path: string, handler: IpcHandler): SocketListener => {
   let server: Server | undefined;
   let bound = false;
+  const connections = new Set<Socket>();
+  // AIDEV-NOTE: libuv unlinks the path only on `server.close()`. A process that exits without stop() leaves the file,
+  // so a synchronous exit hook removes it. SIGKILL cannot be caught; the next start replaces the stale file.
+  let owned: FileId | undefined;
+  const onExit = (): void => {
+    const current = fileId(path);
+    if (owned === undefined || current === undefined || current.dev !== owned.dev || current.ino !== owned.ino) {
+      return;
+    }
+    try {
+      unlinkSync(path);
+    } catch {
+      // already gone
+    }
+  };
 
   return {
     start: async () => {
@@ -104,6 +130,8 @@ export const createListener = (path: string, handler: IpcHandler): SocketListene
       }
 
       const next = createServer((connection) => {
+        connections.add(connection);
+        connection.once("close", () => connections.delete(connection));
         let buffer = "";
         let chain = Promise.resolve();
         connection.on("data", (chunk: Buffer) => {
@@ -133,6 +161,8 @@ export const createListener = (path: string, handler: IpcHandler): SocketListene
           next.listen(path);
         });
         chmodSync(path, 0o600);
+        owned = fileId(path);
+        process.once("exit", onExit);
         bound = true;
       } catch (error) {
         server = undefined;
@@ -147,12 +177,18 @@ export const createListener = (path: string, handler: IpcHandler): SocketListene
       const current = server;
       server = undefined;
       bound = false;
-      await new Promise<void>((resolve, reject) => {
-        current.close((error) => (error ? reject(error) : resolve()));
-      });
+      process.off("exit", onExit);
+      // AIDEV-NOTE: unlink first and destroy open connections: `close()` waits for every client, and a host that dies
+      // mid-stop must already have removed the file.
       if (existsSync(path)) {
         unlinkSync(path);
       }
+      for (const connection of connections) {
+        connection.destroy();
+      }
+      await new Promise<void>((resolve, reject) => {
+        current.close((error) => (error ? reject(error) : resolve()));
+      });
     },
   };
 };

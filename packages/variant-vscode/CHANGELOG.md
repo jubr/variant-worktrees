@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Changed
+
+- The editor socket `.vscode/variant-worktrees.sock` is removed when the extension host exits without a clean deactivation, as long as the process still runs its exit handlers. A killed host (SIGKILL) still leaves the file, and the next start replaces it.
+- Stopping the socket listener, and so deactivating the extension, no longer waits for clients that keep a connection open. Those connections are closed.
+
 ## [0.0.9] - 2026-11-13
 
 ### Added

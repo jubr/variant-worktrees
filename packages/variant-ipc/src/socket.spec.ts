@@ -64,6 +64,25 @@ const exchange = (path: string, requestLines: string[]): Promise<string[]> =>
     });
   });
 
+const INDEX = new URL("./index.ts", import.meta.url).pathname;
+
+/** Runs `body` in a child bun process with `createListener` in scope and `path` bound to the socket path. */
+const runChild = async (path: string, body: string, signal?: NodeJS.Signals): Promise<void> => {
+  const script = `import { createListener } from ${JSON.stringify(INDEX)};
+import { createServer } from "node:net";
+import { rmSync } from "node:fs";
+const path = ${JSON.stringify(path)};
+const ready = () => { console.log("ready"); };
+${body}`;
+  const child = Bun.spawn([process.execPath, "-e", script], { stdout: "pipe", stderr: "inherit" });
+  if (signal !== undefined) {
+    const reader = child.stdout.getReader();
+    await reader.read();
+    child.kill(signal);
+  }
+  await child.exited;
+};
+
 const linkedSocket = (): { root: string; socketFile: string; start: string } => {
   const root = tempDirectory();
   const container = join(root, "vw");
@@ -368,6 +387,32 @@ describe("unix socket", () => {
     }
   });
 
+  it("removes the socket and closes the client when a client holds a connection open", async () => {
+    const root = tempDirectory();
+    const path = join(root, ".vscode", "variant-worktrees.sock");
+    const listener = createListener(path, () => ({ ok: true }));
+    try {
+      await listener.start();
+      const client = createConnection(path);
+      await new Promise<void>((resolve, reject) => {
+        client.once("connect", () => resolve());
+        client.once("error", reject);
+      });
+      const closed = new Promise<void>((resolve) => client.once("close", () => resolve()));
+
+      const outcome = await Promise.race([
+        listener.stop().then(() => "stopped"),
+        new Promise<string>((resolve) => setTimeout(() => resolve("blocked"), 1000)),
+      ]);
+
+      expect(outcome).toBe("stopped");
+      expect(existsSync(path)).toBe(false);
+      await closed;
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("leaves the live socket in place when a failed listener stops", async () => {
     const root = tempDirectory();
     const path = join(root, ".vscode", "variant-worktrees.sock");
@@ -384,5 +429,80 @@ describe("unix socket", () => {
       await first.stop();
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  describe("process exit", () => {
+    it("removes nothing at exit once the listener has stopped", async () => {
+      const root = tempDirectory();
+      const path = join(root, ".vscode", "variant-worktrees.sock");
+      try {
+        await runChild(
+          path,
+          `const first = createListener(path, () => ({}));
+await first.start();
+await first.stop();
+await new Promise((resolve) => createServer().listen(path, resolve));
+process.exit(0);`,
+        );
+        expect(existsSync(path)).toBe(true);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("leaves a file after SIGKILL that a new listener replaces", async () => {
+      const root = tempDirectory();
+      const path = join(root, ".vscode", "variant-worktrees.sock");
+      let listener: ReturnType<typeof createListener> | undefined;
+      try {
+        await runChild(
+          path,
+          `await createListener(path, () => ({})).start();
+ready();
+setInterval(() => {}, 1000);`,
+          "SIGKILL",
+        );
+        expect(existsSync(path)).toBe(true);
+        listener = createListener(path, () => ({ ok: true }));
+        await listener.start();
+        const [line] = await exchange(path, [JSON.stringify({ name: "list", args: {} })]);
+        expect(line).toBe('{"ok":true}');
+      } finally {
+        await listener?.stop();
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("leaves a different file at the path when the process exits", async () => {
+      const root = tempDirectory();
+      const path = join(root, ".vscode", "variant-worktrees.sock");
+      try {
+        await runChild(
+          path,
+          `await createListener(path, () => ({})).start();
+rmSync(path);
+await new Promise((resolve) => createServer().listen(path, resolve));
+process.exit(0);`,
+        );
+        expect(existsSync(path)).toBe(true);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("removes the socket file when the process exits without stopping the listener", async () => {
+      const root = tempDirectory();
+      const path = join(root, ".vscode", "variant-worktrees.sock");
+      try {
+        await runChild(
+          path,
+          `await createListener(path, () => ({})).start();
+process.exit(0);`,
+        );
+        expect(existsSync(path)).toBe(false);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
   });
 });
