@@ -1,13 +1,8 @@
-amends "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.56.1/hk@1.56.1#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.8.0/hk@2.8.0#/Config.pkl"
 
-local linters = new Mapping<String, Step> {
-  ["biome"] = (Builtins.biome) {
-    prefix = List("bunx", "--bun")
-    glob = List("packages/*/src/**/*.ts", "packages/*/test/**/*.ts")
-    exclude = List("**/dist/**", "**/node_modules/**", "docs/.vitepress/**")
-  }
-}
+// AIDEV-NOTE: each package contributes its own biome and test steps through packages/*/hk.pkl
+// (all amend hk.package.pkl). The root keeps the workspace-wide steps and the hook-wide settings.
+subprojects = List("packages/*")
 
 local rootCheck = new Mapping<String, Step> {
   ["commitlint"] {
@@ -16,17 +11,35 @@ local rootCheck = new Mapping<String, Step> {
   }
 }
 
+// AIDEV-NOTE: scripts/ specs and the product-icon test rewrite dist/ and out/, so steps that write them wait for every package test
+local packageTests: List<String> = read*("packages/*/package.json").keys.toList().map((uri) -> "packages/" + Regex("packages/([^/]+)/package.json").findMatchesIn(uri)[0].groups[1].value + ":test")
+
 local heavy = new Mapping<String, Step> {
-  ["test"] {
-    check = "task --silent test"
-    profiles = List("ci")
-  }
+  // AIDEV-NOTE: package tests (packages/*:test) and test:scripts depend on this one step
   ["build"] {
     check = "task --silent build"
     profiles = List("ci")
   }
+  ["test:scripts"] {
+    check = "bun test scripts"
+    depends = List("build") + packageTests
+    profiles = List("ci")
+  }
+  ["lint:workflows"] {
+    check = "task --silent lint:workflows"
+    glob = List(".github/workflows/**")
+    profiles = List("ci")
+  }
+  // AIDEV-NOTE: packages what build produced; package:vsix:pack does not build again
+  ["package:vsix"] {
+    check = "task --silent package:vsix:pack"
+    depends = List("build", "test:scripts") + packageTests
+    profiles = List("full")
+  }
   ["docs:build"] {
-    check = "task --silent docs:build"
+    // AIDEV-NOTE: docs:site, not docs:build: rebuilding a package's dist/ beside the tests that read it made them fail
+    check = "task --silent docs:site"
+    depends = List("build", "test:scripts") + packageTests
     profiles = List("full")
   }
 }
@@ -34,19 +47,16 @@ local heavy = new Mapping<String, Step> {
 hooks {
   ["check"] {
     steps {
-      ...linters
       ...rootCheck
       ...heavy
     }
   }
   ["fix"] {
     fix = true
-    steps = linters
   }
   ["pre-commit"] {
     fix = true
     stash = "git"
-    steps = linters
   }
   ["commit-msg"] {
     steps {

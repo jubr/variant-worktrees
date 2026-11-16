@@ -68,7 +68,9 @@ const linkedStylesheet = (html: string): string => {
 
 describe("published asset URLs", () => {
   beforeAll(() => {
-    const built = spawnSync("task", ["docs:build"], { cwd: root, encoding: "utf8" });
+    // AIDEV-NOTE: with the packages built, docs:site skips the package rebuild that rewrites dist/ beside concurrent package tests
+    const prebuilt = existsSync(join(root, "packages/variant-log/dist/index.js"));
+    const built = spawnSync("task", [prebuilt ? "docs:site" : "docs:build"], { cwd: root, encoding: "utf8" });
     if (built.status !== 0) {
       throw new Error(built.stderr || built.stdout);
     }

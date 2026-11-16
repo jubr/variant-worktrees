@@ -165,12 +165,17 @@ describe("create installs Mise tools", () => {
     const parent = realpathSync(mkdtempSync(join("/tmp", "variant-mise-bg-")));
     const repo = join(parent, "repo");
     const marker = join(parent, "finished");
+    const release = join(parent, "release");
     try {
       initRepo(repo);
       writeFileSync(join(repo, "mise.toml"), "[tools]\n");
       git(repo, "add", "mise.toml");
       git(repo, "commit", "-q", "-m", "mise");
-      const mise = stubMise(parent, `case "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0`);
+      // AIDEV-NOTE: install waits for the release file, so how long create takes under load cannot finish it early
+      const mise = stubMise(
+        parent,
+        `case "$3" in install) while [ ! -e "${release}" ]; do sleep 0.05; done; echo done > "${marker}";; esac\nexit 0`,
+      );
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
         config: { ...baseConfig, db: { dialect: "sqlite" } },
@@ -182,7 +187,8 @@ describe("create installs Mise tools", () => {
       await client.create("add-auth");
 
       expect(existsSync(marker)).toBe(false);
-      const deadline = Date.now() + 3000;
+      writeFileSync(release, "");
+      const deadline = Date.now() + 10000;
       while (!existsSync(marker) && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
@@ -191,6 +197,7 @@ describe("create installs Mise tools", () => {
       expect(calls[0]).toContain("trust --all");
       expect(calls[1]).toContain("install");
     } finally {
+      writeFileSync(release, "");
       rmSync(parent, { recursive: true, force: true });
     }
   });

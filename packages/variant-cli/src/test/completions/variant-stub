@@ -1,6 +1,8 @@
 #!/bin/sh
 # Stands in for the `variant` binary while a completion script runs: records every start, then prints the slugs listed
-# in the `slugs` file of the directory it runs in, after an optional STUB_DELAY.
+# in the `slugs` file of the directory it runs in, after an optional STUB_DELAY. STUB_START_DELAY makes it start late,
+# the way a process does on a busy machine, before it records the start.
+[ -n "$STUB_START_DELAY" ] && sleep "$STUB_START_DELAY"
 echo "$PWD" >> "$STUB_LOG"
 [ -n "$STUB_DELAY" ] && sleep "$STUB_DELAY"
 [ -f "$PWD/slugs" ] && cat "$PWD/slugs"

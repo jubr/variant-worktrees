@@ -87,6 +87,11 @@ tasks:
     desc: "Build, then package variant-worktrees and chat-renamer into out/*.vsix"
     cmds:
       - task: build
+      - task: package:vsix:pack
+
+  package:vsix:pack:
+    desc: "Package variant-worktrees and chat-renamer into out/*.vsix from an existing build"
+    cmds:
       - bun run --filter ./packages/variant-vscode vsce-package
       - bun run --filter ./packages/chat-renamer-vscode vsce-package
 
@@ -172,6 +177,9 @@ tasks:
   docs:build:
     desc: "TypeDoc then VitePress production build"
     cmds: ["bun run docs:build"]
+  docs:site:
+    desc: "TypeDoc then VitePress production build from an existing build (no package rebuild)"
+    cmds: ["bun run docs:site"]
   docs:preview:
     desc: "Preview the built VitePress site"
     cmds: ["bun run docs:preview"]
@@ -186,16 +194,16 @@ tasks:
       - commitlint --edit {{.CLI_ARGS}}
 
   check:changed:
-    desc: "hk check on git-changed files (no install)"
+    desc: "hk check on git-changed files: per-package biome (no install, no tests)"
     cmds:
       - hk check
   check:all:
-    desc: "hk check --all (biome/commitlint/build/test)"
+    desc: "hk check --all --profile ci: per-package biome and test, build, script tests, commitlint (no install)"
     aliases: [combined]
     cmds:
       - hk check --all --profile ci
   check:full:
-    desc: "bun install, then hk check --all --profile ci --profile full"
+    desc: "bun install, then hk check --all --profile ci --profile full (check:all plus the docs build)"
     aliases: ["combined:hk"]
     deps: [install]
     cmds:

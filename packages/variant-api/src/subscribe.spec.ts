@@ -172,25 +172,29 @@ describe("client.subscribe", () => {
       }
     }));
 
-  it("delivers a set for a worktree that appears after subscribing", () =>
-    withProject(async ({ client, put }) => {
-      const received = collector();
-      const unsubscribe = client.subscribe(received.listener);
-      try {
-        await received.until(() => true);
-        put("_v-late/variants.local.yaml", "runtime:\n  slug: late\n");
-        await received.until((update) => slugs(update).includes("late"));
+  it(
+    "delivers a set for a worktree that appears after subscribing",
+    () =>
+      withProject(async ({ client, put }) => {
+        const received = collector();
+        const unsubscribe = client.subscribe(received.listener);
+        try {
+          await received.until(() => true);
+          put("_v-late/variants.local.yaml", "runtime:\n  slug: late\n");
+          await received.until((update) => slugs(update).includes("late"));
 
-        put("_v-late/variants.local.yaml", "runtime:\n  slug: late\n  mode: up\n");
-        // A busy suite can miss the watch event. The liveness poll is 5s, so wait past it.
-        await received.until(
-          (update) => update.records.some((variant) => variant.slug === "late" && variant.mode),
-          8000,
-        );
-      } finally {
-        unsubscribe();
-      }
-    }));
+          put("_v-late/variants.local.yaml", "runtime:\n  slug: late\n  mode: up\n");
+          // A busy suite can miss the watch event. The liveness poll is 5s, so wait past it.
+          await received.until(
+            (update) => update.records.some((variant) => variant.slug === "late" && variant.mode),
+            8000,
+          );
+        } finally {
+          unsubscribe();
+        }
+      }),
+    15000,
+  );
 
   it("marks a watch dead within the liveness interval after its process ends without down", () =>
     withProject(

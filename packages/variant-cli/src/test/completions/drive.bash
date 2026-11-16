@@ -19,7 +19,7 @@ calls() { wc -l <"$STUB_LOG" | tr -d ' '; }
 settle() {
   local i
   if [[ "$EXPECT_ASYNC" == 1 ]]; then
-    for i in $(seq 1 60); do
+    for i in $(seq 1 400); do
       [[ $(calls) -ge $1 ]] && break
       sleep 0.05
     done

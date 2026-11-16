@@ -21,6 +21,27 @@ drain() {
 send() { zpty -w z "$1"; drain >/dev/null; }
 calls() { print -r -- $(($(wc -l <$STUB_LOG))); }
 report() { print -r -- "$1=$(calls)"; }
+# The gathering runs in the background: waits for the stub to have started `$1` times, however busy the machine is,
+# then reads what the shell printed meanwhile.
+settle() {
+  local i
+  for ((i = 0; i < 400; i++)); do
+    (($(calls) >= $1)) && break
+    sleep 0.05
+  done
+  drain >/dev/null
+}
+# Prints what the shell remembers once that list contains `$1` (or what it has after about 20 seconds).
+remembered_with() {
+  local i out
+  for ((i = 0; i < 100; i++)); do
+    zpty -w z 'print -r -- "REMEMBERED:${(j: :)${(f)__variant_slugs}}"'
+    out=$(drain)
+    [[ $out == *"REMEMBERED:"*"$1"* ]] && break
+    sleep 0.2
+  done
+  print -r -- "$out"
+}
 # Types `$1`, presses TAB, and prints what the shell showed, one line.
 tab() {
   zpty -w -n z "$1"$'\t'
@@ -46,10 +67,10 @@ send "cd $ROOT/a"
 case $1 in
 warm)
   tab "variant " commands
+  settle 1
   report calls_after_prefetch
   # The list lands in the shell without another keypress: print it, without completing.
-  zpty -w z 'print -r -- "REMEMBERED:${(j: :)${(f)__variant_slugs}}"'
-  print -r -- "remembered=$(drain | tr '\n' ' ')"
+  print -r -- "remembered=$(remembered_with add-auth | tr '\n' ' ')"
   tab "variant up -s " slugs
   report calls_after_slugs
   tab "variant up -s " slugs_again
@@ -57,11 +78,14 @@ warm)
   print 'new-one' >>$ROOT/a/slugs
   send '__variant_time=$((__variant_time - 31))'
   tab "variant up -s " slugs_stale
+  settle 2
   report calls_after_stale
+  remembered_with new-one >/dev/null
   tab "variant up -s " slugs_after_stale
   report calls_after_refresh
   send "cd $ROOT/b"
   tab "variant up -s " slugs_other_dir
+  settle 3
   report calls_after_other_dir
   ;;
 cold)
