@@ -140,7 +140,7 @@ const prefetchingBehavior = (name: string, run: Run, skip: boolean): void => {
   describe(name, () => {
     // AIDEV-NOTE: the gathering runs in the background and a busy machine starts it late; the stub starts a second
     // late on purpose so the drivers must wait for it rather than count on a quick start.
-    const warm = once(run, "warm", { STUB_START_DELAY: "3" });
+    const warm = once(run, "warm", { STUB_START_DELAY: "2" });
     const cold = once(run, "cold");
     const inflight = once(run, "inflight", { STUB_DELAY: "1" });
 
