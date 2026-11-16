@@ -67,10 +67,13 @@ describe.skipIf(!hkAvailable)("local checks through hk", () => {
     expect(bare(names, "docs:build")).toEqual(["docs:build"]);
   });
 
-  test("the docs build and the packaging wait for the build", () => {
+  test("steps that write build outputs wait for the build, every package test and the script tests", () => {
     const args = ["check", "--all", "--profile", "ci", "--profile", "full"];
-    expect(dependsOn("docs:build", ...args)).toContain("build");
-    expect(dependsOn("package:vsix", ...args)).toContain("build");
+    const tests = packages.map((name) => `packages/${name}:test`);
+    expect(dependsOn("test:scripts", ...args)).toEqual(expect.arrayContaining(["build", ...tests]));
+    for (const step of ["docs:build", "package:vsix"]) {
+      expect(dependsOn(step, ...args)).toEqual(expect.arrayContaining(["build", "test:scripts", ...tests]));
+    }
   });
 
   test("the workflow lint runs in the ci profile and the extension packaging in the full profile", () => {

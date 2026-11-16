@@ -11,6 +11,9 @@ local rootCheck = new Mapping<String, Step> {
   }
 }
 
+// AIDEV-NOTE: scripts/ specs and the product-icon test rewrite dist/ and out/, so steps that write them wait for every package test
+local packageTests: List<String> = read*("packages/*/package.json").keys.toList().map((uri) -> "packages/" + Regex("packages/([^/]+)/package.json").findMatchesIn(uri)[0].groups[1].value + ":test")
+
 local heavy = new Mapping<String, Step> {
   // AIDEV-NOTE: package tests (packages/*:test) and test:scripts depend on this one step
   ["build"] {
@@ -19,7 +22,7 @@ local heavy = new Mapping<String, Step> {
   }
   ["test:scripts"] {
     check = "bun test scripts"
-    depends = List("build")
+    depends = List("build") + packageTests
     profiles = List("ci")
   }
   ["lint:workflows"] {
@@ -30,13 +33,13 @@ local heavy = new Mapping<String, Step> {
   // AIDEV-NOTE: packages what build produced; package:vsix:pack does not build again
   ["package:vsix"] {
     check = "task --silent package:vsix:pack"
-    depends = List("build")
+    depends = List("build", "test:scripts") + packageTests
     profiles = List("full")
   }
   ["docs:build"] {
     // AIDEV-NOTE: docs:site, not docs:build: rebuilding a package's dist/ beside the tests that read it made them fail
     check = "task --silent docs:site"
-    depends = List("build")
+    depends = List("build", "test:scripts") + packageTests
     profiles = List("full")
   }
 }
