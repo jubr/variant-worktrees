@@ -403,8 +403,14 @@ if [[ "\${VARIANT_BRANCH_HOLD:-}" == 1 && "$*" == *"worktree remove"* ]]; then
     if [[ "\${args[$i]}" == "-C" ]]; then primary="\${args[$((i+1))]}"; fi
   done
   "$real" "$@"
-  "$real" -C "$primary" checkout -q "$branch"
-  exit 0
+  # AIDEV-NOTE: a checkout that fails once (a lock held by git's own background work under load) must not pass
+  # silently: without it the branch is free, implode removes it, and the test sees a resolved promise.
+  for attempt in $(seq 1 100); do
+    "$real" -C "$primary" checkout -q "$branch" 2>/dev/null && exit 0
+    sleep 0.1
+  done
+  echo "shim: could not check out $branch in $primary" >&2
+  exit 1
 fi
 exec "$real" "$@"
 `,
