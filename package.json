@@ -15,7 +15,8 @@
     "clean": "rm -rf packages/*/dist",
     "docs:api": "bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-log build && typedoc",
     "docs:dev": "bun run docs:api && vitepress dev docs",
-    "docs:build": "bun run docs:api && vitepress build docs",
+    "docs:build": "bun run docs:api && bun run docs:site",
+    "docs:site": "typedoc && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {

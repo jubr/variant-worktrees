@@ -34,7 +34,9 @@ local heavy = new Mapping<String, Step> {
     profiles = List("full")
   }
   ["docs:build"] {
-    check = "task --silent docs:build"
+    // AIDEV-NOTE: docs:site, not docs:build: rebuilding a package's dist/ beside the tests that read it made them fail
+    check = "task --silent docs:site"
+    depends = List("build")
     profiles = List("full")
   }
 }

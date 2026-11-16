@@ -177,6 +177,9 @@ tasks:
   docs:build:
     desc: "TypeDoc then VitePress production build"
     cmds: ["bun run docs:build"]
+  docs:site:
+    desc: "TypeDoc then VitePress production build from an existing build (no package rebuild)"
+    cmds: ["bun run docs:site"]
   docs:preview:
     desc: "Preview the built VitePress site"
     cmds: ["bun run docs:preview"]

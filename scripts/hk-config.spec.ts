@@ -26,6 +26,13 @@ const plan = (...args: string[]): string[] => {
   return steps.filter((step) => step.status === "included").map((step) => step.name);
 };
 
+// AIDEV-NOTE: a step that rebuilds a package's dist/ must not run beside tests that read it; hk orders steps by depends
+const dependsOn = (step: string, ...args: string[]): string[] => {
+  const result = Bun.spawnSync(["hk", ...args, "--plan", "--json"], { cwd: root, stdout: "pipe", stderr: "pipe" });
+  const steps = (JSON.parse(result.stdout.toString()) as { steps: (PlanStep & { dependsOn?: string[] })[] }).steps;
+  return steps.find((candidate) => candidate.name === step)?.dependsOn ?? [];
+};
+
 const bare = (names: string[], step: string): string[] => names.filter((name) => name === step);
 const ofPackage = (names: string[], step: string): string[] =>
   names.filter((name) => name.startsWith("packages/") && name.endsWith(`:${step}`));
@@ -58,6 +65,12 @@ describe.skipIf(!hkAvailable)("local checks through hk", () => {
   test("the full profile adds the docs build", () => {
     const names = plan("check", "--all", "--profile", "ci", "--profile", "full");
     expect(bare(names, "docs:build")).toEqual(["docs:build"]);
+  });
+
+  test("the docs build and the packaging wait for the build", () => {
+    const args = ["check", "--all", "--profile", "ci", "--profile", "full"];
+    expect(dependsOn("docs:build", ...args)).toContain("build");
+    expect(dependsOn("package:vsix", ...args)).toContain("build");
   });
 
   test("the workflow lint runs in the ci profile and the extension packaging in the full profile", () => {
