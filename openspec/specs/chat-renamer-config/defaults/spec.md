@@ -8,12 +8,12 @@ Owns the defaults, allowed values and field schemas of the Cursor chat renamer o
 
 ### Requirement: Shared renamer defaults and field schemas
 
-The system SHALL provide a package `chat-renamer-config` that owns the full set of chat renamer options: `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array) and `renameExistingDays` (non-negative integer, 0 means off). Its main entry SHALL export the default values and the allowed values of the two enumerations without loading any schema library. Its `./schema` entry SHALL export a Zod schema for each option and a strict object schema `ChatRenamerConfigSchema` of all of them, each optional. The defaults SHALL be `titleEvent`, `workspace`, `["/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)", "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)", "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"]`, `[]` and `7`. The first activation pattern SHALL match a `/<word>-spec-<word> @<path>` line and capture the slug of the last path segment after its leading prefix token. The second SHALL match `/<word>-spec-<word> @_work-<slug>` and capture `<slug>`. The default list of worktree prefixes SHALL be empty: the host that knows the variant prefix supplies it. A worktree prefix entry SHALL be a non-empty string without path separators and holds its own leading character and connector. The renamer and `variant-config` SHALL take these defaults and schemas from this package instead of defining their own copies. The package SHALL NOT define the variant name prefix or any literal copy of it, which belongs to `variant-config`.
+The system SHALL provide a package `chat-renamer-config` that owns the full set of chat renamer options: `trigger` (`titleEvent` or `hook`), `hookScope` (`workspace` or `user`), `activationPatterns` (string array), `worktreePrefixes` (string array), `renameExistingDays` (non-negative integer, 0 means off) and `titleEventPromptLines` (integer of at least 1). Its main entry SHALL export the default values and the allowed values of the two enumerations without loading any schema library. Its `./schema` entry SHALL export a Zod schema for each option and a strict object schema `ChatRenamerConfigSchema` of all of them, each optional. The defaults SHALL be `titleEvent`, `workspace`, `["/[a-z]+-spec-[a-z]+\\s+@\\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\\s|$)", "/[a-z]+-spec-[a-z]+\\s+@_work-([A-Za-z0-9_-]+)/?(?=\\s|$)", "/[a-z]+-spec-[a-z]+\\s+([A-Za-z0-9_-]+)"]`, `[]`, `7` and `10`. The first activation pattern SHALL match a `/<word>-spec-<word> @<path>` line and capture the slug of the last path segment after its leading prefix token. The second SHALL match `/<word>-spec-<word> @_work-<slug>` and capture `<slug>`. The default list of worktree prefixes SHALL be empty: the host that knows the variant prefix supplies it. A worktree prefix entry SHALL be a non-empty string without path separators and holds its own leading character and connector. The renamer and `variant-config` SHALL take these defaults and schemas from this package instead of defining their own copies. The package SHALL NOT define the variant name prefix or any literal copy of it, which belongs to `variant-config`.
 
 #### Scenario: Defaults without Zod
 
 - **WHEN** a consumer imports the main entry
-- **THEN** it receives the five defaults and does not load Zod
+- **THEN** it receives the six defaults and does not load Zod
 
 #### Scenario: Default activation patterns
 
@@ -29,6 +29,11 @@ The system SHALL provide a package `chat-renamer-config` that owns the full set 
 
 - **WHEN** the window schema parses `0`, `7`, `-1` and `1.5`
 - **THEN** it accepts `0` and `7` and rejects the other two
+
+#### Scenario: Prompt line limit schema
+
+- **WHEN** the prompt line schema parses `1`, `10`, `0` and `2.5`
+- **THEN** it accepts `1` and `10` and rejects the other two
 
 #### Scenario: Enumerations
 
@@ -78,4 +83,3 @@ The system SHALL provide a package `chat-renamer-config` that owns the full set 
 
 - **WHEN** `variants.yaml` sets `chatRenamer.awake.when` to `never`, `chatRenamer.awake.cmd` to `/usr/bin/caffeinate -disu -w ${extensionHostPid}`, and `chatRenamer.awake.graceDelaySecs` to `0`
 - **THEN** the loaded section is `awake.when` `never`, that command, and `awake.graceDelaySecs` `0`
-
