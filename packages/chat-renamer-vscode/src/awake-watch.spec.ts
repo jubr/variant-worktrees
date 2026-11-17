@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { createActivityWatch } from "./awake-watch";
+import { createActivityWatch, spawnCaffeinate } from "./awake-watch";
 
 describe("createActivityWatch", () => {
   it("reports a generating session and stays quiet when polling is off", async () => {
@@ -39,5 +39,28 @@ describe("createActivityWatch", () => {
     expect(await watch.sync()).toBe(false);
     expect(reads).toHaveLength(2);
     watch.dispose();
+  });
+});
+
+// openspec/specs/chat-renamer/awake/spec.md
+describe("spawnCaffeinate", () => {
+  it("reports a program that cannot be executed through once('error') instead of throwing", async () => {
+    const child = spawnCaffeinate(["/nonexistent/keep-awake", "--pid", "5151"]);
+
+    const error = await new Promise<Error | undefined>((resolve) => child.once("error", resolve));
+
+    expect(error?.message).toContain("/nonexistent/keep-awake");
+  });
+
+  it("reports a process that ends through once('exit')", async () => {
+    const child = spawnCaffeinate([process.execPath, "-e", "process.exit(0)"]);
+
+    await new Promise<void>((resolve) => child.once("exit", () => resolve()));
+
+    expect(child.pid).toBeGreaterThan(0);
+  });
+
+  it("still throws for an empty command", () => {
+    expect(() => spawnCaffeinate([])).toThrow("awake command is empty");
   });
 });
