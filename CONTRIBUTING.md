@@ -90,7 +90,7 @@ A new package needs its own `hk.pkl` (copy the one-liner); `scripts/hk-config.sp
 A package-specific step goes into that package's `hk.pkl` below the `amends` line, in the hook that should run it.
 
 Profiles: no profile runs only Biome; `ci` adds the package tests, `build`, `test:scripts`,
-`commitlint` and `lint:workflows`; `full` adds `docs:build` and `package:vsix` (both `.vsix` into `out/`). `pre-commit` and `fix` run only Biome. Use `hk check --plan`
+`commitlint` and `lint:workflows`; `full` adds `docs:build`. `pre-commit` and `fix` run only Biome. Use `hk check --plan`
 (add `--all`, `--profile ci`) to see what a run would do.
 
 ```bash
@@ -151,8 +151,8 @@ binary does the new thing.
 GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 
 - `ci-branch.yaml` — every push to a branch other than `main`: `task check:full`
-  (install, lint, build, test, commitlint, workflow lint, docs build, and both `.vsix`
-  packages, all as hk steps), then the upload of `out/*.vsix`. Also called by the release workflow.
+  (install, lint, build, test, commitlint, workflow lint, docs build, all as hk steps), then
+  `task package:vsix` (both `.vsix` packages) and the upload of `out/*.vsix`. Also called by the release workflow.
 - `ci-release.yaml` — push to `main`: runs `ci-branch.yaml`, then builds both `.vsix`
   files and `variant` single-file executables (`bun build --compile`) for
   linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
