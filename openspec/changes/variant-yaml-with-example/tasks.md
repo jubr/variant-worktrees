@@ -24,6 +24,8 @@
 - [ ] 4.4 Wire the store and middleware in `main.ts` (`startup` after `listen`); verify by running `bun run server:watch` with a temp `SQLITE_DATABASE`, requesting `/api` and `/missing`, and reading `events` back
 - [ ] 4.5 Describe the events table in `example/README.md`; verify the README names `events`, its columns and the two kinds
 
+- [ ] 4.6 Print `sqlite: opened <path>` when the database opens; verify a spec captures the line and the `watch.log` of a watch shows it
+
 ## 5. Docs and gates
 
 - [ ] 5.1 Add `CHANGELOG.md` entries for the renamed example scripts, the root `variants.yaml`, the state directory and the events; verify no other doc under `docs/`, `README.md` or `packages/*/README.md` names the example's old scripts
