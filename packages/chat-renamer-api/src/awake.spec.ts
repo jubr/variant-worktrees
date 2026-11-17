@@ -12,6 +12,7 @@ type Fake = AwakeProcess & {
   signals: NodeJS.Signals[];
   exited: boolean;
   finish: () => void;
+  fail: (error: Error) => void;
 };
 
 type Detection = "agentHost+poll" | "poll";
@@ -35,7 +36,8 @@ const harness = (available = true, detection: Detection = "poll") => {
       failStarts -= 1;
       throw new Error("spawn failed");
     }
-    const listeners: Array<() => void> = [];
+    const exitListeners: Array<() => void> = [];
+    const errorListeners: Array<(error: Error) => void> = [];
     const child: Fake = {
       pid: pid++,
       args,
@@ -45,16 +47,25 @@ const harness = (available = true, detection: Detection = "poll") => {
         this.signals.push(signal);
         return true;
       },
-      once(_event, listener) {
-        listeners.push(listener);
+      once(event, listener) {
+        if (event === "error") {
+          errorListeners.push(listener as (error: Error) => void);
+        } else {
+          exitListeners.push(listener as () => void);
+        }
       },
       finish() {
         if (this.exited) {
           return;
         }
         this.exited = true;
-        for (const listener of listeners) {
+        for (const listener of exitListeners) {
           listener();
+        }
+      },
+      fail(error) {
+        for (const listener of errorListeners) {
+          listener(error);
         }
       },
     };
@@ -149,19 +160,49 @@ describe("createAwakeController", () => {
     expect(infos(entries).filter((line) => line.includes("caffeinate available"))).toHaveLength(1);
   });
 
-  it("spawns only caffeinate -disu with the extension host pid", () => {
+  it("runs awake.cmd with the extension host pid substituted", () => {
     const { controller, children, entries } = harness();
-
-    controller.update(active({ cmd: "caffeinate -disu -w ${extensionHostPid}" }));
-    expect(children).toHaveLength(0);
 
     controller.update(active({ cmd: "caffeinate -dis -w ${extensionHostPid}" }));
 
-    expect(children).toHaveLength(0);
-    expect(debugs(entries).some((line) => line.includes("caffeinate -dis "))).toBe(false);
+    expect(children.map((child) => child.args)).toEqual([["caffeinate", "-dis", "-w", "5151"]]);
+    expect(debugs(entries).at(-1)).toBe('[awake] + "caffeinate -dis -w 5151" pid=4242 reason="activity"');
+  });
 
-    controller.update(active());
-    expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
+  it("runs a command that is not caffeinate", () => {
+    const { controller, children } = harness();
+
+    controller.update(active({ cmd: "/usr/local/bin/keep-awake --pid ${extensionHostPid}" }));
+
+    expect(children.map((child) => child.args)).toEqual([["/usr/local/bin/keep-awake", "--pid", "5151"]]);
+  });
+
+  it("still runs a custom command when caffeinate cannot be run, and not the default", () => {
+    const missing = harness(false);
+
+    missing.controller.update(active());
+    expect(missing.children).toHaveLength(0);
+
+    missing.controller.update(active({ cmd: "/usr/local/bin/keep-awake --pid ${extensionHostPid}" }));
+    expect(missing.children.map((child) => child.args)).toEqual([["/usr/local/bin/keep-awake", "--pid", "5151"]]);
+  });
+
+  it("kills a custom command at once for never, loss of ownership, and dispose", () => {
+    const cmd = "/usr/local/bin/keep-awake --pid ${extensionHostPid}";
+    const never = harness();
+    never.controller.update(active({ cmd }));
+    never.controller.update(idle({ cmd, when: "never" }));
+    expect(never.children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
+
+    const owner = harness();
+    owner.controller.update(active({ cmd }));
+    owner.controller.update(idle({ cmd, owned: false }));
+    expect(owner.children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
+
+    const disposed = harness();
+    disposed.controller.update(active({ cmd }));
+    disposed.controller.dispose();
+    expect(disposed.children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
   });
 
   it("keeps the process for the grace delay, logs that only at trace, then stops it", () => {
@@ -240,7 +281,7 @@ describe("createAwakeController", () => {
     expect(disposed.children).toHaveLength(1);
   });
 
-  it("stops when the command is not caffeinate -disu and does not start another", () => {
+  it("replaces the process when awake.cmd changes while a session is active", () => {
     const { controller, children, entries } = harness();
     controller.update(active());
 
@@ -249,7 +290,21 @@ describe("createAwakeController", () => {
     expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="mode changed"');
 
     children[0]?.finish();
-    expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
+    expect(children.map((child) => child.args)).toEqual([
+      ["/usr/bin/caffeinate", "-disu", "-w", "5151"],
+      ["caffeinate", "-dis", "-w", "5151"],
+    ]);
+  });
+
+  it("stops and starts nothing when awake.cmd changes to the default that cannot run", () => {
+    const { controller, children } = harness(false);
+    controller.update(active({ cmd: "/usr/local/bin/keep-awake --pid ${extensionHostPid}" }));
+
+    controller.update(active());
+    children[0]?.finish();
+
+    expect(children).toHaveLength(1);
+    expect(children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
   });
 
   it("starts a replacement when the process exits while a session is still active", () => {

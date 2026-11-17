@@ -99,13 +99,11 @@ export const createAwakeController = ({
 
   const oneArgv = (): readonly string[] => ["/usr/bin/caffeinate", "-disu", "-w", String(parentPid)];
 
-  const isOneCommand = (cmd: string): boolean => {
-    const argv = argvFor(cmd, parentPid);
-    const expected = oneArgv();
-    return argv.length === expected.length && argv.every((part, index) => part === expected[index]);
-  };
+  /** Any non-empty command is tried. Only the default needs the `caffeinate` binary the startup check looked for. */
+  const argvRunnable = (argv: readonly string[]): boolean =>
+    argv.length > 0 && (available || !sameArgv(argv, oneArgv()));
 
-  const runnable = (cmd: string): boolean => available && isOneCommand(cmd);
+  const runnable = (cmd: string): boolean => argvRunnable(argvFor(cmd, parentPid));
 
   const wantsRun = (): boolean =>
     latest.owned && latest.when === "chatsActive" && latest.active && runnable(latest.cmd);
@@ -156,7 +154,7 @@ export const createAwakeController = ({
   };
 
   const start = (args: readonly string[]): void => {
-    if (tracked || !runnable(latest.cmd)) {
+    if (tracked || !argvRunnable(args)) {
       return;
     }
     try {
@@ -233,10 +231,10 @@ export const createAwakeController = ({
     latest = input;
     if (wantsRun()) {
       cancelGrace();
-      ensure(oneArgv());
+      ensure(argvFor(latest.cmd, parentPid));
       return;
     }
-    if (input.owned && input.when === "chatsActive" && input.active && available && !isOneCommand(input.cmd)) {
+    if (input.owned && input.when === "chatsActive" && input.active && !runnable(input.cmd)) {
       pendingArgs = null;
       cancelGrace();
       stop("mode changed");
