@@ -158,10 +158,13 @@ describe("the example project", () => {
       expect(VariantsConfigSchema.safeParse(parsed).success).toBe(true);
     });
 
-    it("gives each watch its own port and points fe at the be of the same variant", () => {
+    it("gives each watch its own port, keeps the be database in .cache/variant and points fe at the be of the same variant", () => {
       const { variant } = loadConfig({ cwd: repositoryRoot });
 
-      expect(variant.watches["example-be"]?.env?.overrides).toMatchObject({ PORT: "${port}" });
+      expect(variant.watches["example-be"]?.env?.overrides).toEqual({
+        PORT: "${port}",
+        SQLITE_DATABASE: "${worktree}/.cache/variant/${schema}.sqlite",
+      });
       expect(variant.watches["example-fe"]?.env?.overrides).toEqual({
         PORT: "${port}",
         VARIANT_API_PORT: "${example-be.port}",

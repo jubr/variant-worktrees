@@ -20,11 +20,7 @@ variant:
       env:
         overrides:
           PORT: '${port}'
-      # env:
-      #   sourceFile: .env # copied from .env.example and amended with the variant's values
-      #   overrides:
-      #     PORT: '${port}'
-      #     SQLITE_DATABASE: '${schema}'
+          SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'
       ready: /api # answers 200 once the server runs
     example-fe:
       kind: vite
