@@ -112,7 +112,7 @@
         "chat-renamer.awake.cmd": {
           "type": "string",
           "default": "/usr/bin/caffeinate -disu -w ${extensionHostPid}",
-          "markdownDescription": "Command that holds this Mac awake. `${extensionHostPid}` is replaced with this extension host's pid. Default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. Changing it applies without a reload."
+          "markdownDescription": "Command that holds this Mac awake. It is split on spaces and run without a shell, so it must stay in the foreground. `${extensionHostPid}` is replaced with this extension host's pid; a command that waits on that pid exits with the host. Any command is tried, once at startup for up to 1 second, and a command that cannot be executed logs one `[awake]` warning. Default is the detected `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. Changing it applies without a reload."
         },
         "chat-renamer.awake.graceDelaySecs": {
           "type": "integer",

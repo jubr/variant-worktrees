@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Changed
+
+- `chat-renamer.awake.cmd` runs whatever command is set, not only `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. It is split on spaces and run without a shell, and `${extensionHostPid}` is replaced with the host's pid. The command is tried once at startup for up to 1 second with no chat running. A command that cannot be executed, or exits within 1 second, logs one `[awake]` warning per command, right after the startup line when it fails at startup. A command that does not wait on `${extensionHostPid}` can outlive a host that is killed. Changing `awake.cmd` while a chat is in a turn replaces the process with the new command.
+
 ## [0.0.9] - 2026-11-13
 
 ### Added

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `variant.awake.cmd` runs whatever command is set, not only `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. It is split on spaces and run without a shell, and `${extensionHostPid}` is replaced with the host's pid. The command is tried once at startup for up to 1 second with no chat running. A command that cannot be executed, or exits within 1 second, logs one `[awake]` warning per command, right after the startup line when it fails at startup. A command that does not wait on `${extensionHostPid}` can outlive a host that is killed. Changing `awake.cmd` while a chat is in a turn replaces the process with the new command.
 - The editor socket `.vscode/variant-worktrees.sock` is removed when the extension host exits without a clean deactivation, as long as the process still runs its exit handlers. A killed host (SIGKILL) still leaves the file, and the next start replaces it.
 - Stopping the socket listener, and so deactivating the extension, no longer waits for clients that keep a connection open. Those connections are closed.
 
