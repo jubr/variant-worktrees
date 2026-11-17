@@ -31,10 +31,11 @@ describe("feature-branch CI", () => {
     );
     expect(artifacts).toEqual(["vsix"]);
     expect(runs(branch.jobs).join("\n")).not.toContain("package:cli");
-    // AIDEV-NOTE: the workflow lint and the packaging are hk steps; the gate job reaches them through check:full
-    expect(runs(branch.jobs)).toContain("task check:full");
-    expect(runs(branch.jobs)).not.toContain("task lint:workflows");
-    expect(runs(branch.jobs)).not.toContain("task package:vsix");
+    // AIDEV-NOTE: the workflow lint is an hk step reached through check:full; packaging is its own late step
+    const gate = runs({ gate: branch.jobs.gate });
+    expect(gate).toContain("task check:full");
+    expect(gate).not.toContain("task lint:workflows");
+    expect(gate.indexOf("task package:vsix")).toBeGreaterThan(gate.indexOf("task check:full"));
 
     const release = workflow("ci-release.yaml");
     expect(runs(release.jobs)).toContain("task package:cli:all");

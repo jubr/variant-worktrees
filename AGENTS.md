@@ -83,7 +83,7 @@ hk is nested: `hk.pkl` at the root lists `packages/*` as `subprojects`, and ever
 and `<name>:test`). Inspect with `hk check --all --plan [--profile ci]`.
 `task check:changed` is Biome on changed files, `task check:all` adds the `ci`
 profile (package tests, build, script tests, commitlint, workflow lint), `task check:full`
-installs first and adds the `full` profile (docs build, vsix packages).
+installs first and adds the `full` profile (docs build).
 
 ```bash
 mise x -- task check:changed

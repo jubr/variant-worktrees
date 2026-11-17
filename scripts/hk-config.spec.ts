@@ -71,18 +71,13 @@ describe.skipIf(!hkAvailable)("local checks through hk", () => {
     const args = ["check", "--all", "--profile", "ci", "--profile", "full"];
     const tests = packages.map((name) => `packages/${name}:test`);
     expect(dependsOn("test:scripts", ...args)).toEqual(expect.arrayContaining(["build", ...tests]));
-    for (const step of ["docs:build", "package:vsix"]) {
-      expect(dependsOn(step, ...args)).toEqual(expect.arrayContaining(["build", "test:scripts", ...tests]));
-    }
+    expect(dependsOn("docs:build", ...args)).toEqual(expect.arrayContaining(["build", "test:scripts", ...tests]));
   });
 
-  test("the workflow lint runs in the ci profile and the extension packaging in the full profile", () => {
+  test("the workflow lint runs in the ci profile, and the extension packaging is not an hk step", () => {
     expect(bare(plan("check", "--all"), "lint:workflows")).toEqual([]);
-    expect(bare(plan("check", "--all"), "package:vsix")).toEqual([]);
-    const ci = plan("check", "--all", "--profile", "ci");
-    expect(bare(ci, "lint:workflows")).toEqual(["lint:workflows"]);
-    expect(bare(ci, "package:vsix")).toEqual([]);
-    expect(bare(plan("check", "--all", "--profile", "ci", "--profile", "full"), "package:vsix")).toEqual(["package:vsix"]);
+    expect(bare(plan("check", "--all", "--profile", "ci"), "lint:workflows")).toEqual(["lint:workflows"]);
+    expect(plan("check", "--all", "--profile", "ci", "--profile", "full")).not.toContain("package:vsix");
   });
 
   test("pre-commit runs only Biome steps", () => {

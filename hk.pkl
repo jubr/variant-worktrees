@@ -30,12 +30,6 @@ local heavy = new Mapping<String, Step> {
     glob = List(".github/workflows/**")
     profiles = List("ci")
   }
-  // AIDEV-NOTE: packages what build produced; package:vsix:pack does not build again
-  ["package:vsix"] {
-    check = "task --silent package:vsix:pack"
-    depends = List("build", "test:scripts") + packageTests
-    profiles = List("full")
-  }
   ["docs:build"] {
     // AIDEV-NOTE: docs:site, not docs:build: rebuilding a package's dist/ beside the tests that read it made them fail
     check = "task --silent docs:site"
