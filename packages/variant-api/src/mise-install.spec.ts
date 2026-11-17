@@ -607,6 +607,8 @@ describe("create installs Mise tools", () => {
       expect(stderr).toContain(log);
       expect(readIncludes(log, "THIS_RUN")).toBe(true);
       expect(readIncludes(log, "OLD_RUN")).toBe(false);
+      // The run must not re-enter the host executable. A compiled `variant` reads a script path as a command.
+      expect(existsSync(join(created.worktree ?? "", ".cache", "variant", "mise-install.mjs"))).toBe(false);
     } finally {
       rmSync(parent, { recursive: true, force: true });
     }
@@ -622,7 +624,7 @@ describe("create installs Mise tools", () => {
       writeFileSync(join(directory, "mise.toml"), "[tools]\n");
       const mise = stubMise(parent, "exit 0");
 
-      await expect(installMiseBackground(mise.binary, directory, join(parent, "missing-runtime"))).rejects.toThrow(
+      await expect(installMiseBackground(mise.binary, directory, join(parent, "missing-shell"))).rejects.toThrow(
         /could not be started/,
       );
       expect(existsSync(directory)).toBe(true);
