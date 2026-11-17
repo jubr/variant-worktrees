@@ -70,6 +70,7 @@ export default defineConfig({
           { text: "Core", link: "/guide/core" },
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },
+          { text: "Runtime", link: "/guide/runtime" },
           { text: "Editor socket", link: "/guide/ipc" },
           { text: "MCP Server", link: "/mcp" },
           { text: "Library", link: "/guide/library" },

@@ -245,6 +245,65 @@ describe("installation into an existing project", () => {
   });
 });
 
+/** Headings of a built page in document order, with level, anchor id and plain text. */
+const headingsOf = (html: string): { level: number; id: string; text: string }[] =>
+  [...html.matchAll(/<h([1-6]) id="([^"]*)"[^>]*>([\s\S]*?)<a class="header-anchor"/g)].map((match) => ({
+    level: Number(match[1]),
+    id: match[2],
+    text: match[3].replace(/<[^>]+>/g, "").trim(),
+  }));
+
+describe("configuration page structure", () => {
+  const headings = () => headingsOf(page("guide/configuration.html"));
+  const schema = JSON.parse(
+    readFileSync(join(root, "packages/variant-config/variants.yaml.schema.json"), "utf8"),
+  ) as { properties: { variant: { properties: Record<string, unknown> } } };
+  const optionKeys = Object.keys(schema.properties.variant.properties);
+
+  test("gives every key of variant its own heading with an anchor", () => {
+    const found = headings().filter((heading) => heading.text.startsWith("variant."));
+    for (const key of optionKeys) {
+      const heading = found.find((candidate) => candidate.text === `variant.${key}`);
+      expect(heading?.id).toBe(`variant-${key.toLowerCase()}`);
+    }
+  });
+
+  test("lists the option headings alphabetically", () => {
+    const names = headings()
+      .map((heading) => heading.text)
+      .filter((text) => /^variant\.\w+$/.test(text));
+    expect(names.length).toBe(optionKeys.length);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  });
+
+  test("opens with Options, then Templates, and ends with Unknown keys and migration", () => {
+    const sections = headings()
+      .filter((heading) => heading.level === 2)
+      .map((heading) => heading.text);
+    expect(sections[0]).toBe("Options");
+    expect(sections.indexOf("Templates")).toBeGreaterThan(0);
+    expect(sections.at(-1)).toBe("Unknown keys and migration");
+  });
+});
+
+describe("runtime page", () => {
+  const moved = ["Runtime", "Environment through Mise", "Environment variables", "When watches are omitted"];
+
+  test("holds the runtime, environment and detection sections", () => {
+    const texts = headingsOf(page("guide/runtime.html")).map((heading) => heading.text);
+    for (const heading of moved) {
+      expect(texts).toContain(heading);
+    }
+  });
+
+  test("leaves them out of the configuration page", () => {
+    const texts = headingsOf(page("guide/configuration.html")).map((heading) => heading.text);
+    for (const heading of moved) {
+      expect(texts).not.toContain(heading);
+    }
+  });
+});
+
 describe("remote personal-site attribution", () => {
   test("tracked docs omit the forbidden host and image", () => {
     const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
