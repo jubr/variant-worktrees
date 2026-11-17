@@ -7,8 +7,8 @@ says little about what a watch does.
 
 ## What Changes
 
-- `variants.yaml` at the repository root gives `be` and `fe` each their variant port through `env.overrides` (`PORT`
-  from `${port}`), and `fe` points its API proxy at the variant's `be` through `${be.port}`.
+- `variants.yaml` at the repository root, committed for the first time, gives its watches `example-be` and `example-fe` each their variant port through `env.overrides` (`PORT`
+  from `${port}`), and `example-fe` points its API proxy at the variant's `example-be` through `${example-be.port}`.
 - The example `fe` script `dev` is renamed to `app:watch` and the example `be` script `start:dev` to `server:watch`.
   Their commands do not change: each already builds on the fly and rebuilds on change. Every reference is updated: both
   `variants.yaml` files that run them, the example README and the example test.

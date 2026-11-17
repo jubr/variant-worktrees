@@ -6,8 +6,8 @@
 
 ## 2. Root variants.yaml
 
-- [ ] 2.1 Add a failing test in `example-project.spec.ts` that loads the root `variants.yaml` and asserts its schema validity, the `PORT`/`VARIANT_API_PORT` overrides and the watch commands of `be` and `fe`, and that `example/variants.yaml` uses the same commands
-- [ ] 2.2 Update the root `variants.yaml`: `PORT: '${port}'` on both watches, `VARIANT_API_PORT: '${be.port}'` and `ready` on `fe`, `ready` on `be`, commands `bun run server:watch` and `bun run app:watch`; verify the test from 2.1 passes
+- [ ] 2.1 Add a failing test in `example-project.spec.ts` that loads the root `variants.yaml` and asserts its schema validity, the `PORT`/`VARIANT_API_PORT` overrides and the watch commands of `example-be` and `example-fe`, and that `example/variants.yaml` uses the same commands
+- [ ] 2.2 Commit the root `variants.yaml` (copied from the main checkout, where it is untracked) with `PORT: '${port}'` on both watches, `VARIANT_API_PORT: '${example-be.port}'` on `example-fe`, commands `bun run server:watch` and `bun run app:watch`, and `ready` on `example-fe`; verify the test from 2.1 passes and `git ls-files variants.yaml` lists it
 - [ ] 2.3 Run `variant watch --detach` for a throwaway variant and verify both watches become ready on distinct ports, then `variant down`
 
 ## 3. Docs and gates

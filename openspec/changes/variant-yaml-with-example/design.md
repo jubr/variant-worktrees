@@ -8,7 +8,7 @@ and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds o
 ## Goals / Non-Goals
 
 **Goals:**
-- Root `variants.yaml` mirrors the port wiring of `example/variants.yaml`.
+- A committed root `variants.yaml` mirrors the port wiring of `example/variants.yaml`.
 - One descriptive script name per app, used everywhere the example runs a watch.
 
 **Non-Goals:**
@@ -24,8 +24,9 @@ and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds o
 - **Rename in both `variants.yaml` files** (root and `example/`), so neither references a script that is gone.
 - **Autodetect agrees by kind and directory only.** With the scripts renamed, autodetection of the example falls back to
   `bunx --bun vite` and `bunx nest start --watch`; the fixture test compares kinds and directories, which stay equal.
-- **`ready` checks** reuse `example/variants.yaml`: `/api` for `be`, `/` for `fe`.
-- **Port wiring copied from the example**: `be` before `fe`, `VARIANT_API_PORT: '${be.port}'` on `fe`.
+- **`ready` checks** reuse `example/variants.yaml`: `/api` for `example-be`, `/` for `example-fe`.
+- **Port wiring copied from the example**, with the root file's own keys: `example-be` before `example-fe`, `VARIANT_API_PORT: '${example-be.port}'` on `example-fe`. Template keys may contain hyphens.
+- **The root file is committed on this branch.** It starts untracked in the main checkout; the branch adds it with the ports. Its other settings (`implode`, `chatRenamer`, install commands) stay as they are.
 - `build` and `build:watch` stay untouched.
 
 ## Risks / Trade-offs
