@@ -2,38 +2,35 @@
 
 The root `variants.yaml` is the repository's dogfood configuration for `variant watch`; `example/variants.yaml` is the
 standalone sample, used as a test fixture. The example `fe` already reads `PORT` and `VARIANT_API_PORT` (its Vite config),
-and `be` reads `PORT`. Their `package.json` files offer `dev`/`build:watch` and `start:dev`/`build:watch`, but no
-scripts named `app:watch` or `server:watch`.
+and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds on the fly with HMR) and `start:dev`
+(`bun --watch --no-clear-screen src/main.ts`, which reloads on change).
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Root `variants.yaml` mirrors the port wiring of `example/variants.yaml`, and uses the new scripts.
-- One obvious script per app that builds, then watches.
+- Root `variants.yaml` mirrors the port wiring of `example/variants.yaml`.
+- One descriptive script name per app, used everywhere the example runs a watch.
 
 **Non-Goals:**
-- Changing `example/variants.yaml`, its containers, or the Dockerfiles.
+- Changing the Dockerfiles or the container setup.
 - New schema keys, such as a separate `build` command on a watch.
+- Changing autodetection: it still looks for `dev` and `start:dev` in other projects.
 
 ## Decisions
 
-- **Scripts live in the example packages** (`app:watch` in `example/fe`, `server:watch` in `example/be`), not in the
-  YAML. The YAML stays a one-line command per watch; the build-then-watch sequence is app knowledge.
-  Alternative: `watch: bun run build && bun run dev` inline in YAML, rejected as shell logic in config.
-- **Build, then watch the serving process.** `app:watch` is `bun run build && bun --bun vite` (build once for an early
-  type/bundle failure, then the Vite dev server with HMR on `PORT`). `server:watch` is
-  `bun run build && bun --watch --no-clear-screen src/main.ts` (the existing `start:dev` behavior after a build).
-  Alternative: `build:watch` only, rejected because it serves nothing on `${port}`.
+- **Pure rename, no new commands.** `dev` becomes `app:watch` and `start:dev` becomes `server:watch`, with the same
+  command text. Both already compile as they serve and again on every change, so "build and watch" needs no extra
+  `build` step. Alternative: prefix `bun run build &&`, rejected because it only delays the first serve.
+- **Rename in both `variants.yaml` files** (root and `example/`), so neither references a script that is gone.
+- **Autodetect agrees by kind and directory only.** With the scripts renamed, autodetection of the example falls back to
+  `bunx --bun vite` and `bunx nest start --watch`; the fixture test compares kinds and directories, which stay equal.
 - **`ready` checks** reuse `example/variants.yaml`: `/api` for `be`, `/` for `fe`.
 - **Port wiring copied from the example**: `be` before `fe`, `VARIANT_API_PORT: '${be.port}'` on `fe`.
-- Existing `dev` and `start:dev` scripts stay; the container and README flows keep using them.
+- `build` and `build:watch` stay untouched.
 
 ## Risks / Trade-offs
 
-- The initial build delays the first serve → `ready` timeout (`readyTimeoutSeconds`, 180) covers it.
-- A build failure blocks the watch from starting → intended; the error shows in `watch.log`.
-- Root YAML and `example/variants.yaml` can drift → the new test pins the root file's ports and commands.
-
-## Open Questions
-
-- Whether `example/variants.yaml` should adopt `app:watch`/`server:watch` too; deferred, it is a fixture with its own spec.
+- A missed reference to `dev` or `start:dev` fails at run time → a repo-wide search in the tasks, plus tests that pin
+  the script names and both YAML files.
+- Autodetection of the example now yields a plainer command than the explicit watch → accepted; the explicit config wins.
+- Root YAML and `example/variants.yaml` can drift → tests pin both.
