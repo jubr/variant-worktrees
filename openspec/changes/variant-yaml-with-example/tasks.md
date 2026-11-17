@@ -10,7 +10,13 @@
 - [ ] 2.2 Commit the root `variants.yaml` (copied from the main checkout, where it is untracked) with `PORT: '${port}'` on both watches, `VARIANT_API_PORT: '${example-be.port}'` on `example-fe`, commands `bun run server:watch` and `bun run app:watch`, and `ready` on `example-fe`; verify the test from 2.1 passes and `git ls-files variants.yaml` lists it
 - [ ] 2.3 Run `variant watch --detach` for a throwaway variant and verify both watches become ready on distinct ports, then `variant down`
 
-## 3. Docs and gates
+## 3. No empty state directory
 
-- [ ] 3.1 Add a `CHANGELOG.md` entry for the renamed example scripts; verify no other doc under `docs/`, `README.md` or `packages/*/README.md` names the example's old scripts
-- [ ] 3.2 Verify `openspec validate --all --strict --no-interactive` and `task check:all` pass
+- [ ] 3.1 Add a failing test in `variant-api` that creates a client with a SQLite connection whose `db.filename` lies elsewhere, runs `list()`, and asserts the state directory does not exist; verify it fails for that reason
+- [ ] 3.2 Remove the eager `mkdirSync` of the state directory in `createVariantClient`; verify the test from 3.1 passes and `bun test` in `variant-api` and `variant-cli` stays green, including a default-location SQLite `provision` that still creates `.cache/variants/<slug>.db`
+- [ ] 3.3 Point `SQLITE_DATABASE` of `example-be` in the root `variants.yaml` at `${worktree}/.cache/variant/${schema}.sqlite`; verify the root-file test asserts it and a watch run leaves `example/be/` free of database files and `.cache/variants/` absent
+
+## 4. Docs and gates
+
+- [ ] 4.1 Add a `CHANGELOG.md` entry for the renamed example scripts; verify no other doc under `docs/`, `README.md` or `packages/*/README.md` names the example's old scripts
+- [ ] 4.2 Verify `openspec validate --all --strict --no-interactive` and `task check:all` pass

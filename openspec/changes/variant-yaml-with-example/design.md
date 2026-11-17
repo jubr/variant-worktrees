@@ -28,10 +28,20 @@ and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds o
 - **Port wiring copied from the example**, with the root file's own keys: `example-be` before `example-fe`, `VARIANT_API_PORT: '${example-be.port}'` on `example-fe`. Template keys may contain hyphens.
 - **The root file is committed on this branch.** It starts untracked in the main checkout; the branch adds it with the ports. Its other settings (`implode`, `chatRenamer`, install commands) stay as they are.
 - `build` and `build:watch` stay untouched.
+- **SQLite file under `.cache/variant/`.** `example-be` sets `SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'`:
+  absolute, in the worktree's gitignored cache directory that `variant watch` already creates, and not relative to
+  `dir` (a bare `${schema}` created a stray file in `example/be/`).
+- **Drop the eager `mkdir` of the state directory** in `createVariantClient` instead of deleting the directory concept. Every
+  reader of that directory already tolerates its absence (`stateSlugs`, `readState`, `migrateJsonStates`, the SQLite
+  `list`), and the SQLite adapter and `writeState` create it themselves when they write. Alternative: relocate the SQLite
+  default to `.cache/variant/`, rejected as a behavior change for existing users' database files.
+- The state-directory watcher in the client already tolerates a missing path (liveness timer), so a first-time
+  legacy file appears on the next poll.
 
 ## Risks / Trade-offs
 
 - A missed reference to `dev` or `start:dev` fails at run time → a repo-wide search in the tasks, plus tests that pin
   the script names and both YAML files.
 - Autodetection of the example now yields a plainer command than the explicit watch → accepted; the explicit config wins.
+- A missing directory delays the change events of a legacy state file until the next poll → legacy files are no longer written, so this only affects hand-placed files.
 - Root YAML and `example/variants.yaml` can drift → tests pin both.
