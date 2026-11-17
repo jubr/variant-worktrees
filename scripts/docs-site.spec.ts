@@ -4,7 +4,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import docsConfig from "../docs/.vitepress/config.ts";
 
 const packageVersion = (
@@ -13,7 +13,6 @@ const packageVersion = (
 
 const root = join(import.meta.dir, "..");
 const dist = join(root, "docs/.vitepress/dist");
-const pagesBase = "/variant-worktrees/";
 
 const attrsOf = (raw: string): Record<string, string> => {
   const attrs: Record<string, string> = {};
@@ -23,33 +22,26 @@ const attrsOf = (raw: string): Record<string, string> => {
   return attrs;
 };
 
-const sameOriginAssets = (html: string): { kind: string; url: string }[] => {
+/** Stylesheets, scripts, favicons and the logo a page requests from its own site, as written in its HTML. */
+const ownAssets = (html: string): { kind: string; url: string }[] => {
   const found: { kind: string; url: string }[] = [];
+  const own = (url: string | undefined): url is string => url !== undefined && !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(url);
   for (const match of html.matchAll(/<(link|script|img)\b([^>]*)>/gi)) {
     const attrs = attrsOf(match[2]);
-    const rel = attrs.rel ?? "";
-    if (match[1].toLowerCase() === "link" && rel.split(/\s+/).includes("icon") && attrs.href?.startsWith("/")) {
-      found.push({ kind: "favicon", url: attrs.href });
-    }
-    if (
-      match[1].toLowerCase() === "link" &&
-      rel.split(/\s+/).includes("stylesheet") &&
-      attrs.href?.startsWith("/")
-    ) {
+    const tag = match[1].toLowerCase();
+    const rel = (attrs.rel ?? "").split(/\s+/);
+    if (tag === "link" && rel.includes("icon") && own(attrs.href)) found.push({ kind: "favicon", url: attrs.href });
+    if (tag === "link" && rel.includes("stylesheet") && own(attrs.href)) {
       found.push({ kind: "stylesheet", url: attrs.href });
     }
-    if (match[1].toLowerCase() === "script" && attrs.src?.startsWith("/")) {
-      found.push({ kind: "script", url: attrs.src });
-    }
-    if (match[1].toLowerCase() === "img" && attrs.src?.includes("logo-256")) {
-      found.push({ kind: "logo", url: attrs.src });
-    }
+    if (tag === "script" && own(attrs.src)) found.push({ kind: "script", url: attrs.src });
+    if (tag === "img" && attrs.src?.includes("logo-256")) found.push({ kind: "logo", url: attrs.src });
   }
   return found;
 };
 
 const navLinks = (html: string): { href: string; text: string }[] => {
-  const start = html.indexOf('class="VPNavBarMenu');
+  const start = html.indexOf('VPNavBarMenu menu');
   const end = html.indexOf("VPNavBarAppearance");
   const nav = html.slice(start, end);
   return [...nav.matchAll(/href="([^"]+)"[\s\S]*?<span[^>]*>([^<]+)<\/span>/g)].map((match) => ({
@@ -58,15 +50,15 @@ const navLinks = (html: string): { href: string; text: string }[] => {
   }));
 };
 
-const linkedStylesheet = (html: string): string => {
-  const href = html.match(/href="(\/variant-worktrees\/assets\/[^"]+\.css)"/)?.[1];
+const linkedStylesheet = (html: string, path: string): string => {
+  const href = ownAssets(html).find((asset) => asset.kind === "stylesheet" && asset.url.includes("assets/"))?.url;
   if (!href) {
     throw new Error("built page has no same-origin stylesheet");
   }
-  return readFileSync(join(dist, href.slice(pagesBase.length)), "utf8").toLowerCase();
+  return readFileSync(resolve(dist, dirname(path), href), "utf8").toLowerCase();
 };
 
-describe("published asset URLs", () => {
+describe("relocatable asset URLs", () => {
   beforeAll(() => {
     // AIDEV-NOTE: with the packages built, docs:site skips the package rebuild that rewrites dist/ beside concurrent package tests
     const prebuilt = existsSync(join(root, "packages/variant-log/dist/index.js"));
@@ -76,27 +68,25 @@ describe("published asset URLs", () => {
     }
   }, 180_000);
 
-  test("keeps the logo and favicon config paths unprefixed and sets the pages base", () => {
-    const head = docsConfig.head ?? [];
-    expect(docsConfig.base).toBe(pagesBase);
+  test("sets a relative base, keeps the logo path, and leaves cleanUrls off", () => {
+    expect(docsConfig.base).toBe("./");
     expect(docsConfig.themeConfig?.logo).toBe("/logo-256.png");
-    expect(head).toContainEqual(["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" }]);
-    expect(head).toContainEqual(["link", { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16.png" }]);
+    expect(docsConfig.cleanUrls ?? false).toBe(false);
   });
 
-  test("requests styles, scripts, favicons, and the logo under the pages base", () => {
-    const html = readFileSync(join(dist, "index.html"), "utf8");
-    const assets = sameOriginAssets(html);
-    expect(assets.some((asset) => asset.kind === "stylesheet")).toBe(true);
-    expect(assets.some((asset) => asset.kind === "script")).toBe(true);
-    expect(assets.some((asset) => asset.kind === "favicon")).toBe(true);
-    expect(assets.some((asset) => asset.kind === "logo")).toBe(true);
-    for (const asset of assets) {
-      expect(asset.url.startsWith(pagesBase)).toBe(true);
-      const file = join(dist, asset.url.slice(pagesBase.length));
-      expect(existsSync(file)).toBe(true);
-    }
-  });
+  for (const path of ["index.html", "guide/installation.html"]) {
+    test(`${path} requests styles, scripts, favicons, and the logo relative to itself`, () => {
+      const assets = ownAssets(readFileSync(join(dist, path), "utf8"));
+      for (const kind of ["stylesheet", "script", "favicon", "logo"]) {
+        expect(assets.some((asset) => asset.kind === kind), kind).toBe(true);
+      }
+      for (const asset of assets) {
+        expect(asset.url.startsWith("/"), asset.url).toBe(false);
+        expect(asset.url).not.toContain("/variant-worktrees/");
+        expect(existsSync(resolve(dist, dirname(path), asset.url)), asset.url).toBe(true);
+      }
+    });
+  }
 });
 
 describe("dark document shell and top navigation", () => {
@@ -108,10 +98,10 @@ describe("dark document shell and top navigation", () => {
     expect(html).toContain('aria-label="Search"');
     expect(html).toContain("logo-256.png");
     expect(html).toContain("On this page");
-    expect(html).toContain('title="Copy Code"');
+    expect(html).toContain('title="Copy code"');
     expect(html).toContain("VPSwitchAppearance");
-    expect(html).toContain('vitepress-theme-appearance")||"dark"');
-    const css = linkedStylesheet(html);
+    expect(html).toMatch(/vitepress-theme-appearance[`"']\)\|\|[`"']dark[`"']/);
+    const css = linkedStylesheet(html, "guide/installation.html");
     expect(css).toContain("#141414");
     expect(css).toContain("#ec0000");
   });
@@ -341,8 +331,8 @@ describe("cross-links into the VSCode / Cursor group", () => {
     const html = page(path);
     const body = html.slice(html.indexOf('class="vp-doc'), html.indexOf("VPDocFooter"));
     return [...body.matchAll(/href="([^"#]+)/g)].some((match) => {
-      const resolved = new URL(match[1], `https://docs.test${pagesBase}${path}`).pathname;
-      return resolved.replace(/\.html$/, "") === `${pagesBase.slice(0, -1)}${target}`;
+      const resolved = new URL(match[1], `https://docs.test/${path}`).pathname;
+      return resolved.replace(/\.html$/, "") === target;
     });
   };
   const guide = (name: string) => `guide/${name}.html`;
