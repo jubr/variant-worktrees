@@ -3,10 +3,10 @@
 Variant Worktrees manages git worktrees, database schemas, watches, environment variables, and implodes. It comes as a CLI, an MCP server, a VS Code extension, and a library.
 
 ```bash
-npm install variant-api
+mise x github:jubr/variant-worktrees@latest -- variant init
 ```
 
-[Getting Started](/guide/) · [API Reference](/api/)
+[Getting Started](/guide/) · [Installation](/guide/installation) · [API Reference](/api/)
 
 ## Library and MCP
 

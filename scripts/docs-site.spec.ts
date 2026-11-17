@@ -198,6 +198,53 @@ describe("getting started and building", () => {
   });
 });
 
+const page = (path: string): string => readFileSync(join(dist, path), "utf8");
+/** The visible text of the document body of a built page: no sidebar, navigation, scripts or footer. */
+const textOf = (html: string): string => {
+  const start = html.indexOf('class="vp-doc');
+  const end = html.indexOf("VPDocFooter", start);
+  return html
+    .slice(start, end === -1 ? undefined : end)
+    .replace(/<[^>]+>/g, "")
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&");
+};
+const trackedDocs = (): string[] => {
+  const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
+  return listed.stdout.split("\n").filter((file) => file && existsSync(join(root, file)));
+};
+
+describe("installation into an existing project", () => {
+  test("shows the mise flavor first, then the extension flavor, and links to Development", () => {
+    const html = page("guide/installation.html");
+    const text = textOf(html);
+    expect(text).toContain("mise x github:jubr/variant-worktrees@latest -- variant init");
+    expect(text).toContain("brew install mise");
+    expect(text).toContain("mise.run");
+    expect(text).toContain("Variant Worktrees");
+    expect(text).toContain("Cursor");
+    expect(text).toContain("Onboarding");
+    expect(text.indexOf("variant init")).toBeLessThan(text.indexOf("Onboarding"));
+    expect(html).toContain("/development/");
+  });
+
+  test("tracked docs have no npm install, npx or bun add", () => {
+    const hits = trackedDocs().filter((file) => /npm install|\bnpx\b|bun add/.test(readFileSync(join(root, file), "utf8")));
+    expect(hits).toEqual([]);
+  });
+
+  test("installs the library and the MCP server from Development, not from the installation page", () => {
+    const installation = textOf(page("guide/installation.html"));
+    expect(installation).not.toContain("variant-api");
+    expect(installation).not.toContain("variant-mcp");
+    const building = textOf(page("development/building.html"));
+    expect(building).toContain("variant-api");
+    expect(building).toContain("variant-mcp");
+  });
+});
+
 describe("remote personal-site attribution", () => {
   test("tracked docs omit the forbidden host and image", () => {
     const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });

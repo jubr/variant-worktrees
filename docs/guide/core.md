@@ -165,7 +165,7 @@ The port is `VARIANT_UI_PORT`, else `variant.ui.port` from `variants.yaml`, else
 
 There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): `variant.watches` must not define either.
 
-The server is part of `variant`, not a program of its own: the npm package and every compiled executable carry it together with the app, so `variant ui` works from the `variant` you run, with nothing installed next to it.
+The server is part of `variant`, not a program of its own: the `variant-cli` package and every compiled executable carry it together with the app, so `variant ui` works from the `variant` you run, with nothing installed next to it.
 
 Security model:
 
