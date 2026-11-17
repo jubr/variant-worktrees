@@ -75,33 +75,34 @@ hooks SHALL run only the per-package Biome steps. The `commit-msg` hook SHALL ru
 - **WHEN** `hk run pre-commit --plan` runs
 - **THEN** the plan selects only Biome steps
 
-### Requirement: Workflow lint and extension packaging are hk steps
+### Requirement: Workflow lint is an hk step
 
-The root `hk.pkl` SHALL contain a `lint:workflows` step (lint of the GitHub Actions workflows) in the `ci` profile, and a `package:vsix` step (both extensions packaged into `out/*.vsix`) in the `full` profile. The `package:vsix` step SHALL depend on the workspace `build` step and SHALL NOT build again. The CI workflow for feature branches SHALL run these checks only through `task check:full`, and SHALL still attach the packaged `.vsix` files to the run.
+The root `hk.pkl` SHALL contain a `lint:workflows` step (lint of the GitHub Actions workflows) in the `ci` profile. The CI workflow for feature branches SHALL run it only through `task check:full`. Packaging the extensions into `out/*.vsix` SHALL NOT be an hk step: the workflow runs `task package:vsix` as its own step after `task check:full`, then attaches the files to the run.
 
 #### Scenario: Plans
 
 - **WHEN** `hk check --all --profile ci --plan` runs
-- **THEN** the plan selects `lint:workflows` and does not select `package:vsix`
-- **AND** with `--profile full` added the plan also selects `package:vsix`
+- **THEN** the plan selects `lint:workflows`
+- **AND** no profile selects a `package:vsix` step
 
 #### Scenario: Default check
 
 - **WHEN** `hk check --all --plan` runs without a profile
-- **THEN** the plan selects neither `lint:workflows` nor `package:vsix`
+- **THEN** the plan does not select `lint:workflows`
 
 #### Scenario: Writers run after the tests
 
 - **WHEN** `hk check --all --profile ci --profile full --plan` runs
 - **THEN** `test:scripts` depends on `build` and on every package's test step
-- **AND** `docs:build` and `package:vsix` each depend on `build`, `test:scripts` and every package's test step
+- **AND** `docs:build` depends on `build`, `test:scripts` and every package's test step
 - **AND** no step that rewrites a `dist/` or `out/` that package tests read runs beside them
 
 #### Scenario: Workflow
 
 - **WHEN** the feature-branch CI workflow runs
-- **THEN** it does not call `task lint:workflows` or `task package:vsix` itself
-- **AND** the run still has the `vsix` artifact
+- **THEN** it does not call `task lint:workflows` itself
+- **AND** it calls `task package:vsix` after `task check:full`
+- **AND** the run has the `vsix` artifact
 
 ### Requirement: Task entry points for the checks
 
