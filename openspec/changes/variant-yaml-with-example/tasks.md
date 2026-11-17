@@ -18,7 +18,7 @@
 
 ## 4. Example be events
 
-- [ ] 4.1 Add a failing `events.spec.ts` in `example/be/src` that opens a store on a missing file and expects the `events` table and a `startup` row after `recordStartup`; verify it fails because the module is missing
+- [ ] 4.1 Add a failing `events.spec.ts` in `example/be/src` that opens a store on a missing file and expects the `events` table and a `startup` row after `record("startup", …)`; verify it fails because the module is missing
 - [ ] 4.2 Implement `events.ts` (open, directory, `CREATE TABLE IF NOT EXISTS`, `record`); verify 4.1 passes, and a second open keeps the old rows
 - [ ] 4.3 Add a failing spec for a request middleware that records `request` rows with `METHOD URL status` when the response finishes; implement it; verify with `bun test` in `example/be`
 - [ ] 4.4 Wire the store and middleware in `main.ts` (`startup` after `listen`); verify by running `bun run server:watch` with a temp `SQLITE_DATABASE`, requesting `/api` and `/missing`, and reading `events` back
