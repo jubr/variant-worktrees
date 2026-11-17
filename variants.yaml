@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=./packages/variant-config/variants.yaml.schema.json
+#
+# Minimal variant, the rest is autodetected.
+# Check './packages/variant-config/variants.example.yaml' for one with all options.
+# Check https://jubr.github.io/variant-worktrees/guide/configuration.html for full online documentation.
+#
+
+variant:
+  implode:
+    preRm: [dist, node_modules, .cache, out] # globs, matched from the project and each watches directory, removed before the worktree goes
+    discard: [bun.lock] # a lockfile touched by `bun install` does not block the removal
+
+  # Leverage example/ to test watches in this repo, since Variant Worktrees itself don't have separate BE/FE 
+  watches:
+    example-be:
+      kind: nestjs
+      dir: example/be
+      install: bun install --frozen-lockfile
+      watch: bun run server:watch
+      env:
+        overrides:
+          PORT: '${port}'
+          SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'
+      ready: /api # answers 200 once the server runs
+    example-fe:
+      kind: vite
+      dir: example/fe
+      install: bun install --frozen-lockfile
+      watch: bun run app:watch
+      url: http://${slug}.${abbr}.localhost:${port}
+      env:
+        overrides:
+          PORT: '${port}'
+          VARIANT_API_PORT: '${example-be.port}'
+      ready: / # answers 200 once the dev server runs
+
+chatRenamer:
+  awake:
+    graceDelaySecs: 180 # Override

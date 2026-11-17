@@ -4,6 +4,10 @@
 
 ### Changed
 
+- The example `be` writes to the SQLite file in `SQLITE_DATABASE`: it creates the table `events` when absent, prints `sqlite: opened <path>` when it opens the file, records a `startup` row when it listens and a `request` row (`GET /api 200`) for every request it answers.
+- The example project's scripts are renamed: `dev` of `example/fe` is `app:watch`, and `start:dev` of `example/be` is `server:watch`. `example/variants.yaml` and `example/README.md` use the new names.
+- A command no longer creates an empty `.cache/variants/` directory. It exists only when a file is written into it, such as a default-location SQLite database. An existing directory and its legacy state files are read as before.
+- The repository's own `variants.yaml` is committed. Its watches `example-be` and `example-fe` each get their variant `PORT`, and `example-fe` gets the port of `example-be` in `VARIANT_API_PORT`. `example-be` keeps its SQLite file at `${worktree}/.cache/variant/${schema}.sqlite`.
 - `awake.cmd` runs whatever command is set, not only `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. It is split on spaces and run without a shell, and `${extensionHostPid}` is replaced with the host's pid. The command is tried once at startup for up to 1 second with no chat running. A command that cannot be executed, or exits within 1 second, logs one `[awake]` warning per command, right after the startup line when it fails at startup. A command that does not wait on `${extensionHostPid}` can outlive a host that is killed. Changing `awake.cmd` while a chat is in a turn replaces the process with the new command.
 - The editor socket `.vscode/variant-worktrees.sock` is removed when the extension host exits without a clean deactivation, as long as the process still runs its exit handlers. A killed host (SIGKILL) still leaves the file, and the next start replaces it.
 - Stopping the socket listener, and so deactivating the extension, no longer waits for clients that keep a connection open. Those connections are closed.

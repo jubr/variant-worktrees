@@ -16,17 +16,21 @@ The example works in place: the commands, `seed` and the `dir` of every watch st
 `variants.yaml` (`example/`), also when it is a subdirectory of a larger git checkout, and also in a worktree of a variant.
 
 ```bash
-variant watch demo --detach   # fe and be as host processes (bun run dev, bun run start:dev)
+variant watch demo --detach   # fe and be as host processes (bun run app:watch, bun run server:watch)
 variant down demo             # stop them
 variant up demo               # fe and be as containers (needs docker or podman; be/Dockerfile, fe/Dockerfile)
 variant implode demo          # remove the variant, its database and its worktree
 ```
 
 - The dev servers keep the console across rebuilds (`clearScreen: false` in `fe/vite.config.ts`, `--no-clear-screen` in
-  `be`'s `start:dev`, `preserveWatchOutput` in `be/tsconfig.json`), so the output of both stays readable in one terminal.
+  `be`'s `server:watch`, `preserveWatchOutput` in `be/tsconfig.json`), so the output of both stays readable in one terminal.
 - `fe` proxies `/api` to `be` (`VARIANT_API_PORT`, default 3000) and listens on `PORT` (default 5173).
 - `be` reads `PORT` and `SQLITE_DATABASE` from its environment, falling back to `be/.env`; `be/.env.example`
   is the template that `env.sourceFile: .env` in `variants.yaml` copies for a variant.
+- `be` records what happens to it in `SQLITE_DATABASE`: it creates the table `events` (`id`, `at`, `kind`, `detail`) when it
+  is absent, inserts a `startup` row once it listens and one `request` row (`GET /api 200`) for every request it answers,
+  whatever the path, and prints `sqlite: opened <path>` when it opens the file, so the watch log names it. No seed is needed for that; the seed only fills `notes`. Read it with
+  `sqlite3 "$SQLITE_DATABASE" 'SELECT * FROM events'`.
 - `variants.yaml` also shows `storage`, a `steps` entry, `implode.preRm` and `discard`, `ready`, `env` and `container`.
 - A container is just a `dockerfile` (and an `internalPort` when it is not 80). `fe/Dockerfile` builds the app, serves it
   with `nginx:alpine` and proxies `/api/` to `v-be-<slug>:3000` through `fe/nginx.conf.template` (nginx renders `${VARIANT_SLUG}` at start).

@@ -25,6 +25,13 @@ const withExampleCopy = async (run: (directory: string) => Promise<void>): Promi
   }
 };
 
+/** The repository root: its own variants.yaml runs the example project. */
+const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
+
+const readScripts = (app: "fe" | "be"): Record<string, string> =>
+  (JSON.parse(readFileSync(join(exampleDirectory, app, "package.json"), "utf8")) as { scripts: Record<string, string> })
+    .scripts;
+
 describe("the example project", () => {
   it("has a variants.yaml that validates against the schema", () => {
     const parsed: unknown = parseYaml(readFileSync(join(exampleDirectory, "variants.yaml"), "utf8"));
@@ -120,20 +127,58 @@ describe("the example project", () => {
 
   it("keeps the console across rebuilds in the dev servers of fe and be", () => {
     const vite = readFileSync(join(exampleDirectory, "fe/vite.config.ts"), "utf8");
-    const be = JSON.parse(readFileSync(join(exampleDirectory, "be/package.json"), "utf8")) as {
-      scripts: Record<string, string>;
-    };
+    const be = readScripts("be");
     const tsconfig = JSON.parse(readFileSync(join(exampleDirectory, "be/tsconfig.json"), "utf8")) as {
       compilerOptions: Record<string, unknown>;
     };
 
     expect(vite).toMatch(/clearScreen:\s*false/);
-    expect(be.scripts["start:dev"]).toContain("--no-clear-screen");
+    expect(be["server:watch"]).toContain("--no-clear-screen");
     expect(tsconfig.compilerOptions.preserveWatchOutput).toBe(true);
+  });
+
+  it("names the watch scripts app:watch (fe) and server:watch (be), and no longer dev or start:dev", () => {
+    expect(readScripts("fe")).toHaveProperty("app:watch");
+    expect(readScripts("fe")).not.toHaveProperty("dev");
+    expect(readScripts("be")).toHaveProperty("server:watch");
+    expect(readScripts("be")).not.toHaveProperty("start:dev");
   });
 
   it("ships be/.env.example with SQLite settings and a seed script", () => {
     expect(readFileSync(join(exampleDirectory, "be/.env.example"), "utf8")).toContain("SQLITE_DATABASE=");
     expect(existsSync(join(exampleDirectory, "scripts/seed.mjs"))).toBe(true);
+  });
+
+  describe("the variants.yaml of the repository root", () => {
+    const rootConfigPath = join(repositoryRoot, "variants.yaml");
+
+    it("validates against the schema", () => {
+      const parsed: unknown = parseYaml(readFileSync(rootConfigPath, "utf8"));
+
+      expect(VariantsConfigSchema.safeParse(parsed).success).toBe(true);
+    });
+
+    it("gives each watch its own port, keeps the be database in .cache/variant and points fe at the be of the same variant", () => {
+      const { variant } = loadConfig({ cwd: repositoryRoot });
+
+      expect(variant.watches["example-be"]?.env?.overrides).toEqual({
+        PORT: "${port}",
+        SQLITE_DATABASE: "${worktree}/.cache/variant/${schema}.sqlite",
+      });
+      expect(variant.watches["example-fe"]?.env?.overrides).toEqual({
+        PORT: "${port}",
+        VARIANT_API_PORT: "${example-be.port}",
+      });
+    });
+
+    it("runs the app:watch and server:watch scripts, as example/variants.yaml does", () => {
+      const root = loadConfig({ cwd: repositoryRoot }).variant.watches;
+      const example = loadConfig({ cwd: exampleDirectory }).variant.watches;
+
+      expect(root["example-fe"]?.watch).toBe("bun run app:watch");
+      expect(root["example-be"]?.watch).toBe("bun run server:watch");
+      expect(example.fe?.watch).toBe(root["example-fe"]?.watch);
+      expect(example.be?.watch).toBe(root["example-be"]?.watch);
+    });
   });
 });
