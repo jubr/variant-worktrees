@@ -17,6 +17,7 @@ The documentation is organised around the packages (CLI, library, MCP), not arou
 - **Runtime** becomes a top-level guide page after Installation, tailored to watches and how they behave. It takes over from Configuration: *Runtime*, *Environment through Mise*, *Environment variables* and *When watches are omitted*.
 - **Configuration** is reordered: *Options* first, one heading per option, alphabetical, each option anchored by its own heading (`variant.abbr`, `variant.baseBranch`, ...) so other pages can link to it. *Templates* and then *Unknown keys and migration* come last.
 - **Relocatable site**: upgrade `vitepress` from `^1.6.4` (no relative base) to the 2.0 alpha line, pinned exactly (`2.0.0-alpha.21` at the time of writing), and set `base: './'`, so every stylesheet, script, favicon, logo and page URL is relative to its page instead of starting with `/variant-worktrees/`. The `withPagesBase` rewrite of `head` entries goes; favicon links become relative per page with `transformHead`. `cleanUrls` stays off. The GitHub Pages deployment keeps working from the same build.
+- **Outline**: the right-hand "On this page" outline lists second- and third-level headings, so the per-option headings of Configuration show up in it.
 - A docs spec test (QA) pins the option headings: one `variant.<key>` heading per key of the `variant` schema and the headings are in alphabetical order.
 
 ## Capabilities
@@ -27,7 +28,7 @@ None.
 
 ### Modified Capabilities
 
-- `docs/site`: removes *Published asset URLs* (the `/variant-worktrees/` prefix) and adds *Relocatable asset URLs*; modifies *Sidebar groups*; adds requirements for the installation page, the runtime page, the extension page, the cross-links into the VSCode / Cursor group, the library page and the configuration page structure.
+- `docs/site`: removes *Published asset URLs* (the `/variant-worktrees/` prefix) and adds *Relocatable asset URLs*; modifies *Sidebar groups* and *Dark document shell* (the outline lists `h2` and `h3`); adds requirements for the installation page, the runtime page, the extension page, the cross-links into the VSCode / Cursor group, the library page and the configuration page structure.
 
 ## Impact
 

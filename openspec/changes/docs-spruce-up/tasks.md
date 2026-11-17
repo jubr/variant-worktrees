@@ -15,12 +15,17 @@
 
 ## 3. Relative base
 
-- [ ] 3.1 In `scripts/docs-site.spec.ts` replace the two *published asset URLs* tests with failing ones for [specs/docs/site | Relocatable asset URLs](../../specs/docs/site/spec.md#requirement-relocatable-asset-urls): the home page and `guide/installation.html` request stylesheet, script, favicon and logo URLs that do not start with `/`, none contains `/variant-worktrees/`, each resolves against its page to a file in `dist/`; the configuration has `base: "./"`, logo `/logo-256.png`, and `cleanUrls` off. Verify they fail first.
-- [ ] 3.2 Pin `vitepress` to `2.0.0-alpha.21` (exact) in `package.json`, update `bun.lock`, and make `task docs:build` pass.
-- [ ] 3.3 Set `base: "./"` in `docs/.vitepress/config.ts`, drop `withPagesBase`, and emit relative favicon links with `transformHead`. If the navigation logo is still root-absolute, make it relative as the design says. Verify `bun test scripts/docs-site.spec.ts` passes, including the sidebar and cross-link tests of group 1 and 2.
-- [ ] 3.4 Serve `docs/.vitepress/dist` from a sub path other than `/variant-worktrees/` and confirm in the browser that a nested page loads its styles and the navigation works. Report the observation in chat.
+- [x] 3.1 In `scripts/docs-site.spec.ts` replace the two *published asset URLs* tests with failing ones for [specs/docs/site | Relocatable asset URLs](../../specs/docs/site/spec.md#requirement-relocatable-asset-urls): the home page and `guide/installation.html` request stylesheet, script, favicon and logo URLs that do not start with `/`, none contains `/variant-worktrees/`, each resolves against its page to a file in `dist/`; the configuration has `base: "./"`, logo `/logo-256.png`, and `cleanUrls` off. Verify they fail first.
+- [x] 3.2 Pin `vitepress` to `2.0.0-alpha.21` (exact) in `package.json`, update `bun.lock`, and make `task docs:build` pass.
+- [x] 3.3 Set `base: "./"` in `docs/.vitepress/config.ts`, drop `withPagesBase`, and emit relative favicon links with `transformHead`. If the navigation logo is still root-absolute, make it relative as the design says. Verify `bun test scripts/docs-site.spec.ts` passes, including the sidebar and cross-link tests of group 1 and 2.
+- [x] 3.4 Serve `docs/.vitepress/dist` from a sub path other than `/variant-worktrees/` and confirm in the browser that a nested page loads its styles and the navigation works. Report the observation in chat.
 
-## 4. Wrap up
+## 4. Outline
 
-- [ ] 4.1 Add a `CHANGELOG.md` entry under Unreleased.
-- [ ] 4.2 Run `openspec validate --all --strict --no-interactive` and `task check:full`.
+- [ ] 4.1 In `scripts/docs-site.spec.ts` add a failing test for [specs/docs/site | Dark document shell](../../specs/docs/site/spec.md#requirement-dark-document-shell): the outline of the built Configuration page links to `variant.abbr` and to Templates. Verify it fails first.
+- [ ] 4.2 Set `themeConfig.outline` to levels 2 and 3 in `docs/.vitepress/config.ts`. Verify `bun test scripts/docs-site.spec.ts` passes.
+
+## 5. Wrap up
+
+- [ ] 5.1 Add a `CHANGELOG.md` entry under Unreleased.
+- [ ] 5.2 Run `openspec validate --all --strict --no-interactive` and `task check:full`.

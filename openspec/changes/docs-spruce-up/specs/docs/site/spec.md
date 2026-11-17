@@ -14,6 +14,27 @@ The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a V
 - **AND** Development includes a link to Building
 - **AND** the page does not link to `/guide/scripts`
 
+### Requirement: Dark document shell
+
+Guide pages, the MCP page, and the API reference SHALL render in a document shell with a left sidebar of grouped links, a top navigation bar that shows the product logo and a search control, and a right-hand outline on pages that have headings. The outline SHALL list the second- and third-level headings of the page. Fenced code SHALL include a copy control. The initial appearance SHALL be dark when the reader has no stored preference, and the page SHALL include a control that switches appearance. The dark page background SHALL be `#141414`. The brand accent SHALL be `#EC0000`.
+
+#### Scenario: Installation page shows the shell
+
+- **WHEN** the built installation page is read
+- **THEN** it includes the sidebar, a search control, the navigation logo, an outline of its headings, and a copy control on a fenced code block
+- **AND** the built page selects the dark appearance when no preference is stored
+- **AND** the built stylesheet sets the dark page background to `#141414` and the brand accent to `#EC0000`
+
+#### Scenario: Appearance can be switched
+
+- **WHEN** the built installation page is read
+- **THEN** it includes a dark/light appearance switch
+
+#### Scenario: Outline lists third-level headings
+
+- **WHEN** the built Configuration page is read
+- **THEN** its outline links to the heading `variant.abbr`, a third-level heading, and to the second-level heading Templates
+
 ## ADDED Requirements
 
 ### Requirement: Installation into an existing project
