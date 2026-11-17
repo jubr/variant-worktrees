@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.10] - 2026-11-17
 
 ### Changed
 
@@ -16,6 +16,17 @@
 - `awake.cmd` runs whatever command is set, not only `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. It is split on spaces and run without a shell, and `${extensionHostPid}` is replaced with the host's pid. The command is tried once at startup for up to 1 second with no chat running. A command that cannot be executed, or exits within 1 second, logs one `[awake]` warning per command, right after the startup line when it fails at startup. A command that does not wait on `${extensionHostPid}` can outlive a host that is killed. Changing `awake.cmd` while a chat is in a turn replaces the process with the new command.
 - The editor socket `.vscode/variant-worktrees.sock` is removed when the extension host exits without a clean deactivation, as long as the process still runs its exit handlers. A killed host (SIGKILL) still leaves the file, and the next start replaces it.
 - Stopping the socket listener, and so deactivating the extension, no longer waits for clients that keep a connection open. Those connections are closed.
+
+### Release notes
+
+- fix(variant-ipc): remove the editor socket on stop with clients and on process exit by @jubr in https://github.com/jubr/variant-worktrees/pull/68
+- feat(hk): nested per-package hk with check:changed/all/full by @jubr in https://github.com/jubr/variant-worktrees/pull/69
+- fix(ci): package the vsix as a late workflow step by @jubr in https://github.com/jubr/variant-worktrees/pull/70
+- feat(chat-renamer): run any awake.cmd, warn once when it fails by @jubr in https://github.com/jubr/variant-worktrees/pull/71
+- feat(example): commit root variants.yaml, rename watch scripts, sqlite events by @jubr in https://github.com/jubr/variant-worktrees/pull/72
+- docs: spruce up the documentation and make the site relocatable by @jubr in https://github.com/jubr/variant-worktrees/pull/73
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.9...v0.0.10
 
 ## [0.0.9] - 2026-11-13
 
