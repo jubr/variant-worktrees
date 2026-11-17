@@ -44,6 +44,7 @@ export default defineConfig({
   themeConfig: {
     logo: "/logo-256.png",
     search: { provider: "local" },
+    outline: { level: [2, 3] },
     nav: [
       { text: "Guide", link: "/guide/", activeMatch: "^/guide/" },
       { text: "Configuration", link: "/guide/configuration" },

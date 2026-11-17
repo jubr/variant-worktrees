@@ -281,6 +281,16 @@ describe("configuration page structure", () => {
   });
 });
 
+describe("outline", () => {
+  test("covers second and third level headings", () => {
+    // AIDEV-NOTE: the outline items are drawn in the browser, so the static HTML only proves the levels and the headings
+    expect(docsConfig.themeConfig?.outline).toEqual({ level: [2, 3] });
+    const headings = headingsOf(page("guide/configuration.html"));
+    expect(headings.find((heading) => heading.text === "variant.abbr")?.level).toBe(3);
+    expect(headings.find((heading) => heading.text === "Templates")?.level).toBe(2);
+  });
+});
+
 describe("runtime page", () => {
   const moved = ["Runtime", "Environment through Mise", "Environment variables", "When watches are omitted"];
 
