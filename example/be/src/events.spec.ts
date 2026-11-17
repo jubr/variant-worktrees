@@ -61,6 +61,17 @@ describe("events", () => {
     }));
 });
 
+describe("opening the database", () => {
+  it("prints the path it opened, once", () =>
+    withDatabaseFile((path) => {
+      const lines: string[] = [];
+
+      openEvents(path, (line) => lines.push(line)).close();
+
+      expect(lines).toEqual([`sqlite: opened ${path}`]);
+    }));
+});
+
 describe("recordRequests", () => {
   it("records a request row with method, URL and status when the response finishes", () =>
     withDatabaseFile((path) => {

@@ -13,12 +13,19 @@ export interface Events {
 /** The variant's database: `SQLITE_DATABASE`, which `variants.yaml` points into `.cache/variant/`. */
 export const databasePath = (): string => process.env.SQLITE_DATABASE ?? "./example.sqlite";
 
-/** Opens the database and makes the `events` table when it is absent, so no seed or migration has to run first. */
-export const openEvents = (path: string = databasePath()): Events => {
+/** Opens the database, says so on stdout, and makes the `events` table when it is absent, so no seed or migration has to run first. */
+export const openEvents = (
+  path: string = databasePath(),
+  write: (line: string) => void = (line) => {
+    console.log(line);
+  },
+): Events => {
   if (path !== ":memory:") {
     mkdirSync(dirname(path), { recursive: true });
   }
   const database = new Database(path);
+  // One line on stdout, so the log of a watch shows which file the variant uses.
+  write(`sqlite: opened ${path}`);
   // A short-lived reader of the same file (`GET /api` reads `notes`) must not make a write fail.
   database.run("PRAGMA busy_timeout = 2000");
   database.run(

@@ -4,7 +4,7 @@
 
 ### Changed
 
-- The example `be` writes to the SQLite file in `SQLITE_DATABASE`: it creates the table `events` when absent, records a `startup` row when it listens and a `request` row (`GET /api 200`) for every request it answers.
+- The example `be` writes to the SQLite file in `SQLITE_DATABASE`: it creates the table `events` when absent, prints `sqlite: opened <path>` when it opens the file, records a `startup` row when it listens and a `request` row (`GET /api 200`) for every request it answers.
 - The example project's scripts are renamed: `dev` of `example/fe` is `app:watch`, and `start:dev` of `example/be` is `server:watch`. `example/variants.yaml` and `example/README.md` use the new names.
 - A command no longer creates an empty `.cache/variants/` directory. It exists only when a file is written into it, such as a default-location SQLite database. An existing directory and its legacy state files are read as before.
 - The repository's own `variants.yaml` is committed. Its watches `example-be` and `example-fe` each get their variant `PORT`, and `example-fe` gets the port of `example-be` in `VARIANT_API_PORT`. `example-be` keeps its SQLite file at `${worktree}/.cache/variant/${schema}.sqlite`.
