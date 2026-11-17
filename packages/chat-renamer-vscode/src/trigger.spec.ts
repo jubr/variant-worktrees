@@ -1560,7 +1560,8 @@ describe("trigger", () => {
 
         expect(starts).toBe(1);
         expect(delays).toContain(5000);
-        expect(delays).not.toContain(1000);
+        // The only 1-second timer is the startup probe window. The poll is not one second.
+        expect(delays.filter((delay) => delay === 1000)).toHaveLength(1);
         expect(commands).not.toContain("composer.getOrderedSelectedComposerIds");
         expect(walks.some((path) => path.includes("agent-transcripts"))).toBe(false);
 

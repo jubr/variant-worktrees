@@ -474,16 +474,21 @@ The system SHALL accept an optional `variant.prefix` in `variants.yaml`, a non-e
 
 ### Requirement: Chat renamer section
 
-The system SHALL accept an optional top-level `chatRenamer` section in `variants.yaml` that carries the full set of options of `chat-renamer-config`: `trigger`, `hookScope`, `activationPatterns`, `worktreePrefixes` and `renameExistingDays`, each optional and validated by the schema owned by `chat-renamer-config`. Unknown keys inside the section SHALL be ignored with a warning. The system SHALL offer a lightweight reader that returns only this section for a directory, and an empty section when no configuration file exists or the file cannot be read or is invalid.
+The system SHALL accept an optional top-level `chatRenamer` section in `variants.yaml` that carries the full set of options of `chat-renamer-config`: `trigger`, `hookScope`, `activationPatterns`, `worktreePrefixes`, `renameExistingDays` and `titleEventPromptLines`, each optional and validated by the schema owned by `chat-renamer-config`. Unknown keys inside the section SHALL be ignored with a warning. The system SHALL offer a lightweight reader that returns only this section for a directory, and an empty section when no configuration file exists or the file cannot be read or is invalid.
 
 #### Scenario: Section with every option
 
-- **WHEN** `variants.yaml` sets all five `chatRenamer` options to valid values
+- **WHEN** `variants.yaml` sets all six `chatRenamer` options to valid values
 - **THEN** loading succeeds and the section is available unchanged
 
 #### Scenario: Invalid option
 
 - **WHEN** `chatRenamer.renameExistingDays` is `-1`
+- **THEN** loading the configuration fails validation
+
+#### Scenario: Invalid prompt line limit
+
+- **WHEN** `chatRenamer.titleEventPromptLines` is `0`
 - **THEN** loading the configuration fails validation
 
 #### Scenario: Unknown option

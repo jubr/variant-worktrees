@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, openSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { commandMessage } from "./command-message.js";
 import { LogLevel, log } from "./log.js";
@@ -75,16 +75,6 @@ export const installMiseSync = (binary: string, directory: string, action = "cre
   }
 };
 
-const CHILD = `
-import { spawnSync } from "node:child_process";
-const binary = process.argv[2];
-const directory = process.argv[3];
-const trust = spawnSync(binary, ["-C", directory, "trust", "--all"], { stdio: "inherit" });
-if (trust.error || (trust.status ?? 1) !== 0) process.exit(trust.status ?? 1);
-const install = spawnSync(binary, ["-C", directory, "install"], { stdio: "inherit" });
-process.exit(install.error ? 1 : (install.status ?? 1));
-`;
-
 const started = (child: ChildProcess): Promise<void> =>
   new Promise((resolve, reject) => {
     child.once("spawn", () => resolve());
@@ -120,21 +110,44 @@ export const installMiseInWorktree = async (
   await installMiseBackground(binary, directory);
 };
 
+/**
+ * The command that runs trust, then install only when trust exits 0. The system shell does the chaining. Re-entering
+ * `process.execPath` would break in a compiled `variant` (it reads the script path as a command) and in an editor host.
+ */
+const chainedMiseCommand = (shell: string, binary: string, directory: string): { file: string; args: string[] } => {
+  if (process.platform === "win32") {
+    const quote = (value: string): string => `"${value}"`;
+    return {
+      file: shell,
+      args: [
+        "/d",
+        "/s",
+        "/c",
+        `"${quote(binary)} -C ${quote(directory)} trust --all && ${quote(binary)} -C ${quote(directory)} install"`,
+      ],
+    };
+  }
+  return {
+    file: shell,
+    args: ["-c", '"$1" -C "$2" trust --all && exec "$1" -C "$2" install', "sh", binary, directory],
+  };
+};
+
 /** Starts trust then install and returns while that run continues. Its output replaces the log. */
 export const installMiseBackground = async (
   binary: string,
   directory: string,
-  launcher: string = process.execPath,
+  shell: string = process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "/bin/sh",
 ): Promise<void> => {
   const cache = join(directory, ".cache", "variant");
   mkdirSync(cache, { recursive: true });
   const logPath = join(cache, "mise-install.log");
-  const script = join(cache, "mise-install.mjs");
-  writeFileSync(script, CHILD);
   const log = openSync(logPath, "w");
-  const child = spawn(launcher, [script, binary, directory], {
+  const command = chainedMiseCommand(shell, binary, directory);
+  const child = spawn(command.file, command.args, {
     detached: true,
     stdio: ["ignore", log, log],
+    windowsVerbatimArguments: process.platform === "win32",
   });
   try {
     await started(child);

@@ -8,11 +8,11 @@ export const AWAKE_AGENT_HOST_EVENTS = "awake.agentHostEvents";
 
 registerHighVolumeCategory(AWAKE_AGENT_HOST_EVENTS);
 
-/** One `caffeinate` child. The caller must not detach it. */
+/** One awake child. The caller must not detach it. `error` is a program that cannot be executed. */
 export type AwakeProcess = {
   pid: number;
   kill(signal?: NodeJS.Signals): boolean;
-  once(event: "exit", listener: () => void): void;
+  once(event: "exit" | "error", listener: (error?: Error) => void): void;
 };
 
 export type AwakeInput = {
@@ -44,7 +44,22 @@ export type AwakeController = {
   dispose(): void;
 };
 
-type Tracked = { pid: number; args: readonly string[]; process: AwakeProcess; stopRequested: boolean };
+type Tracked = {
+  pid: number;
+  args: readonly string[];
+  process: AwakeProcess;
+  stopRequested: boolean;
+  startedAt: number;
+  /** Started at startup with no session. Dies after the window unless a session adopts it. */
+  probe: boolean;
+  probeTimer: { cancel(): void } | null;
+};
+
+/** An exit this soon after the start counts as a failed start, not as a process that ended. */
+const FAILED_START_WINDOW_MS = 1000;
+
+/** How long the startup probe may run with no session before it is killed. */
+const PROBE_WINDOW_MS = 1000;
 
 type Grace = { since: number; delaySecs: number; timer: { cancel(): void } | null };
 
@@ -96,16 +111,17 @@ export const createAwakeController = ({
     graceDelaySecs: DEFAULT_AWAKE_GRACE_DELAY_SECS,
   };
   let disposed = false;
+  let probed = false;
+  /** Commands already warned about. A command warns once for the life of the controller. */
+  const warned = new Set<string>();
 
   const oneArgv = (): readonly string[] => ["/usr/bin/caffeinate", "-disu", "-w", String(parentPid)];
 
-  const isOneCommand = (cmd: string): boolean => {
-    const argv = argvFor(cmd, parentPid);
-    const expected = oneArgv();
-    return argv.length === expected.length && argv.every((part, index) => part === expected[index]);
-  };
+  /** Any non-empty command is tried. Only the default needs the `caffeinate` binary the startup check looked for. */
+  const argvRunnable = (argv: readonly string[]): boolean =>
+    argv.length > 0 && (available || !sameArgv(argv, oneArgv()));
 
-  const runnable = (cmd: string): boolean => available && isOneCommand(cmd);
+  const runnable = (cmd: string): boolean => argvRunnable(argvFor(cmd, parentPid));
 
   const wantsRun = (): boolean =>
     latest.owned && latest.when === "chatsActive" && latest.active && runnable(latest.cmd);
@@ -115,7 +131,7 @@ export const createAwakeController = ({
     grace = null;
   };
 
-  const stop = (reason: "idle" | "never" | "disposed" | "not owner" | "mode changed"): void => {
+  const stop = (reason: "idle" | "never" | "disposed" | "not owner" | "mode changed" | "probe"): void => {
     if (!tracked || tracked.stopRequested) {
       return;
     }
@@ -129,23 +145,37 @@ export const createAwakeController = ({
     }
   };
 
-  const onExit = (child: Tracked): void => {
+  const startFailed = (args: readonly string[], reason: string): void => {
+    const command = args.join(" ");
+    if (warned.has(command)) {
+      awake.trace("start failed", { command, reason });
+      return;
+    }
+    warned.add(command);
+    awake.warn("start failed", { command, reason });
+  };
+
+  const onExit = (child: Tracked, error?: Error): void => {
     if (tracked !== child) {
       return;
     }
     const unexpected = !child.stopRequested;
     const pid = child.pid;
     tracked = null;
+    child.probeTimer?.cancel();
     if (disposed) {
       pendingArgs = null;
       return;
     }
-    if (unexpected && wantsRun()) {
+    const failed = unexpected && (error !== undefined || now() - child.startedAt <= FAILED_START_WINDOW_MS);
+    if (failed) {
+      dropGrace();
+      startFailed(child.args, error ? error.message : "exited within 1s");
+    } else if (unexpected && wantsRun()) {
       awake.warn("exit", { pid });
       start(child.args);
       return;
-    }
-    if (unexpected) {
+    } else if (unexpected) {
       dropGrace();
     }
     const next = pendingArgs;
@@ -155,24 +185,46 @@ export const createAwakeController = ({
     }
   };
 
-  const start = (args: readonly string[]): void => {
-    if (tracked || !runnable(latest.cmd)) {
+  const start = (args: readonly string[], reason: "activity" | "probe" = "activity"): void => {
+    if (tracked || !argvRunnable(args)) {
       return;
     }
     try {
       const child = spawn(args);
-      const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false };
+      const running: Tracked = {
+        pid: child.pid,
+        args,
+        process: child,
+        stopRequested: false,
+        startedAt: now(),
+        probe: reason === "probe",
+        probeTimer: null,
+      };
       tracked = running;
       child.once("exit", () => onExit(running));
-      awake.debug(`+ "${args.join(" ")}"`, { pid: child.pid, reason: "activity" });
+      child.once("error", (error) => onExit(running, error ?? new Error("spawn failed")));
+      awake.debug(`+ "${args.join(" ")}"`, { pid: child.pid, reason });
+      if (reason === "probe") {
+        running.probeTimer = schedule(PROBE_WINDOW_MS, () => {
+          if (tracked === running && running.probe) {
+            stop("probe");
+          }
+        });
+      }
     } catch (error) {
-      awake.error("start failed", error);
+      startFailed(args, error instanceof Error ? error.message : String(error));
     }
   };
 
   const ensure = (args: readonly string[]): void => {
     if (tracked && !tracked.stopRequested && sameArgv(tracked.args, args)) {
       pendingArgs = null;
+      if (tracked.probe) {
+        // A session adopts the probe: it is the one process of this host from here on.
+        tracked.probe = false;
+        tracked.probeTimer?.cancel();
+        tracked.probeTimer = null;
+      }
       return;
     }
     if (tracked && !tracked.stopRequested) {
@@ -231,12 +283,20 @@ export const createAwakeController = ({
       return;
     }
     latest = input;
+    if (!probed && input.owned && input.when === "chatsActive") {
+      // AIDEV-NOTE: the first update is the first time cmd, when and owned are known. Probing here puts a failure right behind the availability line.
+      probed = true;
+      const args = argvFor(input.cmd, parentPid);
+      if (!input.active && argvRunnable(args)) {
+        start(args, "probe");
+      }
+    }
     if (wantsRun()) {
       cancelGrace();
-      ensure(oneArgv());
+      ensure(argvFor(latest.cmd, parentPid));
       return;
     }
-    if (input.owned && input.when === "chatsActive" && input.active && available && !isOneCommand(input.cmd)) {
+    if (input.owned && input.when === "chatsActive" && input.active && !runnable(input.cmd)) {
       pendingArgs = null;
       cancelGrace();
       stop("mode changed");
@@ -252,6 +312,9 @@ export const createAwakeController = ({
       pendingArgs = null;
       cancelGrace();
       stop("never");
+      return;
+    }
+    if (tracked?.probe && !tracked.stopRequested) {
       return;
     }
     if (tracked && !tracked.stopRequested) {

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import type { AwakeProcess } from "chat-renamer-api";
 
@@ -94,18 +94,49 @@ export const createActivityWatch = ({
 /** `caffeinate` on macOS. Missing file means the platform cannot run it. */
 export const caffeinateOnPath = (): boolean => existsSync("/usr/bin/caffeinate");
 
-/** Not detached, so dispose can signal the child. `argv[0]` is the program from `awake.cmd`. */
+/**
+ * Not detached, so dispose can signal the child. `argv[0]` is the program from `awake.cmd`.
+ *
+ * AIDEV-NOTE: a program that cannot be executed is an `error` event on Node and a synchronous throw on Bun. Both reach `once("error")`, so the controller sees one failed-start path.
+ */
 export const spawnCaffeinate = (argv: readonly string[]): AwakeProcess => {
   const [command, ...args] = argv;
   if (!command) {
     throw new Error("awake command is empty");
   }
-  const child = spawn(command, args, { stdio: "ignore" });
+  const errorListeners: Array<(error?: Error) => void> = [];
+  const exitListeners: Array<(error?: Error) => void> = [];
+  let child: ChildProcess | undefined;
+  let failed = false;
+  const fail = (error: unknown): void => {
+    if (failed) {
+      return;
+    }
+    failed = true;
+    const cause = error instanceof Error ? error : new Error(String(error));
+    for (const listener of errorListeners) {
+      listener(cause);
+    }
+  };
+  try {
+    child = spawn(command, args, { stdio: "ignore" });
+    child.once("error", fail);
+    child.once("exit", () => {
+      if (!failed) {
+        for (const listener of exitListeners) {
+          listener();
+        }
+      }
+    });
+  } catch (error) {
+    // Listeners attach after this returns, so report on the next turn.
+    queueMicrotask(() => fail(error));
+  }
   return {
-    pid: child.pid ?? -1,
-    kill: (signal = "SIGTERM") => child.kill(signal),
-    once: (_event, listener) => {
-      child.once("exit", () => listener());
+    pid: child?.pid ?? -1,
+    kill: (signal = "SIGTERM") => child?.kill(signal) ?? false,
+    once: (event, listener) => {
+      (event === "error" ? errorListeners : exitListeners).push(listener);
     },
   };
 };
