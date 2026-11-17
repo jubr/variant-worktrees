@@ -25,6 +25,10 @@ const withExampleCopy = async (run: (directory: string) => Promise<void>): Promi
   }
 };
 
+const readScripts = (app: "fe" | "be"): Record<string, string> =>
+  (JSON.parse(readFileSync(join(exampleDirectory, app, "package.json"), "utf8")) as { scripts: Record<string, string> })
+    .scripts;
+
 describe("the example project", () => {
   it("has a variants.yaml that validates against the schema", () => {
     const parsed: unknown = parseYaml(readFileSync(join(exampleDirectory, "variants.yaml"), "utf8"));
@@ -120,16 +124,21 @@ describe("the example project", () => {
 
   it("keeps the console across rebuilds in the dev servers of fe and be", () => {
     const vite = readFileSync(join(exampleDirectory, "fe/vite.config.ts"), "utf8");
-    const be = JSON.parse(readFileSync(join(exampleDirectory, "be/package.json"), "utf8")) as {
-      scripts: Record<string, string>;
-    };
+    const be = readScripts("be");
     const tsconfig = JSON.parse(readFileSync(join(exampleDirectory, "be/tsconfig.json"), "utf8")) as {
       compilerOptions: Record<string, unknown>;
     };
 
     expect(vite).toMatch(/clearScreen:\s*false/);
-    expect(be.scripts["start:dev"]).toContain("--no-clear-screen");
+    expect(be["server:watch"]).toContain("--no-clear-screen");
     expect(tsconfig.compilerOptions.preserveWatchOutput).toBe(true);
+  });
+
+  it("names the watch scripts app:watch (fe) and server:watch (be), and no longer dev or start:dev", () => {
+    expect(readScripts("fe")).toHaveProperty("app:watch");
+    expect(readScripts("fe")).not.toHaveProperty("dev");
+    expect(readScripts("be")).toHaveProperty("server:watch");
+    expect(readScripts("be")).not.toHaveProperty("start:dev");
   });
 
   it("ships be/.env.example with SQLite settings and a seed script", () => {

@@ -22,7 +22,7 @@ variant:
     be:
       kind: nestjs
       dir: be
-      watch: bun run start:dev
+      watch: bun run server:watch
       env:
         sourceFile: .env # copied from .env.example and amended with the variant's values
         overrides:
@@ -35,7 +35,7 @@ variant:
     fe:
       kind: vite
       dir: fe
-      watch: bun run dev
+      watch: bun run app:watch
       url: http://${slug}.${abbr}.localhost:${port}
       env:
         overrides:

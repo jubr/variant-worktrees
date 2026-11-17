@@ -16,14 +16,14 @@ The example works in place: the commands, `seed` and the `dir` of every watch st
 `variants.yaml` (`example/`), also when it is a subdirectory of a larger git checkout, and also in a worktree of a variant.
 
 ```bash
-variant watch demo --detach   # fe and be as host processes (bun run dev, bun run start:dev)
+variant watch demo --detach   # fe and be as host processes (bun run app:watch, bun run server:watch)
 variant down demo             # stop them
 variant up demo               # fe and be as containers (needs docker or podman; be/Dockerfile, fe/Dockerfile)
 variant implode demo          # remove the variant, its database and its worktree
 ```
 
 - The dev servers keep the console across rebuilds (`clearScreen: false` in `fe/vite.config.ts`, `--no-clear-screen` in
-  `be`'s `start:dev`, `preserveWatchOutput` in `be/tsconfig.json`), so the output of both stays readable in one terminal.
+  `be`'s `server:watch`, `preserveWatchOutput` in `be/tsconfig.json`), so the output of both stays readable in one terminal.
 - `fe` proxies `/api` to `be` (`VARIANT_API_PORT`, default 3000) and listens on `PORT` (default 5173).
 - `be` reads `PORT` and `SQLITE_DATABASE` from its environment, falling back to `be/.env`; `be/.env.example`
   is the template that `env.sourceFile: .env` in `variants.yaml` copies for a variant.
