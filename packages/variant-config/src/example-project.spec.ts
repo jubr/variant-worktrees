@@ -25,6 +25,9 @@ const withExampleCopy = async (run: (directory: string) => Promise<void>): Promi
   }
 };
 
+/** The repository root: its own variants.yaml runs the example project. */
+const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
+
 const readScripts = (app: "fe" | "be"): Record<string, string> =>
   (JSON.parse(readFileSync(join(exampleDirectory, app, "package.json"), "utf8")) as { scripts: Record<string, string> })
     .scripts;
@@ -144,5 +147,35 @@ describe("the example project", () => {
   it("ships be/.env.example with SQLite settings and a seed script", () => {
     expect(readFileSync(join(exampleDirectory, "be/.env.example"), "utf8")).toContain("SQLITE_DATABASE=");
     expect(existsSync(join(exampleDirectory, "scripts/seed.mjs"))).toBe(true);
+  });
+
+  describe("the variants.yaml of the repository root", () => {
+    const rootConfigPath = join(repositoryRoot, "variants.yaml");
+
+    it("validates against the schema", () => {
+      const parsed: unknown = parseYaml(readFileSync(rootConfigPath, "utf8"));
+
+      expect(VariantsConfigSchema.safeParse(parsed).success).toBe(true);
+    });
+
+    it("gives each watch its own port and points fe at the be of the same variant", () => {
+      const { variant } = loadConfig({ cwd: repositoryRoot });
+
+      expect(variant.watches["example-be"]?.env?.overrides).toMatchObject({ PORT: "${port}" });
+      expect(variant.watches["example-fe"]?.env?.overrides).toEqual({
+        PORT: "${port}",
+        VARIANT_API_PORT: "${example-be.port}",
+      });
+    });
+
+    it("runs the app:watch and server:watch scripts, as example/variants.yaml does", () => {
+      const root = loadConfig({ cwd: repositoryRoot }).variant.watches;
+      const example = loadConfig({ cwd: exampleDirectory }).variant.watches;
+
+      expect(root["example-fe"]?.watch).toBe("bun run app:watch");
+      expect(root["example-be"]?.watch).toBe("bun run server:watch");
+      expect(example.fe?.watch).toBe(root["example-fe"]?.watch);
+      expect(example.be?.watch).toBe(root["example-be"]?.watch);
+    });
   });
 });
