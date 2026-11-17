@@ -31,7 +31,11 @@ const harness = (available = true, detection: Detection = "poll") => {
     error: (message) => entries.push({ level: "error", message }),
   };
   let failStarts = 0;
+  const unrunnable = new Set<string>();
   const spawn = (args: readonly string[]): AwakeProcess => {
+    if (args[0] !== undefined && unrunnable.has(args[0])) {
+      throw new Error(`spawn ${args[0]} ENOENT`);
+    }
     if (failStarts > 0) {
       failStarts -= 1;
       throw new Error("spawn failed");
@@ -106,6 +110,11 @@ const harness = (available = true, detection: Detection = "poll") => {
     failNext: (count: number) => {
       failStarts = count;
     },
+    /** Spawning this program throws, like a program that cannot be executed. */
+    breakProgram: (program: string) => {
+      unrunnable.add(program);
+    },
+    now: () => clock,
   };
 };
 
@@ -308,9 +317,10 @@ describe("createAwakeController", () => {
   });
 
   it("starts a replacement when the process exits while a session is still active", () => {
-    const { controller, children, entries } = harness();
+    const { controller, children, entries, advance } = harness();
     controller.update(active());
 
+    advance(1001);
     children[0]?.finish();
 
     expect(entries.some((entry) => entry.level === "warn" && entry.message.includes("[awake]"))).toBe(true);
@@ -322,16 +332,107 @@ describe("createAwakeController", () => {
     expect(restartAt).toBeGreaterThan(warnAt);
   });
 
-  it("logs a failed start and tries again on the next update", () => {
-    const { controller, children, entries, failNext } = harness();
+  it("tries again on the next update after a failed start", () => {
+    const { controller, children, failNext } = harness();
     failNext(1);
 
     controller.update(active());
     expect(children).toHaveLength(0);
-    expect(entries.some((entry) => entry.level === "error")).toBe(true);
 
     controller.update(active());
     expect(children).toHaveLength(1);
+  });
+
+  describe("a start that fails", () => {
+    const cmd = "/nonexistent/keep-awake --pid ${extensionHostPid}";
+    const warns = (entries: Entry[]) => entries.filter((entry) => entry.level === "warn").map((entry) => entry.message);
+
+    it("warns once for a program that cannot be executed, however often it is tried", () => {
+      const { controller, children, entries, breakProgram } = harness();
+      breakProgram("/nonexistent/keep-awake");
+
+      controller.update(active({ cmd }));
+      controller.update(active({ cmd }));
+      controller.update(active({ cmd }));
+
+      expect(children).toHaveLength(0);
+      expect(warns(entries)).toEqual([
+        '[awake] start failed command="/nonexistent/keep-awake --pid 5151" reason="spawn /nonexistent/keep-awake ENOENT"',
+      ]);
+      expect(entries.some((entry) => entry.level === "error")).toBe(false);
+    });
+
+    it("warns once when the spawn reports an error, does not replace it at once, and tries again later", () => {
+      const { controller, children, entries } = harness();
+      controller.update(active({ cmd }));
+
+      children[0]?.fail(new Error("spawn /nonexistent/keep-awake ENOENT"));
+      expect(children).toHaveLength(1);
+      expect(warns(entries)).toEqual([
+        '[awake] start failed command="/nonexistent/keep-awake --pid 5151" reason="spawn /nonexistent/keep-awake ENOENT"',
+      ]);
+
+      controller.update(active({ cmd }));
+      expect(children).toHaveLength(2);
+      children[1]?.fail(new Error("spawn /nonexistent/keep-awake ENOENT"));
+      controller.update(active({ cmd }));
+      expect(children).toHaveLength(3);
+      expect(warns(entries)).toHaveLength(1);
+    });
+
+    it("counts an exit within 1 second as a failed start", () => {
+      const { controller, children, entries, advance } = harness();
+      controller.update(active({ cmd }));
+
+      advance(1000);
+      children[0]?.finish();
+
+      expect(children).toHaveLength(1);
+      expect(warns(entries)).toEqual([
+        '[awake] start failed command="/nonexistent/keep-awake --pid 5151" reason="exited within 1s"',
+      ]);
+
+      controller.update(active({ cmd }));
+      expect(children).toHaveLength(2);
+      children[1]?.finish();
+      expect(warns(entries)).toHaveLength(1);
+    });
+
+    it("replaces a process that exits after more than 1 second, with the exit warn", () => {
+      const { controller, children, entries, advance } = harness();
+      controller.update(active({ cmd }));
+
+      advance(1001);
+      children[0]?.finish();
+
+      expect(children).toHaveLength(2);
+      expect(warns(entries)).toEqual(["[awake] exit pid=4242"]);
+    });
+
+    it("warns again for a different command that fails", () => {
+      const { controller, entries, breakProgram } = harness();
+      breakProgram("/nonexistent/keep-awake");
+      breakProgram("/nonexistent/other");
+
+      controller.update(active({ cmd }));
+      controller.update(active({ cmd: "/nonexistent/other" }));
+      controller.update(active({ cmd }));
+
+      expect(warns(entries)).toEqual([
+        '[awake] start failed command="/nonexistent/keep-awake --pid 5151" reason="spawn /nonexistent/keep-awake ENOENT"',
+        '[awake] start failed command="/nonexistent/other" reason="spawn /nonexistent/other ENOENT"',
+      ]);
+    });
+
+    it("logs a repeat failure of a warned command at trace only", () => {
+      const { controller, entries, breakProgram } = harness();
+      breakProgram("/nonexistent/keep-awake");
+
+      controller.update(active({ cmd }));
+      controller.update(active({ cmd }));
+
+      expect(traces(entries).filter((line) => line.includes("start failed"))).toHaveLength(1);
+    });
   });
 
   it("logs once at startup when caffeinate cannot be run and never spawns", () => {

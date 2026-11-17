@@ -8,11 +8,11 @@ export const AWAKE_AGENT_HOST_EVENTS = "awake.agentHostEvents";
 
 registerHighVolumeCategory(AWAKE_AGENT_HOST_EVENTS);
 
-/** One `caffeinate` child. The caller must not detach it. */
+/** One awake child. The caller must not detach it. `error` is a program that cannot be executed. */
 export type AwakeProcess = {
   pid: number;
   kill(signal?: NodeJS.Signals): boolean;
-  once(event: "exit", listener: () => void): void;
+  once(event: "exit" | "error", listener: (error?: Error) => void): void;
 };
 
 export type AwakeInput = {
@@ -44,7 +44,16 @@ export type AwakeController = {
   dispose(): void;
 };
 
-type Tracked = { pid: number; args: readonly string[]; process: AwakeProcess; stopRequested: boolean };
+type Tracked = {
+  pid: number;
+  args: readonly string[];
+  process: AwakeProcess;
+  stopRequested: boolean;
+  startedAt: number;
+};
+
+/** An exit this soon after the start counts as a failed start, not as a process that ended. */
+const FAILED_START_WINDOW_MS = 1000;
 
 type Grace = { since: number; delaySecs: number; timer: { cancel(): void } | null };
 
@@ -96,6 +105,8 @@ export const createAwakeController = ({
     graceDelaySecs: DEFAULT_AWAKE_GRACE_DELAY_SECS,
   };
   let disposed = false;
+  /** Commands already warned about. A command warns once for the life of the controller. */
+  const warned = new Set<string>();
 
   const oneArgv = (): readonly string[] => ["/usr/bin/caffeinate", "-disu", "-w", String(parentPid)];
 
@@ -127,7 +138,17 @@ export const createAwakeController = ({
     }
   };
 
-  const onExit = (child: Tracked): void => {
+  const startFailed = (args: readonly string[], reason: string): void => {
+    const command = args.join(" ");
+    if (warned.has(command)) {
+      awake.trace("start failed", { command, reason });
+      return;
+    }
+    warned.add(command);
+    awake.warn("start failed", { command, reason });
+  };
+
+  const onExit = (child: Tracked, error?: Error): void => {
     if (tracked !== child) {
       return;
     }
@@ -138,12 +159,15 @@ export const createAwakeController = ({
       pendingArgs = null;
       return;
     }
-    if (unexpected && wantsRun()) {
+    const failed = unexpected && (error !== undefined || now() - child.startedAt <= FAILED_START_WINDOW_MS);
+    if (failed) {
+      dropGrace();
+      startFailed(child.args, error ? error.message : "exited within 1s");
+    } else if (unexpected && wantsRun()) {
       awake.warn("exit", { pid });
       start(child.args);
       return;
-    }
-    if (unexpected) {
+    } else if (unexpected) {
       dropGrace();
     }
     const next = pendingArgs;
@@ -159,12 +183,13 @@ export const createAwakeController = ({
     }
     try {
       const child = spawn(args);
-      const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false };
+      const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false, startedAt: now() };
       tracked = running;
       child.once("exit", () => onExit(running));
+      child.once("error", (error) => onExit(running, error ?? new Error("spawn failed")));
       awake.debug(`+ "${args.join(" ")}"`, { pid: child.pid, reason: "activity" });
     } catch (error) {
-      awake.error("start failed", error);
+      startFailed(args, error instanceof Error ? error.message : String(error));
     }
   };
 
