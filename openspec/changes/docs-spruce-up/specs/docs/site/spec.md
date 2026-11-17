@@ -30,10 +30,11 @@ Guide pages, the MCP page, and the API reference SHALL render in a document shel
 - **WHEN** the built installation page is read
 - **THEN** it includes a dark/light appearance switch
 
-#### Scenario: Outline lists third-level headings
+#### Scenario: Outline covers second and third level
 
-- **WHEN** the built Configuration page is read
-- **THEN** its outline links to the heading `variant.abbr`, a third-level heading, and to the second-level heading Templates
+- **WHEN** the documentation site configuration is read
+- **THEN** the outline levels are 2 and 3
+- **AND** the built Configuration page has the third-level heading `variant.abbr` and the second-level heading Templates
 
 ## ADDED Requirements
 
