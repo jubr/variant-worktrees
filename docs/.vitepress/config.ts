@@ -9,34 +9,25 @@ const packageVersion = (
   }
 ).version;
 
-const pagesBase = "/variant-worktrees/";
-
-const withPagesBase = (head: HeadConfig[]): HeadConfig[] => {
-  for (const tag of head) {
-    const attrs = tag[1];
-    if (!attrs) continue;
-    for (const key of ["href", "src"] as const) {
-      const value = attrs[key];
-      if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) continue;
-      if (value.startsWith(pagesBase)) continue;
-      attrs[key] = `${pagesBase}${value.slice(1)}`;
-    }
-  }
-  return [];
+// AIDEV-NOTE: a relative base makes the built site relocatable; VitePress emits `head` entries as written, so favicons are added per page below
+const faviconHeads = (relativePath: string): HeadConfig[] => {
+  const prefix = "../".repeat(relativePath.split("/").length - 1) || "./";
+  return [
+    ["link", { rel: "icon", type: "image/png", sizes: "32x32", href: `${prefix}favicon-32.png` }],
+    ["link", { rel: "icon", type: "image/png", sizes: "16x16", href: `${prefix}favicon-16.png` }],
+  ];
 };
 
 export default defineConfig({
   title: "variant-worktrees",
   description:
     "Manages git worktrees, database schemas, watches, environment variables, and implodes. CLI, MCP server, VS Code extension, and library.",
-  base: pagesBase,
-  transformHead({ head }) {
-    return withPagesBase(head);
+  base: "./",
+  transformHead({ pageData }) {
+    return faviconHeads(pageData.relativePath);
   },
 
   head: [
-    ["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" }],
-    ["link", { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16.png" }],
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
     ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
     [
@@ -53,6 +44,7 @@ export default defineConfig({
   themeConfig: {
     logo: "/logo-256.png",
     search: { provider: "local" },
+    outline: { level: [2, 3] },
     nav: [
       { text: "Guide", link: "/guide/", activeMatch: "^/guide/" },
       { text: "Configuration", link: "/guide/configuration" },
@@ -70,9 +62,15 @@ export default defineConfig({
           { text: "Core", link: "/guide/core" },
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },
-          { text: "Editor socket", link: "/guide/ipc" },
+          { text: "Runtime", link: "/guide/runtime" },
+        ],
+      },
+      {
+        text: "VSCode / Cursor",
+        items: [
+          { text: "Extension", link: "/guide/extension" },
           { text: "MCP Server", link: "/mcp" },
-          { text: "Library", link: "/guide/library" },
+          { text: "Socket IPC", link: "/guide/socket-ipc" },
         ],
       },
       {
@@ -86,6 +84,7 @@ export default defineConfig({
         text: "Development",
         items: [
           { text: "Building", link: "/development/building" },
+          { text: "Library", link: "/guide/library" },
           { text: "API Reference", link: "/api/" },
         ],
       },

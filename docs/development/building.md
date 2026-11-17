@@ -1,6 +1,6 @@
 # Building
 
-Build from a checkout of this repository. In another project, install the CLI with mise instead: see [Getting Started](/guide/).
+Build from a checkout of this repository. In your own project, install the CLI with mise or the extension instead: see [Installation](/guide/installation). The packages are not published on npm yet, so the TypeScript library and the MCP server are used from a checkout too.
 
 ## Requirements
 
@@ -22,3 +22,27 @@ mise x -- task build
 mise x -- task lint
 mise x -- task test
 ```
+
+## TypeScript library
+
+After `task build`, link the library into your project with Bun:
+
+```bash
+cd variant-worktrees/packages/variant-api
+bun link
+
+cd path/to/your/project
+bun link variant-api
+```
+
+`variant-api` runs on Node.js 22.13 or newer and on Bun. It provides no `variant` command; the CLI does. SQLite variants use `node:sqlite` under Node and `bun:sqlite` under Bun. Examples are in [Library](/guide/library).
+
+## MCP server
+
+After `task build`, run the built server of `variant-mcp` with a workspace configuration:
+
+```bash
+node variant-worktrees/packages/variant-mcp/dist/mcp.js --config /workspace/variants.yaml
+```
+
+Point an MCP client at that command. The client configuration is in [MCP Server](/mcp).

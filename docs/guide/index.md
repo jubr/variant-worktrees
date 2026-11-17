@@ -44,7 +44,9 @@ variant implode # implies down
 mise use github:jubr/variant-worktrees
 ```
 
-`variant` is then available in that project. A checkout of this repository builds the CLI instead: see [Building](/development/building).
+`variant` is then available in that project; [Installation](./installation) has the full steps. A checkout of this repository builds the CLI instead: see [Building](/development/building).
+
+In VS Code or Cursor, the [Extension](./extension) lists your variants and watches them with one click, and it registers the [MCP Server](/mcp) so your agents can drive variants themselves.
 
 What `watch` runs, which ports it picks, and which database it uses live in `variants.yaml`. Watches, templates, and every option are in [Configuration](./configuration). Database settings load from `mise.local.toml`, then environment variables.
 

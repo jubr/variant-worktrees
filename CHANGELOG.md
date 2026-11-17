@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Documentation: Installation is about adding Variant Worktrees to your existing project, with the mise CLI first (`mise x github:jubr/variant-worktrees@latest -- variant init`) and the extension second; no page tells you to `npm install` any more, and the library and MCP server are installed from a checkout under Development.
+- Documentation: Runtime is a page of its own (watches, state, interactive keys, environment through Mise, detection when `variant.watches` is omitted). Configuration opens with the options, one heading per `variant.<key>`, alphabetical, and ends with Templates and Unknown keys and migration.
+- Documentation: a new sidebar group VSCode / Cursor holds the new Extension page, the MCP Server and Socket IPC (`/guide/ipc` is now `/guide/socket-ipc`). The Library page is code examples that link into Core, and sits in Development between Building and the API Reference.
+- Documentation: the site is relocatable. Stylesheets, scripts, favicons, the logo and page links are relative to their page (VitePress `base: './'`, so `vitepress` is pinned to `2.0.0-alpha.21`), and the same build works under `/variant-worktrees/` or any other path.
+- Documentation: the "On this page" outline lists second- and third-level headings, so every `variant.<key>` option of Configuration is in it.
 - The example `be` writes to the SQLite file in `SQLITE_DATABASE`: it creates the table `events` when absent, prints `sqlite: opened <path>` when it opens the file, records a `startup` row when it listens and a `request` row (`GET /api 200`) for every request it answers.
 - The example project's scripts are renamed: `dev` of `example/fe` is `app:watch`, and `start:dev` of `example/be` is `server:watch`. `example/variants.yaml` and `example/README.md` use the new names.
 - A command no longer creates an empty `.cache/variants/` directory. It exists only when a file is written into it, such as a default-location SQLite database. An existing directory and its legacy state files are read as before.

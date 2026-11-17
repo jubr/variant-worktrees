@@ -68,11 +68,22 @@ describe("product icon", () => {
     expect(ignore).toContain("!media/icon-256.png");
   });
 
-  it("uses the 256 icon as the docs logo and the small icons as favicons", () => {
-    const head = docsConfig.head ?? [];
+  it("uses the 256 icon as the docs logo and the small icons as favicons", async () => {
     expect(docsConfig.themeConfig.logo).toBe("/logo-256.png");
-    expect(head).toContainEqual(["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" }]);
-    expect(head).toContainEqual(["link", { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16.png" }]);
+    for (const [relativePath, prefix] of [
+      ["index.md", "./"],
+      ["guide/core.md", "../"],
+    ]) {
+      const head = await docsConfig.transformHead?.({ pageData: { relativePath } } as never);
+      expect(head).toContainEqual([
+        "link",
+        { rel: "icon", type: "image/png", sizes: "32x32", href: `${prefix}favicon-32.png` },
+      ]);
+      expect(head).toContainEqual([
+        "link",
+        { rel: "icon", type: "image/png", sizes: "16x16", href: `${prefix}favicon-16.png` },
+      ]);
+    }
   });
 
   it("shows the 256 icon in the repository README", () => {
