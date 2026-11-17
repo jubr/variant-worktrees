@@ -103,3 +103,34 @@ The Configuration page SHALL open with an Options section. The Options section S
 
 - **WHEN** the second-level headings of the Configuration page are listed
 - **THEN** Options comes first, Templates comes after it, and Unknown keys and migration comes last
+
+### Requirement: Relocatable asset URLs
+
+The built documentation site SHALL request its own stylesheets, scripts, favicons, and the navigation logo with URLs that are relative to the requesting page, so the same build works under any path. No such URL SHALL be root-absolute, and none SHALL contain the `/variant-worktrees/` prefix. Each of those URLs, resolved against its page, SHALL name a file in the build output. The site configuration SHALL set a relative base, SHALL keep the navigation logo path `/logo-256.png`, and SHALL keep `cleanUrls` off. Favicon links SHALL stay valid on pages of every depth.
+
+#### Scenario: Home page assets are relative
+
+- **WHEN** the built home page HTML is read
+- **THEN** its stylesheet, script, favicon, and navigation logo URLs do not start with `/`
+- **AND** each URL, resolved against the home page, is a file in the build output
+
+#### Scenario: Nested pages resolve their assets
+
+- **WHEN** the built `guide/installation.html` is read
+- **THEN** its stylesheet, script, favicon, and navigation logo URLs do not start with `/`
+- **AND** each URL, resolved against that page, is a file in the build output
+
+#### Scenario: Site configuration is relocatable
+
+- **WHEN** the documentation site configuration is read
+- **THEN** its base is `./`
+- **AND** the navigation logo is `/logo-256.png`
+- **AND** `cleanUrls` is not enabled
+
+## REMOVED Requirements
+
+### Requirement: Published asset URLs
+
+**Reason**: The prefix `/variant-worktrees/` ties the build to one deployment path. Relocatable asset URLs replace it.
+
+**Migration**: Use [Relocatable asset URLs](#requirement-relocatable-asset-urls). The GitHub Pages deployment keeps working from the same build.

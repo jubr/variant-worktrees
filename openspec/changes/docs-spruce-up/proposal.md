@@ -16,6 +16,7 @@ The documentation is organised around the packages (CLI, library, MCP), not arou
 - **Cross-links**: Getting Started, Installation, Core, Configuration, Runtime and Library link to the pages of the VSCode / Cursor group where they mention the editor, the MCP server or the socket; the group's pages link back to Installation, Runtime and Configuration.
 - **Runtime** becomes a top-level guide page after Installation, tailored to watches and how they behave. It takes over from Configuration: *Runtime*, *Environment through Mise*, *Environment variables* and *When watches are omitted*.
 - **Configuration** is reordered: *Options* first, one heading per option, alphabetical, each option anchored by its own heading (`variant.abbr`, `variant.baseBranch`, ...) so other pages can link to it. *Templates* and then *Unknown keys and migration* come last.
+- **Relocatable site**: upgrade `vitepress` from `^1.6.4` (no relative base) to the 2.0 alpha line, pinned exactly (`2.0.0-alpha.21` at the time of writing), and set `base: './'`, so every stylesheet, script, favicon, logo and page URL is relative to its page instead of starting with `/variant-worktrees/`. The `withPagesBase` rewrite of `head` entries goes; favicon links become relative per page with `transformHead`. `cleanUrls` stays off. The GitHub Pages deployment keeps working from the same build.
 - A docs spec test (QA) pins the option headings: one `variant.<key>` heading per key of the `variant` schema and the headings are in alphabetical order.
 
 ## Capabilities
@@ -26,13 +27,14 @@ None.
 
 ### Modified Capabilities
 
-- `docs/site`: modifies *Sidebar groups*; adds requirements for the installation page, the runtime page, the extension page, the cross-links into the VSCode / Cursor group, the library page and the configuration page structure.
+- `docs/site`: removes *Published asset URLs* (the `/variant-worktrees/` prefix) and adds *Relocatable asset URLs*; modifies *Sidebar groups*; adds requirements for the installation page, the runtime page, the extension page, the cross-links into the VSCode / Cursor group, the library page and the configuration page structure.
 
 ## Impact
 
 - `docs/guide/installation.md`, `library.md`, `configuration.md`, `index.md`, `ipc.md`, `development/building.md`, new `docs/guide/runtime.md` and `docs/guide/extension.md`, `docs/.vitepress/config.ts` (sidebar).
 - Inbound links to moved headings (`#environment-through-mise`, `#when-watches-are-omitted`, `#runtime`, `#options`, `#templates`) in `docs/`, `README.md` and `packages/*/README.md`.
-- `scripts/docs-site.spec.ts` (sidebar order, built pages) and a new spec test for the option headings.
+- `package.json`, `bun.lock` (`vitepress`).
+- `scripts/docs-site.spec.ts` (sidebar order, built pages, the two published asset URL tests) and a new spec test for the option headings.
 - `CHANGELOG.md`.
 
 ## Assumptions
@@ -44,5 +46,6 @@ None.
 
 ## Non-goals
 
+- No change to the deployment workflow (`docs.yml` keeps building and uploading `docs/.vitepress/dist`), and no `cleanUrls` or arbitrary-depth `404.html` support.
 - No change to CLI, library, extension or MCP behavior, and no new config keys.
 - No change to `README.md` files, `docs/guide/core.md` or `docs/guide/overview.md` beyond fixing links.
