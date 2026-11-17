@@ -4,7 +4,7 @@
 
 ## Setup
 
-The Variant Worktrees extension registers the `variant` server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients.
+The [Variant Worktrees extension](/guide/extension) registers the `variant` server for the open workspace in Cursor and VS Code. [Installation](/guide/installation) covers installing the CLI and the extension. The `mcp.json` snippet stays the setup for other clients.
 
 Run the server with a workspace configuration:
 

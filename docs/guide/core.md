@@ -20,7 +20,7 @@ variant init --prefix wt- --mise=false
 variant init --force
 ```
 
-`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`. The VS Code extension command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure. Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
+`--prefix` (default `_v-`) must not be empty or contain a path separator. `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory. The result lists what each step did; with `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`. The [extension](./extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure. Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
 
 ## config
 
@@ -170,7 +170,7 @@ The server is part of `variant`, not a program of its own: the `variant-cli` pac
 Security model:
 
 - Loopback only, no remote access.
-- A random 128-bit token is required. The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie. The token lives in an owner-only file next to the [editor socket](./ipc) and is removed when the server ends.
+- A random 128-bit token is required. The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie. The token lives in an owner-only file next to the [socket](./socket-ipc) and is removed when the server ends.
 - The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
 - POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
 - `implode` needs `confirm: true` in the request body, and `main` is never imploded.

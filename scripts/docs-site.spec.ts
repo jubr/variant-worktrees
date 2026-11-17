@@ -149,9 +149,14 @@ describe("dark document shell and top navigation", () => {
     expect(at("Getting Started")).toBeLessThan(at("Variant Worktrees"));
     expect(at("/guide/core")).toBeLessThan(at("/guide/configuration"));
     expect(at("/guide/configuration")).toBeLessThan(at("/guide/installation"));
+    expect(at("/guide/installation")).toBeLessThan(at("/guide/runtime"));
+    expect(at("/guide/runtime")).toBeLessThan(at("/guide/library"));
+    expect(at("/guide/library")).toBeLessThan(at("VSCode / Cursor"));
+    expect(at("VSCode / Cursor")).toBeLessThan(at("/guide/extension"));
+    expect(at("/guide/extension")).toBeLessThan(at("/mcp"));
+    expect(at("/mcp")).toBeLessThan(at("/guide/socket-ipc"));
+    expect(at("/guide/socket-ipc")).toBeLessThan(at("Chat Renamer"));
     expect(at("/chat-renamer/index")).toBeLessThan(at("/chat-renamer/configuration"));
-    expect(at("/guide/installation")).toBeLessThan(at("/mcp"));
-    expect(at("/mcp")).toBeLessThan(at("/guide/library"));
     expect(at("Chat Renamer")).toBeGreaterThan(at("Variant Worktrees"));
     expect(at("Development")).toBeGreaterThan(at("Chat Renamer"));
     expect(sidebar).toContain("/development/building");
@@ -300,6 +305,67 @@ describe("runtime page", () => {
     const texts = headingsOf(page("guide/configuration.html")).map((heading) => heading.text);
     for (const heading of moved) {
       expect(texts).not.toContain(heading);
+    }
+  });
+});
+
+describe("library, extension and socket pages", () => {
+  test("the library page is code with one-line captions and links into Core", () => {
+    const html = page("guide/library.html");
+    expect(html).toContain("createVariantClient");
+    expect(html).toContain("/guide/core");
+    const doc = html.slice(html.indexOf('class="vp-doc'), html.indexOf("VPDocFooter"));
+    const captions = [...doc.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1].replace(/<[^>]+>/g, ""));
+    for (const caption of captions) {
+      expect(caption.length).toBeLessThan(200);
+    }
+  });
+
+  test("the extension page documents the view, onboarding, MCP registration and the chat renamer", () => {
+    const text = textOf(page("guide/extension.html"));
+    expect(text).toContain("Variants view");
+    expect(text).toContain("Onboarding");
+    expect(text).toContain("MCP");
+    expect(text).toContain("chat renamer");
+  });
+
+  test("the socket page is Socket IPC at /guide/socket-ipc", () => {
+    expect(headingsOf(page("guide/socket-ipc.html"))[0]?.text).toBe("Socket IPC");
+    expect(existsSync(join(dist, "guide/ipc.html"))).toBe(false);
+  });
+});
+
+describe("cross-links into the VSCode / Cursor group", () => {
+  // AIDEV-NOTE: the sidebar links every page from every page, so links are read from the document body only
+  const linksTo = (path: string, target: string): boolean => {
+    const html = page(path);
+    const body = html.slice(html.indexOf('class="vp-doc'), html.indexOf("VPDocFooter"));
+    return [...body.matchAll(/href="([^"#]+)/g)].some((match) => {
+      const resolved = new URL(match[1], `https://docs.test${pagesBase}${path}`).pathname;
+      return resolved.replace(/\.html$/, "") === `${pagesBase.slice(0, -1)}${target}`;
+    });
+  };
+  const guide = (name: string) => `guide/${name}.html`;
+
+  test("Getting Started, Installation, Core, Configuration, Runtime and Library link to the extension", () => {
+    for (const path of ["index", "installation", "core", "configuration", "runtime", "library"].map(guide)) {
+      expect(linksTo(path, "/guide/extension"), path).toBe(true);
+    }
+  });
+
+  test("Getting Started, Installation and Library link to the MCP server; Runtime to the socket", () => {
+    for (const path of ["index", "installation", "library"].map(guide)) {
+      expect(linksTo(path, "/mcp"), path).toBe(true);
+    }
+    expect(linksTo(guide("runtime"), "/guide/socket-ipc")).toBe(true);
+  });
+
+  test("the group links back to Installation, and the extension to its neighbours", () => {
+    for (const path of [guide("extension"), "mcp.html", guide("socket-ipc")]) {
+      expect(linksTo(path, "/guide/installation"), path).toBe(true);
+    }
+    for (const target of ["/mcp", "/guide/socket-ipc", "/guide/configuration", "/guide/runtime"]) {
+      expect(linksTo(guide("extension"), target), target).toBe(true);
     }
   });
 });

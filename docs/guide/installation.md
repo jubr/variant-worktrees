@@ -37,4 +37,4 @@ Tested with Cursor.
 2. Open your project. A **Variant Worktrees** section appears in the Explorer.
 3. Follow its **Onboarding**: when the project has no `variants.yaml`, the section says that variants are not initialized and offers **Onboard**. It opens the same initialization dialog as **Variant: Initialize in this Repo**; confirm with **Initialize**, and the three steps of `init` above run in your main checkout.
 
-After onboarding the section lists your variants, and you can create, watch and implode them from there.
+After onboarding the section lists your variants, and you can create, watch and implode them from there. [Extension](./extension) describes everything it does, including registering the [MCP Server](/mcp) for your agents.

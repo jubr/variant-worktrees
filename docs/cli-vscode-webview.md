@@ -55,4 +55,4 @@ registers `variant_<command>` tools. Tool handlers call the same
 The CLI and the MCP server execute `config`, `create`, `list`,
 `provision`, `up`, `down`, `watch`, and `implode` in `variant-api`. The extension does not. Requests
 that need the editor use `{name, args}` on the socket described in
-[Editor socket](./guide/ipc).
+[Socket IPC](./guide/socket-ipc).

@@ -1,6 +1,6 @@
 # Configuration
 
-`variants.yaml` at the workspace root holds the options of a project. Database settings are autodetected from the environment (see [Environment through Mise](./runtime#environment-through-mise)): Postgres, MySQL, MariaDB (`MARIADB_*` or a `mariadb://` URL, dialect `mysql`) and SQLite. Explicit `db` values override those. `variant init` writes the autodetected values into a first `variants.yaml`. What happens while watches run is in [Runtime](./runtime).
+`variants.yaml` at the workspace root holds the options of a project. Database settings are autodetected from the environment (see [Environment through Mise](./runtime#environment-through-mise)): Postgres, MySQL, MariaDB (`MARIADB_*` or a `mariadb://` URL, dialect `mysql`) and SQLite. Explicit `db` values override those. `variant init` writes the autodetected values into a first `variants.yaml`. What happens while watches run is in [Runtime](./runtime), and the editor side is in [Extension](./extension).
 
 ::: v-pre
 

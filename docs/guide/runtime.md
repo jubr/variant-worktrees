@@ -1,6 +1,6 @@
 # Runtime
 
-A watch is one dev process or container of a variant: a Vite app, a NestJS server, anything with a `watch` command. This page is about how watches behave once `variant watch` or `variant up` starts them: ports, state files, output, keys, exit status, and the environment they see. Which watches exist is in [Configuration](./configuration#variant-watches); the commands are in [Core](./core#watch).
+A watch is one dev process or container of a variant: a Vite app, a NestJS server, anything with a `watch` command. This page is about how watches behave once `variant watch` or `variant up` starts them: ports, state files, output, keys, exit status, and the environment they see. Which watches exist is in [Configuration](./configuration#variant-watches); the commands are in [Core](./core#watch). In the editor, the [Extension](./extension) starts and stops watches for you, and the CLI reports to it over [Socket IPC](./socket-ipc).
 
 ::: v-pre
 
