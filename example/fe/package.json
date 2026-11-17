@@ -5,7 +5,7 @@
   "description": "Trivial Vite app: the `fe` watch of variants.example.yaml",
   "type": "module",
   "scripts": {
-    "dev": "bun --bun vite",
+    "app:watch": "bun --bun vite",
     "build": "bun --bun vite build",
     "build:watch": "bun --bun vite build --watch"
   },

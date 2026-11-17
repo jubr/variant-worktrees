@@ -1,0 +1,59 @@
+## Context
+
+The root `variants.yaml` is the repository's dogfood configuration for `variant watch`; `example/variants.yaml` is the
+standalone sample, used as a test fixture. The example `fe` already reads `PORT` and `VARIANT_API_PORT` (its Vite config),
+and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds on the fly with HMR) and `start:dev`
+(`bun --watch --no-clear-screen src/main.ts`, which reloads on change).
+
+## Goals / Non-Goals
+
+**Goals:**
+- A committed root `variants.yaml` mirrors the port wiring of `example/variants.yaml`.
+- One descriptive script name per app, used everywhere the example runs a watch.
+
+**Non-Goals:**
+- Changing the Dockerfiles or the container setup.
+- New schema keys, such as a separate `build` command on a watch.
+- Changing autodetection: it still looks for `dev` and `start:dev` in other projects.
+
+## Decisions
+
+- **Pure rename, no new commands.** `dev` becomes `app:watch` and `start:dev` becomes `server:watch`, with the same
+  command text. Both already compile as they serve and again on every change, so "build and watch" needs no extra
+  `build` step. Alternative: prefix `bun run build &&`, rejected because it only delays the first serve.
+- **Rename in both `variants.yaml` files** (root and `example/`), so neither references a script that is gone.
+- **Autodetect agrees by kind and directory only.** With the scripts renamed, autodetection of the example falls back to
+  `bunx --bun vite` and `bunx nest start --watch`; the fixture test compares kinds and directories, which stay equal.
+- **`ready` checks** reuse `example/variants.yaml`: `/api` for `example-be`, `/` for `example-fe`.
+- **Port wiring copied from the example**, with the root file's own keys: `example-be` before `example-fe`, `VARIANT_API_PORT: '${example-be.port}'` on `example-fe`. Template keys may contain hyphens.
+- **The root file is committed on this branch.** It starts untracked in the main checkout; the branch adds it with the ports. Its other settings (`implode`, `chatRenamer`, install commands) stay as they are.
+- `build` and `build:watch` stay untouched.
+- **SQLite file under `.cache/variant/`.** `example-be` sets `SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'`:
+  absolute, in the worktree's gitignored cache directory that `variant watch` already creates, and not relative to
+  `dir` (a bare `${schema}` created a stray file in `example/be/`).
+- **Events through one small module in `example/be`.** `events.ts` opens the database named by `SQLITE_DATABASE` once,
+  makes its directory when missing, runs `CREATE TABLE IF NOT EXISTS events (...)` and offers `record(kind, detail)`; a
+  request middleware writes the `request` rows when the response finishes, like the existing request log. `main.ts`
+  writes the `startup` row once `listen` resolves. Alternative: a Nest provider, rejected as more framework than a
+  trivial example needs.
+- **No migration or seed step.** `CREATE TABLE IF NOT EXISTS` at open time keeps `variant watch` and `variant up`
+  working without `scripts/seed.mjs`; the seed's `notes` table is untouched and `GET /api` keeps reading it.
+- **Tests beside the source** (`events.spec.ts`, using `:memory:` and a temp file) run with `bun test` in `example/be`.
+  Like the existing `request-log.spec.ts`, they are not part of the workspace test run: `example/` is outside the
+  workspace packages.
+- **Drop the eager `mkdir` of the state directory** in `createVariantClient` instead of deleting the directory concept. Every
+  reader of that directory already tolerates its absence (`stateSlugs`, `readState`, `migrateJsonStates`, the SQLite
+  `list`), and the SQLite adapter and `writeState` create it themselves when they write. Alternative: relocate the SQLite
+  default to `.cache/variant/`, rejected as a behavior change for existing users' database files.
+- The state-directory watcher in the client already tolerates a missing path (liveness timer), so a first-time
+  legacy file appears on the next poll.
+
+## Risks / Trade-offs
+
+- Every `ready` probe and page load adds an `events` row → fine for an example; the table is the point.
+- Two connections write the same file (events store and the `notes` read) → the read stays a short-lived read; a busy timeout covers a concurrent write.
+- A missed reference to `dev` or `start:dev` fails at run time → a repo-wide search in the tasks, plus tests that pin
+  the script names and both YAML files.
+- Autodetection of the example now yields a plainer command than the explicit watch → accepted; the explicit config wins.
+- A missing directory delays the change events of a legacy state file until the next poll → legacy files are no longer written, so this only affects hand-placed files.
+- Root YAML and `example/variants.yaml` can drift → tests pin both.

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
@@ -33,11 +33,10 @@ export const createVariantClient = (options: VariantClientOptions = {}): Variant
   }
   const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));
-  /** The state directory is made when a command needs it, so `init` leaves nothing behind. */
+  /** The state directory is made by whatever writes into it, so a command that writes nothing leaves nothing behind. */
   let stateReady = false;
   const ensureState = (): void => {
     if (!stateReady) {
-      mkdirSync(stateDir, { recursive: true });
       migrateJsonStates(stateDir);
       stateReady = true;
     }
