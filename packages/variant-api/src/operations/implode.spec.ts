@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "../index.js";
 import { type LogEvent, setLogSink } from "../log.js";
@@ -124,6 +124,7 @@ describe("implode merge gate", () => {
     withProject(async ({ implode, commit, worktree, database }) => {
       commit("src/b.ts", "export const b = 2;\n");
       writeFileSync(join(worktree, "variants.local.yaml"), "runtime:\n  slug: demo\n");
+      mkdirSync(dirname(database), { recursive: true });
       writeFileSync(database, "");
 
       await expect(implode()).rejects.toThrow(/force/);

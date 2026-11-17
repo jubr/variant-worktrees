@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
@@ -31,6 +31,8 @@ describe("the example project", () => {
 
       const seed = config.variant?.seed;
       expect(seed).toBeDefined();
+      // `create` makes no database file, so nothing made the directory yet: `provision` does, and here the seed runs by hand.
+      mkdirSync(dirname(created.target), { recursive: true });
       execFileSync("sh", ["-c", seed as string], {
         cwd: directory,
         env: { ...process.env, SQLITE_DATABASE: created.target, VARIANT_SLUG: "demo" },
