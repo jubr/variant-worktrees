@@ -63,7 +63,6 @@ export default defineConfig({
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },
           { text: "Runtime", link: "/guide/runtime" },
-          { text: "Library", link: "/guide/library" },
         ],
       },
       {
@@ -85,6 +84,7 @@ export default defineConfig({
         text: "Development",
         items: [
           { text: "Building", link: "/development/building" },
+          { text: "Library", link: "/guide/library" },
           { text: "API Reference", link: "/api/" },
         ],
       },

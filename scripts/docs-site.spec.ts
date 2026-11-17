@@ -140,8 +140,7 @@ describe("dark document shell and top navigation", () => {
     expect(at("/guide/core")).toBeLessThan(at("/guide/configuration"));
     expect(at("/guide/configuration")).toBeLessThan(at("/guide/installation"));
     expect(at("/guide/installation")).toBeLessThan(at("/guide/runtime"));
-    expect(at("/guide/runtime")).toBeLessThan(at("/guide/library"));
-    expect(at("/guide/library")).toBeLessThan(at("VSCode / Cursor"));
+    expect(at("/guide/runtime")).toBeLessThan(at("VSCode / Cursor"));
     expect(at("VSCode / Cursor")).toBeLessThan(at("/guide/extension"));
     expect(at("/guide/extension")).toBeLessThan(at("/mcp"));
     expect(at("/mcp")).toBeLessThan(at("/guide/socket-ipc"));
@@ -149,6 +148,9 @@ describe("dark document shell and top navigation", () => {
     expect(at("/chat-renamer/index")).toBeLessThan(at("/chat-renamer/configuration"));
     expect(at("Chat Renamer")).toBeGreaterThan(at("Variant Worktrees"));
     expect(at("Development")).toBeGreaterThan(at("Chat Renamer"));
+    expect(at("Development")).toBeLessThan(at("/development/building"));
+    expect(at("/development/building")).toBeLessThan(at("/guide/library"));
+    expect(at("/guide/library")).toBeLessThan(at("/api/"));
     expect(sidebar).toContain("/development/building");
     expect(sidebar).toContain("/chat-renamer/");
     expect(sidebar).not.toContain("Introduction");
