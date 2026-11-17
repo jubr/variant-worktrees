@@ -31,6 +31,16 @@ and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds o
 - **SQLite file under `.cache/variant/`.** `example-be` sets `SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'`:
   absolute, in the worktree's gitignored cache directory that `variant watch` already creates, and not relative to
   `dir` (a bare `${schema}` created a stray file in `example/be/`).
+- **Events through one small module in `example/be`.** `events.ts` opens the database named by `SQLITE_DATABASE` once,
+  makes its directory when missing, runs `CREATE TABLE IF NOT EXISTS events (...)` and offers `record(kind, detail)`; a
+  request middleware writes the `request` rows when the response finishes, like the existing request log. `main.ts`
+  writes the `startup` row once `listen` resolves. Alternative: a Nest provider, rejected as more framework than a
+  trivial example needs.
+- **No migration or seed step.** `CREATE TABLE IF NOT EXISTS` at open time keeps `variant watch` and `variant up`
+  working without `scripts/seed.mjs`; the seed's `notes` table is untouched and `GET /api` keeps reading it.
+- **Tests beside the source** (`events.spec.ts`, using `:memory:` and a temp file) run with `bun test` in `example/be`.
+  Like the existing `request-log.spec.ts`, they are not part of the workspace test run: `example/` is outside the
+  workspace packages.
 - **Drop the eager `mkdir` of the state directory** in `createVariantClient` instead of deleting the directory concept. Every
   reader of that directory already tolerates its absence (`stateSlugs`, `readState`, `migrateJsonStates`, the SQLite
   `list`), and the SQLite adapter and `writeState` create it themselves when they write. Alternative: relocate the SQLite
@@ -40,6 +50,8 @@ and `be` reads `PORT`. Their scripts are `dev` (`bun --bun vite`, which builds o
 
 ## Risks / Trade-offs
 
+- Every `ready` probe and page load adds an `events` row → fine for an example; the table is the point.
+- Two connections write the same file (events store and the `notes` read) → the read stays a short-lived read; a busy timeout covers a concurrent write.
 - A missed reference to `dev` or `start:dev` fails at run time → a repo-wide search in the tasks, plus tests that pin
   the script names and both YAML files.
 - Autodetection of the example now yields a plainer command than the explicit watch → accepted; the explicit config wins.

@@ -16,7 +16,15 @@
 - [ ] 3.2 Remove the eager `mkdirSync` of the state directory in `createVariantClient`; verify the test from 3.1 passes and `bun test` in `variant-api` and `variant-cli` stays green, including a default-location SQLite `provision` that still creates `.cache/variants/<slug>.db`
 - [ ] 3.3 Point `SQLITE_DATABASE` of `example-be` in the root `variants.yaml` at `${worktree}/.cache/variant/${schema}.sqlite`; verify the root-file test asserts it and a watch run leaves `example/be/` free of database files and `.cache/variants/` absent
 
-## 4. Docs and gates
+## 4. Example be events
 
-- [ ] 4.1 Add a `CHANGELOG.md` entry for the renamed example scripts; verify no other doc under `docs/`, `README.md` or `packages/*/README.md` names the example's old scripts
-- [ ] 4.2 Verify `openspec validate --all --strict --no-interactive` and `task check:all` pass
+- [ ] 4.1 Add a failing `events.spec.ts` in `example/be/src` that opens a store on a missing file and expects the `events` table and a `startup` row after `recordStartup`; verify it fails because the module is missing
+- [ ] 4.2 Implement `events.ts` (open, directory, `CREATE TABLE IF NOT EXISTS`, `record`); verify 4.1 passes, and a second open keeps the old rows
+- [ ] 4.3 Add a failing spec for a request middleware that records `request` rows with `METHOD URL status` when the response finishes; implement it; verify with `bun test` in `example/be`
+- [ ] 4.4 Wire the store and middleware in `main.ts` (`startup` after `listen`); verify by running `bun run server:watch` with a temp `SQLITE_DATABASE`, requesting `/api` and `/missing`, and reading `events` back
+- [ ] 4.5 Describe the events table in `example/README.md`; verify the README names `events`, its columns and the two kinds
+
+## 5. Docs and gates
+
+- [ ] 5.1 Add `CHANGELOG.md` entries for the renamed example scripts, the root `variants.yaml`, the state directory and the events; verify no other doc under `docs/`, `README.md` or `packages/*/README.md` names the example's old scripts
+- [ ] 5.2 Verify `openspec validate --all --strict --no-interactive` and `task check:all` pass

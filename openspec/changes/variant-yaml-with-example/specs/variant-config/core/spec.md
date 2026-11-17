@@ -1,5 +1,24 @@
 ## ADDED Requirements
 
+### Requirement: Example be records events
+
+The example `be` app SHALL record what happens to it in the SQLite database named by `SQLITE_DATABASE`. It SHALL create the table `events` when the table is absent, with an integer primary key `id`, a text timestamp `at`, a text `kind` and a text `detail`, so that no seed or migration is needed before it starts. It SHALL insert one row of kind `startup` when it begins listening, and one row of kind `request` for every HTTP request it answers, whatever the path, whose `detail` holds the method, the URL and the response status. When `SQLITE_DATABASE` is unset it SHALL use `./example.sqlite`. Rows already in the table, and the `notes` table of the seed, SHALL be left as they are.
+
+#### Scenario: Table created on first start
+
+- **WHEN** `be` starts with `SQLITE_DATABASE` naming a file that does not exist
+- **THEN** the file holds a table `events` and one `startup` row
+
+#### Scenario: Existing database
+
+- **WHEN** `be` starts with `SQLITE_DATABASE` naming a seeded database whose `events` table already has rows
+- **THEN** the old rows are still there, a new `startup` row follows them, and `notes` is unchanged
+
+#### Scenario: Request recorded
+
+- **WHEN** a client requests `GET /api` and `GET /missing`
+- **THEN** `events` gains a `request` row with detail `GET /api 200` and one with detail `GET /missing 404`
+
 ### Requirement: Repository variants.yaml runs the example
 
 The `variants.yaml` at the repository root SHALL be committed and SHALL list the `be` and `fe` apps of the example
