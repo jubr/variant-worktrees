@@ -2,16 +2,16 @@
 
 ### Requirement: Sidebar groups
 
-The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Core, then Configuration, then Installation, then Runtime, then the library. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the chat renamer overview and, under it, a configuration page, and SHALL sit above Development. Development SHALL include Building and the API reference. The sidebar SHALL NOT link to a guide about replacing shell scripts.
+The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Core, then Configuration, then Installation, then Runtime. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the chat renamer overview and, under it, a configuration page, and SHALL sit above Development. Development SHALL list Building, then the library, then the API reference. The library SHALL NOT be an item of the Variant Worktrees group. The sidebar SHALL NOT link to a guide about replacing shell scripts.
 
 #### Scenario: Installation page lists the groups in order
 
 - **WHEN** the built installation page is read
 - **THEN** the sidebar shows Getting Started, then Variant Worktrees, then VSCode / Cursor, then Chat Renamer, then Development
-- **AND** Core precedes Configuration, which precedes Installation, which precedes Runtime, which precedes the library
-- **AND** the library precedes the VSCode / Cursor group, which lists Extension, then the MCP server, then the Socket IPC page
+- **AND** Core precedes Configuration, which precedes Installation, which precedes Runtime
+- **AND** Runtime precedes the VSCode / Cursor group, which lists Extension, then the MCP server, then the Socket IPC page
 - **AND** Chat Renamer lists its configuration page under the overview
-- **AND** Development includes a link to Building
+- **AND** Development lists Building, then the library, then the API reference
 - **AND** the page does not link to `/guide/scripts`
 
 ### Requirement: Dark document shell

@@ -41,7 +41,7 @@ None.
 ## Assumptions
 
 - "Runtime to toplevel section" means a top-level sidebar page, not an `##` heading in the Configuration page (it already is one).
-- Sidebar order: Getting Started; Variant Worktrees (Core, Configuration, Installation, Runtime, Library); VSCode / Cursor (Extension, MCP Server, Socket IPC); Chat Renamer; Development. The socket page is renamed: `docs/guide/ipc.md` becomes `docs/guide/socket-ipc.md` (URL `/guide/socket-ipc`) with the title and sidebar label "Socket IPC".
+- Sidebar order: Getting Started; Variant Worktrees (Core, Configuration, Installation, Runtime); VSCode / Cursor (Extension, MCP Server, Socket IPC); Chat Renamer; Development (Building, Library, API Reference). The socket page is renamed: `docs/guide/ipc.md` becomes `docs/guide/socket-ipc.md` (URL `/guide/socket-ipc`) with the title and sidebar label "Socket IPC".
 - "Options" are all keys of `variant` in `variants.yaml.schema.json`; `variant.watches` and `variant.seed` get headings too, so the QA test needs no exceptions. The `db` and `chatRenamer` sections keep their own places below.
 - The MCP server page `docs/mcp.md` keeps its client setup; only its installation moves to Development.
 
