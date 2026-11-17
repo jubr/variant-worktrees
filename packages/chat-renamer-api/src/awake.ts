@@ -50,10 +50,16 @@ type Tracked = {
   process: AwakeProcess;
   stopRequested: boolean;
   startedAt: number;
+  /** Started at startup with no session. Dies after the window unless a session adopts it. */
+  probe: boolean;
+  probeTimer: { cancel(): void } | null;
 };
 
 /** An exit this soon after the start counts as a failed start, not as a process that ended. */
 const FAILED_START_WINDOW_MS = 1000;
+
+/** How long the startup probe may run with no session before it is killed. */
+const PROBE_WINDOW_MS = 1000;
 
 type Grace = { since: number; delaySecs: number; timer: { cancel(): void } | null };
 
@@ -105,6 +111,7 @@ export const createAwakeController = ({
     graceDelaySecs: DEFAULT_AWAKE_GRACE_DELAY_SECS,
   };
   let disposed = false;
+  let probed = false;
   /** Commands already warned about. A command warns once for the life of the controller. */
   const warned = new Set<string>();
 
@@ -124,7 +131,7 @@ export const createAwakeController = ({
     grace = null;
   };
 
-  const stop = (reason: "idle" | "never" | "disposed" | "not owner" | "mode changed"): void => {
+  const stop = (reason: "idle" | "never" | "disposed" | "not owner" | "mode changed" | "probe"): void => {
     if (!tracked || tracked.stopRequested) {
       return;
     }
@@ -155,6 +162,7 @@ export const createAwakeController = ({
     const unexpected = !child.stopRequested;
     const pid = child.pid;
     tracked = null;
+    child.probeTimer?.cancel();
     if (disposed) {
       pendingArgs = null;
       return;
@@ -177,17 +185,32 @@ export const createAwakeController = ({
     }
   };
 
-  const start = (args: readonly string[]): void => {
+  const start = (args: readonly string[], reason: "activity" | "probe" = "activity"): void => {
     if (tracked || !argvRunnable(args)) {
       return;
     }
     try {
       const child = spawn(args);
-      const running: Tracked = { pid: child.pid, args, process: child, stopRequested: false, startedAt: now() };
+      const running: Tracked = {
+        pid: child.pid,
+        args,
+        process: child,
+        stopRequested: false,
+        startedAt: now(),
+        probe: reason === "probe",
+        probeTimer: null,
+      };
       tracked = running;
       child.once("exit", () => onExit(running));
       child.once("error", (error) => onExit(running, error ?? new Error("spawn failed")));
-      awake.debug(`+ "${args.join(" ")}"`, { pid: child.pid, reason: "activity" });
+      awake.debug(`+ "${args.join(" ")}"`, { pid: child.pid, reason });
+      if (reason === "probe") {
+        running.probeTimer = schedule(PROBE_WINDOW_MS, () => {
+          if (tracked === running && running.probe) {
+            stop("probe");
+          }
+        });
+      }
     } catch (error) {
       startFailed(args, error instanceof Error ? error.message : String(error));
     }
@@ -196,6 +219,12 @@ export const createAwakeController = ({
   const ensure = (args: readonly string[]): void => {
     if (tracked && !tracked.stopRequested && sameArgv(tracked.args, args)) {
       pendingArgs = null;
+      if (tracked.probe) {
+        // A session adopts the probe: it is the one process of this host from here on.
+        tracked.probe = false;
+        tracked.probeTimer?.cancel();
+        tracked.probeTimer = null;
+      }
       return;
     }
     if (tracked && !tracked.stopRequested) {
@@ -254,6 +283,14 @@ export const createAwakeController = ({
       return;
     }
     latest = input;
+    if (!probed && input.owned && input.when === "chatsActive") {
+      // AIDEV-NOTE: the first update is the first time cmd, when and owned are known. Probing here puts a failure right behind the availability line.
+      probed = true;
+      const args = argvFor(input.cmd, parentPid);
+      if (!input.active && argvRunnable(args)) {
+        start(args, "probe");
+      }
+    }
     if (wantsRun()) {
       cancelGrace();
       ensure(argvFor(latest.cmd, parentPid));
@@ -275,6 +312,9 @@ export const createAwakeController = ({
       pendingArgs = null;
       cancelGrace();
       stop("never");
+      return;
+    }
+    if (tracked?.probe && !tracked.stopRequested) {
       return;
     }
     if (tracked && !tracked.stopRequested) {

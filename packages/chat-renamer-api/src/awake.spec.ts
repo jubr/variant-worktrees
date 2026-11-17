@@ -343,6 +343,118 @@ describe("createAwakeController", () => {
     expect(children).toHaveLength(1);
   });
 
+  describe("the startup probe", () => {
+    const keepAwake = "/usr/local/bin/keep-awake --pid ${extensionHostPid}";
+
+    it("tries awake.cmd on the first update with no session and logs it with reason probe", () => {
+      const { controller, children, entries } = harness();
+
+      controller.update(idle());
+
+      expect(children.map((child) => child.args)).toEqual([["/usr/bin/caffeinate", "-disu", "-w", "5151"]]);
+      expect(debugs(entries).at(-1)).toBe('[awake] + "/usr/bin/caffeinate -disu -w 5151" pid=4242 reason="probe"');
+    });
+
+    it("logs a failing probe as the next line after the availability line", () => {
+      const { controller, entries, breakProgram } = harness(true, "agentHost+poll");
+      breakProgram("/usr/local/bin/keep-awake");
+
+      controller.update(idle({ cmd: keepAwake }));
+
+      expect(entries.map((entry) => `${entry.level} ${entry.message}`).slice(0, 2)).toEqual([
+        'info [awake] caffeinate available method="agentHost+poll"',
+        'warn [awake] start failed command="/usr/local/bin/keep-awake --pid 5151" reason="spawn /usr/local/bin/keep-awake ENOENT"',
+      ]);
+    });
+
+    it("does not warn a second time when a session starts the same failing command", () => {
+      const { controller, entries, breakProgram } = harness();
+      breakProgram("/usr/local/bin/keep-awake");
+
+      controller.update(idle({ cmd: keepAwake }));
+      controller.update(active({ cmd: keepAwake }));
+
+      expect(entries.filter((entry) => entry.level === "warn")).toHaveLength(1);
+    });
+
+    it("kills the probe after 1 second when no session is active, and the idle delay never keeps it", () => {
+      const { controller, children, entries, advance } = harness();
+      controller.update(idle());
+
+      controller.update(idle());
+      expect(traces(entries).some((line) => line.includes("grace"))).toBe(false);
+      advance(999);
+      expect(children[0]?.signals).toEqual([]);
+      advance(1);
+
+      expect(children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
+      expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="probe"');
+      children[0]?.finish();
+      expect(entries.filter((entry) => entry.level === "warn")).toEqual([]);
+    });
+
+    it("lets a session that becomes active within the window keep the same process", () => {
+      const { controller, children, entries, advance } = harness();
+      controller.update(idle());
+
+      advance(500);
+      controller.update(active());
+      advance(10_000);
+
+      expect(children).toHaveLength(1);
+      expect(children[0]?.signals).toEqual([]);
+
+      controller.update(idle());
+      advance(60_000);
+      expect(children[0]?.signals).toEqual(["SIGTERM", "SIGKILL"]);
+      expect(debugs(entries).at(-1)).toBe('[awake] + "kill 4242" reason="idle"');
+    });
+
+    it("probes once: not again after it ended, nor for a command or when change", () => {
+      const { controller, children, advance } = harness();
+      controller.update(idle());
+      advance(1000);
+      children[0]?.finish();
+
+      controller.update(idle());
+      controller.update(idle({ cmd: keepAwake }));
+      controller.update(idle({ when: "never" }));
+      controller.update(idle());
+
+      expect(children).toHaveLength(1);
+    });
+
+    it("does not probe for never or a non-owner, and probes the first time awake.when is chatsActive", () => {
+      const { controller, children } = harness();
+
+      controller.update(idle({ when: "never" }));
+      controller.update(idle({ owned: false }));
+      expect(children).toHaveLength(0);
+
+      controller.update(idle());
+      expect(children).toHaveLength(1);
+    });
+
+    it("does not probe the default command without caffeinate, and probes a custom one", () => {
+      const { controller, children } = harness(false);
+
+      controller.update(idle());
+      expect(children).toHaveLength(0);
+
+      const custom = harness(false);
+      custom.controller.update(idle({ cmd: keepAwake }));
+      expect(custom.children.map((child) => child.args)).toEqual([["/usr/local/bin/keep-awake", "--pid", "5151"]]);
+    });
+
+    it("starts the process for activity at the first update with reason activity, not probe", () => {
+      const { controller, entries } = harness();
+
+      controller.update(active());
+
+      expect(debugs(entries).at(-1)).toContain('reason="activity"');
+    });
+  });
+
   describe("a start that fails", () => {
     const cmd = "/nonexistent/keep-awake --pid ${extensionHostPid}";
     const warns = (entries: Entry[]) => entries.filter((entry) => entry.level === "warn").map((entry) => entry.message);
