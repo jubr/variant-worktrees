@@ -113,7 +113,7 @@ describe("VARIANT_* environment variables", () => {
     "VARIANT_STEP_<NAME>",
   ];
 
-  for (const path of ["README.md", "docs/guide/configuration.md"]) {
+  for (const path of ["README.md", "docs/guide/runtime.md"]) {
     test(`${path} names every variable`, () => {
       const text = read(path);
       for (const variable of variables) {
