@@ -2,23 +2,23 @@
 
 ### Requirement: Repository variants.yaml runs the example
 
-The `variants.yaml` at the repository root SHALL list the `be` and `fe` apps of the example project as watches. Each
-watch SHALL receive its own variant port in `PORT` through `env.overrides` with the value `${port}`, and the `fe` watch
-SHALL receive the port of the `be` watch of the same variant in `VARIANT_API_PORT` with the value `${be.port}`. The
+The `variants.yaml` at the repository root SHALL be committed and SHALL list the `be` and `fe` apps of the example
+project as the watches `example-be` and `example-fe`. Each watch SHALL receive its own variant port in `PORT` through `env.overrides` with the value `${port}`, and `example-fe`
+SHALL receive the port of `example-be` of the same variant in `VARIANT_API_PORT` with the value `${example-be.port}`. The
 example `fe` app SHALL define the script `app:watch` and the example `be` app the script `server:watch`; each starts the
 app serving on `PORT` and rebuilding when its sources change, and neither app SHALL define the former names `dev` or
-`start:dev`. The `fe` watch command SHALL be `bun run app:watch` and the `be` watch command SHALL be `bun run server:watch`,
-in the root `variants.yaml` and in `example/variants.yaml`. The root file SHALL validate against the `variants.yaml` schema.
+`start:dev`. In the root `variants.yaml`, `example-fe` SHALL run `bun run app:watch` and `example-be` SHALL run `bun run server:watch`;
+the `fe` and `be` watches of `example/variants.yaml` SHALL run the same commands. The root file SHALL validate against the `variants.yaml` schema.
 
 #### Scenario: Ports per watch
 
 - **WHEN** the configuration is loaded from the repository root
-- **THEN** the watches `be` and `fe` both set `PORT` to `${port}`, and `fe` sets `VARIANT_API_PORT` to `${be.port}`
+- **THEN** the watches `example-be` and `example-fe` both set `PORT` to `${port}`, and `example-fe` sets `VARIANT_API_PORT` to `${example-be.port}`
 
 #### Scenario: Watch commands
 
 - **WHEN** the configuration is loaded from the repository root, and from `example/`
-- **THEN** in both the `fe` watch runs `bun run app:watch` and the `be` watch runs `bun run server:watch`
+- **THEN** the frontend watch (`example-fe`, or `fe` in `example/`) runs `bun run app:watch` and the backend watch (`example-be`, or `be`) runs `bun run server:watch`
 
 #### Scenario: Scripts renamed
 
@@ -28,4 +28,4 @@ in the root `variants.yaml` and in `example/variants.yaml`. The root file SHALL 
 #### Scenario: Two variants side by side
 
 - **WHEN** two variants of the repository run their watches at once
-- **THEN** each `fe` listens on the port of its own variant and proxies `/api` to the `be` of that variant
+- **THEN** each frontend watch listens on the port of its own variant and proxies `/api` to the backend watch of that variant
