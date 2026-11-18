@@ -8,7 +8,7 @@ A watch is one dev process or container of a variant: a Vite app, a NestJS serve
 
 `up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `.cache/variant/state.yaml`, then a free port of [`variant.ports.range`](./configuration#variant-ports)), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
 
-Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for attached or detached `watch`, `log`: the path of `.cache/variant/watch.log`). Each line in that file is prefixed `[name]`. `up` records no `log`. An old `variants.local.yaml` or `.cache/variants/<slug>.yaml` is read only when `state.yaml` is absent, and is not written again.
+Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for attached or detached `watch`, `log`: the path of `.cache/variant/watch.log`). Each line in that file is prefixed `[name]`. `up` records no `log`.
 
 Watches start in the listed order. Attached, the command waits for every `ready` path to return status 200 and opens the URL of each watch with a `url` template. The first probe writes `[watch] {name} URL try {url}` and the first 200 writes `[watch] {name} URL 200 {url}` once, to stderr and to the log.
 

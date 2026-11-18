@@ -242,12 +242,15 @@ describe("installation into an existing project", () => {
   });
 });
 
+const decodeEntities = (text: string): string =>
+  text.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
+
 /** Headings of a built page in document order, with level, anchor id and plain text. */
 const headingsOf = (html: string): { level: number; id: string; text: string }[] =>
   [...html.matchAll(/<h([1-6]) id="([^"]*)"[^>]*>([\s\S]*?)<a class="header-anchor"/g)].map((match) => ({
     level: Number(match[1]),
     id: match[2],
-    text: match[3].replace(/<[^>]+>/g, "").trim(),
+    text: decodeEntities(match[3].replace(/<[^>]+>/g, "")).trim(),
   }));
 
 describe("configuration page structure", () => {
@@ -421,5 +424,145 @@ describe("code does not use ligatures", () => {
     const code = [...html.matchAll(/<code[^>]*>([\s\S]*?)<\/code>/g)].map((match) => match[1]).join("");
     expect(code.length).toBeGreaterThan(0);
     expect(code).not.toMatch(/[\u200b\u200c\u200d\u2060\ufeff]|&ZeroWidthSpace;|&#8203;|&#x200b;/i);
+  });
+});
+
+type JsonSchema = { properties?: Record<string, JsonSchema>; additionalProperties?: JsonSchema | boolean };
+const yamlSchema = JSON.parse(readFileSync(join(root, "packages/variant-config/variants.yaml.schema.json"), "utf8")) as JsonSchema;
+// AIDEV-NOTE: a key chosen by the user is written with a placeholder in the heading, so the docs can name its options
+const PLACEHOLDERS: Record<string, string> = { watches: "<key>", steps: "<name>" };
+
+/** Every property path of the schema, parents before children, with `<key>` and `<name>` for user-chosen names. */
+const schemaPaths = (node: JsonSchema, prefix: string[] = []): string[] => {
+  const paths: string[] = [];
+  for (const [key, child] of Object.entries(node.properties ?? {})) {
+    const path = [...prefix, key];
+    paths.push(path.join("."), ...schemaPaths(child, path));
+  }
+  const extra = node.additionalProperties;
+  if (typeof extra === "object" && extra.properties) {
+    const placeholder = PLACEHOLDERS[prefix.at(-1) ?? ""];
+    if (!placeholder) {
+      throw new Error(`the schema has user-chosen keys below ${prefix.join(".")}; give them a placeholder`);
+    }
+    const path = [...prefix, placeholder];
+    paths.push(path.join("."), ...schemaPaths(extra, path));
+  }
+  return paths;
+};
+/** The paths below the top-level sections `db`, `variant` and `chatRenamer`. */
+const keyPaths = (section: string): string[] => schemaPaths(yamlSchema).filter((path) => path.startsWith(`${section}.`));
+
+/** The HTML of a heading and what follows it, up to the next heading of the same or a higher level. */
+const sectionOf = (html: string, id: string): string => {
+  const start = html.search(new RegExp(`<h[1-6] id="${id}"`));
+  expect(start, `heading #${id}`).toBeGreaterThanOrEqual(0);
+  const level = Number(html[start + 2]);
+  const rest = html.slice(start + 1);
+  const next = rest.search(new RegExp(`<h[1-${level}] id=`));
+  return next === -1 ? rest : rest.slice(0, next);
+};
+
+/** The internal links of an HTML fragment of a built page, resolved against that page, without `.html`. */
+const linksOf = (html: string, from: string): { path: string; hash: string }[] =>
+  [...html.matchAll(/href="([^"]+)"/g)]
+    .filter((match) => !/^[a-z][a-z0-9+.-]*:/i.test(match[1]))
+    .map((match) => {
+      const url = new URL(match[1], `https://docs.test/${from}`);
+      return { path: url.pathname.replace(/\.html$/, "").replace(/\/index$/, "/"), hash: url.hash.slice(1) };
+    });
+
+/** The text of the first cell of every body row of the tables in an HTML fragment. */
+const firstCells = (html: string): string[] =>
+  [...html.matchAll(/<tr>\s*<td[^>]*>([\s\S]*?)<\/td>/g)].map((match) =>
+    decodeEntities(match[1].replace(/<[^>]+>/g, "")).trim(),
+  );
+
+describe("configuration page, sub-keys and templates", () => {
+  const configuration = () => page("guide/configuration.html");
+  const headings = () => headingsOf(configuration());
+
+  test("every sub-key of variant has a third-level heading of its full path", () => {
+    const found = new Map(headings().map((heading) => [heading.text, heading.level]));
+    const missing = keyPaths("variant").filter((path) => found.get(path) !== 3);
+    expect(missing).toEqual([]);
+  });
+
+  test("every key of db and db.multi has a third-level heading of its full path, in a Database section", () => {
+    const found = new Map(headings().map((heading) => [heading.text, heading.level]));
+    expect(keyPaths("db").filter((path) => found.get(path) !== 3)).toEqual([]);
+    expect(headings().some((heading) => heading.level === 2 && heading.text === "Database")).toBe(true);
+    expect(headings().some((heading) => heading.level === 2 && heading.text === "db.multi")).toBe(false);
+  });
+
+  test("the headings of each section are in alphabetical order by full path", () => {
+    for (const section of ["variant.", "db."]) {
+      const names = headings()
+        .map((heading) => heading.text)
+        .filter((text) => text.startsWith(section));
+      expect(names, section).toEqual([...names].sort());
+    }
+  });
+
+  test("the sections are Options, then Database, then Templates, and Unknown keys and migration last", () => {
+    const sections = headings()
+      .filter((heading) => heading.level === 2)
+      .map((heading) => heading.text);
+    expect(sections.slice(0, 3)).toEqual(["Options", "Database", "Templates"]);
+    expect(sections.at(-1)).toBe("Unknown keys and migration");
+  });
+
+  test("the options end with a chatRenamer.* entry that links to the chat renamer configuration", () => {
+    const all = headings();
+    const database = all.findIndex((heading) => heading.text === "Database");
+    const last = all[database - 1];
+    expect(last?.text).toBe("chatRenamer.*");
+    const links = linksOf(sectionOf(configuration(), last.id), "guide/configuration.html");
+    expect(links.some((link) => link.path === "/chat-renamer/configuration")).toBe(true);
+  });
+
+  test("variant.steps links to the flow of steps in the Overview", () => {
+    const links = linksOf(sectionOf(configuration(), "variant-steps"), "guide/configuration.html");
+    expect(links).toContainEqual({ path: "/guide/overview", hash: "flow-of-steps" });
+  });
+
+  test("the templates are listed in a table", () => {
+    const html = sectionOf(configuration(), "templates");
+    const cells = firstCells(html);
+    const expected = [
+      "${slug}",
+      "${schema}",
+      "${storage}",
+      "${worktree}",
+      "${url}",
+      "${port}",
+      "${<watch>.port}",
+      "${abbr}",
+      "${multi.tenants}",
+      "${multi.schemaPrefix}",
+      "${NAME}",
+      "${NAME:-default}",
+      "$${",
+    ];
+    expect(expected.filter((item) => !cells.includes(item))).toEqual([]);
+  });
+});
+
+describe("no earlier configuration shapes in the docs", () => {
+  test("tracked docs name no earlier key, shape or state file", () => {
+    const patterns = [
+      /variant\.instances/,
+      /reservedPorts/,
+      /\{\{\.\.\.\}\}/,
+      /`run` key/,
+      /former shape/,
+      /variants\.local\.yaml/,
+      /\.cache\/variants\//,
+    ];
+    const hits = trackedDocs().flatMap((file) => {
+      const text = readFileSync(join(root, file), "utf8");
+      return patterns.filter((pattern) => pattern.test(text)).map((pattern) => `${file}: ${pattern}`);
+    });
+    expect(hits).toEqual([]);
   });
 });
