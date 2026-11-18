@@ -48,7 +48,7 @@ Every internal link in a built page of the documentation site (a link that is no
 
 ### Requirement: Configuration schema is documented
 
-Every property path of the `variants.yaml` JSON schema (`packages/variant-config/variants.yaml.schema.json`, which the `variant-config` and `chat-renamer-config` packages generate) SHALL have a heading of its own on the Configuration page or the Chat Renamer configuration page, named with the full path. A path through a user-chosen name SHALL be written with a placeholder: `<key>` for a watch and `<name>` for a step. The former per-variant state schema `variants.local.yaml.schema.json` is exempt.
+Every property path below the top-level sections `db`, `variant` and `chatRenamer` of the `variants.yaml` JSON schema (`packages/variant-config/variants.yaml.schema.json`, which the `variant-config` and `chat-renamer-config` packages generate) SHALL have a heading of its own on the Configuration page or the Chat Renamer configuration page, named with the full path. A path through a user-chosen name SHALL be written with a placeholder: `<key>` for a watch and `<name>` for a step. The former per-variant state schema `variants.local.yaml.schema.json` is exempt.
 
 #### Scenario: Every schema path has a heading
 
@@ -141,7 +141,7 @@ The documentation SHALL NOT name configuration keys or shapes of earlier version
 #### Scenario: Docs omit the earlier names
 
 - **WHEN** tracked files under `docs/` are searched
-- **THEN** none contain `variant.instances`, `variant.reservedPorts` or `reservedPorts`
+- **THEN** none contain `variant.instances`, `variant.reservedPorts`, `reservedPorts`, `variants.local.yaml` or `.cache/variants/`
 - **AND** none says that `{{...}}` templates, a list of `steps` or a `run` key without `cmd` still load
 
 ## MODIFIED Requirements
