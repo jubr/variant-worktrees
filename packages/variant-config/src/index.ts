@@ -492,9 +492,6 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   return resolved as ResolvedConfig;
 };
 
-export const seedCommandFor = (config: ResolvedConfig, slug: string): string | undefined =>
-  config.variants?.[slug]?.seed ?? config.variant.seed;
-
 export const runtimeCommandFor = (kind: "up" | "watch", watch: VariantWatch): string | undefined => watch[kind];
 
 /**
@@ -576,7 +573,6 @@ export type {
   ResolvedConfig,
   ResolvedRuntime,
   Runtime,
-  VariantEntry,
   VariantRuntime,
   VariantsConfig,
   VariantsLocal,

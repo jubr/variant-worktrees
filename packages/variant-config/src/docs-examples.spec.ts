@@ -9,7 +9,7 @@ import { parse as parseYaml } from "yaml";
 import { loadConfig } from "./index.js";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
-const TOP_LEVEL_KEYS = ["db", "variant", "variants", "chatRenamer"];
+const TOP_LEVEL_KEYS = ["db", "variant", "chatRenamer"];
 
 const markdownFiles = (directory: string): string[] =>
   readdirSync(directory).flatMap((name) => {

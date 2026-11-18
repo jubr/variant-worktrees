@@ -1,6 +1,8 @@
 # Building
 
-Build from a checkout of this repository. In your own project, install the CLI with mise or the extension instead: see [Installation](/guide/installation). The packages are not published on npm yet, so the TypeScript library and the MCP server are used from a checkout too.
+Build from a checkout of this repository.
+In your own project, install the CLI with mise or the extension instead: see [Installation](/guide/installation).
+The packages are not published on npm yet, so the TypeScript library and the MCP server are used from a checkout too.
 
 ## Requirements
 
@@ -16,7 +18,8 @@ mise x -- task bootstrap
 mise x -- task build
 ```
 
-`task bootstrap` trusts the checkout, installs the pinned tools, and installs workspace dependencies. `task build` builds the workspace: `chat-renamer-config`, `variant-config`, `variant-log`, `variant-ipc`, `variant-api`, `variant-server`, `variant-cli`, `chat-renamer-api`, `variant-mcp`, `variant-ui`, then the `chat-renamer` and `variant-vscode` extensions.
+`task bootstrap` trusts the checkout, installs the pinned tools, and installs workspace dependencies.
+`task build` builds the workspace: `chat-renamer-config`, `variant-config`, `variant-log`, `variant-ipc`, `variant-api`, `variant-server`, `variant-cli`, `chat-renamer-api`, `variant-mcp`, `variant-ui`, then the `chat-renamer` and `variant-vscode` extensions.
 
 ```bash
 mise x -- task lint
@@ -35,7 +38,10 @@ cd path/to/your/project
 bun link variant-api
 ```
 
-`variant-api` runs on Node.js 22.13 or newer and on Bun. It provides no `variant` command; the CLI does. SQLite variants use `node:sqlite` under Node and `bun:sqlite` under Bun. Examples are in [Library](/guide/library).
+`variant-api` runs on Node.js 22.13 or newer and on Bun.
+It provides no `variant` command; the CLI does.
+SQLite variants use `node:sqlite` under Node and `bun:sqlite` under Bun.
+Examples are in [Library](/guide/library).
 
 ## MCP server
 

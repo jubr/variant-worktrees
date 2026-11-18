@@ -363,23 +363,6 @@
       },
       "additionalProperties": false
     },
-    "variants": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string",
-        "minLength": 1
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "seed": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "additionalProperties": false
-      }
-    },
     "chatRenamer": {
       "type": "object",
       "properties": {

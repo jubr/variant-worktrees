@@ -48,6 +48,15 @@
   font-weight: 700;
 }
 
+/* Code shows what was typed: JetBrains Mono would draw >=, <=, => and != as one glyph (<STEP>=no reads as <STEP≥no) */
+code,
+kbd,
+samp,
+pre {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
 /* Code blocks */
 .vp-doc div[class*="language-"] {
   border-radius: 8px;

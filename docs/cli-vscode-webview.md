@@ -1,7 +1,6 @@
 # CLI and VS Code Webview Architecture
 
-CLI, MCP, and VS Code share one `CommandDefinition[]` registry from
-`variant-api/commands.ts`.
+CLI, MCP, and VS Code share one `CommandDefinition[]` registry from `variant-api/commands.ts`.
 
 ## Command definitions
 
@@ -22,16 +21,15 @@ export interface CommandDefinition {
 }
 ```
 
-Commands include `config`, `create`, `list`, `provision`, `up`, `down`,
-`watch`, and `implode`. Every command takes an optional boolean
-`verbose`; `watch` also takes `detach` and `implode` takes `force` and choice `branchRm` (`yes` or `no`, default `yes`). A command
-may set `mcpFixed` arguments (`watch` always passes `detach: true` to MCP). Adding
-a command updates CLI and MCP registration from the same source.
+Commands include `config`, `create`, `list`, `provision`, `up`, `down`, `watch`, and `implode`.
+Every command takes an optional boolean `verbose`; `watch` also takes `detach` and `implode` takes `force` and choice `branchRm` (`yes` or `no`, default `yes`).
+A command may set `mcpFixed` arguments (`watch` always passes `detach: true` to MCP).
+Adding a command updates CLI and MCP registration from the same source.
 
 ## CLI
 
-The CLI exposes each command. Slug commands accept positional
-`slug` and `-s`/`--slug`; the flag takes precedence over git detection.
+The CLI exposes each command.
+Slug commands accept positional `slug` and `-s`/`--slug`; the flag takes precedence over git detection.
 
 ```bash
 variant create -s preview-one
@@ -41,18 +39,15 @@ variant watch -s preview-one --detach
 variant implode preview-one --force
 ```
 
-An attached `variant watch` sets the process exit code from the result: 130
-after an interrupt, 1 when a watch ended or the worktree disappeared.
+An attached `variant watch` sets the process exit code from the result: 130 after an interrupt, 1 when a watch ended or the worktree disappeared.
 
 ## MCP
 
-The MCP server converts each argument definition into a Zod input schema and
-registers `variant_<command>` tools. Tool handlers call the same
-`CommandDefinition.execute` function as the CLI.
+The MCP server converts each argument definition into a Zod input schema and registers `variant_<command>` tools.
+Tool handlers call the same `CommandDefinition.execute` function as the CLI.
 
 ## VS Code
 
-The CLI and the MCP server execute `config`, `create`, `list`,
-`provision`, `up`, `down`, `watch`, and `implode` in `variant-api`. The extension does not. Requests
-that need the editor use `{name, args}` on the socket described in
-[Socket IPC](./guide/socket-ipc).
+The CLI and the MCP server execute `config`, `create`, `list`, `provision`, `up`, `down`, `watch`, and `implode` in `variant-api`.
+The extension does not.
+Requests that need the editor use `{name, args}` on the socket described in [Socket IPC](./guide/socket-ipc).

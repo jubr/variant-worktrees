@@ -176,19 +176,20 @@ When stdout is a terminal and `NO_COLOR` is unset, the text SHALL be colored in 
 
 ### Requirement: Seed command configuration
 
-The system SHALL allow `variants.yaml` to define a seed command per variant (`variants.<slug>.seed`) or for all variants (`variant.seed`). A former top-level `seed` key SHALL be ignored with a warning, like any unknown key.
+The system SHALL allow `variants.yaml` to define a seed command for all variants (`variant.seed`). A former top-level `seed` key and a top-level `variants` key SHALL be ignored with a warning, like any unknown key.
 
 #### Scenario: Global seed command
 - **WHEN** `variants.yaml` has `variant.seed: "bun run db:seed"`
 - **THEN** `variant provision` executes that command with variant environment
 
-#### Scenario: Per-variant seed override
-- **WHEN** config has `variants.main.seed = "echo skip"` and `variant.seed = "bun run db:seed"`
-- **THEN** provisioning slug `main` runs `echo skip`
-
 #### Scenario: Former top-level seed
 - **WHEN** `variants.yaml` has a top-level `seed` key
 - **THEN** loading succeeds, the key is ignored and one warning names it
+
+#### Scenario: Per-variant seed override
+- **WHEN** `variants.yaml` has `variant.seed: "bun run db:seed"` and a top-level `variants` key with `main.seed: "echo skip"`
+- **THEN** loading succeeds and one warning names the `variants` key
+- **AND** provisioning slug `main` runs `bun run db:seed`
 
 ### Requirement: Runtime watch discovery
 

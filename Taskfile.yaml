@@ -178,6 +178,12 @@ tasks:
   docs:preview:
     desc: "Preview the built VitePress site"
     cmds: ["bun run docs:preview"]
+  docs:sentences:
+    desc: "Put each sentence of the docs prose on its own line (short ones may share a line below 100 characters)"
+    cmds: ["bun scripts/docs-sentences.ts --write"]
+  docs:readme-links:
+    desc: "Rewrite repository-relative links of the READMEs to absolute GitHub links, and list any that stay relative"
+    cmds: ["bun scripts/readme-links.ts --write"]
 
   commitlint:
     desc: "Conventional Commits range lint origin/main..HEAD (mise npm:@commitlint/cli)"

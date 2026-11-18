@@ -1,6 +1,8 @@
 # Library
 
-`variant-api` manages variants from TypeScript, on Node.js 22.13 or newer and on Bun. Each method is the command of the same name: see [Core](./core). Install it from a checkout: [Development](/development/building).
+`variant-api` manages variants from TypeScript, on Node.js 22.13 or newer and on Bun.
+Each method is the command of the same name: see [Core](./core).
+Install it from a checkout: [Development](/development/building).
 
 ## Quick start
 
@@ -70,29 +72,18 @@ console.log(attached.exitCode); // 130 after an interrupt, 1 when a watch ended
 
 ## Configuration
 
-The same `variants.yaml` serves the CLI, the library and the editor; every option is in [Configuration](./configuration), and what watches do at run time is in [Runtime](./runtime).
+The same `variants.yaml` serves the CLI, the library and the editor.
+The options a caller meets first:
 
-```yaml
-db:
-  dialect: postgres
-  host: 127.0.0.1
-  port: 5432
-  database: variants
-variant:
-  seed: bun run db:seed
-  watches:
-    fe:
-      kind: vite
-      dir: fe
-      watch: bun run dev
-      url: http://${slug}.vw.localhost:${port}
-    be:
-      kind: nestjs
-      dir: be
-      up: bun run db:migrate
-      watch: bun run start:dev
-```
+- [`variant.watches`](./configuration#variant-watches): what `watch` and `up` start
+- [`variant.steps`](./configuration#variant-steps) and [`variant.seed`](./configuration#variant-seed): what `provision` and `seed` run
+- [`variant.mise`](./configuration#variant-mise): how Mise provides the environment
+- [`variant.baseBranch`](./configuration#variant-basebranch): where a new variant branch starts
+- [Database](./configuration#database-options): [`db.dialect`](./configuration#db-dialect), host, port and the rest of the connection
+
+Every option is in [Configuration](./configuration#variant-options), and what watches do at run time is in [Runtime](./runtime).
 
 ## Elsewhere
 
-The same operations are tools of the [MCP Server](/mcp), and the [Extension](./extension) runs them from the editor. Every export is in the [API Reference](/api/).
+The same operations are tools of the [MCP Server](/mcp), and the [Extension](./extension) runs them from the editor.
+Every export is in the [API Reference](/api/).

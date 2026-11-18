@@ -73,7 +73,7 @@ describe("documentation", () => {
   test("the core guide has a section for every command", () => {
     const core = read("docs/guide/core.md");
     for (const name of names) {
-      expect(core).toContain(`\n## ${name}\n`);
+      expect(core).toContain(`\n### ${name}\n`);
     }
   });
 
