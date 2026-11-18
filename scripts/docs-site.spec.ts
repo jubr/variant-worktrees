@@ -392,3 +392,34 @@ describe("remote personal-site attribution", () => {
     expect(html).not.toContain("zach-footer-logo");
   });
 });
+
+/** The declarations of every rule of a stylesheet whose selector list contains `selector`, lowercased and without spaces. */
+const declarationsFor = (css: string, selector: string): string[] =>
+  [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter((match) => match[1].split(",").some((candidate) => candidate.trim() === selector))
+    .map((match) => match[2].replace(/\s+/g, ""));
+
+describe("code does not use ligatures", () => {
+  const css = () => linkedStylesheet(page("guide/installation.html"), "guide/installation.html");
+
+  for (const selector of ["code", "pre"]) {
+    test(`the stylesheet turns ligatures and contextual alternates off for ${selector}`, () => {
+      const rules = declarationsFor(css(), selector);
+      expect(
+        rules.some((rule) => rule.includes("font-variant-ligatures:none")),
+        `${selector}: ${rules.join(" | ")}`,
+      ).toBe(true);
+      expect(rules.some((rule) => /"liga"(0|off)/.test(rule) && /"calt"(0|off)/.test(rule))).toBe(true);
+    });
+  }
+
+  test("inline code keeps the typed characters", () => {
+    const html = page("guide/overview.html");
+    expect(html).toContain("VARIANT_STEP_&lt;STEP&gt;=no");
+    expect(textOf(html)).toContain("VARIANT_STEP_<STEP>=no");
+    // AIDEV-NOTE: the page has invisible characters elsewhere (heading anchors), so only code is checked: a zero-width character would be copied with a command
+    const code = [...html.matchAll(/<code[^>]*>([\s\S]*?)<\/code>/g)].map((match) => match[1]).join("");
+    expect(code.length).toBeGreaterThan(0);
+    expect(code).not.toMatch(/[\u200b\u200c\u200d\u2060\ufeff]|&ZeroWidthSpace;|&#8203;|&#x200b;/i);
+  });
+});
