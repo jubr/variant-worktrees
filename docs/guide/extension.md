@@ -4,8 +4,7 @@ The **Variant Worktrees** extension brings variants into VS Code and Cursor: a v
 It is tested with Cursor and needs VS Code 1.101 or a host with Node.js 22.13 or newer.
 How to install it is in [Installation](./installation#vs-code-and-cursor-extension).
 
-The extension runs the lifecycle in-process, the same code as the CLI: `list`, `watch`, `down` and `implode` from its views do not go through a socket.
-What does need the editor, such as the CLI sending its log lines to the extension's output channel, goes over the [Socket IPC](./socket-ipc) the extension hosts.
+The extension runs the lifecycle in-process, the same code as the CLI.
 
 ## Onboarding
 
@@ -15,7 +14,7 @@ A one-time notification points at that section too.
 **Variant: Initialize in this Repo** (and **Onboard**) shows a dialog in place of the variants tree:
 
 - three checkboxes: write `variants.yaml` with autodetected values, add `<prefix>*` to `.gitignore`, and augment `mise.toml` with the CLI.
-  In a workspace that already has a `variants.yaml` the first one is off;
+In a workspace that already has a `variants.yaml` the first one is off;
 - a collapsed **Advanced** disclosure with the **Prefix** field (default `_v-`);
 - **Cancel** and **Initialize**.
 
