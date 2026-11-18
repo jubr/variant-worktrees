@@ -381,23 +381,23 @@ The database user. Autodetected from `POSTGRES_USER`, `MYSQL_USER` or `MARIADB_U
 
 Every string setting is templated, `db` included, with one syntax.
 Values are expanded in two passes: first the variant placeholders, then the environment forms (`${NAME}` and `${NAME:-default}`).
-The example values assume slug `demo`, abbreviation `vw`, a watch `be` on port 3001 and a watch on port 5173.
+The example values assume slug `demo`, abbreviation `vw`, a watch `be` on port 3001 and a watch on port 4200.
 
-| Item | Meaning | Example use | Example value |
-| --- | --- | --- | --- |
-| `${slug}` | the slug of the variant | `v_${slug}-` | `v_demo-` |
-| `${schema}` | the database schema, or the SQLite file |  | `v_demo` |
-| `${storage}` | the storage directory of the variant, see [`variant.storage.dir`](#variant-storage-dir) |  | `/home/me/vw/_v-demo/.storage` |
-| `${worktree}` | the directory of the worktree | `${worktree}/server/.env` | `/home/me/vw/_v-demo/server/.env` |
-| `${url}` | the URL of the watch |  | `http://demo.vw.localhost:5173` |
-| `${port}` | the port of the watch | `http://${slug}.${abbr}.localhost:${port}` | `http://demo.vw.localhost:5173` |
-| `${<watch>.port}` | the port of another watch, by its key | `${be.port}` | `3001` |
-| `${abbr}` | the project abbreviation, see [`variant.abbr`](#variant-abbr); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}` | `http://${slug}.${abbr}.localhost:${port}` | `http://demo.vw.localhost:5173` |
-| `${multi.tenants}` | the tenant list of [`db.multi`](#db-multi) joined by commas; empty without [`db.multi`](#db-multi). It runs `tenantsCmd` the first time a step expands it |  | `east,west` |
-| `${multi.schemaPrefix}` | [`db.multi.schemaPrefix`](#db-multi-schemaprefix) with `${slug}` filled in; empty without [`db.multi`](#db-multi). It does not run `tenantsCmd` |  | `v_demo-` |
-| `${NAME}` | the environment (Mise, then the process); fails when unset | `${POSTGRES_PORT}` | `5432` |
-| `${NAME:-default}` | the same, falling back to `default`. The placeholders of the first pass work inside a default | `${JWT_SECRET:-variant-local-${slug}}` | `variant-local-demo` |
-| `$${` | a literal `${`, for a shell command that expands its own variable | `echo $${HOME}` | `echo ${HOME}` |
+| Item                    | Meaning                                                                                                                                                   | Example use                                | Example value                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------- |
+| `${slug}`               | the slug of the variant                                                                                                                                   | `v_${slug}-`                               | `v_demo-`                         |
+| `${schema}`             | the database schema, or the SQLite file                                                                                                                   |                                            | `v_demo`                          |
+| `${storage}`            | the storage directory of the variant, see [`variant.storage.dir`](#variant-storage-dir)                                                                   |                                            | `/home/me/vw/_v-demo/.storage`    |
+| `${worktree}`           | the directory of the worktree                                                                                                                             | `${worktree}/server/.env`                  | `/home/me/vw/_v-demo/server/.env` |
+| `${url}`                | the URL of the watch                                                                                                                                      |                                            | `http://demo.vw.localhost:4200`   |
+| `${port}`               | the port of the watch                                                                                                                                     | `http://${slug}.${abbr}.localhost:${port}` | `4200`                            |
+| `${<watch>.port}`       | the port of another watch, by its key                                                                                                                     | `${be.port}`                               | `3001`                            |
+| `${abbr}`               | the project abbreviation, see [`variant.abbr`](#variant-abbr); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}`   | `http://${slug}.${abbr}.localhost:${port}` | `http://demo.vw.localhost:4200`   |
+| `${multi.tenants}`      | the tenant list of [`db.multi`](#db-multi) joined by commas; empty without [`db.multi`](#db-multi). It runs `tenantsCmd` the first time a step expands it |                                            | `east,west`                       |
+| `${multi.schemaPrefix}` | [`db.multi.schemaPrefix`](#db-multi-schemaprefix) with `${slug}` filled in; empty without [`db.multi`](#db-multi). It does not run `tenantsCmd`           |                                            | `v_demo-`                         |
+| `${NAME}`               | the environment (Mise, then the process); fails when unset                                                                                                | `${POSTGRES_PORT}`                         | `5432`                            |
+| `${NAME:-default}`      | the same, falling back to `default`. The placeholders of the first pass work inside a default                                                             | `${JWT_SECRET:-variant-local-${slug}}`     | `variant-local-demo`              |
+| `$${`                   | a literal `${`, for a shell command that expands its own variable                                                                                         | `echo $${HOME}`                            | `echo ${HOME}`                    |
 
 A `db` setting has no variant, so a variant placeholder there is an error; [`db.port`](#db-port) may be `${POSTGRES_PORT}`.
 `variant init` writes secrets as `${NAME}` references.
