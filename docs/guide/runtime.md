@@ -6,25 +6,33 @@ A watch is one dev process or container of a variant: a Vite app, a NestJS serve
 
 ## Starting
 
-`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `.cache/variant/state.yaml`, then a free port of [`variant.ports.range`](./configuration#variant-ports)), prepare the database target and provision. `up` recreates the target; `watch` keeps it. Neither touches the target of `main`.
+`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `.cache/variant/state.yaml`, then a free port of [`variant.ports.range`](./configuration#variant-ports)), prepare the database target and provision. Neither touches the target of `main`.
 
-Only one runtime exists per slug: `watch` removes the containers of the variant, `up` stops its recorded processes. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for attached or detached `watch`, `log`: the path of `.cache/variant/watch.log`). Each line in that file is prefixed `[name]`. `up` records no `log`.
+Only one runtime exists per slug. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for attached or detached `watch`, `log`: the path of `.cache/variant/watch.log`). Each line in that file is prefixed `[name]`.
 
 Watches start in the listed order. Attached, the command waits for every `ready` path to return status 200 and opens the URL of each watch with a `url` template. The first probe writes `[watch] {name} URL try {url}` and the first 200 writes `[watch] {name} URL 200 {url}` once, to stderr and to the log.
 
 Every command runs after a `+ <command>` line on standard error: the install, `up`, step and seed commands, and the container engine calls of `up`, `down` and the stop before `watch`. The values of the `-e NAME=value` arguments of the engine are printed as `***`. A skipped step prints no command line.
 
-## Interactive keys
+## Watching
+
+How an attached or detached [`watch`](./core#watch) behaves once its processes run. `watch` removes the containers of the variant before it starts them, and it keeps the database target.
+
+### Interactive keys
 
 On a terminal, once every ready watch has returned 200, stderr gains `[watch] Interactive:   1 restart   2 detach   3 quit   (press number + ⏎)`. The numbers are bold cyan, the words are yellow, and the parenthetical is dark gray. `1` restarts the processes, `2` leaves them running and returns, and `3` sends Ctrl+C to every watch and waits. A second Ctrl+C at least 1 second later sends SIGTERM and returns. Any other line is written to each watch's stdin. Ctrl+C before `3` stops the processes. The line stays off the log, and off a pipe.
 
-## Reattaching
+### Reattaching
 
 A second `watch` while those processes are still running leaves them running and prints `[watch] # already running: reattached, showing last 50 lines`, the last 50 log lines, the URL 200 lines, and the command line. Without `--detach` it then follows new log lines, accepts `1`, `2`, and `3`, and writes any other line to the watches' stdin. An interrupt exits 130 and leaves the processes running. `--detach` returns after that report.
 
-## Exit status
+### Exit status
 
 An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one watch ends or the worktree disappears, and 0 only when detached. The CLI sets the process exit code from it.
+
+## Up
+
+[`up`](./core#up) runs the watches as containers, see [`container`](./configuration#variant-watches-key-container). It recreates the database target, where `watch` keeps it, and it stops the processes recorded for the slug, where `watch` removes the containers. It records no `log` in `runtime.yaml`.
 
 ## Environment through Mise
 

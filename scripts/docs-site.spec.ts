@@ -566,3 +566,26 @@ describe("no earlier configuration shapes in the docs", () => {
     expect(hits).toEqual([]);
   });
 });
+
+describe("runtime page, watching and up", () => {
+  const headings = () => headingsOf(page("guide/runtime.html")).filter((heading) => heading.level <= 3);
+
+  test("Watching holds the interactive keys, reattaching and exit status", () => {
+    const all = headings();
+    const watching = all.findIndex((heading) => heading.text === "Watching");
+    expect(all[watching]?.level).toBe(2);
+    expect(all.slice(watching + 1, watching + 4).map((heading) => [heading.level, heading.text])).toEqual([
+      [3, "Interactive keys"],
+      [3, "Reattaching"],
+      [3, "Exit status"],
+    ]);
+  });
+
+  test("Up is a section of its own after Watching and before the environment", () => {
+    const texts = headings()
+      .filter((heading) => heading.level === 2)
+      .map((heading) => heading.text);
+    expect(texts.indexOf("Up")).toBe(texts.indexOf("Watching") + 1);
+    expect(texts.indexOf("Environment through Mise")).toBe(texts.indexOf("Up") + 1);
+  });
+});
