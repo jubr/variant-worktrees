@@ -14,7 +14,10 @@ import { commandMessage } from "./command-message.js";
 import { echoCommand, type ProgressLog } from "./echo.js";
 import { LogLevel, log } from "./log.js";
 import { levelForDirectory } from "./log-directory.js";
+import { miseBinaryFor } from "./mise.js";
+import { warnWhenBunDiffers } from "./mise-bun.js";
 import type { OperationContext } from "./operations/types.js";
+import { logToStderr } from "./ready.js";
 import { commandEnvironment, expandEnv, expandSetting, type VariantRun } from "./run-context.js";
 
 export interface ProvisionOptions {
@@ -119,6 +122,13 @@ export const runProvisioning = async (
     output += result.output;
   };
 
+  // AIDEV-NOTE: One check per pipeline, which `provision`, `up` and `watch` all run, before the first host command.
+  warnWhenBunDiffers({
+    directory: run.projectDir,
+    binary: miseBinaryFor(config, context.miseBinPath),
+    env: commandEnvironment(config, run, undefined),
+    log: options.log ?? logToStderr,
+  });
   if (run.storage) {
     mkdirSync(run.storage, { recursive: true });
   }
