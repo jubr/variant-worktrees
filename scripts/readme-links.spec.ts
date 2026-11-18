@@ -88,6 +88,13 @@ describe("the READMEs", () => {
     expect(hits).toEqual([]);
   });
 
+  test("none tells you to install with npm, npx or bun add: Mise is the way", () => {
+    const hits = files.flatMap(({ file, text }) =>
+      /npm (install|i)\b|\bnpx\b|bun add/.test(text) ? [file] : [],
+    );
+    expect(hits).toEqual([]);
+  });
+
   test("each opens with a link to the documentation site", () => {
     for (const { file, text } of files) {
       const first = linksOf(text).find((link) => link.url.startsWith(SITE));

@@ -52,28 +52,22 @@ After `cd`, the slug comes from the branch, so `watch` and `implode` need no `-s
 mise use github:jubr/variant-worktrees
 ```
 
-The VS Code extension (Variant Worktrees) is published to the Visual Studio Marketplace and Open VSX. The `variant` CLI (`variant-cli`), the `variant-mcp` server and the `variant-api` library install from npm. All run on Node.js 22.13 or newer and on Bun:
+That is all the CLI needs. Releases ship the `variant` CLI as a single-file executable for Linux, macOS, and Windows, and Mise installs the one for your platform.
 
-```bash
-npm install -g variant-cli
-npm install -g variant-mcp
-npm install variant-api
-```
-
-`variant-api` is the library only and provides no `variant` command; `variant-cli` provides it. Releases also ship the `variant` CLI as a single-file executable for Linux, macOS, and Windows.
+The VS Code extension (Variant Worktrees) is published to the Visual Studio Marketplace and Open VSX. The [installation guide](https://jubr.github.io/variant-worktrees/guide/installation) has the full steps for both.
 
 To try it on a working project, use [`example/`](https://github.com/jubr/variant-worktrees/tree/main/example) (Vite, NestJS, and SQLite). Seed, ports, and containers are in [`example/README.md`](https://github.com/jubr/variant-worktrees/blob/main/example/README.md).
 
 ```bash
 cd example
-variant config
+variant config # see what it finds
 variant create demo
 variant watch demo --detach
 ```
 
 ## Configuration
 
-Create `variants.yaml` at workspace root:
+An example `variants.yaml` at workspace main checkout:
 
 ```yaml
 variant:
@@ -84,10 +78,11 @@ variant:
       dir: fe
       watch: bun run dev
       url: http://${slug}.vw.localhost:${port}
+      env:
+        overrides: { PORT: '${port}' }
     be:
       kind: nestjs
       dir: be
-      up: bun run db:migrate
       watch: bun run start:dev
       env:
         sourceFile: .env # copied for a variant
@@ -105,7 +100,7 @@ Every string setting, `db` included, takes `${NAME}` (an environment variable, a
 
 ### Bootstrap with `variant init`
 
-`variant init` writes a `variants.yaml` that holds every value autodetection finds (the database, `variant.abbr`, `variant.prefix` and one watch per Vite or NestJS app, plus a watch for a package with a `watch` script), adds `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration. The other accepted values of a setting follow `#` on the same line. A password or a connection URL with credentials is never written: it becomes a reference such as `password: ${POSTGRES_PASSWORD} # from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are written as `${NAME}` the same way, and `database` is the detected name. `variant.main` and `variant.root` are not written; `variant config` still prints both resolved paths.
+`variant init` writes a `variants.yaml` that holds every value that `variant config` autodetection finds (the database, `variant.abbr`, `variant.prefix` and one watch per Vite or NestJS app, plus a watch for a package with a `watch` script), adds `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration. The other accepted values of a setting follow `#` on the same line. A password or a connection URL with credentials is never written: it becomes a reference such as `password: ${POSTGRES_PASSWORD} # from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are written as `${NAME}` the same way, and `database` is the detected name.
 
 ```bash
 variant init                        # all three steps, prefix _v-
@@ -118,7 +113,7 @@ It refuses to run when a `variants.yaml` exists (unless `--file=false` or `--for
 
 When the working directory is inside a variant worktree that contains `variants.yaml` or `variants.yml`, that file is the configuration. An ancestor file and an `AGENTS.md` symlink into the primary checkout do not replace it, and explicit watches in it run as written. A worktree with neither file keeps the usual ancestor walk.
 
-Watches take an optional `url` template (`${slug}`, `${abbr}`, `${port}`; autodetected Vite watches get `http://${slug}.${abbr}.localhost:${port}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. A watch may set `ready` to a path that starts with `/`. Operational state of a variant lives in `<variant>/.cache/variant/state.yaml` (`slug`, `createdAt`, `dir`, `dialect`, `target`, and when known `mode`, `log` and `watches`) and the detection dump in `<variant>/.cache/variant/runtime.yaml`. `.cache/` is git-ignored. A write that would not change the text is skipped. `${port}` is the recorded watch port, otherwise a free port of `variant.ports.range`. `up` and `watch` write the cache files; `list`, `status` and `down` read `state.yaml`.
+Watches take an optional `url` template (`${slug}`, `${abbr}`, `${port}`; autodetected Vite watches get `http://${slug}.${abbr}.localhost:${port}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A watch may set `ready` to a path that starts with `/`. Operational state of a variant lives in `<variant>/.cache/variant/state.yaml` (`slug`, `createdAt`, `dir`, `dialect`, `target`, and when known `mode`, `log` and `watches`) and the detection dump in `<variant>/.cache/variant/runtime.yaml`. `.cache/` is git-ignored. A write that would not change the text is skipped. `${port}` is the recorded watch port, otherwise a free port of `variant.ports.range`. `up` and `watch` write the cache files; `list`, `status` and `down` read `state.yaml`.
 
 `variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. A free port of a watch or of the UI server comes from `variant.ports.range` (default `42000-42999`; an explicit `VARIANT_<KEY>_PORT` may lie anywhere). The watch key `variant-ui` is reserved for the UI server, and so is `ui`: `VARIANT_UI_PORT` (or `variant.ui.port`) sets the server's port.
 
@@ -206,7 +201,7 @@ flags in `variant --help` and `variant <command> --help`.
 | `--help`, `-h` | Show help |
 | `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
 
-Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`. When the event has a step, that word follows the bracket. A shell command is the message `+"<command>"`. `+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug. A lifecycle command adds one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, the step is cyan, and the message stays the default color. Otherwise those same characters have no color. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level. The CLI also sends each log event to the editor on the project Unix socket, except steps `ipc` and `cli`, which stay on standard error. The connection starts at the first event. Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line. CLI end is one `[debug] cli end` line. Those two stay `debug` even when the working directory is under `/tmp`. A write waits at most one second. An event with no slug carries `-s` when that flag was given, and otherwise the autodetected slug of the working directory. Standard error does not print that slug. A missing editor does not change the command result. On the Variant Worktrees channel a CLI line ends with ` @cli` and an MCP line ends with ` @mcp`. A library event for a variant whose project directory is under `/tmp` is emitted at `trace`.
+Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`. When the event has a step, that word follows the bracket. A shell command is the message `+"<command>"`. `+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug. A lifecycle command adds one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, the step is cyan, and the message stays the default color. Otherwise those same characters have no color. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level. The CLI also sends each log event to the editor on the project Unix socket, except steps `ipc` and `cli`, which stay on standard error. The connection starts at the first event. Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line. CLI end is one `[debug] cli end` line. Those two stay `debug` even when the working directory is under `/tmp`. A write waits at most one second. An event with no slug carries `-s` when that flag was given, and otherwise the autodetected slug of the working directory. Standard error does not print that slug. A missing editor does not change the command result. On the Variant Worktrees channel a CLI line ends with  `@cli` and an MCP line ends with  `@mcp`. A library event for a variant whose project directory is under `/tmp` is emitted at `trace`.
 
 When PostgreSQL or MySQL cannot be contacted, `list` and `status` of a known variant still print the variants recorded in state files and worktrees, and one `[warn]` line names the database and host. `create` and other changes fail with that sentence, run no SQL, and `create` does not add a worktree. A missing SQLite file is not this case. The editor trees keep their rows, list `Database unreachable` first, and show one warning per outage.
 
@@ -265,27 +260,27 @@ detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/var
 ## Packages
 
 - [`variant-config`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-config) — `variants.yaml` schema and
-  mise/environment autodetection.
+mise/environment autodetection.
 - [`variant-log`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-log) — shared log events and the process
-  sink.
+sink.
 - [`variant-ipc`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-ipc) — Unix socket for editor requests.
 - [`variant-api`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-api) — lifecycle library for Node.js and
-  Bun.
+Bun.
 - [`variant-cli`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-cli) — the `variant` command.
 - [`variant-mcp`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-mcp) — MCP tools for variant lifecycle
-  operations.
+operations.
 - [`variant-ui`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-ui) — the variants React app for the editor
-  webview and the browser.
+webview and the browser.
 - [`variant-server`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-server) — the local web server behind
-  `variant ui`; bundled into `variant-cli` and its executables, not a program of its own.
+`variant ui`; bundled into `variant-cli` and its executables, not a program of its own.
 - [`variant-vscode`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-vscode) — VS Code extension package.
-  Embeds chat renamer.
+Embeds chat renamer.
 - [`chat-renamer-api`](https://github.com/jubr/variant-worktrees/tree/main/packages/chat-renamer-api) — parse a Cursor chat rename
-  request.
+request.
 - [`chat-renamer-config`](https://github.com/jubr/variant-worktrees/tree/main/packages/chat-renamer-config) — schema for the
-  `chatRenamer` section of `variants.yaml`.
+`chatRenamer` section of `variants.yaml`.
 - [`chat-renamer`](https://github.com/jubr/variant-worktrees/tree/main/packages/chat-renamer-vscode) — Cursor extension that
-  renames a chat from its first prompt.
+renames a chat from its first prompt.
 
 ## Contributing
 
