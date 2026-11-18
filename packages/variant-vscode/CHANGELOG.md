@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Fixed
+
+- The Initialize Variant panel shows its icon in the installed extension. The vsix did not contain `media/icon-128.png`.
+
 ## [0.0.10] - 2026-11-17
 
 ### Changed
