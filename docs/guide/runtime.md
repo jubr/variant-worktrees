@@ -32,6 +32,10 @@ The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over
 
 The executable is the first of: the editor setting `variant.mise.binPath`, the key [`variant.mise.binPath`](./configuration#variant-mise) of `variants.yaml` (relative to that file), `mise` on `PATH`, then `/opt/homebrew/bin/mise`, `/usr/local/bin/mise`, `/usr/bin/mise`, `/home/linuxbrew/.linuxbrew/bin/mise`, `~/.local/bin/mise`, `~/.local/share/mise/bin/mise` and `~/.cargo/bin/mise`. A configured path that is not an executable file is an error that names where it came from. In the editor, a Mise failure shows one notification per directory and kind of failure; for an untrusted configuration it has a **Trust** button that runs `mise -C <dir> trust --all` and repeats the action.
 
+### Bun on `PATH`
+
+Mise does not set `PATH` for the commands Variant runs, so they find the `bun` of the process that started `variant`. When another install is listed before the Mise directories (a user-level Bun, a package-manager shim), your steps and watches run a Bun other than the one `mise.toml` pins. Before the first host command of `provision`, `up` and `watch`, Variant compares `bun --version` of the first `bun` on `PATH` with the version `mise ls --current --json bun` reports for the project directory. When they differ, it logs one warning that names both versions and paths and the directory to move behind the Mise ones. Nothing is changed or stopped. There is no warning without a Mise executable, when Mise pins no Bun, when no `bun` is on `PATH`, or when the versions are equal (a symlink or a second install of the pinned version is fine).
+
 ## Environment variables
 
 Every command also sees the variables below. Some are only set for commands, some are also read from the environment as overrides.

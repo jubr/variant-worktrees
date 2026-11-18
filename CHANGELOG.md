@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `provision`, `up` and `watch` log one warning when the first `bun` on the command `PATH` is another version than the one Mise pins for the project, naming both versions and paths. Nothing is changed or stopped. See [Bun on PATH](docs/guide/runtime.md#bun-on-path).
+
+### Fixed
+
+- `${worktree}` always expands to an absolute, normalized path, however the worktree was spelled to the run. This keeps a setting such as `SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'` on one file.
+
 ## [0.0.10] - 2026-11-17
 
 ### Changed
