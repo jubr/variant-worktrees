@@ -261,6 +261,12 @@ export interface InitResult {
     file: string | null;
     message: string;
   };
+  /** The `bun` on `PATH` against the Bun that Mise pins. `hint` says how to fix a difference and is otherwise empty. */
+  bun: {
+    status: "matches" | "differs" | "unchecked";
+    message: string;
+    hint: string[];
+  };
   /** What autodetection found and the file holds, without any secret; null when the file step was off. */
   detected: {
     dialect: "postgres" | "mysql" | "sqlite";
