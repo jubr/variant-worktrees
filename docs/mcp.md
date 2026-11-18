@@ -71,7 +71,7 @@ Every tool is the command of the same name in [Core](/guide/core), run in-proces
 
 ### `variant_status`
 
-[`variant status`](/guide/core#status): the facts of `variant_list` plus a `runtime` object with the runtime state: mode, directory, database settings with the password hidden, and per watch the port, pid, URL, liveness and uptime. An unknown slug is an error. With `db.multi` set it carries `schemas`.
+[`variant status`](/guide/core#status): the facts of `variant_list` plus a `runtime` object with the runtime state: mode, directory, database settings with the password hidden, and per watch the port, pid, URL, liveness and uptime. An unknown slug is an error. With [`db.multi`](./guide/configuration#db-multi) set it carries `schemas`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |

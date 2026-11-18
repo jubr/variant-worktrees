@@ -8,7 +8,7 @@ The socket belongs to the [Extension](./extension); install it as described in [
 
 The extension's own views, the Variants view and the panel, call `variant-api` in-process inside the extension host
 for `list`, `watch`, `down` and `implode`. Those calls do not use the socket, and a socket request with one of the
-lifecycle names above still fails.
+lifecycle names above still fails. What each of those commands does is in [Core](./core), and what a watch does at run time is in [Runtime](./runtime#watching).
 
 Requests that need the editor are the socket traffic. Each request line is one
 JSON object, `{"name":"<command>","args":{...}}`. The success response line is

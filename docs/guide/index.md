@@ -48,7 +48,7 @@ mise use github:jubr/variant-worktrees
 
 In VS Code or Cursor, the [Extension](./extension) lists your variants and watches them with one click, and it registers the [MCP Server](/mcp) so your agents can drive variants themselves.
 
-What `watch` runs, which ports it picks, and which database it uses live in `variants.yaml`. Watches, templates, and every option are in [Configuration](./configuration). Database settings load from `mise.local.toml`, then environment variables.
+What `watch` runs is set by [`variant.watches`](./configuration#variant-watches), which ports it picks by [`variant.ports`](./configuration#variant-ports), and which database it uses by the [Database](./configuration#database) settings, all in `variants.yaml`. The [Overview](./overview#flow-of-steps) shows how the steps follow each other, and [Configuration](./configuration#templates) lists the templates. Database settings load from `mise.local.toml`, then environment variables.
 
 ## Requirements
 

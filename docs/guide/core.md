@@ -4,15 +4,15 @@ These are the `variant` commands, provided by the `variant-cli` package (see [In
 
 Commands print text for people. [Global flags](#global-flags) switch to JSON or YAML.
 
-What `provision`, `up`, and `watch` actually run is set in [Configuration](./configuration).
+What `provision`, `up`, and `watch` actually run is set by [`variant.steps`](./configuration#variant-steps) and [`variant.watches`](./configuration#variant-watches). The [Overview](./overview#flow-of-steps) shows how the steps follow each other.
 
 ## init
 
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
-- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), `variant.abbr`, `variant.prefix`, and one watch per Vite or NestJS app and per package with a `watch` script. Other accepted values of a setting follow `#` on the same line. Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name. `variant.main` and `variant.root` are omitted.
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script. Other accepted values of a setting follow `#` on the same line. Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name. [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
 - `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
-- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none. Nothing is installed. A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and `variant.mise.binPath`). A failing Mise step stops no other step.
+- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none. Nothing is installed. A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)). A failing Mise step stops no other step.
 
 ```bash
 variant init
@@ -24,7 +24,7 @@ variant init --force
 
 ## config
 
-Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment. The printed object includes the resolved `variant.main` and `variant.root` even though `init` does not write them, and it includes built-in defaults and discovered watches. Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not. `db.port` may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
+Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment. The printed object includes the resolved [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) even though `init` does not write them, and it includes built-in defaults and discovered watches. Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not. [`db.port`](./configuration#db-port) may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
 
 The text is YAML. A comment names where a value came from, on that key. A child with the same origin is not commented again. A child from somewhere else is commented on its own line. The file path is relative to the working directory and uses `/`: `./variants.yaml` when the file is there, `../variants.yaml` when it is a parent.
 
@@ -46,9 +46,9 @@ variant config
 
 Create the git worktree and the state for a slug. This does not create a database schema or file; that is `provision`. Creating the same variant again is safe. If PostgreSQL or MySQL cannot be contacted, `create` fails with the contact warning and does not create the worktree.
 
-`--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there. Omit it and the branch starts at `variant.baseBranch`. An existing worktree for the slug, or a branch that already uses any configured prefix, is checked out as it is; `--from` does not move it. `implode` still requires a merge into `variant.baseBranch`. `provision`, `up`, and `watch` take the same flag, because each of them creates the worktree when it is missing.
+`--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there. Omit it and the branch starts at [`variant.baseBranch`](./configuration#variant-basebranch). An existing worktree for the slug, or a branch that already uses any configured prefix, is checked out as it is; `--from` does not move it. `implode` still requires a merge into [`variant.baseBranch`](./configuration#variant-basebranch). `provision`, `up`, and `watch` take the same flag, because each of them creates the worktree when it is missing.
 
-`--pull-ff` has no short flag. Before a new variant branch is created it fast-forwards the start branch: `from` when that names a local branch, otherwise `variant.baseBranch`. It does not pull the new branch. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error prints the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network. `provision`, `up`, and `watch` take the same flag.
+`--pull-ff` has no short flag. Before a new variant branch is created it fast-forwards the start branch: `from` when that names a local branch, otherwise [`variant.baseBranch`](./configuration#variant-basebranch). It does not pull the new branch. A tag, a commit, a remote-tracking name, or `HEAD` is used as given, with no fetch. A dry-run that predicts a conflict, divergence, a missing upstream, or another error leaves that checkout un-pulled. When the update fails after a clean dry-run, the checkout is restored and the error prints the command to run again. Omit the flag and nothing is fetched. An existing worktree, an existing prefixed branch, and slug `main` skip the network. `provision`, `up`, and `watch` take the same flag.
 
 `--mise-install` has no short flag. The values are `bg`, `sync`, and `no`. Omit it on `create` and the value is `bg` on the library, the CLI, and MCP. Omit it on `provision` and `watch` and the value is `sync`. The install runs only when the worktree has a Mise config (`mise.toml`, `.mise.toml`, `.config/mise/config.toml`, `mise/config.toml`, or `.tool-versions`). `up` does not take it. There is no `variants.yaml` key. The run is `mise -C <worktree> trust --all`, then `mise install` in that worktree. `bg` returns immediately and replaces `{worktree}/.cache/variant/mise-install.log` with that run. `sync` waits and fails the command when Mise fails; the worktree stays. Slug `main` and a create that makes no worktree skip it.
 
@@ -61,7 +61,7 @@ variant create -s feature-forty-two --mise-install=sync
 
 ## list
 
-List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of `.cache/variant/watch.log` while `watch` is running, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log. A variant with `db.multi` is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record. Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment. PostgreSQL schemas named `v_<slug>-<tenant>` group the same way when `db.multi` is absent: hyphens in the slug are stored as underscores, and the tenant is the text after the last hyphen, so `v_fix_entra_vbu_login-de99` and its siblings are one row, `fix-entra-vbu-login`.
+List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`. `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of `.cache/variant/watch.log` while `watch` is running, and `dir` is relative to the variant root. A `-` marks what a variant does not have: a variant started with `up` has no uptime or log. A variant with [`db.multi`](./configuration#db-multi) is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record. Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment. PostgreSQL schemas named `v_<slug>-<tenant>` group the same way when [`db.multi`](./configuration#db-multi) is absent: hyphens in the slug are stored as underscores, and the tenant is the text after the last hyphen, so `v_fix_entra_vbu_login-de99` and its siblings are one row, `fix-entra-vbu-login`.
 
 ```bash
 variant list
@@ -88,7 +88,9 @@ variant status -s feature-forty-two --json
 
 ## provision
 
-Create the schema, or every schema of `db.multi`, and run the configured install, env file, `up`, step, and seed commands. A step named `provision` replaces the builtin schema creation and runs once. This prepares the variant without leaving a supervised `watch` in the foreground.
+Create the schema `v_<slug>`, or every schema of [`db.multi`](./configuration#db-multi) in one pass, and run the configured install, env file, `up`, step, and seed commands. This implies `create`, and it prepares the variant without leaving a supervised `watch` in the foreground.
+
+A step named `provision` in [`variant.steps`](./configuration#variant-steps) replaces the builtin schema creation and runs once, and the builtin creates nothing. That script creates the schemas and any extra role that uses them, and it handles every value of the [`db.multi`](./configuration#db-multi) list itself. The [flow of steps](./overview#flow-of-steps) shows where `provision` sits.
 
 ```bash
 variant provision -s feature-forty-two
@@ -118,7 +120,7 @@ variant down -s feature-forty-two
 
 ## watch
 
-Run the watches as supervised host processes. This removes the variant's containers first, so `up` and `watch` do not both run.
+Run the watches as supervised host processes. This implies `seed`, so the worktree, the schemas and the seed exist before the processes start. It removes the variant's containers first, so `up` and `watch` do not both run.
 
 ```bash
 variant watch -s feature-forty-two
@@ -135,7 +137,7 @@ Inside a variant worktree that has its own `variants.yaml`, `watch` runs the com
 
 ## deprovision
 
-Stop the watches, then drop the schema `v_<slug>`. With `db.multi`, drop every schema under the expanded `schemaPrefix`. A step named `deprovision` replaces that drop and runs once. `VARIANT_STEP_DEPROVISION=no` skips the step and does not fall back to the builtin drop. The worktree, the storage directory and the state stay. It refuses `main`.
+Stop the watches, then drop the schema `v_<slug>`. With [`db.multi`](./configuration#db-multi), drop every schema under [`db.multi.schemaPrefix`](./configuration#db-multi-schemaprefix), including one whose value has left the list. A step named `deprovision` in [`variant.steps`](./configuration#variant-steps) replaces that drop and runs once; the builtin drops nothing. The script removes the schemas and anything else, such as a role, and it handles every tenant itself. `VARIANT_STEP_DEPROVISION=no` skips the step and does not fall back to the builtin drop. The worktree, the storage directory and the state stay. It refuses `main`.
 
 ```bash
 variant deprovision -s feature-forty-two
@@ -143,7 +145,7 @@ variant deprovision -s feature-forty-two
 
 ## implode
 
-Stop the variant, drop its schemas and storage, clear its state, remove its worktree, and then remove its local branch. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into `variant.baseBranch` unless `--force` is set. `--branch-rm=yes|no` chooses the branch step. The default is `yes`. `--branch-rm=no` keeps the branch. `true` and `false` are rejected. With `--log-level=debug`, stderr names the branch and whether it was removed or kept. The default log threshold hides that line. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed.
+Stop the variant, drop its schemas and storage, clear its state, remove its worktree, and then remove its local branch. This implies `deprovision`. It refuses `main`, and it refuses work that is not merged into [`variant.baseBranch`](./configuration#variant-basebranch) unless `--force` is set. `--branch-rm=yes|no` chooses the branch step. The default is `yes`. `--branch-rm=no` keeps the branch. `true` and `false` are rejected. With `--log-level=debug`, stderr names the branch and whether it was removed or kept. The default log threshold hides that line. The report it prints colors added diff hunks green and removed diff hunks red; command traces stay yellow, and git's own color stays off. A worktree directory that is already gone does not block the drop: the schemas still go, and a later `implode` of the same slug succeeds. The drop uses the real schema names of that row, including `v_<slug>-<tenant>` leftovers. `.cache/variant/state.yaml` and `runtime.yaml` are removed.
 
 ```bash
 variant implode -s feature-forty-two
@@ -161,9 +163,9 @@ variant ui --detach
 variant ui --stop
 ```
 
-The port is `VARIANT_UI_PORT`, else `variant.ui.port` from `variants.yaml`, else a free port picked the way a watch's is (from `variant.ports.range`), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
+The port is `VARIANT_UI_PORT`, else [`variant.ui.port`](./configuration#variant-ui-port) from `variants.yaml`, else a free port picked the way a watch's is (from [`variant.ports.range`](./configuration#variant-ports-range)), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`. Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL. `--stop` ends the server of the project and exits 0 when there is none.
 
-There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): `variant.watches` must not define either.
+There is one server per project. While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced. The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it. `watch`, `up` and `down` of `main` leave that entry alone. The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): [`variant.watches`](./configuration#variant-watches) must not define either.
 
 The server is part of `variant`, not a program of its own: the `variant-cli` package and every compiled executable carry it together with the app, so `variant ui` works from the `variant` you run, with nothing installed next to it.
 

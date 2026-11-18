@@ -3,7 +3,7 @@
  */
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import docsConfig from "../docs/.vitepress/config.ts";
 
@@ -651,5 +651,230 @@ describe("chat renamer configuration page and schema coverage", () => {
     );
     const missing = ["db", "variant", "chatRenamer"].flatMap(keyPaths).filter((path) => !documented.has(path));
     expect(missing).toEqual([]);
+  });
+});
+
+const builtPages = (): string[] =>
+  (readdirSync(dist, { recursive: true }) as string[]).filter((file) => file.endsWith(".html")).sort();
+
+type BuiltLink = { from: string; href: string; file: string; hash: string };
+
+/** Every internal anchor of every built page, resolved to the file it names: `from` is the page that holds it. */
+const internalLinks = (): BuiltLink[] =>
+  builtPages().flatMap((from) =>
+    [...page(from).matchAll(/<a\b[^>]*?\shref="([^"]*)"/g)]
+      .map((match) => decodeEntities(match[1]))
+      .filter((href) => !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(href))
+      .map((href) => {
+        const url = new URL(href, `https://docs.test/${from}`);
+        const path = decodeURIComponent(url.pathname.slice(1));
+        const file = path.endsWith("/") || path === "" ? `${path}index.html` : /\.[a-z0-9]+$/i.test(path) ? path : `${path}.html`;
+        return { from, href, file, hash: decodeURIComponent(url.hash.slice(1)) };
+      }),
+  );
+
+describe("internal links resolve", () => {
+  const links = () => internalLinks();
+
+  test("every internal href of every built page names a file of the build", () => {
+    const dead = links()
+      .filter((link) => !existsSync(join(dist, link.file)))
+      .map((link) => `${link.from}: ${link.href}`);
+    expect(dead).toEqual([]);
+  });
+
+  test("the check sees the navigation, the sidebar and the generated API reference", () => {
+    const all = links();
+    const nav = page("guide/installation.html");
+    const navStart = nav.indexOf("VPNavBarMenu menu");
+    expect(navStart).toBeGreaterThan(-1);
+    const fromNav = all.filter((link) => link.from === "guide/installation.html");
+    expect(fromNav.some((link) => nav.slice(navStart, nav.indexOf("VPNavBarAppearance")).includes(`href="${link.href}"`))).toBe(true);
+    const sidebar = nav.slice(nav.indexOf('class="VPSidebar'), nav.indexOf('class="VPContent'));
+    expect(sidebar).toContain("href=");
+    expect(fromNav.some((link) => sidebar.includes(`href="${link.href}"`))).toBe(true);
+    expect(fromNav.some((link) => link.file === "guide/core.html")).toBe(true);
+    expect(all.filter((link) => link.from === "api/index.html").length).toBeGreaterThan(0);
+  });
+
+  test("every fragment of an internal link is an id of the page it names", () => {
+    const ids = new Map<string, Set<string>>();
+    const idsOf = (file: string): Set<string> => {
+      let found = ids.get(file);
+      if (!found) {
+        found = new Set([...page(file).matchAll(/\s(?:id|name)="([^"]*)"/g)].map((match) => match[1]));
+        ids.set(file, found);
+      }
+      return found;
+    };
+    const dead = links()
+      .filter((link) => link.hash !== "" && existsSync(join(dist, link.file)) && link.file.endsWith(".html"))
+      .filter((link) => !idsOf(link.file).has(link.hash))
+      .map((link) => `${link.from}: ${link.href}`);
+    expect([...new Set(dead)]).toEqual([]);
+  });
+});
+
+/** The document body of a built page, without the sidebar, navigation and footer. */
+const bodyOf = (html: string): string => {
+  const start = html.indexOf('class="vp-doc');
+  const end = html.indexOf("VPDocFooter", start);
+  return html.slice(start, end === -1 ? undefined : end);
+};
+const wordsIn = (html: string): number =>
+  decodeEntities(html.replace(/<[^>]+>/g, " "))
+    .split(/\s+/)
+    .filter(Boolean).length;
+const GUIDE = "guide/";
+
+describe("pages link into the heading that explains the topic", () => {
+  const linksFrom = (path: string, html = bodyOf(page(path))) => linksOf(html, path);
+  const has = (links: { path: string; hash: string }[], path: string, hash?: string) =>
+    links.some((link) => link.path === path && (hash === undefined || link.hash === hash));
+
+  test("Getting Started links to the flow of steps, and Configuration's variant.steps section does too", () => {
+    expect(has(linksFrom(`${GUIDE}index.html`), "/guide/overview", "flow-of-steps")).toBe(true);
+    const section = sectionOf(page("guide/configuration.html"), "variant-steps");
+    expect(has(linksOf(section, "guide/configuration.html"), "/guide/overview", "flow-of-steps")).toBe(true);
+  });
+
+  test("Core links to Configuration headings, never to the top of the page", () => {
+    const toConfiguration = linksFrom(`${GUIDE}core.html`).filter((link) => link.path === "/guide/configuration");
+    expect(toConfiguration.length).toBeGreaterThan(0);
+    expect(toConfiguration.filter((link) => link.hash === "")).toEqual([]);
+  });
+
+  test("the Extension page links to Watching and Socket IPC links to Runtime", () => {
+    expect(has(linksFrom(`${GUIDE}extension.html`), "/guide/runtime", "watching")).toBe(true);
+    expect(has(linksFrom(`${GUIDE}socket-ipc.html`), "/guide/runtime")).toBe(true);
+  });
+});
+
+describe("configuration keys are links", () => {
+  const targets = (): Map<string, string> => {
+    const found = new Map<string, string>();
+    for (const [file, prefix] of [
+      ["guide/configuration.html", "/guide/configuration"],
+      ["chat-renamer/configuration.html", "/chat-renamer/configuration"],
+    ] as const) {
+      for (const heading of headingsOf(page(file))) {
+        if (/^(db|variant|chatRenamer)\.\S+$/.test(heading.text)) found.set(heading.text, `${prefix}#${heading.id}`);
+      }
+    }
+    return found;
+  };
+
+  /** The inline code of a built page body outside headings and fenced code: text, and the link it sits in. */
+  const mentions = (path: string): { text: string; href: string | undefined }[] => {
+    const html = bodyOf(page(path))
+      .replace(/<pre[\s\S]*?<\/pre>/g, "")
+      .replace(/<h[1-6][\s\S]*?<\/h[1-6]>/g, "");
+    return [...html.matchAll(/<code[^>]*>([\s\S]*?)<\/code>/g)].map((match) => {
+      const before = html.slice(0, match.index);
+      const anchor = /<a\b[^>]*?\shref="([^"]*)"[^>]*>\s*$/.exec(before);
+      const closes = html.slice(match.index + match[0].length).startsWith("</a>");
+      const href = anchor && closes ? new URL(decodeEntities(anchor[1]), `https://docs.test/${path}`) : undefined;
+      return {
+        text: decodeEntities(match[1].replace(/<[^>]+>/g, "")).trim(),
+        href: href ? `${href.pathname.replace(/\.html$/, "")}${href.hash}` : undefined,
+      };
+    });
+  };
+
+  const docPages = () => builtPages().filter((file) => !file.startsWith("api/") && file !== "404.html");
+
+  test("each mention of a key with a heading is the content of a link to that heading", () => {
+    const keys = targets();
+    expect(keys.size).toBeGreaterThan(40);
+    const unlinked: string[] = [];
+    for (const file of docPages()) {
+      for (const mention of mentions(file)) {
+        const target = keys.get(mention.text);
+        if (target && mention.href !== target) unlinked.push(`${file}: ${mention.text} (${mention.href ?? "no link"})`);
+      }
+    }
+    expect(unlinked).toEqual([]);
+  });
+
+  test("Overview, Runtime, Core, Library and Extension each have a linked mention", () => {
+    const keys = targets();
+    for (const file of ["overview", "runtime", "core", "library", "extension"].map((name) => `${GUIDE}${name}.html`)) {
+      expect(
+        mentions(file).filter((mention) => keys.has(mention.text) && mention.href === keys.get(mention.text)).length,
+        file,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  test("the Chat Renamer overview links chatRenamer.trigger to the Chat Renamer configuration", () => {
+    const trigger = mentions("chat-renamer/index.html").filter((mention) => mention.text === "chatRenamer.trigger");
+    expect(trigger.length).toBeGreaterThan(0);
+    expect(trigger.every((mention) => mention.href === "/chat-renamer/configuration#chatrenamer-trigger")).toBe(true);
+  });
+});
+
+describe("overview steps are short and link to commands", () => {
+  const overview = () => page("guide/overview.html");
+
+  for (const command of ["create", "provision", "watch", "down", "deprovision", "implode"]) {
+    test(`the ${command} step is a short explanation that ends with a link to its Core section`, () => {
+      const section = sectionOf(overview(), command);
+      expect(section, "no list, table or fenced code").not.toMatch(/<(ul|ol|table|pre)\b|class="language-/);
+      const paragraphs = [...section.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1]);
+      const last = paragraphs.at(-1) ?? "";
+      expect(decodeEntities(last.replace(/<[^>]+>/g, ""))).toBe(`More details at ${command}.`);
+      expect(linksOf(last, "guide/overview.html")).toEqual([{ path: "/guide/core", hash: command }]);
+      const explanation = paragraphs.slice(0, -1).join(" ");
+      expect(wordsIn(explanation)).toBeLessThanOrEqual(60);
+      expect(wordsIn(explanation)).toBeGreaterThan(0);
+      expect(decodeEntities(explanation.replace(/<[^>]+>/g, ""))).not.toMatch(/(^|\s)--?[a-z]/);
+    });
+  }
+
+  test("the seed step keeps its explanation and example, links its keys and has no Core link", () => {
+    const section = sectionOf(overview(), "seed");
+    expect(section).toContain("language-yaml");
+    expect(section).not.toContain("More details at");
+    const links = linksOf(section, "guide/overview.html").map((link) => `${link.path}#${link.hash}`);
+    expect(links).toContain("/guide/configuration#variant-steps");
+    expect(links).toContain("/guide/configuration#variant-seed");
+  });
+
+  test("Custom Steps and Custom multi-tenancy steps keep their examples; the second links db.multi", () => {
+    expect(sectionOf(overview(), "custom-steps")).toContain("language-yaml");
+    const multi = sectionOf(overview(), "custom-multi-tenancy-steps");
+    expect(multi).toContain("language-yaml");
+    const links = linksOf(multi, "guide/overview.html").map((link) => `${link.path}#${link.hash}`);
+    expect(links).toContain("/guide/configuration#db-multi");
+    expect(links).toContain("/guide/configuration#db-multi-schemaprefix");
+  });
+
+  test("Core carries what the Overview dropped", () => {
+    const core = page("guide/core.html");
+    for (const command of ["provision", "deprovision"]) {
+      const links = linksOf(sectionOf(core, command), "guide/core.html").map((link) => `${link.path}#${link.hash}`);
+      expect(links, command).toContain("/guide/configuration#variant-steps");
+      expect(links, command).toContain("/guide/configuration#db-multi");
+    }
+    expect(decodeEntities(sectionOf(core, "watch").replace(/<[^>]+>/g, ""))).toContain("--reprovision");
+  });
+});
+
+describe("library page links into Core and Configuration", () => {
+  const library = () => page("guide/library.html");
+
+  test("shows createVariantClient code and links to Core", () => {
+    expect(bodyOf(library())).toContain("createVariantClient");
+    expect(bodyOf(library())).toContain("language-");
+    expect(linksOf(bodyOf(library()), "guide/library.html").some((link) => link.path === "/guide/core")).toBe(true);
+  });
+
+  test("its Configuration section is deep links and has no code block", () => {
+    const section = sectionOf(library(), "configuration");
+    expect(section).not.toMatch(/<pre\b|class="language-/);
+    const links = linksOf(section, "guide/library.html").map((link) => `${link.path}#${link.hash}`);
+    for (const target of ["variant-watches", "variant-seed", "variant-mise"]) {
+      expect(links).toContain(`/guide/configuration#${target}`);
+    }
   });
 });

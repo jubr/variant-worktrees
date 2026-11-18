@@ -39,11 +39,11 @@ Each row shows a state icon (a hollow dot when down, a filled green dot when wat
 | Create variant | sits left of Sort; creates a variant |
 | Sort | `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)` or `Changed (new→old)`; the setting is `variant.sort` |
 
-A failed watch, down or implode shows that error in a notification and in the extension log. The context menu shows the watch output (`.cache/variant/watch.log`), opens the URL, the panel and the web page. What a watch does while it starts is in [Runtime](./runtime).
+A failed watch, down or implode shows that error in a notification and in the extension log. The context menu shows the watch output (`.cache/variant/watch.log`), opens the URL, the panel and the web page. What a watch does while it starts is in [Runtime](./runtime#starting), and the keys, reattaching and exit status of an attached watch are under [Watching](./runtime#watching).
 
 ## Environment and Mise
 
-The environment comes from Mise. When Mise fails, a notification names the directory and Mise's message, and for an untrusted configuration offers **Trust**, which runs `mise -C <dir> trust --all` and repeats the action. The setting `variant.mise.binPath` names the Mise executable when it is not on the `PATH` of the editor; a change applies without a reload. The lookup order is in [Runtime](./runtime#environment-through-mise), and the matching key of `variants.yaml` is [`variant.mise`](./configuration#variant-mise).
+The environment comes from Mise. When Mise fails, a notification names the directory and Mise's message, and for an untrusted configuration offers **Trust**, which runs `mise -C <dir> trust --all` and repeats the action. The setting [`variant.mise.binPath`](./configuration#variant-mise-binpath) names the Mise executable when it is not on the `PATH` of the editor; a change applies without a reload. The lookup order is in [Runtime](./runtime#environment-through-mise), and the matching key of `variants.yaml` is [`variant.mise`](./configuration#variant-mise).
 
 ## MCP server
 

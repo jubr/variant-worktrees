@@ -6,7 +6,7 @@ A watch is one dev process or container of a variant: a Vite app, a NestJS serve
 
 ## Starting
 
-`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `.cache/variant/state.yaml`, then a free port of [`variant.ports.range`](./configuration#variant-ports)), prepare the database target and provision. Neither touches the target of `main`.
+`up` and `watch` prepare a variant the same way: ensure the worktree, assign a port to every watch (`VARIANT_<KEY>_PORT`, then `.cache/variant/state.yaml`, then a free port of [`variant.ports.range`](./configuration#variant-ports-range)), prepare the database target and provision. Neither touches the target of `main`.
 
 Only one runtime exists per slug. After starting, the commands write `<variant>/.cache/variant/state.yaml` and `runtime.yaml` (`slug`, `mode`, `dir`, `db`, the `watches` with port, pid and URL and, for attached or detached `watch`, `log`: the path of `.cache/variant/watch.log`). Each line in that file is prefixed `[name]`.
 
@@ -38,7 +38,7 @@ An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one w
 
 The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over the process environment (a value from Mise wins). It is read once per loaded configuration, and only when a database setting or a `${NAME}` reference is first needed, so a command that needs neither (such as `variant list` of a configuration with an explicit `db.dialect: sqlite`) starts no Mise process. Mise files are not parsed. A Mise that fails stops the command with its message; without any Mise executable the process environment is used alone.
 
-The executable is the first of: the editor setting `variant.mise.binPath`, the key [`variant.mise.binPath`](./configuration#variant-mise) of `variants.yaml` (relative to that file), `mise` on `PATH`, then `/opt/homebrew/bin/mise`, `/usr/local/bin/mise`, `/usr/bin/mise`, `/home/linuxbrew/.linuxbrew/bin/mise`, `~/.local/bin/mise`, `~/.local/share/mise/bin/mise` and `~/.cargo/bin/mise`. A configured path that is not an executable file is an error that names where it came from. In the editor, a Mise failure shows one notification per directory and kind of failure; for an untrusted configuration it has a **Trust** button that runs `mise -C <dir> trust --all` and repeats the action.
+The executable is the first of: the editor setting [`variant.mise.binPath`](./configuration#variant-mise-binpath), the key [`variant.mise.binPath`](./configuration#variant-mise-binpath) of `variants.yaml` (relative to that file), `mise` on `PATH`, then `/opt/homebrew/bin/mise`, `/usr/local/bin/mise`, `/usr/bin/mise`, `/home/linuxbrew/.linuxbrew/bin/mise`, `~/.local/bin/mise`, `~/.local/share/mise/bin/mise` and `~/.cargo/bin/mise`. A configured path that is not an executable file is an error that names where it came from. In the editor, a Mise failure shows one notification per directory and kind of failure; for an untrusted configuration it has a **Trust** button that runs `mise -C <dir> trust --all` and repeats the action.
 
 ## Environment variables
 
@@ -56,7 +56,7 @@ Every command also sees the variables below. Some are only set for commands, som
 | `VARIANT_MIGRATE` | read as an override | the rewrite of configuration files that use names of an earlier version; `0` turns it off |
 | `VARIANT_ENV_SOURCE` | read as an override | `env.sourceFile`: the file a watch's env file is copied from, instead of the primary worktree's |
 | `VARIANT_STEP_<NAME>` | read as an override | the `name` of a step in [`variant.steps`](./configuration#variant-steps); `no` skips the step |
-| `VARIANT_UI_PORT` | read as an override | [`variant.ui.port`](./configuration#variant-ui): the port of the `variant ui` server |
+| `VARIANT_UI_PORT` | read as an override | [`variant.ui.port`](./configuration#variant-ui-port): the port of the `variant ui` server |
 
 `<KEY>` is the key of a watch and `<NAME>` the `name` of a step, with letters uppercased and every other character replaced by `_`: `VARIANT_BE_PORT` for `be`, `VARIANT_STEP_DEMO_USER=no` for `demo-user`. A variable that is set for commands is part of the environment of the install, `up`, step and seed commands and of containers (which receive the variables only, see `container`); an override is read from the environment of the `variant` process.
 

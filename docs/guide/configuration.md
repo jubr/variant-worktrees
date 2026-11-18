@@ -56,7 +56,7 @@ Where Mise is found. The only option is [`variant.mise.binPath`](#variant-mise-b
 
 ### `variant.mise.binPath`
 
-The Mise executable, when `mise` is not on `PATH`; the editor setting `variant.mise.binPath` wins. The full lookup order is in [Runtime](./runtime#environment-through-mise).
+The Mise executable, when `mise` is not on `PATH`; the editor setting [`variant.mise.binPath`](#variant-mise-binpath) wins. The full lookup order is in [Runtime](./runtime#environment-through-mise).
 
 ### `variant.open`
 
@@ -76,7 +76,7 @@ Starts every name derived from a slug, such as worktree directories (default `_v
 
 ### `variant.root`
 
-Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into [`variant.main`](#variant-main) (so `variant watch foo` creates `<parent>/_v-foo`), otherwise `variant.main` itself (`./_v-foo`). A worktree directory inside `variant.main` gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created.
+Directory that holds the worktrees, relative to `variants.yaml`. Default: the directory that holds a parent `AGENTS.md` symlink pointing into [`variant.main`](#variant-main) (so `variant watch foo` creates `<parent>/_v-foo`), otherwise [`variant.main`](#variant-main) itself (`./_v-foo`). A worktree directory inside [`variant.main`](#variant-main) gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created.
 
 ### `variant.seed`
 
@@ -152,7 +152,7 @@ The port of the `variant ui` server. `VARIANT_UI_PORT` wins; absent: a free port
 
 ### `variant.watches`
 
-The watches of the project, keyed by watch name. Watches start in the listed order. List a container that another one reaches by name first: an nginx in a Dockerfile resolves the name of its proxy target when it starts. Without `variant.watches`, applications are detected: see [When watches are omitted](./runtime#when-watches-are-omitted).
+The watches of the project, keyed by watch name. Watches start in the listed order. List a container that another one reaches by name first: an nginx in a Dockerfile resolves the name of its proxy target when it starts. Without [`variant.watches`](#variant-watches), applications are detected: see [When watches are omitted](./runtime#when-watches-are-omitted).
 
 ```yaml
 variant:
@@ -257,7 +257,7 @@ The host of the database server. Required unless [`db.url`](#db-url) is set or t
 
 ### `db.multi`
 
-One PostgreSQL schema per tenant. Exactly one of [`db.multi.tenants`](#db-multi-tenants) and [`db.multi.tenantsCmd`](#db-multi-tenantscmd). The reported target stays `v_<slug>`. A step passes the list and the prefix through its `env` as `${multi.tenants}` and `${multi.schemaPrefix}`. `db.multi` on `mysql` or `sqlite` is refused. The runtime copy of `db` omits `multi`.
+One PostgreSQL schema per tenant. Exactly one of [`db.multi.tenants`](#db-multi-tenants) and [`db.multi.tenantsCmd`](#db-multi-tenantscmd). The reported target stays `v_<slug>`. A step passes the list and the prefix through its `env` as `${multi.tenants}` and `${multi.schemaPrefix}`. [`db.multi`](#db-multi) on `mysql` or `sqlite` is refused. The runtime copy of `db` omits `multi`.
 
 ```yaml
 db:
@@ -319,8 +319,8 @@ Every string setting is templated, `db` included, with one syntax. Values are ex
 | `${port}` | 1 | the port of the watch | `http://${slug}.${abbr}.localhost:${port}` |
 | `${<watch>.port}` | 1 | the port of another watch, by its key | `${be.port}` |
 | `${abbr}` | 1 | the project abbreviation, see [`variant.abbr`](#variant-abbr); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}` | |
-| `${multi.tenants}` | 1 | the tenant list of [`db.multi`](#db-multi) joined by commas; empty without `db.multi`. It runs `tenantsCmd` the first time a step expands it | |
-| `${multi.schemaPrefix}` | 1 | [`db.multi.schemaPrefix`](#db-multi-schemaprefix) with `${slug}` filled in; empty without `db.multi`. It does not run `tenantsCmd` | |
+| `${multi.tenants}` | 1 | the tenant list of [`db.multi`](#db-multi) joined by commas; empty without [`db.multi`](#db-multi). It runs `tenantsCmd` the first time a step expands it | |
+| `${multi.schemaPrefix}` | 1 | [`db.multi.schemaPrefix`](#db-multi-schemaprefix) with `${slug}` filled in; empty without [`db.multi`](#db-multi). It does not run `tenantsCmd` | |
 | `${NAME}` | 2 | the environment (Mise, then the process); fails when unset | `${POSTGRES_PORT}` |
 | `${NAME:-default}` | 2 | the same, falling back to `default`. The placeholders of the first pass work inside a default | `${JWT_SECRET:-variant-local-${slug}}` |
 | `$${` | | a literal `${`, for a shell command that expands its own variable | `echo $${HOME}` |
