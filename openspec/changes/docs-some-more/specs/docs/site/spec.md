@@ -48,11 +48,11 @@ Every internal link in a built page of the documentation site (a link that is no
 
 ### Requirement: Configuration schema is documented
 
-Every property path of the `variants.yaml` JSON schema (`packages/variant-config/variants.yaml.schema.json`, which the `variant-config` and `chat-renamer-config` packages generate) SHALL have a heading of its own on the Configuration page or the Chat Renamer configuration page, named with the full path. A path through a user-chosen name SHALL be written with a placeholder: `<key>` for a watch, `<name>` for a step and `<slug>` for a variant. The former per-variant state schema `variants.local.yaml.schema.json` is exempt.
+Every property path of the `variants.yaml` JSON schema (`packages/variant-config/variants.yaml.schema.json`, which the `variant-config` and `chat-renamer-config` packages generate) SHALL have a heading of its own on the Configuration page or the Chat Renamer configuration page, named with the full path. A path through a user-chosen name SHALL be written with a placeholder: `<key>` for a watch and `<name>` for a step. The former per-variant state schema `variants.local.yaml.schema.json` is exempt.
 
 #### Scenario: Every schema path has a heading
 
-- **WHEN** all property paths of the `variants.yaml` JSON schema are listed (objects and leaves, such as `db.ssl`, `db.multi.tenantsCmd`, `variant.supervise.readyTimeoutSeconds`, `variants.<slug>.seed` and `chatRenamer.awake.cmd`)
+- **WHEN** all property paths of the `variants.yaml` JSON schema are listed (objects and leaves, such as `db.ssl`, `db.multi.tenantsCmd`, `variant.supervise.readyTimeoutSeconds` and `chatRenamer.awake.cmd`)
 - **THEN** each one is the text of a heading of the built Configuration page or the built Chat Renamer configuration page
 
 #### Scenario: A key without documentation fails
@@ -164,7 +164,7 @@ A top-level Runtime page SHALL document how watches behave: how `up` and `watch`
 
 ### Requirement: Configuration page structure
 
-The Configuration page SHALL open with an Options section. The Options section SHALL give every key of `variant` in `variants.yaml` its own heading named `variant.<key>`, in alphabetical order, so other pages can link to it. Every sub-key of those options SHALL have a third-level heading of its own named with its full path (`variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `variant.steps.<name>.cmd`), directly after its parent and in alphabetical order. The Options section SHALL end with a `chatRenamer.*` entry that links to the Chat Renamer configuration page. A Database section SHALL follow it, with a third-level heading for every key of `db` and every key of `db.multi` (`db.ssl`, `db.multi.tenantsCmd`), and a Variants section with a heading for `variants.<slug>.seed`. The `variant.steps` section SHALL link to `overview#flow-of-steps`. Templates SHALL follow those sections and SHALL list every placeholder and environment form in a table. Unknown keys and migration SHALL be the last section and SHALL NOT name a key or shape of an earlier version.
+The Configuration page SHALL open with an Options section. The Options section SHALL give every key of `variant` in `variants.yaml` its own heading named `variant.<key>`, in alphabetical order, so other pages can link to it. Every sub-key of those options SHALL have a third-level heading of its own named with its full path (`variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `variant.steps.<name>.cmd`), directly after its parent and in alphabetical order. The Options section SHALL end with a `chatRenamer.*` entry that links to the Chat Renamer configuration page. A Database section SHALL follow it, with a third-level heading for every key of `db` and every key of `db.multi` (`db.ssl`, `db.multi.tenantsCmd`). The `variant.steps` section SHALL link to `overview#flow-of-steps`. Templates SHALL follow those sections and SHALL list every placeholder and environment form in a table. Unknown keys and migration SHALL be the last section and SHALL NOT name a key or shape of an earlier version.
 
 #### Scenario: Every option has an anchor
 
@@ -180,13 +180,13 @@ The Configuration page SHALL open with an Options section. The Options section S
 
 - **WHEN** the third-level headings of the built Configuration page are read
 - **THEN** every sub-key path of `variant` in the `variants.yaml` schema has one, where a key below `watches` is written `variant.watches.<key>.<option>` and a key below `steps` is `variant.steps.<name>.<option>`
-- **AND** the headings for every key of `db`, for `db.multi.schemaPrefix`, `db.multi.tenants` and `db.multi.tenantsCmd`, and for `variants.<slug>.seed` exist
+- **AND** the headings for every key of `db`, for `db.multi.schemaPrefix`, `db.multi.tenants` and `db.multi.tenantsCmd` exist
 - **AND** all headings starting with `variant.` are in alphabetical order by full path, and so are those starting with `db.`
 
 #### Scenario: Section order
 
 - **WHEN** the second-level headings of the Configuration page are listed
-- **THEN** Options comes first, then Database and Variants, then Templates, and Unknown keys and migration comes last
+- **THEN** Options comes first, then Database, then Templates, and Unknown keys and migration comes last
 
 #### Scenario: Options end with the chat renamer entry
 
