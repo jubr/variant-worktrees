@@ -5,10 +5,12 @@ The documentation pages read as separate islands: a reader who meets `variant.mi
 ## What Changes
 
 - **Code ligatures off.** Code in the site renders `>=`, `<=`, `=>`, `!=` and similar pairs as the characters that were typed, so `VARIANT_STEP_<STEP>=no` reads as written. A QA test pins this.
+- **Schema coverage QA.** Every property path of `variants.yaml.schema.json`, the schema generated from `variant-config` and `chat-renamer-config`, must have a heading in the Configuration or the Chat Renamer configuration page. A new key fails the docs test until it is documented.
+- **Internal links resolve.** A QA test resolves every internal link of the built site, against its page, to a file in the build output, and every fragment to an `id`. This adds to the VitePress build, which fails on a link to a missing *page* but ignores the fragment, and does not see links in the theme configuration, in raw HTML or on TypeDoc pages.
 - **Deep links everywhere.** A link from one page into another targets the heading that explains the topic (`overview#flow-of-steps`, `core#init`, `configuration#variant-steps`), not the page top. A QA test fails on any link whose `#fragment` has no heading in the built target page.
 - **Configuration keys are links.** Every inline-code mention of a full key path (`variant.baseBranch`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `db.multi`, `chatRenamer.awake.when`) outside its own heading links to the heading of that key. A QA test fails on an unlinked mention.
 - **Configuration page.**
-  - Every sub-key of an option gets an `H3` of its own, in alphabetical order after its parent: `variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.ports.range`, `variant.supervise.readyTimeoutSeconds`, `variant.ui.port`, `variant.storage.dir`, the options of a step (`variant.steps.<name>.cmd`) and of a watch (`variant.watches.<key>.dir`, `.env.sourceFile`, `.container.dockerfile`, ...), and the keys of `db.multi`. The tables that held them become one paragraph per heading.
+  - Every sub-key of an option gets an `H3` of its own, in alphabetical order after its parent: `variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.ports.range`, `variant.supervise.readyTimeoutSeconds`, `variant.ui.port`, `variant.storage.dir`, the options of a step (`variant.steps.<name>.cmd`) and of a watch (`variant.watches.<key>.dir`, `.env.sourceFile`, `.container.dockerfile`, ...), the keys of `db` (`db.dialect`, `db.host`, `db.ssl`, ...), of `db.multi`, and `variants.<slug>.seed`. The `db` keys go in a *Database* section and `variants.<slug>.seed` in a *Variants* section, both between *Options* and *Templates*; `db.multi` is no longer a section of its own but a heading of *Database*. The tables that held them become one paragraph per heading.
   - *Templates* lists every placeholder in a table (`${slug}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}`, `${<watch>.port}`, `${abbr}`, `${multi.tenants}`, `${multi.schemaPrefix}`, `${NAME}`, `${NAME:-default}`, `$${`).
   - *Options* ends with a `chatRenamer.*` entry that links to the Chat Renamer configuration page.
   - `variant.steps` links to the flow in the Overview with its anchor (`overview#flow-of-steps`).
@@ -30,7 +32,7 @@ None.
 
 ### Modified Capabilities
 
-- `docs/site`: modifies *Runtime page* (Watching and Up headings) and *Configuration page structure* (sub-key headings, the templates table, the `chatRenamer.*` entry, the Overview deep link, no earlier shapes named); adds *Code does not use ligatures*, *Links target headings*, *Configuration keys are links*, *Overview steps are short and link to commands*, *MCP tools have a heading each* and *Chat Renamer configuration page structure*; extends *Library page shows code* with the deep links of its configuration section.
+- `docs/site`: modifies *Runtime page* (Watching and Up headings) and *Configuration page structure* (sub-key headings, the templates table, the `chatRenamer.*` entry, the Overview deep link, no earlier shapes named); adds *Code does not use ligatures*, *Links target headings*, *Internal links resolve*, *Configuration schema is documented*, *Configuration keys are links*, *Overview steps are short and link to commands*, *MCP tools have a heading each* and *Chat Renamer configuration page structure*; extends *Library page shows code* with the deep links of its configuration section.
 
 ## Impact
 
@@ -42,7 +44,7 @@ None.
 ## Assumptions
 
 - "Escape `>=`" means the reader must see the typed characters. The text stays as typed, so copy and paste still work, and the fix is in how code is drawn (ligatures off), not in the text.
-- "Sub-key" means a key one or more levels below a key of `variant`, `db.multi` or `chatRenamer`; each gets an `H3` in a flat list (alphabetical by full path), so the "On this page" outline, which shows levels 2 and 3, lists all of them.
+- "Sub-key" means a key one or more levels below a key of `variant`, `db`, `variants.<slug>` or `chatRenamer`; each gets an `H3` in a flat list (alphabetical by full path), so the "On this page" outline, which shows levels 2 and 3, lists all of them.
 - For watch and step options that sit under a user-chosen name, the heading uses the placeholder form `variant.watches.<key>.dir` and `variant.steps.<name>.cmd`.
 - Overview "minimal" is measured as at most 60 words of explanation per command step, before the closing `More details at ...` sentence. Core stays the place where a command's flags, defaults and configuration are described.
 - The "Up" heading gathers the statements about `up` that are now spread through *Starting* (recreates the target, stops recorded processes, records no `log`, container engine calls). No behavior is described that the page does not already state.
@@ -52,5 +54,6 @@ None.
 
 - No change to the CLI, library, extension, MCP behavior or the config schema.
 - No new pages and no sidebar change.
+- `variants.local.yaml.schema.json` describes the former per-variant state file, which the product reads and never asks anyone to write. It is not part of the coverage check.
 - No rewrite of `README.md` files beyond fixing links to renamed headings.
 - No shortening of Core, of the intro of the Overview, or of the sections for steps without a command.
