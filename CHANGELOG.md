@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Documentation: every key of `variants.yaml` named in the docs links to its heading (`variant.watches.<key>.dir`, `db.multi`, `chatRenamer.awake.when`), and every `variant.<key>.<subkey>` has an `<h3>` of its own on Configuration. Chat Renamer configuration has the same structure, and Configuration lists the templates in a table.
+- Documentation: the Overview explains `create`, `provision`, `watch`, `down`, `deprovision` and `implode` in a few words and ends each with a link to its Core section. The MCP page has a heading and a parameter table per tool. Runtime has a Watching section (interactive keys, reattaching, exit status) and a separate Up section. The Library page moved after Building and links into Configuration.
+- Documentation: code no longer uses font ligatures, so `VARIANT_STEP_<STEP>=no` is shown as typed instead of with a `≥`.
+- Documentation tests check that every key of the `variants.yaml` schema has a heading, and that every internal link and fragment of the built site resolves, including navigation, sidebar and links written as raw HTML, which the VitePress dead-link check does not see.
+
+### Removed
+
+- The top-level `variants` key of `variants.yaml` (a per-variant seed override per slug) is gone, in the schema, the loader and the docs. Use `variant.seed` or a `seed` step. A file that still has the key loads, and the key is reported as unknown.
+
 ## [0.0.10] - 2026-11-17
 
 ### Changed
