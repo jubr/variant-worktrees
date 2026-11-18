@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.0.11] - 2026-11-18
 
 ### Added
 
@@ -23,6 +23,14 @@
 ### Removed
 
 - The top-level `variants` key of `variants.yaml` (a per-variant seed override per slug) is gone, in the schema, the loader and the docs. Use `variant.seed` or a `seed` step. A file that still has the key loads, and the key is reported as unknown.
+
+### Release notes
+
+- fix(variant-api): absolute worktree placeholder and bun-on-PATH warning by @jubr in https://github.com/jubr/variant-worktrees/pull/75
+- fix(variant-vscode): ship icon-128.png so the onboarding panel icon loads by @jubr in https://github.com/jubr/variant-worktrees/pull/77
+- docs: cross-linked, structured documentation and the variants key removed by @jubr in https://github.com/jubr/variant-worktrees/pull/76
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.10...v0.0.11
 
 ## [0.0.10] - 2026-11-17
 
