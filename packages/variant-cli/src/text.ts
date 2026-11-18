@@ -242,7 +242,9 @@ const layouts: Record<string, (result: never, options: TextOptions) => string[] 
             ],
           ] as [string, string][])
         : []),
+      ["bun", result.bun.message],
     ]),
+    ...indented(result.bun.hint),
   ],
   list: (records: VariantRecord[], { variantRoot, verbose }) =>
     verbose ? records.map((record) => statusBlock(record).join("\n")).join("\n\n") : formatTable(records, variantRoot),

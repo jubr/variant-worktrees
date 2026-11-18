@@ -23,6 +23,42 @@ describe("text output of each command", () => {
     expect(out).toMatch(/worktree:\s+\/work\/_v-demo/);
   });
 
+  describe("init", () => {
+    const initResult = (bun: unknown) => ({
+      directory: "/work",
+      prefix: "_v-",
+      file: "/work/variants.yaml",
+      gitignore: { status: "created", changed: true, file: "/work/.gitignore", message: "created .gitignore" },
+      mise: { status: "skipped", changed: false, file: null, message: "skipped" },
+      bun,
+      detected: null,
+    });
+
+    it("shows a differing bun with its hint lines below it", () => {
+      const out = text(
+        "init",
+        initResult({
+          status: "differs",
+          message: "bun 1.3.0 (/x/bun) is first on PATH, but Mise pins bun 1.4.2 (/m/bun)",
+          hint: ["Remove that Bun: brew uninstall bun", "Then open a new terminal and run `which -a bun`"],
+        }),
+      );
+
+      expect(out).toMatch(/bun:\s+bun 1\.3\.0 \(\/x\/bun\) is first on PATH/);
+      expect(out).toContain("  Remove that Bun: brew uninstall bun");
+      expect(out).toContain("  Then open a new terminal");
+    });
+
+    it("shows a matching bun on one line", () => {
+      const out = text(
+        "init",
+        initResult({ status: "matches", message: "bun 1.4.2 on PATH is the version Mise pins", hint: [] }),
+      );
+
+      expect(out).toMatch(/bun:\s+bun 1\.4\.2 on PATH is the version Mise pins/);
+    });
+  });
+
   it("shows what provision ran", () => {
     const out = text("provision", {
       slug: "demo",

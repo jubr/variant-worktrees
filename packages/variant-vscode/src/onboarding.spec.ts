@@ -268,6 +268,7 @@ describe("onboarding flow", () => {
             file: join(checkoutPath, "variants.yaml"),
             gitignore: { status: "skipped", changed: false, file: null, message: "skipped" },
             mise: { status: "skipped", changed: false, file: null, message: "skipped" },
+            bun: { status: "unchecked", message: "not checked", hint: [] },
             detected: { dialect: "sqlite", databaseSource: "default", abbr: "w", prefix: "_v-", watches: [] },
           }),
         } as never;
@@ -346,6 +347,7 @@ describe("onboarding flow", () => {
             file: null,
             gitignore: { status: "skipped", changed: false, file: null, message: "skipped" },
             mise: { status: "skipped", changed: false, file: null, message: "skipped" },
+            bun: { status: "unchecked", message: "not checked", hint: [] },
           }),
         } as never;
       };
@@ -400,6 +402,7 @@ describe("onboarding flow", () => {
             file: null,
             gitignore: { status: "skipped", changed: false, file: null, message: "skipped" },
             mise: { status: "skipped", changed: false, file: null, message: "skipped" },
+            bun: { status: "unchecked", message: "not checked", hint: [] },
           }),
         } as never;
       };
@@ -456,6 +459,7 @@ describe("onboarding flow", () => {
             file: null,
             gitignore: { status: "skipped", changed: false, file: null, message: "skipped" },
             mise: { status: "skipped", changed: false, file: null, message: "skipped" },
+            bun: { status: "unchecked", message: "not checked", hint: [] },
           }),
         } as never;
       };
