@@ -209,8 +209,10 @@ variant init --force
 
 `--prefix` (default `_v-`) must not be empty or contain a path separator.
 `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory.
-The result lists what each step did; with `--json` or `--yaml` it is the returned object.
-The MCP tool is `variant_init`.
+The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on `PATH`](./runtime#bun-on-path)).
+In the result, `bun` has a `status` of `matches`, `differs` or `unchecked`, a `message` and the `hint` lines that say how to fix a difference.
+The check never fails `init` and changes nothing.
+With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`.
 The [extension](./extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure.
 Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
 

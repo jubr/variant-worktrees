@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { DEFAULT_PREFIX, findConfigFile, renderInitConfig, resolveMiseBinary } from "variant-config";
 import { miseEnvironment, readVariableSources } from "../mise.js";
 import { augmentMiseConfig } from "../mise-augment.js";
+import { checkBun } from "../mise-bun.js";
 import type { InitOptions, InitResult } from "../types.js";
 
 /**
@@ -62,10 +63,10 @@ export const initProject = (context: InitContext, options: InitOptions = {}): In
     }
   }
 
+  const binary = resolveMiseBinary({ configured: context.miseBinPath });
   let file: string | null = null;
   let detected: InitResult["detected"] = null;
   if (wantFile) {
-    const binary = resolveMiseBinary({ configured: context.miseBinPath });
     const environment = miseEnvironment({ directory, binary });
     const rendered = renderInitConfig(directory, {
       prefix,
@@ -91,5 +92,8 @@ export const initProject = (context: InitContext, options: InitOptions = {}): In
     };
   }
 
-  return { directory, prefix, file, gitignore, mise, detected };
+  // AIDEV-NOTE: A check, not a step: it changes nothing and a failed probe is only "unchecked", so init never fails on it.
+  const bun = checkBun({ directory, binary, env: process.env });
+
+  return { directory, prefix, file, gitignore, mise, bun, detected };
 };

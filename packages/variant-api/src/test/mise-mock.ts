@@ -8,6 +8,10 @@ export interface FakeMiseOptions {
   set?: string;
   /** What `mise config ls --json` prints. */
   configLs?: string;
+  /** What `mise ls --current --json` prints. */
+  lsCurrent?: string;
+  /** What `mise which` prints. */
+  which?: string;
   /** When set, `mise env` prints this on stderr and exits 1. */
   envFailure?: string;
   /** When set, `mise trust` prints this on stderr and exits 1. */
@@ -35,6 +39,8 @@ export const fakeMise = (root: string, options: FakeMiseOptions = {}): FakeMise 
   write("env", options.env ?? "");
   write("set", options.set ?? "");
   write("config-ls", options.configLs ?? "[]");
+  write("ls-current", options.lsCurrent ?? "[]");
+  write("which", options.which ?? "");
   write("env-failure", options.envFailure);
   write("trust-failure", options.trustFailure);
   writeFileSync(join(state, "log"), "");
@@ -50,6 +56,8 @@ export const fakeMise = (root: string, options: FakeMiseOptions = {}): FakeMise 
       '  env) if [ -f "$state/env-failure" ]; then cat "$state/env-failure" >&2; exit 1; fi; cat "$state/env";;',
       '  set) cat "$state/set";;',
       '  config) cat "$state/config-ls";;',
+      '  ls) cat "$state/ls-current";;',
+      '  which) cat "$state/which";;',
       '  trust) if [ -f "$state/trust-failure" ]; then cat "$state/trust-failure" >&2; exit 1; fi;;',
       "esac",
       "",

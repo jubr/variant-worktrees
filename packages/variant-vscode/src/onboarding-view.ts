@@ -50,6 +50,7 @@ const summarize = (result: InitResult): string => {
     result.file === null ? undefined : "wrote variants.yaml",
     result.gitignore.status === "skipped" ? undefined : result.gitignore.message,
     result.mise.status === "skipped" ? undefined : result.mise.message,
+    result.bun.status === "differs" ? result.bun.message : undefined,
   ].filter((part): part is string => part !== undefined);
   return `Variant initialized: ${parts.join("; ")}`;
 };
@@ -117,6 +118,9 @@ export const registerOnboarding = (context: vscode.ExtensionContext, deps: Onboa
     await close();
     if (result.file !== null) {
       await showFile(result.file);
+    }
+    for (const line of result.bun.hint) {
+      deps.log?.info(line);
     }
     void vscode.window.showInformationMessage(summarize(result));
   };

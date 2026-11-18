@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { createVariantClient } from "../index.js";
@@ -206,5 +215,51 @@ describe("init", () => {
     await client.init({ mise: false });
 
     expect(readdirSync(root)).not.toContain(".cache");
+  });
+});
+
+describe("init Bun check", () => {
+  /** A directory holding an executable `bun` that prints `version`. */
+  const stubBun = (name: string, version: string): string => {
+    const directory = join(root, name);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "bun"), `#!/bin/sh\necho ${version}\n`);
+    chmodSync(join(directory, "bun"), 0o755);
+    return directory;
+  };
+  const pinned = (version: string): string => JSON.stringify([{ version, active: true }]);
+
+  it("reports a differing Bun with its hint and still does the other steps", async () => {
+    process.env.PATH = `${stubBun("foreign", "1.3.0")}:${stubBun("mise-bun", "1.4.2")}:${saved.PATH}`;
+    const { client } = setup({ lsCurrent: pinned("1.4.2"), which: join(root, "mise-bun", "bun") });
+
+    const result = await client.init();
+
+    expect(result.bun.status).toBe("differs");
+    expect(result.bun.message).toContain("1.3.0");
+    expect(result.bun.message).toContain("1.4.2");
+    expect(result.bun.hint.length).toBeGreaterThan(0);
+    expect(result.bun.hint.join("\n")).toContain("which -a bun");
+    expect(read(".gitignore")).toBe("_v-*\n");
+    expect(read("mise.toml")).toContain("github:jubr");
+  });
+
+  it("reports a matching Bun without a hint", async () => {
+    process.env.PATH = `${stubBun("mise-bun", "1.4.2")}:${saved.PATH}`;
+    const { client } = setup({ lsCurrent: pinned("1.4.2") });
+
+    const result = await client.init();
+
+    expect(result.bun).toMatchObject({ status: "matches", hint: [] });
+  });
+
+  it("reports unchecked when no Mise executable is found and still succeeds", async () => {
+    process.env.PATH = "/nonexistent";
+    const client = createVariantClient({ cwd: root, worktree: false, miseBinPath: undefined });
+
+    const result = await client.init({ mise: false });
+
+    expect(result.bun).toMatchObject({ status: "unchecked", hint: [] });
+    expect(result.file).toBe(join(root, "variants.yaml"));
   });
 });

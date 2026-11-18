@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- `provision`, `up` and `watch` log one warning when the first `bun` on the command `PATH` is another version than the one Mise pins for the project, naming both versions and paths, with a hint on how to solve it: the removal command for how that Bun was installed and the lines of your shell startup files that add its directory to `PATH`. Nothing is changed or stopped. See [Bun on PATH](docs/guide/runtime.md#bun-on-path).
+- `variant init` (CLI, MCP tool `variant_init` and the editor onboarding) runs the same check and reports it in its result as `bun` (`matches`, `differs` or `unchecked`, with `message` and `hint`). It never fails `init`.
+
 ### Changed
 
 - Documentation: every key of `variants.yaml` named in the docs links to its heading (`variant.watches.<key>.dir`, `db.multi`, `chatRenamer.awake.when`), and every `variant.<key>.<subkey>` has an `<h3>` of its own on Configuration. Chat Renamer configuration has the same structure, and Configuration lists the templates in a table.
@@ -10,6 +15,10 @@
 - Documentation: Configuration has the sections Variant options, Chat Renamer options and Database options, and its templates table shows an example value instead of the pass. Core groups Lifecycle commands and Other commands, the MCP page has no Testing section, and `chatRenamer.activationPatterns` lists its defaults. `up` is documented as going through `create`, `provision` and `seed` like `watch`, with its disclaimer as an info panel.
 - Documentation: every sentence of the prose under `docs/` is on its own line, short ones sharing a line below 100 characters (`task docs:sentences` rewrites, a test checks). The READMEs use absolute links only (`task docs:readme-links` rewrites, a test checks that they resolve) and no longer name earlier configuration names or tell you to install with `npm`: Mise is the way.
 - Documentation tests check that every key of the `variants.yaml` schema has a heading, and that every internal link and fragment of the built site resolves, including navigation, sidebar and links written as raw HTML, which the VitePress dead-link check does not see.
+
+### Fixed
+
+- `${worktree}` always expands to an absolute, normalized path, however the worktree was spelled to the run. This keeps a setting such as `SQLITE_DATABASE: '${worktree}/.cache/variant/${schema}.sqlite'` on one file.
 
 ### Removed
 

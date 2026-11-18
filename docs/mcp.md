@@ -37,7 +37,8 @@ Every result is returned as JSON text.
 ### `variant_init`
 
 [`variant init`](/guide/core#init) in the working directory of the server.
-It returns what each step did and acts in-process, not through the editor.
+It returns what each step did, and `bun`, the check that the Bun on `PATH` is the one Mise pins with a hint when it is not.
+It acts in-process, not through the editor.
 Each of `file`, `gitignore` and `mise` is on unless `false`.
 
 | Parameter | Type | Required | Description |
