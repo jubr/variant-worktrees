@@ -27,29 +27,121 @@ MCP client configuration:
 
 ## Available tools
 
-- `variant_init({ prefix, file, gitignore, mise, force })` — bootstrap the working directory of the server: write `variants.yaml` from autodetection, add `<prefix>*` to `.gitignore` and the CLI to the Mise configuration; each of `file`, `gitignore` and `mise` is on unless `false`. It returns what each step did and acts in-process, not through the editor.
-- `variant_config` — print resolved configuration.
-- `variant_list({ verbose })` — list state and database variants with their mode, uptime and watch log file; with `verbose` every item carries all meta information, the same as `variant_status`.
-- `variant_status({ slug })` — everything known about one variant: the facts of `variant_list` plus a `runtime`
-  object with its runtime state (mode, directory, database settings with the password hidden, and per watch the
-  port, pid, URL, liveness and uptime). An unknown slug is an error.
-- `variant_create({ slug, from, pullFf, miseInstall })` — create an isolated variant. `from` is a commit, tag, or branch a new branch starts at. Omit it and the branch starts at `variant.baseBranch`. `pullFf` fast-forwards the start branch before a new branch and does not pull the new branch. A dry-run that predicts a conflict or other error leaves that checkout un-pulled. A tag or commit is used as given. Failure includes the command to run again. Omit `pullFf` and nothing is fetched. An existing worktree or prefixed branch is left as it is. `miseInstall` is `bg`, `sync`, or `no`. Omit it and the value is `bg`. The install runs only when the worktree has a Mise config: `trust --all`, then `install`. `bg` returns immediately and writes `{worktree}/.cache/variant/mise-install.log`. `sync` waits and fails the call when Mise fails; the worktree stays. There is no configuration-file key. Slug `main` and a create that makes no worktree skip it.
-- `variant_provision({ slug, from, pullFf, miseInstall, verbose })` — run configured install, env file, `up`, step and seed commands. `from` and `pullFf` are the same as `variant_create`. `miseInstall` is passed through to that create. Omit it and the value is `sync`.
-- `variant_up({ slug, from, pullFf, verbose })` — run the watches as containers after provision and seed; returns the
-  mode, worktree, database target, and the port, URL and container name of each watch. `pullFf` is the same as `variant_create`. `up` does not take `miseInstall`.
-- `variant_down({ slug })` — stop the processes and containers of a variant and keep its data.
-- `variant_deprovision({ slug, verbose })` — stop the watches and drop the schemas. A `deprovision` script replaces the drop. It refuses `main` and leaves the worktree.
-- `variant_watch({ slug, from, pullFf, miseInstall, verbose, reprovision })` — start the watch processes detached and return their pids, ports and
-  URLs; each output line is prefixed `[name]` and appended to `.cache/variant/watch.log` in the worktree (see `log` of `variant_status`). A watch with `output.mode: tty` is given a terminal, so color is in that log, each colored line ends with an ANSI reset, and the log starts with one line `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`; an omitted mode stays `no-tty` here, because this server does not see editor extensions. A detached watch writes no ready-probe line. `from` and `pullFf` are the same as `variant_create`. `miseInstall` is passed through to that create. Omit it and the value is `sync`. `reprovision` drops the schemas before provisioning again. A tool call cannot stay attached to a console, so `detach` is always set. `variant_list` and `variant_status` carry `schemas` when `db.multi` is set.
-- `variant_implode({ slug, force, branchRm })` — stop the variant, drop its database and storage, clear its state,
-  remove its worktree, and then remove the local branch. `branchRm` is `yes` or `no`. Omitted, it is `yes`. `no` keeps the branch.
-  It refuses `main` and work that is not merged into `variant.baseBranch`, including a branch started with `from`; the error names
-  `force`, which overrides the gate.
+Every tool is the command of the same name in [Core](/guide/core), run in-process. Each tool below says only what differs from that command, and lists the parameters it takes. `slug` is optional for the operations that support git worktree detection, and an explicit slug always takes precedence. Every result is returned as JSON text.
 
-There is no `variant_destroy`; `variant_implode` replaces it.
+### `variant_init`
 
-`slug` is optional for operations that support git worktree detection. Explicit
-slugs always take precedence.
+[`variant init`](/guide/core#init) in the working directory of the server. It returns what each step did and acts in-process, not through the editor. Each of `file`, `gitignore` and `mise` is on unless `false`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `prefix` | string | no | Worktree directory prefix, default `_v-` |
+| `file` | boolean | no | Write `variants.yaml` |
+| `gitignore` | boolean | no | Add the worktree pattern to `.gitignore` |
+| `mise` | boolean | no | Add the variant CLI to the Mise configuration |
+| `force` | boolean | no | Replace the `variants.yaml` of this directory when it exists |
+
+### `variant_config`
+
+[`variant config`](/guide/core#config): the resolved configuration.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_create`
+
+[`variant create`](/guide/core#create). `miseInstall` is `bg`, `sync` or `no`; omitted it is `bg`, and `bg` writes `{worktree}/.cache/variant/mise-install.log`. A failure includes the command to run again.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `from` | string | no | Commit, tag, or branch a new variant branch starts at. Omitted, it starts at [`variant.baseBranch`](/guide/configuration#variant-basebranch) |
+| `pullFf` | boolean | no | Fast-forward the start branch before a new variant branch is created |
+| `miseInstall` | string | no | `bg`, `sync` or `no` |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_list`
+
+[`variant list`](/guide/core#list): the state and the database variants with their mode, uptime and watch log file. With `verbose` every item carries all meta information, the same as `variant_status`. With [`db.multi`](/guide/configuration#db-multi) set, items carry `schemas`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `verbose` | boolean | no | All meta information of every variant |
+
+### `variant_status`
+
+[`variant status`](/guide/core#status): the facts of `variant_list` plus a `runtime` object with the runtime state: mode, directory, database settings with the password hidden, and per watch the port, pid, URL, liveness and uptime. An unknown slug is an error. With `db.multi` set it carries `schemas`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_provision`
+
+[`variant provision`](/guide/core#provision): install, env file, `up`, step and seed commands. `miseInstall` is passed through to the create; omitted it is `sync`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `from` | string | no | Commit, tag, or branch a new variant branch starts at |
+| `pullFf` | boolean | no | Fast-forward the start branch before a new variant branch is created |
+| `miseInstall` | string | no | `bg`, `sync` or `no` |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_up`
+
+[`variant up`](/guide/core#up), after provision and seed. It returns the mode, worktree, database target, and the port, URL and container name of each watch. `up` does not take `miseInstall`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `from` | string | no | Commit, tag, or branch a new variant branch starts at |
+| `pullFf` | boolean | no | Fast-forward the start branch before a new variant branch is created |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_down`
+
+[`variant down`](/guide/core#down): stops the processes and containers of a variant and keeps its data.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_deprovision`
+
+[`variant deprovision`](/guide/core#deprovision): stops the watches and drops the schemas. A `deprovision` step replaces the drop. It refuses `main` and leaves the worktree.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_watch`
+
+[`variant watch`](/guide/core#watch), always detached: a tool call cannot stay attached to a console, so `detach` is fixed and is not a parameter. It returns the pids, ports and URLs. Each output line is prefixed `[name]` and appended to `.cache/variant/watch.log` in the worktree (see `log` of `variant_status`). A detached watch writes no ready-probe line. [`output.mode`](/guide/configuration#variant-watches-key-output-mode) `tty` gives a watch a terminal, so color is in that log, and an omitted mode stays `no-tty` here, because this server does not see editor extensions. `miseInstall` is passed through to the create; omitted it is `sync`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `from` | string | no | Commit, tag, or branch a new variant branch starts at |
+| `pullFf` | boolean | no | Fast-forward the start branch before a new variant branch is created |
+| `miseInstall` | string | no | `bg`, `sync` or `no` |
+| `reprovision` | boolean | no | Drop the schemas before provisioning again |
+| `verbose` | boolean | no | Full output of quiet steps |
+
+### `variant_implode`
+
+[`variant implode`](/guide/core#implode). `branchRm` is `yes` or `no`; omitted it is `yes`, and `no` keeps the local branch. It refuses `main` and work that is not merged into [`variant.baseBranch`](/guide/configuration#variant-basebranch), including a branch started with `from`; the error names `force`, which overrides the gate. There is no `variant_destroy`; `variant_implode` replaces it.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | string | no | Variant slug; defaults to the current git worktree |
+| `force` | boolean | no | Implode work that is not merged and a worktree with local changes |
+| `branchRm` | `yes` or `no` | no | Remove the local branch after the worktree. Default `yes` |
+| `verbose` | boolean | no | Full output of quiet steps |
 
 ## Testing
 

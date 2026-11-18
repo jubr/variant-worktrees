@@ -589,3 +589,67 @@ describe("runtime page, watching and up", () => {
     expect(texts.indexOf("Environment through Mise")).toBe(texts.indexOf("Up") + 1);
   });
 });
+
+const { commands } = (await import(new URL("./commands.ts", import.meta.resolve("variant-api/bundle")).href)) as {
+  commands: { name: string; args: { name: string }[]; mcpFixed?: Record<string, unknown> }[];
+};
+
+describe("mcp tools have a heading each", () => {
+  const html = () => page("mcp.html");
+  const toolHeadings = () => {
+    const all = headingsOf(html());
+    const start = all.findIndex((heading) => heading.level === 2 && heading.text === "Available tools");
+    expect(start, "Available tools").toBeGreaterThanOrEqual(0);
+    const after = all.slice(start + 1);
+    const end = after.findIndex((heading) => heading.level <= 2);
+    return (end === -1 ? after : after.slice(0, end)).filter((heading) => heading.level === 3);
+  };
+
+  test("one third-level heading per registered command, in registration order", () => {
+    expect(toolHeadings().map((heading) => heading.text)).toEqual(commands.map((command) => `variant_${command.name}`));
+  });
+
+  for (const command of commands) {
+    test(`variant_${command.name} links to ${command.name} in Core and lists the parameters it takes`, () => {
+      const heading = toolHeadings().find((candidate) => candidate.text === `variant_${command.name}`);
+      expect(heading, `heading variant_${command.name}`).toBeDefined();
+      const section = sectionOf(html(), heading?.id ?? "");
+      expect(linksOf(section, "mcp.html")).toContainEqual({ path: "/guide/core", hash: command.name });
+      const offered = command.args.map((arg) => arg.name).filter((name) => !(name in (command.mcpFixed ?? {})));
+      expect(firstCells(section)).toEqual(offered);
+    });
+  }
+});
+
+describe("chat renamer configuration page and schema coverage", () => {
+  const chat = () => headingsOf(page("chat-renamer/configuration.html"));
+
+  test("every chatRenamer key and sub-key has a third-level heading of its full path", () => {
+    const found = new Map(chat().map((heading) => [heading.text, heading.level]));
+    expect(keyPaths("chatRenamer").filter((path) => found.get(path) !== 3)).toEqual([]);
+  });
+
+  test("the chatRenamer headings are in alphabetical order by full path", () => {
+    const names = chat()
+      .map((heading) => heading.text)
+      .filter((text) => text.startsWith("chatRenamer."));
+    expect(names.length).toBeGreaterThan(0);
+    expect(names).toEqual([...names].sort());
+  });
+
+  test("the page opens with Options and ends with the editor settings", () => {
+    const sections = chat()
+      .filter((heading) => heading.level === 2)
+      .map((heading) => heading.text);
+    expect(sections[0]).toBe("Options");
+    expect(sections.at(-1)).toBe("Editor settings");
+  });
+
+  test("every property path of the variants.yaml schema has a heading on a configuration page", () => {
+    const documented = new Set(
+      [...headingsOf(page("guide/configuration.html")), ...chat()].map((heading) => heading.text),
+    );
+    const missing = ["db", "variant", "chatRenamer"].flatMap(keyPaths).filter((path) => !documented.has(path));
+    expect(missing).toEqual([]);
+  });
+});
