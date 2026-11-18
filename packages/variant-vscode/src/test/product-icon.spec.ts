@@ -91,7 +91,7 @@ describe("product icon", () => {
     expect(readme).toContain("packages/variant-vscode/media/icon-256.png");
   });
 
-  it("packs the 256 icon into the vsix", () => {
+  it("packs the 256 and 128 icons into the vsix", () => {
     const manifest = JSON.parse(readFileSync(join(repoRoot, "packages/variant-vscode/package.json"), "utf8")) as {
       version: string;
     };
@@ -103,6 +103,8 @@ describe("product icon", () => {
     const vsix = join(repoRoot, "out", `variant-worktrees-${manifest.version}.vsix`);
     const listed = spawnSync("unzip", ["-l", vsix], { encoding: "utf8" });
     expect(listed.stdout).toContain("media/icon-256.png");
+    // AIDEV-NOTE: the onboarding webview loads media/icon-128.png; a vsix without it shows a broken image
+    expect(listed.stdout).toContain("media/icon-128.png");
   }, 120_000);
 
   it("publishes rounded-rectangle downscales with transparent corners", async () => {
