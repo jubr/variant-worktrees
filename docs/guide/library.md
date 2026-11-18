@@ -1,6 +1,8 @@
 # Library
 
-`variant-api` manages variants from TypeScript, on Node.js 22.13 or newer and on Bun. Each method is the command of the same name: see [Core](./core). Install it from a checkout: [Development](/development/building).
+`variant-api` manages variants from TypeScript, on Node.js 22.13 or newer and on Bun.
+Each method is the command of the same name: see [Core](./core).
+Install it from a checkout: [Development](/development/building).
 
 ## Quick start
 
@@ -70,7 +72,8 @@ console.log(attached.exitCode); // 130 after an interrupt, 1 when a watch ended
 
 ## Configuration
 
-The same `variants.yaml` serves the CLI, the library and the editor. The options a caller meets first:
+The same `variants.yaml` serves the CLI, the library and the editor.
+The options a caller meets first:
 
 - [`variant.watches`](./configuration#variant-watches): what `watch` and `up` start
 - [`variant.steps`](./configuration#variant-steps) and [`variant.seed`](./configuration#variant-seed): what `provision` and `seed` run
@@ -82,4 +85,5 @@ Every option is in [Configuration](./configuration#variant-options), and what wa
 
 ## Elsewhere
 
-The same operations are tools of the [MCP Server](/mcp), and the [Extension](./extension) runs them from the editor. Every export is in the [API Reference](/api/).
+The same operations are tools of the [MCP Server](/mcp), and the [Extension](./extension) runs them from the editor.
+Every export is in the [API Reference](/api/).

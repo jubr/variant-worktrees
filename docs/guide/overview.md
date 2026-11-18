@@ -1,8 +1,15 @@
 # Overview
 
-A variant is a git worktree and the database schemas that belong to it. The commands below are the builtin steps. A later step implies the steps above it: `seed` implies `provision`, `provision` implies `create`, and `watch` and `up` imply `seed`. `down` is the exception and only stops watches. `deprovision` implies `down`. `implode` implies `deprovision`.
+A variant is a git worktree and the database schemas that belong to it.
+The commands below are the builtin steps.
+A later step implies the steps above it: `seed` implies `provision`, `provision` implies `create`, and `watch` and `up` imply `seed`.
+`down` is the exception and only stops watches. `deprovision` implies `down`.
+`implode` implies `deprovision`.
 
-What the project itself runs is a step in [`variant.steps`](./configuration#variant-steps). The step is keyed by its name. `provision` and `deprovision` replace the builtin step of that name. `seed` is a script and there is no builtin seed. Every other name is a custom step, and it has exactly one of `runBefore` or `runAfter`.
+What the project itself runs is a step in [`variant.steps`](./configuration#variant-steps).
+The step is keyed by its name. `provision` and `deprovision` replace the builtin step of that name.
+`seed` is a script and there is no builtin seed.
+Every other name is a custom step, and it has exactly one of `runBefore` or `runAfter`.
 
 ## Flow of Steps
 
@@ -18,13 +25,19 @@ More details at Core [create](./core#create).
 
 ### provision
 
-Creates the database schema of the variant, or every schema of [`db.multi`](./configuration#db-multi), and implies `create`. A step of the same name in [`variant.steps`](./configuration#variant-steps) replaces it.
+Creates the database schema of the variant, or every schema of [`db.multi`](./configuration#db-multi), and implies `create`.
+A step of the same name in [`variant.steps`](./configuration#variant-steps) replaces it.
 
 More details at Core [provision](./core#provision).
 
 ### seed
 
-The project supplies the script. The step named `seed` in [`variant.steps`](./configuration#variant-steps) runs once and creates the tables and loads the rows. [`variant.seed`](./configuration#variant-seed) sets the same command without a step. There is no builtin seed. With [`db.multi`](./configuration#db-multi) the script handles every schema itself. When the step is absent, nothing is seeded.
+The project supplies the script.
+The step named `seed` in [`variant.steps`](./configuration#variant-steps) runs once and creates the tables and loads the rows.
+[`variant.seed`](./configuration#variant-seed) sets the same command without a step.
+There is no builtin seed.
+With [`db.multi`](./configuration#db-multi) the script handles every schema itself.
+When the step is absent, nothing is seeded.
 
 Implies `provision`.
 
@@ -38,19 +51,22 @@ variant:
 
 ### watch
 
-Starts the watch processes and stays attached. It implies `seed`, so the worktree, the schemas and the seed exist before the processes start.
+Starts the watch processes and stays attached.
+It implies `seed`, so the worktree, the schemas and the seed exist before the processes start.
 
 More details at Core [watch](./core#watch).
 
 ### down
 
-Stops the watches of the variant. The schemas, the storage directory, the state and the worktree stay.
+Stops the watches of the variant.
+The schemas, the storage directory, the state and the worktree stay.
 
 More details at Core [down](./core#down).
 
 ### deprovision
 
-Stops the watches and drops the schemas of the variant. The storage directory, the state and the worktree stay, and slug `main` is refused.
+Stops the watches and drops the schemas of the variant.
+The storage directory, the state and the worktree stay, and slug `main` is refused.
 
 More details at Core [deprovision](./core#deprovision).
 
@@ -62,7 +78,8 @@ More details at Core [implode](./core#implode).
 
 ## Custom Steps
 
-A custom step has exactly one of [`runBefore`](./configuration#variant-steps-name-runbefore) or [`runAfter`](./configuration#variant-steps-name-runafter). They name a builtin step (`create`, `provision`, `seed`, `watch`, `down`, `deprovision`, `implode`) or another custom step.
+A custom step has exactly one of [`runBefore`](./configuration#variant-steps-name-runbefore) or [`runAfter`](./configuration#variant-steps-name-runafter).
+They name a builtin step (`create`, `provision`, `seed`, `watch`, `down`, `deprovision`, `implode`) or another custom step.
 
 ```yaml
 variant:
@@ -116,4 +133,6 @@ variant:
       env: *prov-env
 ```
 
-So with `slug=demo` and `.env` containing `WITCHES=east,west`, `watch` runs `db:provision:witches` once with `MULTI_TENANT_LIST=east,west` and `MULTI_SCHEMA_PREFIX=v_demo-`, then `db:seed:witches` once with the same vars, then `migrations` once. `deprovision` runs `db:deprovision:witches` once with the same vars and drops nothing itself. The script removes `v_demo-east`, `v_demo-west`, a leftover `v_demo-north` and any role.
+So with `slug=demo` and `.env` containing `WITCHES=east,west`, `watch` runs `db:provision:witches` once with `MULTI_TENANT_LIST=east,west` and `MULTI_SCHEMA_PREFIX=v_demo-`, then `db:seed:witches` once with the same vars, then `migrations` once.
+`deprovision` runs `db:deprovision:witches` once with the same vars and drops nothing itself.
+The script removes `v_demo-east`, `v_demo-west`, a leftover `v_demo-north` and any role.

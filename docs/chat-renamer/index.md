@@ -1,14 +1,18 @@
 # Chat Renamer
 
-Renames the Cursor chat from its first prompt. `variant-vscode` embeds it. If the standalone Chat Renamer extension is installed in the same window, `variant-vscode` owns renaming and the standalone copy stays idle.
+Renames the Cursor chat from its first prompt. `variant-vscode` embeds it.
+If the standalone Chat Renamer extension is installed in the same window, `variant-vscode` owns renaming and the standalone copy stays idle.
 
 ## Slash command
 
-`/chat-rename my-title` sets that title. `/chat-rename "two words"` and `/rename-chat` do the same. A slash-command title is literal and is not numbered.
+`/chat-rename my-title` sets that title. `/chat-rename "two words"` and `/rename-chat` do the same.
+A slash-command title is literal and is not numbered.
 
 ## Activation patterns
 
-Each line of the first prompt is tested against [`chatRenamer.activationPatterns`](./configuration#chatrenamer-activationpatterns). A match renames the chat to the first capture group, or to the whole match when there is no group. An empty list turns patterns off.
+Each line of the first prompt is tested against [`chatRenamer.activationPatterns`](./configuration#chatrenamer-activationpatterns).
+A match renames the chat to the first capture group, or to the whole match when there is no group.
+An empty list turns patterns off.
 
 With the defaults:
 
@@ -16,22 +20,50 @@ With the defaults:
 - `/vw-spec-start @_work-my-slug` becomes `my-slug`
 - `/vw-spec-iterate @/path/_v-my-slug` (a worktree folder dragged into the chat) becomes `my-slug`
 
-[`variant.prefix`](../guide/configuration#variant-prefix) (default `_v-`) is the worktree-folder prefix those paths use. Set [`chatRenamer.worktreePrefixes`](./configuration#chatrenamer-worktreeprefixes) to replace it. An empty list turns that path derivation off; `/vw-spec-start @_work-my-slug` still becomes `my-slug`.
+[`variant.prefix`](../guide/configuration#variant-prefix) (default `_v-`) is the worktree-folder prefix those paths use.
+Set [`chatRenamer.worktreePrefixes`](./configuration#chatrenamer-worktreeprefixes) to replace it.
+An empty list turns that path derivation off; `/vw-spec-start @_work-my-slug` still becomes `my-slug`.
 
-A pattern title with no trailing digits is numbered against the other open chats that share its base: `abc` becomes `abc2` when `abc` is already open. A title you type with trailing digits, such as `abc7`, stays `abc7`. A chat whose current title already has that base is left as it is.
+A pattern title with no trailing digits is numbered against the other open chats that share its base: `abc` becomes `abc2` when `abc` is already open.
+A title you type with trailing digits, such as `abc7`, stays `abc7`.
+A chat whose current title already has that base is left as it is.
 
 ## Existing chats
 
-[`chatRenamer.renameExistingDays`](./configuration#chatrenamer-renameexistingdays) (default `7`, `0` turns it off) also renames chats created in that window before the editor started. Numbering follows creation order. Each chat is examined once, so a title you change by hand later stays. **Variant: Rename Existing Chats** runs that pass again and ignores the memory, still inside the day window.
+[`chatRenamer.renameExistingDays`](./configuration#chatrenamer-renameexistingdays) (default `7`, `0` turns it off) also renames chats created in that window before the editor started.
+Numbering follows creation order.
+Each chat is examined once, so a title you change by hand later stays.
+**Variant: Rename Existing Chats** runs that pass again and ignores the memory, still inside the day window.
 
 ## Awake
 
-[`chatRenamer.awake.when`](./configuration#chatrenamer-awake-when) is `chatsActive` by default. Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds. While one of those turns is in progress, including tool work of that turn, one `caffeinate` process holds the Mac awake. A chat in another workspace does not count. An open, selected, or idle chat does not start it. `never` does not run it. The command is [`chatRenamer.awake.cmd`](./configuration#chatrenamer-awake-cmd), by default `/usr/bin/caffeinate -disu -w ${extensionHostPid}`. It is split on spaces and run without a shell, so it must stay in the foreground. `${extensionHostPid}` is replaced with this extension host's pid. A command that waits on that pid, like the default, exits when that host exits; any other command can outlive a host that is killed. Any `awake.cmd` is tried, once at startup for up to 1 second with no chat running, so a command that cannot be executed logs one `[awake]` warning right after the startup line and is not warned about again. After this host's last turn, [`chatRenamer.awake.graceDelaySecs`](./configuration#chatrenamer-awake-gracedelaysecs) (default `180`, `0` stops at once) keeps that process. The startup line names `agentHost+poll` or `poll`. `variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`. `variant.enable` does not turn this off.
+[`chatRenamer.awake.when`](./configuration#chatrenamer-awake-when) is `chatsActive` by default.
+Awake follows this window's turn events and also polls the first 20 last-focused composers every 5 seconds.
+While one of those turns is in progress, including tool work of that turn, one `caffeinate` process holds the Mac awake.
+A chat in another workspace does not count. An open, selected, or idle chat does not start it.
+`never` does not run it.
+The command is [`chatRenamer.awake.cmd`](./configuration#chatrenamer-awake-cmd), by default `/usr/bin/caffeinate -disu -w ${extensionHostPid}`.
+It is split on spaces and run without a shell, so it must stay in the foreground.
+`${extensionHostPid}` is replaced with this extension host's pid.
+A command that waits on that pid, like the default, exits when that host exits; any other command can outlive a host that is killed.
+Any `awake.cmd` is tried, once at startup for up to 1 second with no chat running, so a command that cannot be executed logs one `[awake]` warning right after the startup line and is not warned about again.
+After this host's last turn, [`chatRenamer.awake.graceDelaySecs`](./configuration#chatrenamer-awake-gracedelaysecs) (default `180`, `0` stops at once) keeps that process.
+The startup line names `agentHost+poll` or `poll`.
+`variant.log.highVolumeCategories` is an opt-in checkbox list whose first entry is `awake.agentHostEvents`.
+`variant.enable` does not turn this off.
 
 ## Triggers
 
-[`chatRenamer.trigger`](./configuration#chatrenamer-trigger) is `titleEvent` by default: the first title Cursor assigns while the editor is running is checked, and the prompt must be at most 30 seconds old. Only its first [`chatRenamer.titleEventPromptLines`](./configuration#chatrenamer-titleeventpromptlines) lines (default `10`) are tested for a request; the other triggers and the palette commands read the whole prompt. `hook` writes a `beforeSubmitPrompt` hook ([`chatRenamer.hookScope`](./configuration#chatrenamer-hookscope): `workspace` or `user`) so a lone slash command is blocked and the title is taken literally. A prompt that only matches a pattern still goes to the model.
+[`chatRenamer.trigger`](./configuration#chatrenamer-trigger) is `titleEvent` by default: the first title Cursor assigns while the editor is running is checked, and the prompt must be at most 30 seconds old.
+Only its first [`chatRenamer.titleEventPromptLines`](./configuration#chatrenamer-titleeventpromptlines) lines (default `10`) are tested for a request; the other triggers and the palette commands read the whole prompt.
+`hook` writes a `beforeSubmitPrompt` hook ([`chatRenamer.hookScope`](./configuration#chatrenamer-hookscope): `workspace` or `user`) so a lone slash command is blocked and the title is taken literally.
+A prompt that only matches a pattern still goes to the model.
 
-Options live in [Configuration](./configuration#options). Editor settings you set explicitly win over `variants.yaml`.
+Options live in [Configuration](./configuration#options).
+Editor settings you set explicitly win over `variants.yaml`.
 
-Palette commands: **Variant: Rename active chat** and **Variant: Rename Existing Chats**. Activity is logged to the **Variant Worktrees** log channel, which **Developer: Show Logs…** lists. The first prompt lines the title event read appear at Trace level, and each new chat gets one `[title-event] decision` line (matched or not, which pattern, rename/keep/ignore, and why). A rename that fails shows a notification with the cause. **Rename active chat** takes the selected chat that Cursor lists as most recently updated, or the most recently updated chat when none is selected; at Trace level its `[active-chat]` entries show the selection Cursor returned, the catalog entries considered and the chat chosen, and a run that renames nothing logs an `[active-chat] not renamed` warning with the reason.
+Palette commands: **Variant: Rename active chat** and **Variant: Rename Existing Chats**.
+Activity is logged to the **Variant Worktrees** log channel, which **Developer: Show Logs…** lists.
+The first prompt lines the title event read appear at Trace level, and each new chat gets one `[title-event] decision` line (matched or not, which pattern, rename/keep/ignore, and why).
+A rename that fails shows a notification with the cause.
+**Rename active chat** takes the selected chat that Cursor lists as most recently updated, or the most recently updated chat when none is selected; at Trace level its `[active-chat]` entries show the selection Cursor returned, the catalog entries considered and the chat chosen, and a run that renames nothing logs an `[active-chat] not renamed` warning with the reason.
