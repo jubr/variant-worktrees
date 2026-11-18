@@ -2,7 +2,7 @@
 
 ### Requirement: Bun on PATH matches the Bun Mise pins
 
-Before provision, watch and up run the first host command of a variant, the system SHALL check the Bun that those commands find against the Bun version that Mise resolves for the project directory. The expected version SHALL come from Mise (`mise -C <projectDir> ls --current --json bun`), never from reading Mise configuration files. The actual Bun SHALL be the first executable named `bun` in the `PATH` of the command environment, and its version the output of `<that executable> --version`. When the expected version exists and differs from the actual version, the system SHALL log one warning per operation that names the expected version and its path (`mise which bun`), the actual version and its path, the `PATH` directory that comes first, and that Mise's directories should come first. The check SHALL NOT change `PATH`, SHALL NOT fail or delay the command beyond running the two version probes, and SHALL be skipped silently when no Mise executable is found, when Mise reports no Bun for the project, when no `bun` is on `PATH`, or when a probe fails. It SHALL run at most once per operation.
+Before provision, watch and up run the first host command of a variant, the system SHALL check the Bun that those commands find against the Bun version that Mise resolves for the project directory. The expected version SHALL come from Mise (`mise -C <projectDir> ls --current --json bun`), never from reading Mise configuration files. The actual Bun SHALL be the first executable named `bun` in the `PATH` of the command environment, and its version the output of `<that executable> --version`. When the expected version exists and differs from the actual version, the system SHALL log one warning per operation that names the expected version and its path (`mise which bun`), the actual version and its path, the `PATH` directory that comes first, and that Mise's directories should come first. The check SHALL NOT change `PATH`, SHALL NOT fail or delay the command beyond running the two version probes, and SHALL be skipped silently when no Mise executable is found, when Mise reports no Bun for the project, when no `bun` is on `PATH`, or when a probe fails. It SHALL run at most once per operation, and not at all when the operation was given `miseInstall` `no`, which means that no Mise process runs.
 
 #### Scenario: Another Bun first on PATH
 
@@ -28,6 +28,11 @@ Before provision, watch and up run the first host command of a variant, the syst
 
 - **WHEN** no Mise executable is found
 - **THEN** no warning is logged and the operation continues
+
+#### Scenario: Mise install no
+
+- **WHEN** an operation runs with `miseInstall` `no` and the versions would differ
+- **THEN** no Mise process runs and no warning is logged
 
 #### Scenario: One warning per operation
 

@@ -24,7 +24,7 @@ Two defects make a variant start with the wrong tools or the wrong files:
 
 - `variant-api`: `prepareRun` (`run-context.ts`) and the callers that give it a worktree; a new Bun-toolchain check beside `mise.ts`, called where provision and watch start host commands, with its warning going through the existing `log` option.
 - `variant-config` template rendering is unchanged; `variant-api` is the one place that decides the worktree.
-- Docs: `docs/guide/configuration.md` (placeholder table), `docs/guide/core.md` (the warning), `CHANGELOG.md` (Fixed and Added bullets under `## Unreleased`).
+- Docs: `docs/guide/configuration.md` (placeholder table), `docs/guide/runtime.md` (the warning), `CHANGELOG.md` (Fixed and Added bullets under `## Unreleased`).
 - No new setting and no new dependency.
 
 Non-goals: rewriting `PATH` to put Mise first, a setting to turn the warning off, checking tools other than Bun, and failing a command because of a mismatch.
