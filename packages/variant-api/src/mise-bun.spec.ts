@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, setDefaultTimeout } from "bun:test";
 import {
   chmodSync,
   existsSync,
@@ -14,6 +14,9 @@ import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
 import { warnWhenBunDiffers } from "./mise-bun.js";
 import { fakeMise } from "./test/mise-mock.js";
+
+// AIDEV-NOTE: each stub executable is new, and the first run of a new file can take over a second on macOS.
+setDefaultTimeout(30_000);
 
 /** A directory holding an executable `bun` that prints `version` and leaves a marker file when it runs. */
 const stubBun = (root: string, name: string, version: string, exitCode = 0): string => {
@@ -149,5 +152,27 @@ describe("provision with another Bun first on PATH", () => {
 
       expect(log.filter((line) => line.startsWith("Warning: bun"))).toHaveLength(1);
       expect(existsSync(join(root, "seeded"))).toBe(true);
+    }));
+
+  it("runs no Mise process and warns of nothing when the operation is given miseInstall no", () =>
+    withRoot(async (root) => {
+      const foreign = stubBun(root, "foreign", "1.3.0");
+      const mise = stubBun(root, "mise-bun", "1.4.2");
+      const fake = fakeMise(root, { lsCurrent: pinned("1.4.2", mise), which: join(mise, "bun") });
+      writeFileSync(join(root, "variants.yaml"), "db:\n  dialect: sqlite\nvariant:\n  open: false\n");
+      process.env.PATH = `${foreign}:${mise}:${savedPath}`;
+      const client = createVariantClient({
+        config: loadConfig({ cwd: root, env: {} }),
+        cwd: root,
+        stateDir: join(root, ".cache", "variants"),
+        worktree: false,
+        miseBinPath: fake.binary,
+      });
+      const log: string[] = [];
+
+      await client.provision("demo", { miseInstall: "no", log: (line) => log.push(line) });
+
+      expect(fake.calls()).toEqual([]);
+      expect(log.filter((line) => line.startsWith("Warning: bun"))).toEqual([]);
     }));
 });

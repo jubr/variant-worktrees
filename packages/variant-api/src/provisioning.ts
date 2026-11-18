@@ -123,12 +123,14 @@ export const runProvisioning = async (
   };
 
   // AIDEV-NOTE: One check per pipeline, which `provision`, `up` and `watch` all run, before the first host command.
-  warnWhenBunDiffers({
-    directory: run.projectDir,
-    binary: miseBinaryFor(config, context.miseBinPath),
-    env: commandEnvironment(config, run, undefined),
-    log: options.log ?? logToStderr,
-  });
+  if (options.miseInstall !== "no") {
+    warnWhenBunDiffers({
+      directory: run.projectDir,
+      binary: miseBinaryFor(config, context.miseBinPath),
+      env: commandEnvironment(config, run, undefined),
+      log: options.log ?? logToStderr,
+    });
+  }
   if (run.storage) {
     mkdirSync(run.storage, { recursive: true });
   }
