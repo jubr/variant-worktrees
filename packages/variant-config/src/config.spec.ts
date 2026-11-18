@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig, seedCommandFor } from "./index.js";
+import { loadConfig } from "./index.js";
 
 const tempDirectory = (): string => mkdtempSync(join("/tmp", "variant-config-"));
 
@@ -55,7 +55,7 @@ describe("loadConfig", () => {
     }
   });
 
-  it("resolves the seed command from variant.seed, which a per-variant seed overrides", () => {
+  it("takes the seed command from variant.seed and warns about a top-level variants key without applying it", () => {
     const directory = tempDirectory();
     try {
       writeFileSync(
@@ -65,8 +65,9 @@ describe("loadConfig", () => {
 
       const config = loadConfig({ cwd: directory });
 
-      expect(seedCommandFor(config, "other")).toBe("bun run db:seed");
-      expect(seedCommandFor(config, "main")).toBe("echo skip");
+      expect(config.variant.seed).toBe("bun run db:seed");
+      expect(config.warnings).toEqual([`${join(directory, "variants.yaml")}: unknown key variants`]);
+      expect(config).not.toHaveProperty("variants");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

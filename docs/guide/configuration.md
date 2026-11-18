@@ -61,7 +61,7 @@ Directory that holds the worktrees, relative to `variants.yaml`. Default: the di
 
 ### `variant.seed`
 
-The seed command of every variant; `variants.<slug>.seed` sets one for a single variant. It runs once, after provisioning, and creates the tables and loads the rows. Absent: nothing is seeded. The step of that name is explained in the [Overview](./overview#seed).
+The seed command of every variant. It runs once, after provisioning, and creates the tables and loads the rows. Absent: nothing is seeded. The step of that name is explained in the [Overview](./overview#seed).
 
 ### `variant.steps`
 

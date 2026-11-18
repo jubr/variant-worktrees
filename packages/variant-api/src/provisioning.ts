@@ -7,7 +7,6 @@ import {
   multiSchemaName,
   type ResolvedConfig,
   runtimeCommandFor,
-  seedCommandFor,
   type VariantWatch,
 } from "variant-config";
 import { commandMessage } from "./command-message.js";
@@ -215,7 +214,7 @@ export const runProvisioning = async (
     }
   }
 
-  const seed = seedCommandFor(config, run.slug);
+  const seed = config.variant.seed;
   if (seed) {
     const seedCommand = expandSetting(config, run, seed, "seed");
     log(levelForDirectory(LogLevel.info, run.projectDir), commandMessage(seedCommand), {

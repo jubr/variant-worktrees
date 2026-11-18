@@ -53,11 +53,6 @@ export const DbConfigSchema = z.strictObject({
 });
 export type DbConfig = z.infer<typeof DbConfigSchema>;
 
-export const VariantEntrySchema = z.strictObject({
-  seed: z.string().min(1).optional(),
-});
-export type VariantEntry = z.infer<typeof VariantEntrySchema>;
-
 /** Template of the URL of a Vite watch. `${slug}`, `${abbr}` and `${port}` are placeholders. */
 export const DEFAULT_URL = "http://${slug}.${abbr}.localhost:${port}";
 
@@ -485,7 +480,6 @@ export const VariantsConfigSchema = z
   .strictObject({
     db: DbConfigSchema.optional(),
     variant: VariantRuntimeSchema.optional(),
-    variants: z.record(z.string().min(1), VariantEntrySchema).optional(),
     /** Options of the Cursor chat renamer. The full set and its validation are owned by chat-renamer-config. */
     chatRenamer: ChatRenamerConfigSchema.optional(),
   })

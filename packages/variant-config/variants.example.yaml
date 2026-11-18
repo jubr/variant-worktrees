@@ -112,11 +112,6 @@ variant:
         dockerfile: be/Dockerfile # `docker run --rm -it $(docker build -f ${dir}/Dockerfile -q .)`
         internalPort: 3000 # port inside the container; default 80
 
-# Per-variant overrides, keyed by slug.
-variants:
-  add-auth:
-    seed: ./scripts/seed-auth.sh
-
 # Cursor chat renamer: renames a Cursor chat from its first prompt. Editor settings still win over these values.
 chatRenamer:
   trigger: titleEvent # hook
