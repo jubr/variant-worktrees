@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { linksOf as readmeLinks, READMES, SITE } from "./readme-links.ts";
 import { DEFAULT_ACTIVATION_PATTERNS } from "../packages/chat-renamer-config/src/defaults.ts";
 import docsConfig from "../docs/.vitepress/config.ts";
 
@@ -937,5 +938,26 @@ describe("follow-up edits of the pages", () => {
     expect(text).not.toMatch(/recreates the database/);
     expect(up).toMatch(/class="info custom-block"/);
     expect(up).toContain("not thoroughly tested");
+  });
+});
+
+describe("README links into the documentation site", () => {
+  const ids = (file: string) => new Set([...page(file).matchAll(/\s(?:id|name)="([^"]*)"/g)].map((match) => match[1]));
+
+  test("every link to the site names a built page and, with a fragment, an id of it", () => {
+    const dead: string[] = [];
+    let seen = 0;
+    for (const readme of READMES) {
+      for (const link of readmeLinks(readFileSync(join(root, readme), "utf8"))) {
+        if (!link.url.startsWith(SITE)) continue;
+        seen++;
+        const [path, hash] = decodeURIComponent(link.url.slice(SITE.length)).split("#");
+        const file = path === "" || path.endsWith("/") ? `${path}index.html` : /\.[a-z0-9]+$/i.test(path) ? path : `${path}.html`;
+        if (!existsSync(join(dist, file))) dead.push(`${readme}:${link.line} ${link.url}`);
+        else if (hash && file.endsWith(".html") && !ids(file).has(hash)) dead.push(`${readme}:${link.line} ${link.url}`);
+      }
+    }
+    expect(seen).toBeGreaterThan(8);
+    expect(dead).toEqual([]);
   });
 });

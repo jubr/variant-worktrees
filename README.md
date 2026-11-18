@@ -1,6 +1,6 @@
 # variant-worktrees
 
-![variant-worktrees](./packages/variant-vscode/media/icon-256.png)
+![variant-worktrees](https://raw.githubusercontent.com/jubr/variant-worktrees/main/packages/variant-vscode/media/icon-256.png)
 
 **Isolated work+db for agents+yourself :: watches, seed, implode :: cli, mcp & vscode**
 
@@ -16,7 +16,7 @@ It complements the agentic workflow: several agents work in their own variants w
 
 ## How it works
 
-You describe your project once in [`variants.yaml`](#configuration). Then three commands cover the whole life of a variant. `watch` creates it and runs the project there, you or an agent do the work inside it, and `implode` removes it.
+You describe your project once in [`variants.yaml`](https://jubr.github.io/variant-worktrees/guide/configuration#variant-options). Then three commands cover the whole life of a variant. `watch` creates it and runs the project there, you or an agent do the work inside it, and `implode` removes it.
 
 ### Agent
 
@@ -62,7 +62,7 @@ npm install variant-api
 
 `variant-api` is the library only and provides no `variant` command; `variant-cli` provides it. Releases also ship the `variant` CLI as a single-file executable for Linux, macOS, and Windows.
 
-To try it on a working project, use [`example/`](./example) (Vite, NestJS, and SQLite). Seed, ports, and containers are in [`example/README.md`](./example/README.md).
+To try it on a working project, use [`example/`](https://github.com/jubr/variant-worktrees/tree/main/example) (Vite, NestJS, and SQLite). Seed, ports, and containers are in [`example/README.md`](https://github.com/jubr/variant-worktrees/blob/main/example/README.md).
 
 ```bash
 cd example
@@ -94,14 +94,14 @@ variant:
         overrides: { PORT: '${port}' }
 ```
 
-The [`example/`](./example) project shows a complete setup (Vite + NestJS on SQLite). The
-[configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration) lists every runtime option.
+The [`example/`](https://github.com/jubr/variant-worktrees/tree/main/example) project shows a complete setup (Vite + NestJS on SQLite). The
+[configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration#variant-options) lists every option.
 
 Database settings are autodetected from the environment (Postgres, MySQL, MariaDB as dialect `mysql`, SQLite). The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over the process environment, read once and only when a value is first needed (`variant list` of a configuration without references starts no process). Explicit `db` values in `variants.yaml` override autodetected values, and an explicit `db.dialect: sqlite` reads no environment at all. Mise is found by the `variant.mise.binPath` setting of the editor, the `variant.mise.binPath` key, `PATH`, then the usual install locations.
 
 Every string setting, `db` included, takes `${NAME}` (an environment variable, an error when unset), `${NAME:-default}` and the variant placeholders `${slug}`, `${abbr}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<key>.port}`. Write `$${` for a literal `${` that a shell must see. `db.port` is a positive integer or a string: digits, or one `${NAME}`. The string must resolve to a positive integer; `"not-a-number"` still fails. The published JSON schema accepts both.
 
-`db.multi` (PostgreSQL only) is one schema per tenant: `schemaPrefix` (default `v_${slug}-`), and exactly one of `tenants` (`east,west`) and `tenantsCmd` (a shell command, run lazily). `${multi.tenants}` and `${multi.schemaPrefix}` fill a step's `env`. `variant.steps` is a map keyed by step name. A step has `cmd`, and a custom step has exactly one of `runBefore` and `runAfter`. A step named `provision`, `seed` or `deprovision` fills that phase. The flow is in the [overview](https://jubr.github.io/variant-worktrees/guide/overview), not repeated here.
+`db.multi` (PostgreSQL only) is one schema per tenant: `schemaPrefix` (default `v_${slug}-`), and exactly one of `tenants` (`east,west`) and `tenantsCmd` (a shell command, run lazily). `${multi.tenants}` and `${multi.schemaPrefix}` fill a step's `env`. `variant.steps` is a map keyed by step name. A step has `cmd`, and a custom step has exactly one of `runBefore` and `runAfter`. A step named `provision`, `seed` or `deprovision` fills that phase. The flow is in the [overview](https://jubr.github.io/variant-worktrees/guide/overview#flow-of-steps), not repeated here.
 
 ### Bootstrap with `variant init`
 
@@ -118,21 +118,17 @@ It refuses to run when a `variants.yaml` exists (unless `--file=false` or `--for
 
 When the working directory is inside a variant worktree that contains `variants.yaml` or `variants.yml`, that file is the configuration. An ancestor file and an `AGENTS.md` symlink into the primary checkout do not replace it, and explicit watches in it run as written. A worktree with neither file keeps the usual ancestor walk.
 
-Watches take an optional `url` template (`${slug}`, `${abbr}`, `${port}`; autodetected Vite watches get `http://${slug}.${abbr}.localhost:${port}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. A watch may set `ready` to a path that starts with `/`. Operational state of a variant lives in `<variant>/.cache/variant/state.yaml` (`slug`, `createdAt`, `dir`, `dialect`, `target`, and when known `mode`, `log` and `watches`) and the detection dump in `<variant>/.cache/variant/runtime.yaml`. `.cache/` is git-ignored. A write that would not change the text is skipped. An old `variants.local.yaml` or `.cache/variants/<slug>.yaml` is still read when `state.yaml` is absent, and is not written again. `${port}` is the recorded watch port, otherwise a free port of `variant.ports.range`. `up` and `watch` write the cache files; `list`, `status` and `down` read `state.yaml`.
+Watches take an optional `url` template (`${slug}`, `${abbr}`, `${port}`; autodetected Vite watches get `http://${slug}.${abbr}.localhost:${port}`) and an optional `env` with a `sourceFile`, relative to `dir`, that is copied for a variant and amended with `overrides` and the storage variable when the copy is created (`amendDotenv`, `dotenvFor`). A `container` is a `dockerfile` and an optional `internalPort`. A watch may set `ready` to a path that starts with `/`. Operational state of a variant lives in `<variant>/.cache/variant/state.yaml` (`slug`, `createdAt`, `dir`, `dialect`, `target`, and when known `mode`, `log` and `watches`) and the detection dump in `<variant>/.cache/variant/runtime.yaml`. `.cache/` is git-ignored. A write that would not change the text is skipped. `${port}` is the recorded watch port, otherwise a free port of `variant.ports.range`. `up` and `watch` write the cache files; `list`, `status` and `down` read `state.yaml`.
 
 `variant.abbr` is a short label of the project for hostnames (`variant-worktrees` becomes `vw`, `OtherTitleCase` `otc`, `lower_example` `le`); it comes from the directory name of the main checkout unless you set it. A free port of a watch or of the UI server comes from `variant.ports.range` (default `42000-42999`; an explicit `VARIANT_<KEY>_PORT` may lie anywhere). The watch key `variant-ui` is reserved for the UI server, and so is `ui`: `VARIANT_UI_PORT` (or `variant.ui.port`) sets the server's port.
 
 `variant.prefix` (default `_v-`, connector included) starts every name derived from a
 slug, such as worktree directories (`_v-add-auth`). The optional `chatRenamer` section
 configures the Cursor chat renamer in `variant-vscode`. Every option is listed in
-[`variants.example.yaml`](./packages/variant-config/variants.example.yaml), next to the
-[JSON schema](./packages/variant-config/variants.yaml.schema.json).
+[`variants.example.yaml`](https://github.com/jubr/variant-worktrees/blob/main/packages/variant-config/variants.example.yaml), next to the
+[JSON schema](https://github.com/jubr/variant-worktrees/blob/main/packages/variant-config/variants.yaml.schema.json).
 
 A key `variants.yaml` does not know is a warning, not an error: the command prints one line per key on standard error and runs without it. A value of the wrong type is still an error.
-
-### Migrating from earlier names
-
-`variant.instances` is now `variant.watches`, `variant.reservedPorts` is gone (see `variant.ports.range`), and the templates `{{...}}` are now `${...}`. The old names still load, with a notice on standard error. The `variant` CLI and the VS Code extension then rewrite `variants.yaml` in place, keeping comments and layout, when it is tracked by git and has no uncommitted changes, so `git diff` shows the change and `git checkout -- variants.yaml` reverts it. An untracked `variants.yaml` is rewritten after its old text is saved as `variants.yaml~`. `variants.local.yaml` is not rewritten. Nothing is rewritten when `CI` is set (other than empty, `0` or `false`) or `VARIANT_MIGRATE=0`. The library, the MCP server and `variant ui` never write the file. The same rewrite adds the `yaml-language-server` schema header to a `variants.yaml` that has none, so editors validate it; see the [configuration guide](https://jubr.github.io/variant-worktrees/guide/configuration).
 
 ### Environment variables
 
@@ -167,7 +163,7 @@ variant list                           # slug, mode, uptime, full url, watch log
 variant list -v                        # all meta information of every variant
 variant status preview-one             # everything known about one variant
 variant provision -s preview-one
-variant up -s preview-one              # watches as containers on a fresh database
+variant up -s preview-one              # watches as containers
 variant watch -s preview-one --detach  # watches as host processes
 variant watch --reprovision            # drop the schemas, then provision again
 variant down -s preview-one            # stop them, keep the data
@@ -187,7 +183,7 @@ variant ui --stop                      # end the UI server of the project
 Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
 PostgreSQL and MySQL use isolated schemas/databases; SQLite uses one database
 file per variant. Every command is explained in the
-[command reference](https://jubr.github.io/variant-worktrees/guide/core).
+[command reference](https://jubr.github.io/variant-worktrees/guide/core#lifecycle-commands).
 
 `variant status` reports one variant: the facts `list` shows plus all of its runtime state (mode,
 directory, database settings with the password hidden, and each watch's port, pid, URL, whether the
@@ -259,41 +255,41 @@ Configure an MCP client to run:
 ```
 
 Tools: `variant_init`, `variant_config`, `variant_create`, `variant_list`, `variant_status`,
-`variant_provision`, `variant_up`, `variant_down`, `variant_watch` (always
+`variant_provision`, `variant_up`, `variant_down`, `variant_deprovision`, `variant_watch` (always
 detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
 
 ## Chat renamer
 
-[`chat-renamer`](./packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt, so every agent chat is named after its variant. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](#configuration) and the [chat renamer guide](https://jubr.github.io/variant-worktrees/chat-renamer/)). An editor setting you set explicitly wins.
+[`chat-renamer`](https://github.com/jubr/variant-worktrees/blob/main/packages/chat-renamer-vscode/README.md) renames the Cursor chat from the first prompt, so every agent chat is named after its variant. `/chat-rename my-title` sets that title. An activation pattern does the same: `/vw-spec-start my-slug` becomes `my-slug`. When that extension and `variant-vscode` are both installed, `variant-vscode` owns renaming. Options live in the `chatRenamer` section of `variants.yaml` (see [Configuration](https://jubr.github.io/variant-worktrees/chat-renamer/configuration#options) and the [chat renamer guide](https://jubr.github.io/variant-worktrees/chat-renamer/)). An editor setting you set explicitly wins.
 
 ## Packages
 
-- [`variant-config`](./packages/variant-config) — `variants.yaml` schema and
+- [`variant-config`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-config) — `variants.yaml` schema and
   mise/environment autodetection.
-- [`variant-log`](./packages/variant-log) — shared log events and the process
+- [`variant-log`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-log) — shared log events and the process
   sink.
-- [`variant-ipc`](./packages/variant-ipc) — Unix socket for editor requests.
-- [`variant-api`](./packages/variant-api) — lifecycle library for Node.js and
+- [`variant-ipc`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-ipc) — Unix socket for editor requests.
+- [`variant-api`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-api) — lifecycle library for Node.js and
   Bun.
-- [`variant-cli`](./packages/variant-cli) — the `variant` command.
-- [`variant-mcp`](./packages/variant-mcp) — MCP tools for variant lifecycle
+- [`variant-cli`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-cli) — the `variant` command.
+- [`variant-mcp`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-mcp) — MCP tools for variant lifecycle
   operations.
-- [`variant-ui`](./packages/variant-ui) — the variants React app for the editor
+- [`variant-ui`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-ui) — the variants React app for the editor
   webview and the browser.
-- [`variant-server`](./packages/variant-server) — the local web server behind
+- [`variant-server`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-server) — the local web server behind
   `variant ui`; bundled into `variant-cli` and its executables, not a program of its own.
-- [`variant-vscode`](./packages/variant-vscode) — VS Code extension package.
+- [`variant-vscode`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-vscode) — VS Code extension package.
   Embeds chat renamer.
-- [`chat-renamer-api`](./packages/chat-renamer-api) — parse a Cursor chat rename
+- [`chat-renamer-api`](https://github.com/jubr/variant-worktrees/tree/main/packages/chat-renamer-api) — parse a Cursor chat rename
   request.
-- [`chat-renamer-config`](./packages/chat-renamer-config) — schema for the
+- [`chat-renamer-config`](https://github.com/jubr/variant-worktrees/tree/main/packages/chat-renamer-config) — schema for the
   `chatRenamer` section of `variants.yaml`.
-- [`chat-renamer`](./packages/chat-renamer-vscode) — Cursor extension that
+- [`chat-renamer`](https://github.com/jubr/variant-worktrees/tree/main/packages/chat-renamer-vscode) — Cursor extension that
   renames a chat from its first prompt.
 
 ## Contributing
 
-Building from source, tests, and the review workflow are described in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+Building from source, tests, and the review workflow are described in [`CONTRIBUTING.md`](https://github.com/jubr/variant-worktrees/blob/main/CONTRIBUTING.md).
 
 ## License
 
