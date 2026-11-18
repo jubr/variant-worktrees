@@ -40,12 +40,19 @@ const withRoot = async (run: (root: string) => Promise<void> | void): Promise<vo
   }
 };
 
-const check = (root: string, miseOptions: Parameters<typeof fakeMise>[1], path: string, withMise = true): string[] => {
+const check = (
+  root: string,
+  miseOptions: Parameters<typeof fakeMise>[1],
+  path: string,
+  withMise = true,
+  home = join(root, "home"),
+): string[] => {
   const log: string[] = [];
   warnWhenBunDiffers({
     directory: root,
     binary: withMise ? fakeMise(root, miseOptions).binary : undefined,
     env: { PATH: path },
+    home,
     log: (line) => log.push(line),
   });
   return log;
@@ -117,6 +124,79 @@ describe("warnWhenBunDiffers", () => {
       const broken = stubBun(root, "broken", "1.3.0", 1);
 
       expect(check(root, { lsCurrent: pinned("1.4.2", root) }, broken)).toEqual([]);
+    }));
+});
+
+describe("the hint of the warning", () => {
+  const warn = (root: string, foreignName: string, home = join(root, "home")): string => {
+    const foreign = stubBun(root, foreignName, "1.3.0");
+    const mise = stubBun(root, "mise-bun", "1.4.2");
+    const [warning] = check(
+      root,
+      { lsCurrent: pinned("1.4.2", mise), which: join(mise, "bun") },
+      `${foreign}:${mise}`,
+      true,
+      home,
+    );
+    return warning ?? "";
+  };
+
+  it("names the installer command and the startup file line that adds the directory", () =>
+    withRoot((root) => {
+      mkdirSync(join(root, "home"), { recursive: true });
+      writeFileSync(
+        join(root, "home", ".zshrc"),
+        `${"# prompt\n".repeat(11)}export PATH="${join(root, "home", ".bun", "bin")}:$PATH"\n`,
+      );
+
+      const warning = warn(root, "home/.bun/bin");
+
+      expect(warning).toContain("rm -rf ~/.bun");
+      expect(warning).toContain(`~/.zshrc:12: export PATH="${join(root, "home", ".bun", "bin")}:$PATH"`);
+      expect(warning).toContain("which -a bun");
+    }));
+
+  it("finds the directory spelled with $HOME and with ~", () =>
+    withRoot((root) => {
+      mkdirSync(join(root, "home"), { recursive: true });
+      writeFileSync(
+        join(root, "home", ".bashrc"),
+        'export PATH="$HOME/.bun/bin:$PATH"\nPATH=~/.bun/bin:$PATH\nPATH=${HOME}/.bun/bin:$PATH\n',
+      );
+
+      const warning = warn(root, "home/.bun/bin");
+
+      expect(warning).toContain('~/.bashrc:1: export PATH="$HOME/.bun/bin:$PATH"');
+      expect(warning).toContain("~/.bashrc:2: PATH=~/.bun/bin:$PATH");
+      expect(warning).toContain("~/.bashrc:3: PATH=${HOME}/.bun/bin:$PATH");
+    }));
+
+  it("leaves out a commented line and says what was searched when nothing is left", () =>
+    withRoot((root) => {
+      mkdirSync(join(root, "home"), { recursive: true });
+      writeFileSync(join(root, "home", ".zshrc"), `  # export PATH="${join(root, "home", ".bun", "bin")}:$PATH"\n`);
+
+      const warning = warn(root, "home/.bun/bin");
+
+      expect(warning).not.toContain(".zshrc:1:");
+      expect(warning).toContain("No line");
+      expect(warning).toContain("~/.zshrc");
+      expect(warning).toContain("~/.config/fish/config.fish");
+    }));
+
+  it("advises brew uninstall for a Homebrew prefix", () =>
+    withRoot((root) => {
+      expect(warn(root, "homebrew/bin")).toContain("brew uninstall bun");
+    }));
+
+  it("advises npm uninstall for a node_modules directory", () =>
+    withRoot((root) => {
+      expect(warn(root, "lib/node_modules/bun/bin")).toContain("npm uninstall -g bun");
+    }));
+
+  it("advises deleting the executable otherwise", () =>
+    withRoot((root) => {
+      expect(warn(root, "opt/tools/bin")).toContain(`delete ${join(root, "opt/tools/bin/bun")}`);
     }));
 });
 
