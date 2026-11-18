@@ -77,13 +77,13 @@ Every inline-code mention in the documentation of a full key path that has a hea
 
 ### Requirement: Overview steps are short and link to commands
 
-Each builtin step of the Overview that is also a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) SHALL be a minimal explanation of what the step does, of at most 60 words, with no list, no table, no flag or option list and no configuration example. It SHALL end with the sentence `More details at [<command>](core#<command>).`, linking to the section of that command in Core. What the step no longer says SHALL be in that Core section. A step that is not a command, `seed`, and the Custom Steps and Custom multi-tenancy steps sections SHALL keep their full explanation and full configuration example, and SHALL link to the headings of the keys they use, such as `variant.steps`, `variant.seed`, `db.multi` and `db.multi.schemaPrefix`. The Overview SHALL show `VARIANT_STEP_<STEP>=no` as typed.
+Each builtin step of the Overview that is also a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) SHALL be a minimal explanation of what the step does, of at most 60 words, with no list, no table, no flag or option list and no configuration example. It SHALL end with the sentence `More details at Core [<command>](core#<command>).`, linking to the section of that command in Core. What the step no longer says SHALL be in that Core section. A step that is not a command, `seed`, and the Custom Steps and Custom multi-tenancy steps sections SHALL keep their full explanation and full configuration example, and SHALL link to the headings of the keys they use, such as `variant.steps`, `variant.seed`, `db.multi` and `db.multi.schemaPrefix`. The Overview SHALL show `VARIANT_STEP_<STEP>=no` as typed.
 
 #### Scenario: Command steps are short and end with a Core link
 
 - **WHEN** the section of each of `create`, `provision`, `watch`, `down`, `deprovision` and `implode` in the built Overview page is read
 - **THEN** it has at most 60 words before its last paragraph and contains no list, table or fenced code
-- **AND** its last paragraph is `More details at` followed by a link whose text is the command and whose target is `/guide/core#<command>`, and a period
+- **AND** its last paragraph is `More details at Core` followed by a link whose text is the command and whose target is `/guide/core#<command>`, and a period
 
 #### Scenario: The seed step keeps its explanation and example
 
@@ -106,12 +106,17 @@ Each builtin step of the Overview that is also a command (`create`, `provision`,
 
 ### Requirement: MCP tools have a heading each
 
-The *Available tools* section of the MCP server page SHALL have one third-level heading per registered tool, named as the tool (`variant_init`), in the order of the commands. Each tool section SHALL link to the section of the same command in Core (`variant_init` to `/guide/core#init`), SHALL state only what differs from that command, and SHALL show a table of the parameters the tool takes. Arguments a tool fixes itself SHALL NOT be in the table.
+The *Available tools* section of the MCP server page SHALL have one third-level heading per registered tool, named as the tool (`variant_init`), in the order of the commands. Each tool section SHALL link to the section of the same command in Core (`variant_init` to `/guide/core#init`), SHALL state only what differs from that command, and SHALL show a table of the parameters the tool takes. Arguments a tool fixes itself SHALL NOT be in the table. The page SHALL NOT have a Testing section.
 
 #### Scenario: One heading per registered tool
 
 - **WHEN** the third-level headings of *Available tools* in the built MCP page are listed
 - **THEN** they equal `variant_<name>` for every registered command, in registration order
+
+#### Scenario: No Testing section
+
+- **WHEN** the headings of the built MCP page are listed
+- **THEN** none is named Testing
 
 #### Scenario: Each tool links to Core and lists its parameters
 
@@ -128,6 +133,11 @@ The Chat Renamer configuration page SHALL be structured like the Configuration p
 
 - **WHEN** the built Chat Renamer configuration page is read
 - **THEN** each key and sub-key of `chatRenamer` in the `variants.yaml` schema has a third-level heading of its full path, for example `chatRenamer.trigger` and `chatRenamer.awake.graceDelaySecs`
+
+#### Scenario: The defaults of activationPatterns are shown
+
+- **WHEN** the `chatRenamer.activationPatterns` section of the built Chat Renamer configuration page is read
+- **THEN** its YAML snippet lists exactly the default activation patterns of `chat-renamer-config`, in order
 
 #### Scenario: Chat renamer headings are alphabetical
 
@@ -148,7 +158,7 @@ The documentation SHALL NOT name configuration keys or shapes of earlier version
 
 ### Requirement: Runtime page
 
-A top-level Runtime page SHALL document how watches behave: how `up` and `watch` prepare a variant, ports, state files, the interactive keys, exit statuses, the environment read through Mise, the variables a command sees or reads as overrides, and what is detected when `variant.watches` is omitted. The Configuration page SHALL NOT repeat those sections. The Runtime page SHALL have a second-level heading Watching with the third-level headings Interactive keys, Reattaching and Exit status below it, followed by a second-level heading Up that holds what is specific to `up`.
+A top-level Runtime page SHALL document how watches behave: how `up` and `watch` prepare a variant, ports, state files, the interactive keys, exit statuses, the environment read through Mise, the variables a command sees or reads as overrides, and what is detected when `variant.watches` is omitted. The Configuration page SHALL NOT repeat those sections. The Runtime page SHALL have a second-level heading Watching with the third-level headings Interactive keys, Reattaching and Exit status below it, followed by a second-level heading Up that holds what is specific to `up`. The Up section SHALL say that `up` goes through `create`, `provision` and `seed` like `watch`, SHALL NOT say that it recreates the database target, and SHALL show the disclaimer that `up` is not thoroughly tested as an info panel.
 
 #### Scenario: Runtime holds the moved sections
 
@@ -162,9 +172,15 @@ A top-level Runtime page SHALL document how watches behave: how `up` and `watch`
 - **THEN** Watching is a second-level heading and Interactive keys, Reattaching and Exit status are third-level headings directly below it
 - **AND** Up is a second-level heading that follows the Exit status heading and precedes Environment through Mise
 
+#### Scenario: Up goes through the same steps as watch
+
+- **WHEN** the Up section of the built Runtime page is read
+- **THEN** it names `create`, `provision` and `seed` and does not say that `up` recreates the database target
+- **AND** it contains a VitePress info container with the disclaimer
+
 ### Requirement: Configuration page structure
 
-The Configuration page SHALL open with an Options section. The Options section SHALL give every key of `variant` in `variants.yaml` its own heading named `variant.<key>`, in alphabetical order, so other pages can link to it. Every sub-key of those options SHALL have a third-level heading of its own named with its full path (`variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `variant.steps.<name>.cmd`), directly after its parent and in alphabetical order. The Options section SHALL end with a `chatRenamer.*` entry that links to the Chat Renamer configuration page. A Database section SHALL follow it, with a third-level heading for every key of `db` and every key of `db.multi` (`db.ssl`, `db.multi.tenantsCmd`). The `variant.steps` section SHALL link to `overview#flow-of-steps`. Templates SHALL follow those sections and SHALL list every placeholder and environment form in a table. Unknown keys and migration SHALL be the last section and SHALL NOT name a key or shape of an earlier version.
+The Configuration page SHALL have the second-level sections *Variant options*, *Chat Renamer options*, *Database options*, *Templates* and *Unknown keys and migration*, in this order. *Variant options* SHALL give every key of `variant` in `variants.yaml` its own heading named `variant.<key>`, in alphabetical order, so other pages can link to it. Every sub-key of those options SHALL have a third-level heading of its own named with its full path (`variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `variant.steps.<name>.cmd`), directly after its parent and in alphabetical order. *Chat Renamer options* SHALL link to the Chat Renamer configuration page and has no heading per key. *Database options* SHALL have a third-level heading for every key of `db` and every key of `db.multi` (`db.ssl`, `db.multi.tenantsCmd`). The `variant.steps` section SHALL link to `overview#flow-of-steps`. *Templates* SHALL list every placeholder and environment form in a table with the columns Item, Meaning, Example use and Example value, and no column for the pass. *Unknown keys and migration* SHALL be the last section and SHALL NOT name a key or shape of an earlier version.
 
 #### Scenario: Every option has an anchor
 
@@ -173,7 +189,7 @@ The Configuration page SHALL open with an Options section. The Options section S
 
 #### Scenario: Options are alphabetical
 
-- **WHEN** the `variant.<key>` headings of the Options section are listed in page order
+- **WHEN** the `variant.<key>` headings of the Variant options section are listed in page order
 - **THEN** they equal the same list sorted alphabetically
 
 #### Scenario: Every sub-key has a heading
@@ -186,13 +202,13 @@ The Configuration page SHALL open with an Options section. The Options section S
 #### Scenario: Section order
 
 - **WHEN** the second-level headings of the Configuration page are listed
-- **THEN** Options comes first, then Database, then Templates, and Unknown keys and migration comes last
+- **THEN** they are Variant options, Chat Renamer options, Database options, Templates and Unknown keys and migration
 
-#### Scenario: Options end with the chat renamer entry
+#### Scenario: Chat Renamer options link to their page
 
-- **WHEN** the Options section of the built Configuration page is read
-- **THEN** its last heading is `chatRenamer.*`
-- **AND** it links to `/chat-renamer/configuration`
+- **WHEN** the Chat Renamer options section of the built Configuration page is read
+- **THEN** it links to `/chat-renamer/configuration`
+- **AND** it has no third-level heading
 
 #### Scenario: Steps link to the flow of steps
 
@@ -202,7 +218,8 @@ The Configuration page SHALL open with an Options section. The Options section S
 #### Scenario: Templates are listed in a table
 
 - **WHEN** the Templates section of the built Configuration page is read
-- **THEN** it has a table with a row for each of `${slug}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}`, `${<watch>.port}`, `${abbr}`, `${multi.tenants}`, `${multi.schemaPrefix}`, `${NAME}`, `${NAME:-default}` and `$${`
+- **THEN** its table has the columns Item, Meaning, Example use and Example value, and no column Pass
+- **AND** it has a row for each of `${slug}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}`, `${<watch>.port}`, `${abbr}`, `${multi.tenants}`, `${multi.schemaPrefix}`, `${NAME}`, `${NAME:-default}` and `$${`
 
 ### Requirement: Library page shows code
 
@@ -219,3 +236,33 @@ The library page SHALL consist of code examples with a one-line caption each, an
 - **WHEN** the configuration section of the built library page is read
 - **THEN** it links to `/guide/configuration#variant-watches`, `/guide/configuration#variant-seed` and `/guide/configuration#variant-mise`
 - **AND** it contains no fenced code
+
+### Requirement: Core groups lifecycle commands
+
+The Core page SHALL have the second-level sections *Lifecycle commands* and *Other commands*, followed by *Global flags*. *Lifecycle commands* SHALL hold `create`, `provision`, `up`, `watch`, `down`, `deprovision` and `implode` as third-level headings, in the order of the flow of steps. *Other commands* SHALL hold `init`, `config`, `list`, `status`, `ui` and `completions` as third-level headings. Every command heading keeps the id of its name, so `core#create` stays a valid deep link.
+
+#### Scenario: Commands are grouped
+
+- **WHEN** the headings of the built Core page are listed in page order
+- **THEN** the second-level headings are Lifecycle commands, Other commands and Global flags
+- **AND** the third-level headings below Lifecycle commands are `create`, `provision`, `up`, `watch`, `down`, `deprovision`, `implode`
+- **AND** the third-level headings below Other commands are `init`, `config`, `list`, `status`, `ui`, `completions`
+
+### Requirement: Sentences are on separate lines
+
+Prose in the Markdown files under `docs/` (not the generated `docs/api`) SHALL put each sentence on a line of its own, which Markdown renders as one paragraph. Consecutive sentences MAY share a line while the line stays below 100 characters. This applies to paragraphs and list items, and not to headings, tables, fenced code, HTML or front matter. A repository test SHALL fail for a file whose prose differs from what the rule produces, and a script SHALL rewrite a file to comply.
+
+#### Scenario: A long sentence has its own line
+
+- **WHEN** a paragraph holds two sentences of which the combined line would be 100 characters or more
+- **THEN** they are on two lines
+
+#### Scenario: Short sentences share a line
+
+- **WHEN** two consecutive sentences together are shorter than 100 characters
+- **THEN** a file that puts them on separate lines fails the test
+
+#### Scenario: Every docs file complies
+
+- **WHEN** the rule is applied to each tracked Markdown file under `docs/`
+- **THEN** the result equals the file

@@ -1,3 +1,24 @@
+## ADDED Requirements
+
+### Requirement: README links are absolute and verified
+
+Every link in `README.md`, the `variant-vscode` README and the `chat-renamer-vscode` README SHALL be an absolute URL (`https://…`), because those files are shown on GitHub, npm and the marketplace, where relative links break. A link to the documentation site SHALL name a page and, when it has a fragment, a heading that exists in the built site. A link to a file or directory of the repository SHALL be an absolute link to `https://github.com/jubr/variant-worktrees`. A script SHALL rewrite relative links to absolute ones, and a repository test SHALL fail for a relative link or a documentation link that does not resolve. The READMEs SHALL NOT name configuration keys or shapes of earlier versions, and no more than the documentation says.
+
+#### Scenario: No relative link
+
+- **WHEN** the links of the three READMEs are listed
+- **THEN** each starts with `https://`, and none starts with `./`, `../` or `/`
+
+#### Scenario: Documentation links resolve
+
+- **WHEN** each link to `https://jubr.github.io/variant-worktrees/` in the three READMEs is mapped onto the built site
+- **THEN** its page exists and its fragment, if any, is an `id` of that page
+
+#### Scenario: Earlier names are not mentioned
+
+- **WHEN** the three READMEs are searched
+- **THEN** none contains `variant.instances`, `reservedPorts`, `variants.local.yaml` or `.cache/variants/`
+
 ## MODIFIED Requirements
 
 ### Requirement: Configuration examples match the schema

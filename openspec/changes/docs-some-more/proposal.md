@@ -16,11 +16,20 @@ The documentation pages read as separate islands: a reader who meets `variant.mi
   - *Options* ends with a `chatRenamer.*` entry that links to the Chat Renamer configuration page.
   - `variant.steps` links to the flow in the Overview with its anchor (`overview#flow-of-steps`).
   - Earlier configuration shapes are no longer named in the docs: they stay supported, silently. This covers the former `variant.instances` and `variant.reservedPorts`, the former list shape of `steps`, `run` read as `cmd`, `{{...}}` templates, and the legacy state files.
-- **Overview.** The Overview is the short story of the flow. Each builtin step that is a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) is reduced to a minimal explanation of what it does, with no list of options or flags and no configuration example, and ends with `More details at [<command>](core#<command>).`. The detail that is dropped is already in, or is moved to, that command's section in Core. A step with no command of its own, `seed`, and the *Custom Steps* and *Custom multi-tenancy steps* sections keep their full explanation and full configuration example, and link to the configuration keys they use (`variant.steps`, `variant.seed`, `db.multi`, `db.multi.schemaPrefix`).
+- **Overview.** The Overview is the short story of the flow. Each builtin step that is a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) is reduced to a minimal explanation of what it does, with no list of options or flags and no configuration example, and ends with `More details at Core [<command>](core#<command>).`. The detail that is dropped is already in, or is moved to, that command's section in Core. A step with no command of its own, `seed`, and the *Custom Steps* and *Custom multi-tenancy steps* sections keep their full explanation and full configuration example, and link to the configuration keys they use (`variant.steps`, `variant.seed`, `db.multi`, `db.multi.schemaPrefix`).
 - **MCP page.** *Available tools* becomes one `H3` per tool. Each links to the same section of Core (`core#init`), says only what differs from the CLI command, and has a table of the tool parameters.
 - **Chat Renamer configuration page** takes the structure of the Variant Worktrees Configuration page: Options with one `H3` per `chatRenamer.<key>` and sub-key, alphabetical, the editor settings after it.
 - **Library page.** Its *Configuration* section, now a copy of a sample file, becomes a list of deep links into the Configuration page.
 - **Runtime page.** A new `Watching` heading holds *Interactive keys*, *Reattaching* and *Exit status* as `H3`s. What is specific to `up` moves to its own `Up` heading after `Watching`.
+- **Follow-up edits.**
+  - Configuration sections are *Variant options*, *Chat Renamer options*, *Database options* and *Templates*, whose table drops the pass column and gains an example value.
+  - The Overview ends each command step with `More details at Core [<command>](core#<command>).`.
+  - Core groups *Lifecycle commands* and *Other commands*.
+  - The MCP page has no Testing section.
+  - `chatRenamer.activationPatterns` shows the defaults in a YAML snippet that a test compares to the code.
+  - The Runtime *Up* section says `up` goes through `create`, `provision` and `seed` like `watch`, and its disclaimer is an info panel.
+  - Every sentence in `docs/` prose is on its own line (short ones may share a line below 100 characters), enforced by a test and rewritten by a script.
+  - The three READMEs are cleaned, use absolute links only, and a script and test create and verify those links.
 - **Getting Started, Core, Installation, Extension, Socket IPC** gain deep links to the headings that explain what they mention.
 
 The sidebar already lists Library directly after Building under Development, so that order stays and is pinned by the existing sidebar requirement.
@@ -60,5 +69,5 @@ None.
 - No silent support or migration for the removed `variants` key; it is an unknown key like any other.
 - No new pages and no sidebar change.
 - `variants.local.yaml.schema.json` describes the former per-variant state file, which the product reads and never asks anyone to write. It is not part of the coverage check.
-- No rewrite of `README.md` files beyond fixing links to renamed headings.
+- READMEs change only by cleaning earlier names and by absolute, verified links; their story and structure stay.
 - No shortening of Core, of the intro of the Overview, or of the sections for steps without a command.
