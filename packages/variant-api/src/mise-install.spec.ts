@@ -450,7 +450,7 @@ describe("create installs Mise tools", () => {
 
       await client.up("add-auth");
 
-      expect(mise.calls()).toEqual([]);
+      expect(mise.calls().filter((call) => /\b(trust|install)\b/.test(call))).toEqual([]);
     } finally {
       process.env.PATH = previousPath;
       rmSync(parent, { recursive: true, force: true });

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
 import { installEngineStub } from "./test/engine-stub.js";
+import { fakeMise } from "./test/mise-mock.js";
 
 const originalPath = process.env.PATH;
 afterEach(() => {
@@ -28,6 +29,8 @@ const withProject = async (
       cwd: directory,
       stateDir: join(directory, ".cache", "variants"),
       worktree: false,
+      // AIDEV-NOTE: A Mise that pins no Bun keeps the echo lines independent of the Bun the machine has on PATH.
+      miseBinPath: fakeMise(directory).binary,
     });
     await run({ directory, client });
   } finally {
