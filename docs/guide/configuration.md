@@ -1,12 +1,15 @@
 # Configuration
 
-`variants.yaml` at the workspace root holds the options of a project. Database settings are autodetected from the environment (see [Environment through Mise](./runtime#environment-through-mise)): Postgres, MySQL, MariaDB (`MARIADB_*` or a `mariadb://` URL, dialect `mysql`) and SQLite. Explicit [`db`](#database) values override those. `variant init` writes the autodetected values into a first `variants.yaml`. What happens while watches run is in [Runtime](./runtime), and the editor side is in [Extension](./extension).
+`variants.yaml` at the main checkout in the workspace holds the options of a project.
+Database settings are autodetected from the environment (see [Environment through Mise](./runtime#environment-through-mise)): Postgres, MySQL, MariaDB (`MARIADB_*` or a `mariadb://` URL, dialect `mysql`) and SQLite.
+Explicit [`db`](#database-options) values override those. `variant init` writes the autodetected values into a first `variants.yaml`. 
+What happens while watches run is in [Runtime](./runtime), and the editor side is in [Extension](./extension).
 
 ::: v-pre
 
-## Options
+## Variant options
 
-Every key of `variant` has a heading of its own below, in alphabetical order, so other pages can link to it, and so has every sub-key, right after its parent. The options of the chat renamer are on [their own page](/chat-renamer/configuration), and the [`db`](#database) section follows.
+Listed here are all possible (sub-)keys of `variant` in alphabetical order. The options of the chat renamer are on [their own page](/chat-renamer/configuration), and the [`db`](#database-options) section follows.
 
 ### `variant.abbr`
 
@@ -231,11 +234,11 @@ URL template of the watch.
 
 The process `variant watch` supervises.
 
-### `chatRenamer.*`
+## Chat Renamer options
 
-The options of the Cursor chat renamer are described on [Chat Renamer configuration](/chat-renamer/configuration).
+All `chatRenamer.*` options are valid in the Variant Worktrees too and are described at [Chat Renamer configuration](/chat-renamer/configuration).
 
-## Database
+## Database options
 
 Settings are autodetected from `mise.local.toml`, then the environment, and explicit values override them. `variant init` writes the detected values, with secrets as `${NAME}` references. A `db` setting has no variant, so a variant placeholder in one is an error: see [Templates](#templates). Every key has a heading of its own, in alphabetical order.
 
@@ -307,23 +310,24 @@ The database user. Autodetected from `POSTGRES_USER`, `MYSQL_USER` or `MARIADB_U
 
 ## Templates
 
-Every string setting is templated, `db` included, with one syntax. Values are expanded in two passes: first the variant placeholders, then the environment forms.
+Every string setting is templated, `db` included, with one syntax. Values are expanded in two passes: first the variant placeholders, then the environment forms (`${NAME}` and `${NAME:-default}`).
+The example values assume slug `demo`, abbreviation `vw`, a watch `be` on port 3001 and a watch on port 5173.
 
-| Item | Pass | Meaning | Example |
+| Item | Meaning | Example use | Example value |
 | --- | --- | --- | --- |
-| `${slug}` | 1 | the slug of the variant | `v_${slug}-` |
-| `${schema}` | 1 | the database schema, or the SQLite file | |
-| `${storage}` | 1 | the storage directory of the variant, see [`variant.storage.dir`](#variant-storage-dir) | |
-| `${worktree}` | 1 | the directory of the worktree | `${worktree}/server/.env` |
-| `${url}` | 1 | the URL of the watch | |
-| `${port}` | 1 | the port of the watch | `http://${slug}.${abbr}.localhost:${port}` |
-| `${<watch>.port}` | 1 | the port of another watch, by its key | `${be.port}` |
-| `${abbr}` | 1 | the project abbreviation, see [`variant.abbr`](#variant-abbr); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}` | |
-| `${multi.tenants}` | 1 | the tenant list of [`db.multi`](#db-multi) joined by commas; empty without [`db.multi`](#db-multi). It runs `tenantsCmd` the first time a step expands it | |
-| `${multi.schemaPrefix}` | 1 | [`db.multi.schemaPrefix`](#db-multi-schemaprefix) with `${slug}` filled in; empty without [`db.multi`](#db-multi). It does not run `tenantsCmd` | |
-| `${NAME}` | 2 | the environment (Mise, then the process); fails when unset | `${POSTGRES_PORT}` |
-| `${NAME:-default}` | 2 | the same, falling back to `default`. The placeholders of the first pass work inside a default | `${JWT_SECRET:-variant-local-${slug}}` |
-| `$${` | | a literal `${`, for a shell command that expands its own variable | `echo $${HOME}` |
+| `${slug}` | the slug of the variant | `v_${slug}-` | `v_demo-` |
+| `${schema}` | the database schema, or the SQLite file |  | `v_demo` |
+| `${storage}` | the storage directory of the variant, see [`variant.storage.dir`](#variant-storage-dir) |  | `/home/me/vw/_v-demo/.storage` |
+| `${worktree}` | the directory of the worktree | `${worktree}/server/.env` | `/home/me/vw/_v-demo/server/.env` |
+| `${url}` | the URL of the watch |  | `http://demo.vw.localhost:5173` |
+| `${port}` | the port of the watch | `http://${slug}.${abbr}.localhost:${port}` | `http://demo.vw.localhost:5173` |
+| `${<watch>.port}` | the port of another watch, by its key | `${be.port}` | `3001` |
+| `${abbr}` | the project abbreviation, see [`variant.abbr`](#variant-abbr); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}` | `http://${slug}.${abbr}.localhost:${port}` | `http://demo.vw.localhost:5173` |
+| `${multi.tenants}` | the tenant list of [`db.multi`](#db-multi) joined by commas; empty without [`db.multi`](#db-multi). It runs `tenantsCmd` the first time a step expands it |  | `east,west` |
+| `${multi.schemaPrefix}` | [`db.multi.schemaPrefix`](#db-multi-schemaprefix) with `${slug}` filled in; empty without [`db.multi`](#db-multi). It does not run `tenantsCmd` |  | `v_demo-` |
+| `${NAME}` | the environment (Mise, then the process); fails when unset | `${POSTGRES_PORT}` | `5432` |
+| `${NAME:-default}` | the same, falling back to `default`. The placeholders of the first pass work inside a default | `${JWT_SECRET:-variant-local-${slug}}` | `variant-local-demo` |
+| `$${` | a literal `${`, for a shell command that expands its own variable | `echo $${HOME}` | `echo ${HOME}` |
 
 A `db` setting has no variant, so a variant placeholder there is an error; [`db.port`](#db-port) may be `${POSTGRES_PORT}`. `variant init` writes secrets as `${NAME}` references. A `${` that was already in a value is not touched: write `$${` where a shell must see it, since `${NAME}` reads the environment.
 

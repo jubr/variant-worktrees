@@ -27,7 +27,7 @@ mise x github:jubr/variant-worktrees@latest -- variant init
 - **adds `_v-*` to `.gitignore`**, so the worktrees of your variants stay out of git.
 - **adds `github:jubr/variant-worktrees` to your mise configuration** (`mise.toml` is created when there is none). Nothing is installed by that edit; run `mise install` and `variant` is on your `PATH` whenever you are in the project.
 
-Review the result with `git diff`, adjust `variants.yaml` (see [Configuration](./configuration#options)), and commit it. The flags of `init`, such as `--prefix` and the `--file=false`, `--gitignore=false` and `--mise=false` switches, are in [Core](./core#init).
+Review the result with `git diff`, adjust `variants.yaml` (see [Configuration](./configuration#variant-options)), and commit it. The flags of `init`, such as `--prefix` and the `--file=false`, `--gitignore=false` and `--mise=false` switches, are in [Core](./core#init).
 
 ## VS Code and Cursor extension
 

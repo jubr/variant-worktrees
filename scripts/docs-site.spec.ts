@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { DEFAULT_ACTIVATION_PATTERNS } from "../packages/chat-renamer-config/src/defaults.ts";
 import docsConfig from "../docs/.vitepress/config.ts";
 
 const packageVersion = (
@@ -276,11 +277,11 @@ describe("configuration page structure", () => {
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
-  test("opens with Options, then Templates, and ends with Unknown keys and migration", () => {
+  test("opens with Variant options, then Templates, and ends with Unknown keys and migration", () => {
     const sections = headings()
       .filter((heading) => heading.level === 2)
       .map((heading) => heading.text);
-    expect(sections[0]).toBe("Options");
+    expect(sections[0]).toBe("Variant options");
     expect(sections.indexOf("Templates")).toBeGreaterThan(0);
     expect(sections.at(-1)).toBe("Unknown keys and migration");
   });
@@ -488,10 +489,10 @@ describe("configuration page, sub-keys and templates", () => {
     expect(missing).toEqual([]);
   });
 
-  test("every key of db and db.multi has a third-level heading of its full path, in a Database section", () => {
+  test("every key of db and db.multi has a third-level heading of its full path, in a Database options section", () => {
     const found = new Map(headings().map((heading) => [heading.text, heading.level]));
     expect(keyPaths("db").filter((path) => found.get(path) !== 3)).toEqual([]);
-    expect(headings().some((heading) => heading.level === 2 && heading.text === "Database")).toBe(true);
+    expect(headings().some((heading) => heading.level === 2 && heading.text === "Database options")).toBe(true);
     expect(headings().some((heading) => heading.level === 2 && heading.text === "db.multi")).toBe(false);
   });
 
@@ -504,21 +505,26 @@ describe("configuration page, sub-keys and templates", () => {
     }
   });
 
-  test("the sections are Options, then Database, then Templates, and Unknown keys and migration last", () => {
+  test("the sections are the variant, chat renamer and database options, templates, and unknown keys", () => {
     const sections = headings()
       .filter((heading) => heading.level === 2)
       .map((heading) => heading.text);
-    expect(sections.slice(0, 3)).toEqual(["Options", "Database", "Templates"]);
-    expect(sections.at(-1)).toBe("Unknown keys and migration");
+    expect(sections).toEqual([
+      "Variant options",
+      "Chat Renamer options",
+      "Database options",
+      "Templates",
+      "Unknown keys and migration",
+    ]);
   });
 
-  test("the options end with a chatRenamer.* entry that links to the chat renamer configuration", () => {
-    const all = headings();
-    const database = all.findIndex((heading) => heading.text === "Database");
-    const last = all[database - 1];
-    expect(last?.text).toBe("chatRenamer.*");
-    const links = linksOf(sectionOf(configuration(), last.id), "guide/configuration.html");
-    expect(links.some((link) => link.path === "/chat-renamer/configuration")).toBe(true);
+  test("the Chat Renamer options section links to the chat renamer configuration and has no key headings", () => {
+    const id = headings().find((heading) => heading.text === "Chat Renamer options")?.id ?? "";
+    const section = sectionOf(configuration(), id);
+    expect(linksOf(section, "guide/configuration.html").some((link) => link.path === "/chat-renamer/configuration")).toBe(
+      true,
+    );
+    expect(section).not.toMatch(/<h3\b/);
   });
 
   test("variant.steps links to the flow of steps in the Overview", () => {
@@ -545,6 +551,21 @@ describe("configuration page, sub-keys and templates", () => {
       "$${",
     ];
     expect(expected.filter((item) => !cells.includes(item))).toEqual([]);
+  });
+
+  test("the templates table has the columns Item, Meaning, Example use and Example value, and a value in every row", () => {
+    const html = sectionOf(configuration(), "templates");
+    const text = (cell: string) => decodeEntities(cell.replace(/<[^>]+>/g, "")).trim();
+    const header = [...html.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => text(match[1]));
+    expect(header).toEqual(["Item", "Meaning", "Example use", "Example value"]);
+    const rows = [...html.matchAll(/<tr>(\s*<td[\s\S]*?)<\/tr>/g)].map((match) =>
+      [...match[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => text(cell[1])),
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(13);
+    for (const row of rows) {
+      expect(row.length, row[0]).toBe(4);
+      expect(row[3], `${row[0]} has an example value`).not.toBe("");
+    }
   });
 });
 
@@ -822,7 +843,7 @@ describe("overview steps are short and link to commands", () => {
       expect(section, "no list, table or fenced code").not.toMatch(/<(ul|ol|table|pre)\b|class="language-/);
       const paragraphs = [...section.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1]);
       const last = paragraphs.at(-1) ?? "";
-      expect(decodeEntities(last.replace(/<[^>]+>/g, ""))).toBe(`More details at ${command}.`);
+      expect(decodeEntities(last.replace(/<[^>]+>/g, ""))).toBe(`More details at Core ${command}.`);
       expect(linksOf(last, "guide/overview.html")).toEqual([{ path: "/guide/core", hash: command }]);
       const explanation = paragraphs.slice(0, -1).join(" ");
       expect(wordsIn(explanation)).toBeLessThanOrEqual(60);
@@ -876,5 +897,45 @@ describe("library page links into Core and Configuration", () => {
     for (const target of ["variant-watches", "variant-seed", "variant-mise"]) {
       expect(links).toContain(`/guide/configuration#${target}`);
     }
+  });
+});
+
+describe("follow-up edits of the pages", () => {
+  test("the MCP page has no Testing section", () => {
+    expect(headingsOf(page("mcp.html")).map((heading) => heading.text)).not.toContain("Testing");
+  });
+
+  test("Core groups the lifecycle commands and the other commands", () => {
+    const headings = headingsOf(page("guide/core.html")).filter((heading) => heading.level <= 3);
+    expect(headings.filter((heading) => heading.level === 2).map((heading) => heading.text)).toEqual([
+      "Lifecycle commands",
+      "Other commands",
+      "Global flags",
+    ]);
+    const below = (group: string) => {
+      const start = headings.findIndex((heading) => heading.text === group);
+      const rest = headings.slice(start + 1);
+      const end = rest.findIndex((heading) => heading.level === 2);
+      return (end === -1 ? rest : rest.slice(0, end)).map((heading) => heading.text);
+    };
+    expect(below("Lifecycle commands")).toEqual(["create", "provision", "up", "watch", "down", "deprovision", "implode"]);
+    expect(below("Other commands")).toEqual(["init", "config", "list", "status", "ui", "completions"]);
+  });
+
+  test("the activationPatterns section lists the default patterns of chat-renamer-config", () => {
+    const section = sectionOf(page("chat-renamer/configuration.html"), "chatrenamer-activationpatterns");
+    const blocks = [...section.matchAll(/<pre[\s\S]*?<\/pre>/g)].map((match) => decodeEntities(match[0].replace(/<[^>]+>/g, "")));
+    expect(blocks.length).toBeGreaterThan(0);
+    const parsed = (globalThis as unknown as { Bun: { YAML: { parse: (text: string) => unknown } } }).Bun.YAML.parse(blocks[0]);
+    expect(parsed).toEqual({ chatRenamer: { activationPatterns: [...DEFAULT_ACTIVATION_PATTERNS] } });
+  });
+
+  test("the Up section goes through create, provision and seed like watch and holds an info panel", () => {
+    const up = sectionOf(page("guide/runtime.html"), "up");
+    const text = decodeEntities(up.replace(/<[^>]+>/g, " "));
+    for (const step of ["create", "provision", "seed"]) expect(text, step).toContain(step);
+    expect(text).not.toMatch(/recreates the database/);
+    expect(up).toMatch(/class="info custom-block"/);
+    expect(up).toContain("not thoroughly tested");
   });
 });

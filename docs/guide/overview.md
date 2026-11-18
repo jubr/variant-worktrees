@@ -1,6 +1,6 @@
 # Overview
 
-A variant is a git worktree and the database schemas that belong to it. The commands below are the builtin steps. A later step implies the steps above it: `seed` implies `provision`, `provision` implies `create`, and `watch` implies `seed`. `down` is the exception and only stops watches. `deprovision` implies `down`. `implode` implies `deprovision`.
+A variant is a git worktree and the database schemas that belong to it. The commands below are the builtin steps. A later step implies the steps above it: `seed` implies `provision`, `provision` implies `create`, and `watch` and `up` imply `seed`. `down` is the exception and only stops watches. `deprovision` implies `down`. `implode` implies `deprovision`.
 
 What the project itself runs is a step in [`variant.steps`](./configuration#variant-steps). The step is keyed by its name. `provision` and `deprovision` replace the builtin step of that name. `seed` is a script and there is no builtin seed. Every other name is a custom step, and it has exactly one of `runBefore` or `runAfter`.
 
@@ -14,13 +14,13 @@ The builtin steps flow as follows:
 
 Creates the git worktree and nothing else. The database is the next step.
 
-More details at [create](./core#create).
+More details at Core [create](./core#create).
 
 ### provision
 
 Creates the database schema of the variant, or every schema of [`db.multi`](./configuration#db-multi), and implies `create`. A step of the same name in [`variant.steps`](./configuration#variant-steps) replaces it.
 
-More details at [provision](./core#provision).
+More details at Core [provision](./core#provision).
 
 ### seed
 
@@ -40,25 +40,25 @@ variant:
 
 Starts the watch processes and stays attached. It implies `seed`, so the worktree, the schemas and the seed exist before the processes start.
 
-More details at [watch](./core#watch).
+More details at Core [watch](./core#watch).
 
 ### down
 
 Stops the watches of the variant. The schemas, the storage directory, the state and the worktree stay.
 
-More details at [down](./core#down).
+More details at Core [down](./core#down).
 
 ### deprovision
 
 Stops the watches and drops the schemas of the variant. The storage directory, the state and the worktree stay, and slug `main` is refused.
 
-More details at [deprovision](./core#deprovision).
+More details at Core [deprovision](./core#deprovision).
 
 ### implode
 
 Implies `deprovision`, then removes the worktree and, by default, the local branch.
 
-More details at [implode](./core#implode).
+More details at Core [implode](./core#implode).
 
 ## Custom Steps
 

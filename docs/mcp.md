@@ -142,9 +142,3 @@ Every tool is the command of the same name in [Core](/guide/core), run in-proces
 | `force` | boolean | no | Implode work that is not merged and a worktree with local changes |
 | `branchRm` | `yes` or `no` | no | Remove the local branch after the worktree. Default `yes` |
 | `verbose` | boolean | no | Full output of quiet steps |
-
-## Testing
-
-```bash
-mise x -- bun test packages/variant-mcp/src/mcp.spec.ts
-```

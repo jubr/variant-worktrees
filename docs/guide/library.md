@@ -76,9 +76,9 @@ The same `variants.yaml` serves the CLI, the library and the editor. The options
 - [`variant.steps`](./configuration#variant-steps) and [`variant.seed`](./configuration#variant-seed): what `provision` and `seed` run
 - [`variant.mise`](./configuration#variant-mise): how Mise provides the environment
 - [`variant.baseBranch`](./configuration#variant-basebranch): where a new variant branch starts
-- [Database](./configuration#database): [`db.dialect`](./configuration#db-dialect), host, port and the rest of the connection
+- [Database](./configuration#database-options): [`db.dialect`](./configuration#db-dialect), host, port and the rest of the connection
 
-Every option is in [Configuration](./configuration#options), and what watches do at run time is in [Runtime](./runtime).
+Every option is in [Configuration](./configuration#variant-options), and what watches do at run time is in [Runtime](./runtime).
 
 ## Elsewhere
 

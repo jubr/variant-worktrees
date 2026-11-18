@@ -26,6 +26,16 @@ chatRenamer:
 
 Regular expressions tested against each line of the first prompt; the first capture group becomes the title, or the whole match when there is no group. The list you set replaces the defaults, and an empty list turns patterns off. See [Activation patterns](./#activation-patterns).
 
+The defaults are a path pattern, then a short `_work-` pattern, then a slug pattern:
+
+```yaml
+chatRenamer:
+  activationPatterns:
+    - '/[a-z]+-spec-[a-z]+\s+@\S+/[A-Za-z0-9_]+-([A-Za-z0-9_-]+)/?(?=\s|$)'
+    - '/[a-z]+-spec-[a-z]+\s+@_work-([A-Za-z0-9_-]+)/?(?=\s|$)'
+    - '/[a-z]+-spec-[a-z]+\s+([A-Za-z0-9_-]+)'
+```
+
 ### `chatRenamer.awake`
 
 Holds the Mac awake while a chat in this window is taking a turn. The options are [`chatRenamer.awake.when`](#chatrenamer-awake-when), [`chatRenamer.awake.cmd`](#chatrenamer-awake-cmd) and [`chatRenamer.awake.graceDelaySecs`](#chatrenamer-awake-gracedelaysecs). How it behaves is in [Awake](./#awake).

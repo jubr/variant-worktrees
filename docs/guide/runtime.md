@@ -32,7 +32,16 @@ An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one w
 
 ## Up
 
-[`up`](./core#up) runs the watches as containers, see [`container`](./configuration#variant-watches-key-container). It recreates the database target, where `watch` keeps it, and it stops the processes recorded for the slug, where `watch` removes the containers. It records no `log` in `runtime.yaml`.
+[`up`](./core#up) goes through `create`, `provision` and `seed` like `watch`, see the [flow of steps](./overview#flow-of-steps).
+It then runs the watches as containers, see [`container`](./configuration#variant-watches-key-container).
+It does not drop an existing schema.
+It stops the processes recorded for the slug, where `watch` removes the containers.
+It records no `log` in `runtime.yaml`.
+
+::: info Disclaimer
+`up` is not thoroughly tested, YMMV.
+PRs welcome!
+:::
 
 ## Environment through Mise
 
