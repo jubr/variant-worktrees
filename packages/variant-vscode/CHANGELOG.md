@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## [0.0.11] - 2026-11-18
 
 ### Fixed
 
 - The Initialize Variant panel shows its icon in the installed extension. The vsix did not contain `media/icon-128.png`.
+
+### Release notes
+
+- fix(variant-api): absolute worktree placeholder and bun-on-PATH warning by @jubr in https://github.com/jubr/variant-worktrees/pull/75
+- fix(variant-vscode): ship icon-128.png so the onboarding panel icon loads by @jubr in https://github.com/jubr/variant-worktrees/pull/77
+- docs: cross-linked, structured documentation and the variants key removed by @jubr in https://github.com/jubr/variant-worktrees/pull/76
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.10...v0.0.11
 
 ## [0.0.10] - 2026-11-17
 
