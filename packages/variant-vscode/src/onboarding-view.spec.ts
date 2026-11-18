@@ -28,6 +28,7 @@ const result = (extra: Partial<InitResult> = {}): InitResult => ({
   file: "/work/variants.yaml",
   gitignore: { status: "created", changed: true, file: "/work/.gitignore", message: "created .gitignore with _v-*" },
   mise: { status: "created", changed: true, file: "/work/mise.toml", message: "created mise.toml with tool" },
+  bun: { status: "matches", message: "bun 1.4.2 on PATH is the version Mise pins", hint: [] },
   detected: { dialect: "sqlite", databaseSource: "default", abbr: "w", prefix: "_v-", watches: [] },
   ...extra,
 });
@@ -44,6 +45,7 @@ const setup = (
   const trusted: string[] = [];
   let hasConfig = false;
   const errors: string[] = [];
+  const logged: string[] = [];
   const guard = createMiseGuard({
     trust: async (directory) => {
       if (trustFailure !== undefined) {
@@ -71,6 +73,7 @@ const setup = (
     guard,
     hasConfig: () => hasConfig,
     nonce: () => "N0NCE",
+    log: { info: (message: string) => void logged.push(message), error: () => undefined },
   });
   const page = createWebviewViewStub("variant.onboarding");
   const provider = registerProvider.mock.calls.at(-1)?.[1] as { resolveWebviewView: (view: unknown) => void };
@@ -85,6 +88,7 @@ const setup = (
     starts,
     trusted,
     errors,
+    logged,
     context,
     command,
     setHasConfig: (value: boolean) => {
@@ -225,6 +229,33 @@ describe("dialog messages", () => {
     expect(message).toContain("wrote variants.yaml");
     expect(message).toContain("created .gitignore with _v-*");
     expect(message).toContain("created mise.toml");
+  });
+
+  it("names a differing bun in the confirmation and logs its hint, and stays silent about a matching one", async () => {
+    const differs = result({
+      bun: {
+        status: "differs",
+        message: "bun 1.3.0 (/x/bun) is first on PATH, but Mise pins bun 1.4.2",
+        hint: ["Remove that Bun: brew uninstall bun"],
+      },
+    });
+    const { command, page, logged } = setup(() => differs);
+    await command();
+
+    await page.send(init());
+
+    expect(showInformationMessage.mock.calls[0]?.[0]).toContain("bun 1.3.0 (/x/bun) is first on PATH");
+    expect(logged).toContain("Remove that Bun: brew uninstall bun");
+  });
+
+  it("leaves bun out of the confirmation when it matches", async () => {
+    const { command, page, logged } = setup();
+    await command();
+
+    await page.send(init());
+
+    expect(showInformationMessage.mock.calls[0]?.[0]).not.toContain("bun");
+    expect(logged).toEqual(["init"]);
   });
 
   it("does not open a file when the file step was off, and leaves skipped steps out of the confirmation", async () => {

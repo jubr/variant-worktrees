@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { loadConfig } from "variant-config";
 import type { OperationContext } from "./operations/types.js";
-import { prepareRun } from "./run-context.js";
+import { commandEnvironment, expandSetting, prepareRun } from "./run-context.js";
 import type { DatabaseAdapter } from "./types.js";
 
 const withContext = async (
@@ -43,6 +43,29 @@ const PROJECT = (range?: string): string =>
     "    api: { kind: nestjs, dir: api }",
     "",
   ].join("\n");
+
+const SQLITE_OVERRIDE = "${worktree}/.cache/variant/${schema}.sqlite";
+
+describe("prepareRun worktree", () => {
+  it("normalizes a relative worktree with dot segments and a trailing separator to an absolute path", () =>
+    withContext(PROJECT(), async (context, directory) => {
+      const relativeWorktree = `${relative(process.cwd(), directory)}/./`;
+      const run = await prepareRun(context, "demo", relativeWorktree);
+
+      expect(run.worktree).toBe(directory);
+      expect(expandSetting(context.config, run, SQLITE_OVERRIDE, "env.overrides.SQLITE_DATABASE", "be")).toBe(
+        `${directory}/.cache/variant/v_demo.sqlite`,
+      );
+    }));
+
+  it("hands a watch an absolute SQLITE_DATABASE even when the worktree was spelled relatively", () =>
+    withContext(PROJECT(), async (context, directory) => {
+      const run = await prepareRun(context, "demo", `${relative(process.cwd(), directory)}/../${basename(directory)}`);
+      const environment = commandEnvironment(context.config, run, { SQLITE_DATABASE: SQLITE_OVERRIDE }, "be");
+
+      expect(environment.SQLITE_DATABASE).toBe(`${directory}/.cache/variant/v_demo.sqlite`);
+    }));
+});
 
 describe("prepareRun ports", () => {
   it("assigns every watch its own free port of the default range", () =>

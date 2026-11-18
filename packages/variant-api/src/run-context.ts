@@ -1,5 +1,5 @@
 import { realpathSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   envSegment,
   pickFreePort,
@@ -79,10 +79,12 @@ const assertDistinctOverrides = (keys: string[], env: NodeJS.ProcessEnv = proces
 export const prepareRun = async (
   context: OperationContext,
   slug: string,
-  worktree: string,
+  requestedWorktree: string,
   assigned: Readonly<Record<string, number>> = {},
 ): Promise<VariantRun> => {
   const { config } = context;
+  // AIDEV-NOTE: Single choke point: `${worktree}` must be absolute and normalized however the producers spelled it.
+  const worktree = resolve(requestedWorktree);
   const target = slug === "main" ? (config.db.schema ?? "public") : context.adapter.target(slug);
   const recorded = readVariantRuntime(config, worktree);
   assertDistinctOverrides(Object.keys(config.variant.watches));

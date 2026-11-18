@@ -129,7 +129,7 @@ db:
 
 Every string setting is templated, `db` included, with one syntax. Values are expanded in two passes.
 
-1. Variant placeholders: `${slug}`, `${schema}` (the database schema or file), `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<watch>.port}`.
+1. Variant placeholders: `${slug}`, `${schema}` (the database schema or file), `${storage}`, `${worktree}` (always the absolute, normalized path of the worktree), `${url}`, `${port}` and `${<watch>.port}`.
    `${abbr}` is the project abbreviation (see [`variant.abbr`](#variant-abbr)); the default `url` of a detected Vite watch is `http://${slug}.${abbr}.localhost:${port}`.
 2. Environment templates: `${NAME}` reads the environment (Mise, then the process) and fails when it is unset, `${NAME:-default}` falls back to `default`. The placeholders of the first pass work inside a default, which is how `${JWT_SECRET:-variant-local-${slug}}` works.
 
