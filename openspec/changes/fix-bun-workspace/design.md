@@ -30,6 +30,12 @@ Mise installs are often reached through shims or symlinks, so a path comparison 
 
 Alternative: parse `mise.toml`. Rejected by the existing rule that Mise configuration files are never read for values; Mise also resolves `mise.local.toml`, parents and `.tool-versions`.
 
+### One check, two reports
+
+`checkBun` returns a structured result (`matches`, `differs` or `unchecked`, the versions and paths, the hint lines). `warnWhenBunDiffers` formats a `differs` result as one multi-line warning for the operations; `initProject` puts the result into `InitResult.bun`, and the CLI text renderer and the editor confirmation print it. The hint is built from facts only: the executable path decides the removal advice, and the shell startup files are read (never written) for non-comment lines that mention the directory. Hints name no command that Variant itself would run for the user.
+
+Alternative: have `init` write the fix into the startup file. Rejected: editing a person's shell files is outside what Variant owns; naming the line is enough.
+
 ### Where it runs
 
 A helper beside `mise.ts` takes the command environment, the project directory, the Mise executable (from `miseBinaryFor`) and `log`. `prepareVariant` calls it after `prepareRun` (covers `up` and `watch`), and the provision operation calls it before `runProvisioning`. Each probe is a short `spawnSync` with a timeout; any failure ends the check silently, consistent with "Mise missing" handling. The warning goes through the same `log` option as other operation lines, with the `warn` level of `variant-log`.

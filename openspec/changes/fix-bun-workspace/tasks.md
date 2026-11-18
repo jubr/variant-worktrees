@@ -14,6 +14,18 @@
 
 - [ ] 3.1 Update `docs/guide/configuration.md` (state that `${worktree}` is the absolute worktree path) and `docs/guide/runtime.md` (a Bun on `PATH` section under the Mise environment: the warning and how to fix `PATH`), and add a Fixed bullet and an Added bullet under `## Unreleased` in `CHANGELOG.md`. Verify each file says that and the changelog keeps `## Unreleased` above its newest version heading.
 
-## 4. Verification
+## 4. Hint and onboarding
 
-- [ ] 4.1 Run `mise x -- task lint`, `mise x -- task test`, `mise x -- task build`, `mise x -- openspec validate --all --strict --no-interactive` and `mise x -- openspec doctor --json`; all pass. Because the `variant` command changes, run `mise x -- task bleed:cli` and show in chat the command and output of the bled binary warning about a foreign Bun first on `PATH`.
+- [ ] 4.1 Extend `packages/variant-api/src/mise-bun.spec.ts` with failing assertions for the hint in [specs/tools/mise | Bun on PATH matches the Bun Mise pins](../../specs/tools/mise/spec.md#requirement-bun-on-path-matches-the-bun-mise-pins), using a temporary home directory: the `~/.zshrc` line, the `~/.bun`, Homebrew, `node_modules` and generic removal advice, no mention found (files searched are named), and a commented line left out. Verify with `mise x -- bun test packages/variant-api/src/mise-bun.spec.ts`: the new assertions fail.
+
+- [ ] 4.2 Split `mise-bun.ts` into `checkBun` (structured result with the hint) and `warnWhenBunDiffers` (formats it), and build the hint. Verify with the same `bun test` command: the file passes.
+
+- [ ] 4.3 Extend `packages/variant-api/src/operations/init.spec.ts` with failing assertions for [specs/variant-api/init | Bun check](../../specs/variant-api/init/spec.md#requirement-bun-check): differing, matching and not-checkable results, and that the other steps still run. Verify with `mise x -- bun test packages/variant-api/src/operations/init.spec.ts`: the new assertions fail. Then add `bun` to `InitResult` and fill it in `initProject`; the same command passes.
+
+- [ ] 4.4 Show it: extend the spec that covers the `init` layout of `packages/variant-cli/src/text.ts` and `packages/variant-vscode/src/onboarding-view.spec.ts` with failing assertions that the text output has a `bun` line with the hint lines and that the editor confirmation names a difference; then render them in `variant-cli/src/text.ts` and `variant-vscode/src/onboarding-view.ts`. Verify with `bun test` on those two files.
+
+- [ ] 4.5 Update `docs/guide/core.md` (`init` result and the check), `docs/guide/runtime.md` (the hint) and the `## Unreleased` section of `CHANGELOG.md`. Verify each file says that.
+
+## 5. Verification
+
+- [ ] 5.1 Run `mise x -- task lint`, `mise x -- task test`, `mise x -- task build`, `mise x -- openspec validate --all --strict --no-interactive` and `mise x -- openspec doctor --json`; all pass. Because the `variant` command changes, run `mise x -- task bleed:cli` and show in chat the command and output of the bled binary warning about a foreign Bun first on `PATH`.
