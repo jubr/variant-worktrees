@@ -14,7 +14,7 @@ A one-time notification points at that section too.
 **Variant: Initialize in this Repo** (and **Onboard**) shows a dialog in place of the variants tree:
 
 - three checkboxes: write `variants.yaml` with autodetected values, add `<prefix>*` to `.gitignore`, and augment `mise.toml` with the CLI.
-In a workspace that already has a `variants.yaml` the first one is off;
+  In a workspace that already has a `variants.yaml` the first one is off;
 - a collapsed **Advanced** disclosure with the **Prefix** field (default `_v-`);
 - **Cancel** and **Initialize**.
 
