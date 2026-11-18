@@ -197,7 +197,7 @@ Getting Started, Installation, Core, Configuration, Runtime and the library page
 
 - **WHEN** the built Extension, MCP server and Socket IPC pages are read
 - **THEN** each links to `/guide/installation`
-- **AND** the Extension page links to `/mcp`, `/guide/socket-ipc`, `/guide/configuration` and `/guide/runtime`
+- **AND** the Extension page links to `/mcp`, `/guide/configuration` and `/guide/runtime`
 
 ### Requirement: Library page shows code
 

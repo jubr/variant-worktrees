@@ -371,7 +371,7 @@ describe("cross-links into the VSCode / Cursor group", () => {
     for (const path of [guide("extension"), "mcp.html", guide("socket-ipc")]) {
       expect(linksTo(path, "/guide/installation"), path).toBe(true);
     }
-    for (const target of ["/mcp", "/guide/socket-ipc", "/guide/configuration", "/guide/runtime"]) {
+    for (const target of ["/mcp", "/guide/configuration", "/guide/runtime"]) {
       expect(linksTo(guide("extension"), target), target).toBe(true);
     }
   });
