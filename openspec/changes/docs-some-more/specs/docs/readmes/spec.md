@@ -14,6 +14,11 @@ Every link in `README.md`, the `variant-vscode` README and the `chat-renamer-vsc
 - **WHEN** each link to `https://jubr.github.io/variant-worktrees/` in the three READMEs is mapped onto the built site
 - **THEN** its page exists and its fragment, if any, is an `id` of that page
 
+#### Scenario: Mise is the way to install
+
+- **WHEN** the three READMEs are searched
+- **THEN** none contains `npm install`, `npx` or `bun add`
+
 #### Scenario: Earlier names are not mentioned
 
 - **WHEN** the three READMEs are searched
