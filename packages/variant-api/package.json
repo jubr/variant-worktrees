@@ -53,7 +53,7 @@
   "files": [
     "dist"
   ],
-  "author": "Zach Caceres (@zachcaceres)",
+  "author": "Jurgen Braam (@jubr)",
   "license": "MIT",
   "engines": {
     "node": ">=22.13.0"
