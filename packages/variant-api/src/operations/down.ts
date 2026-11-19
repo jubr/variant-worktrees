@@ -31,6 +31,7 @@ export const stopContainers = (
   context: OperationContext,
   slug: string,
   log: ProgressLog = logToStderr,
+  announce?: (message: string) => void,
 ): Pick<DownResult, "containers" | "networks"> => {
   const { config } = context;
   const keys = Object.entries(config.variant.watches)
@@ -44,12 +45,14 @@ export const stopContainers = (
   for (const key of keys) {
     const name = containerName(key, slug);
     if (engineHas(engine, "container", name)) {
+      announce?.(`removing container ${name}`);
       runEngine(engine, ["rm", "-f", name], undefined, log);
       result.containers.push(name);
     }
   }
   const network = networkName(slug);
   if (engineHas(engine, "network", network)) {
+    announce?.(`removing network ${network}`);
     runEngine(engine, ["network", "rm", network], undefined, log);
     result.networks.push(network);
   }

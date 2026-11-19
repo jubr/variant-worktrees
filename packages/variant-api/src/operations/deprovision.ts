@@ -34,6 +34,7 @@ export const deprovisionPhase = async (
   context: OperationContext,
   run: VariantRun,
   log: ProgressLog = logToStderr,
+  announce?: (message: string) => void,
 ): Promise<DeprovisionPhase> => {
   const step = context.config.variant.steps.deprovision;
   if (process.env.VARIANT_STEP_DEPROVISION === "no") {
@@ -69,15 +70,18 @@ export const deprovisionPhase = async (
   if (run.multi) {
     const names = [...new Set([...(await context.adapter.matchingSchemas(run.multi.prefix)), ...grouped])].sort();
     for (const name of names) {
+      announce?.(`dropping schema ${name}`);
       logDrop(`drop schema ${name}`, run);
       await context.adapter.dropSchema(name);
     }
     return { commands: [], output: "", dropped: names };
   }
   for (const name of grouped) {
+    announce?.(`dropping schema ${name}`);
     logDrop(`drop schema ${name}`, run);
     await context.adapter.dropSchema(name);
   }
+  announce?.(`dropping database target ${run.target}`);
   const removed = await context.adapter.destroy(run.slug);
   if (removed) {
     logDrop(`drop schema ${run.target}`, run);
