@@ -1,10 +1,10 @@
 ---
-name: vw-spec-iterate
+
+## name: vw-spec-iterate
 description: >
   Implement an OpenSpec change with TDD until local lint/build/tests pass.
   Create logical Conventional Commits while implementing. Use during
   feature development, /vw-spec-iterate, or after /vw-spec-start.
----
 
 # vw-spec-iterate
 
@@ -49,7 +49,7 @@ On warn: still do the full Reads (gate is not waived), but tell the user and sug
 ## Tools
 
 - If not in `mise hook-env`: Always `mise x -- …` for `openspec`, `task`, `bun`, and other project tools.
-  This applies to all command invocations in this file. Also note `mise` manages env vars for child processes.
+This applies to all command invocations in this file. Also note `mise` manages env vars for child processes.
 - `variant watch -s $slug` may be required for UI or tests. `variant down -s $slug` stops the watches and leaves schemas and the worktree. `variant deprovision -s $slug` also drops that slug's schemas.
 
 ## Loop
@@ -59,20 +59,20 @@ Phases: **Orient** (AGENTS.md / change artifacts) → **Implement** (skills `tdd
 1. Announce `Using change: $slug` (infer from branch/`openspec/changes/` if omitted).
 2. If `openspec/changes/$slug` is not commited: do it now.
 3. Follow `openspec-apply-change`:
-  - pick next incomplete tasks
-  - announce in chat with dense oneliner `Picking up task **1.2 Add the schema and export it**`, in list-form if multiple
-  - edit `tasks.md` to mark task in progress `[~] 1.2 Add the schema and export it` (working tree only)
-  - implement with `tdd`
-  - mark tasks done when verified (still working tree only)
-  - commit that logical unit as **code/tests only** (see below)
+   - pick next incomplete tasks
+   - announce in chat with dense oneliner `Picking up task **1.2 Add the schema and export it**`, in list-form if multiple
+   - edit `tasks.md` to mark task in progress `[~] 1.2 Add the schema and export it` (working tree only)
+   - implement with `tdd`
+   - mark tasks done when verified (still working tree only)
+   - commit that logical unit as **code/tests only** (see below)
 4. Prefer focused `task test` / `task lint` / `task build` while iterating; widen with `task check:changed` (hk scopes to git-changed files). See `Taskfile.yaml`.
 5. Before handoff, report, or push: from repo root `task check:full`. Fix failures in-tree and re-run until green. While fixing, prefer `task check:changed` or the specific `task` that failed.
 6. Before each commit: from repo root `task format:write`.
 7. **Commit while implementing.** Create logical Conventional Commits as work lands — do not wait for the user to ask, and do not leave the whole slice uncommitted for `vw-spec-pipeline`.
-  - One commit per coherent unit (typically a completed `tasks.md` task-group if large enough, or single task, or a tightly related group that cannot stand alone).
-  - **Never mix OpenSpec artifacts with product code.** Do not stage `openspec/changes/` or `openspec/specs/`. Checkbox edits stay dirty until `vw-spec-wrapup`. Stage explicit paths; never `git add -A` / `git add .`.
-  - Format: `type(scope): summary` per `CONTRIBUTING.md`. Focused; no secrets; never `--no-verify`.
-8. **Bleed when asked.** When the user says `bleed`, run `task bleed:all` in this worktree. See [specs/meta/dev-bleeds](../../../openspec/specs/meta/dev-bleeds/spec.md).
+   - One commit per coherent unit (typically a completed `tasks.md` task-group if large enough, or single task, or a tightly related group that cannot stand alone).
+   - **Never mix OpenSpec artifacts with product code.** Do not stage `openspec/changes/` or `openspec/specs/`. Checkbox edits stay dirty until `vw-spec-wrapup`. Stage explicit paths; never `git add -A` / `git add .`.
+   - Format: `type(scope): summary` per `CONTRIBUTING.md`. Focused; no secrets; never `--no-verify`.
+8. **Bleed when asked.** When the user says `bleed`, run `task bleed:all` in this worktree. Do not mention in tasks. See [specs/meta/dev-bleeds](../../../openspec/specs/meta/dev-bleeds/spec.md).
 
 ## Done when
 
