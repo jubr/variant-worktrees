@@ -18,6 +18,7 @@ import { stringify as stringifyYaml } from "yaml";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 import { stopProjectProcesses } from "../test/project-processes.js";
+import { sleep, until } from "../test/wait.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
 import { relayModulePath, relaySpawnArgs } from "../watch-relay.js";
 import { downVariant } from "./down.js";
@@ -61,14 +62,6 @@ afterEach(() => {
   }
 });
 
-const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
-const until = async (condition: () => boolean, ms = 10000): Promise<void> => {
-  for (const deadline = Date.now() + ms; !condition(); await sleep(25)) {
-    if (Date.now() > deadline) {
-      throw new Error("condition not met in time");
-    }
-  }
-};
 const untilDead = (pid: number): Promise<void> => until(() => !isProcessAlive(pid));
 
 /** What every watched process runs: it records itself, then idles, or exits after `DIE_AFTER` milliseconds. */
