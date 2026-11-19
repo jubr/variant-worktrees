@@ -61,8 +61,10 @@ It keeps the local branch, because a directory that was removed by hand may have
 The `main` variant only has its processes stopped.
 From that moment nothing is written below the removed path: no `watch.log`, no `in.sock`, no state files.
 
-Each action is announced before it happens as a `warn` event with the step `watch-cleanup`, naming what it stops or removes: the path that is gone, each process with its pid, the state file, the database target, `git worktree prune` and the kept branch.
-The CLI prints them on stderr and never sends them to the editor, because its socket lives below the project.
+One `warn` event with the step `watch-cleanup` says the path is gone and what follows.
+Before each action after it a `debug` event with that step names what it stops or removes: each process with its pid, the state file, the database target, `git worktree prune` and the kept branch.
+Under a temporary directory all of them are `trace`. A failed implode is another `warn`.
+The CLI treats them like its other log events.
 A detached watch writes them to the stderr of the command that started it, when that is a terminal or a file.
 A pipe is left alone, so a script that reads the output of `variant watch --detach` until its end does not wait for the watch.
 
