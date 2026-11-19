@@ -512,7 +512,7 @@ describe("watch starts host processes", () => {
       await started("fe");
       const input = new PassThrough();
       const done = watch({ input });
-      input.end("3\n");
+      input.write("3\n");
       const result = await Promise.race([done, sleep(1000).then(() => "hang" as const)]);
 
       expect(result).not.toBe("hang");
@@ -527,7 +527,7 @@ describe("watch starts host processes", () => {
       await started("fe");
       const input = new PassThrough();
       const done = watch({ input });
-      input.end("2\n");
+      input.write("2\n");
       const result = await Promise.race([done, sleep(1000).then(() => "hang" as const)]);
 
       expect(result).not.toBe("hang");
@@ -743,7 +743,7 @@ describe("watch supervision", () => {
       const done = watch({ input });
       const be = await started("be");
       await started("fe");
-      input.end("3\n");
+      input.write("3\n");
       const result = await done;
 
       expect(result.exitCode).toBe(0);
@@ -755,7 +755,7 @@ describe("watch supervision", () => {
       const input = new PassThrough();
       const done = watch({ input });
       const be = await started("be");
-      input.end("2\n");
+      input.write("2\n");
       const result = await done;
 
       expect(result.exitCode).toBe(0);
