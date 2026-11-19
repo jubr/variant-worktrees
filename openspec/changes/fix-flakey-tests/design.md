@@ -12,13 +12,13 @@ See proposal.md, Why. Findings so far:
 
 **Goals:** no process outlives its test; a slow runner fails one test with a message; a hang ends the job.
 
-**Non-Goals:** speeding up the watch tests, changing `watchVariant`, and cleaning orphans that are not test leftovers (a real `watch-relay.ts` of another variant is on this host and is not touched).
+**Non-Goals:** speeding up the watch tests, changing `watchVariant`, and cleaning orphans that are not test leftovers (a real `watch-relay.ts` of another variant is on this host and is not touched). The `watch-relay` fix is done in another chat and is out of scope: no change to `watch-relay.ts` or its specs here.
 
 ## Decisions
 
 - **Harness cleanup by directory, not by pid.** `withProject` registers its directory in a list. `afterEach` reads every `started-*.txt` marker and the runtime state's `pid`s under each registered directory, sends `SIGKILL` to each process group (`-pid`), and removes the directory. The tests keep their own `killAtEnd` lines until a task removes the redundant ones. Alternative: make `watchVariant` return all pids to every test: more edits and does not cover a test that timed out before it returned.
 - **Register before running.** The directory is registered right after `mkdtemp`, so a timed-out test is cleaned in `afterEach` even though its `finally` has not run.
-- **Waits are shorter than the timeout.** `bunfig.toml` in `packages/variant-api` sets `[test] timeout = 30000`; `until` defaults to 10 s, below it, and the 3 s waits stay below too. Alternative: raise only the slow tests with a third argument to `it`; rejected because the budget would be spread over 71 tests.
+- **Waits are shorter than the timeout.** The `test` script of `packages/variant-api` runs `bun test --timeout 30000` (a `[test] timeout` in `bunfig.toml` is ignored by bun 1.4.2, checked); `until` defaults to 10 s, below it, and the 3 s waits stay below too. Alternative: raise only the slow tests with a third argument to `it`; rejected because the budget would be spread over 71 tests.
 - **Job limit.** `timeout-minutes: 20` on both jobs (normal 2.5 min, observed worst 3 min).
 - **One-time host cleanup is a command, not code.** Select pids whose `cwd` (from `lsof -a -d cwd`) matches `/private/tmp/variant-watch-*`, show the list, `kill` them, then remove the `variant-watch-*` directories that no process uses. No script is added to the repository.
 
