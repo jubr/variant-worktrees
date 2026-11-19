@@ -64,3 +64,12 @@ Every GitHub Action that the workflows under `.github/workflows/` use SHALL be p
 
 - **WHEN** a workflow other than `.github/workflows/packslip.yaml` is read
 - **THEN** `actions/upload-artifact` and `actions/download-artifact` are pinned to a major version
+
+### Requirement: A hung gate fails
+
+Every job of the CI workflow SHALL have a time limit well above a normal run, so that a hung test run fails the check instead of keeping it pending.
+
+#### Scenario: Hung test run
+
+- **WHEN** a gate step produces no result within the time limit
+- **THEN** the job is cancelled and the check fails
