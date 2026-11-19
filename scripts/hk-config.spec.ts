@@ -2,7 +2,7 @@
  * Specification: openspec/specs/meta/local-checks/spec.md
  */
 import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
@@ -13,6 +13,14 @@ const packages = readdirSync(join(root, "packages"), { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && existsSync(join(root, "packages", entry.name, "package.json")))
   .map((entry) => entry.name)
   .sort();
+
+/** Packages whose `package.json` has a `test:slow` script. */
+const slowPackages = packages.filter((name) => {
+  const { scripts } = JSON.parse(readFileSync(join(root, "packages", name, "package.json"), "utf8")) as {
+    scripts?: Record<string, string>;
+  };
+  return scripts !== undefined && "test:slow" in scripts;
+});
 
 const hkAvailable = Bun.spawnSync(["hk", "--version"], { stdout: "ignore", stderr: "ignore" }).exitCode === 0;
 
@@ -78,6 +86,25 @@ describe.skipIf(!hkAvailable)("local checks through hk", () => {
     expect(bare(plan("check", "--all"), "lint:workflows")).toEqual([]);
     expect(bare(plan("check", "--all", "--profile", "ci"), "lint:workflows")).toEqual(["lint:workflows"]);
     expect(plan("check", "--all", "--profile", "ci", "--profile", "full")).not.toContain("package:vsix");
+  });
+
+  // Specification: openspec/specs/meta/local-checks/spec.md (Slow package tests run as their own step)
+  test("the ci plan has a test-slow step for exactly the packages with a test:slow script", () => {
+    expect(slowPackages).toEqual(["variant-api", "variant-cli"]);
+    expect(ofPackage(plan("check", "--all", "--profile", "ci"), "test-slow").sort()).toEqual(
+      slowPackages.map((name) => `packages/${name}:test-slow`),
+    );
+    expect(ofPackage(plan("check", "--all"), "test-slow")).toEqual([]);
+  });
+
+  test("the steps that wait for the package tests wait for the test-slow steps too", () => {
+    const args = ["check", "--all", "--profile", "ci", "--profile", "full"];
+    const slow = slowPackages.map((name) => `packages/${name}:test-slow`);
+    expect(dependsOn("test:scripts", ...args)).toEqual(expect.arrayContaining(slow));
+    expect(dependsOn("docs:build", ...args)).toEqual(expect.arrayContaining(slow));
+    for (const step of slow) {
+      expect(dependsOn(step, ...args)).toContain("build");
+    }
   });
 
   test("pre-commit runs only Biome steps", () => {

@@ -23,6 +23,8 @@ jobs:
   gate:
     name: Gate and extension packages
     runs-on: ubuntu-latest
+    # AIDEV-NOTE: a normal run takes about 3 minutes. Without a limit a hung test run keeps the check pending for 6 hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -41,6 +43,7 @@ jobs:
   node-smoke:
     name: Library and CLI under Node
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5

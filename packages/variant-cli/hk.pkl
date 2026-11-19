@@ -1,1 +1,15 @@
 amends "../../hk.package.pkl"
+
+// AIDEV-NOTE: the slowest test files (the `test:slow` script) run beside `test`, so the package finishes in about half the time
+hooks {
+  ["check"] {
+    steps {
+      ["test-slow"] {
+        glob = List("src/**", "package.json", "tsconfig.json", "bunfig.toml")
+        check = "bun run test:slow"
+        depends = List("build")
+        profiles = List("ci")
+      }
+    }
+  }
+}

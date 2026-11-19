@@ -86,6 +86,11 @@ the package, `ci` profile). The root `hk.pkl` takes `packages/*` as `subprojects
 workspace-wide steps and the hook-wide settings: `commitlint`, `build` (the one sequenced
 workspace build), `test:scripts` (`bun test scripts`) and `docs:build`.
 The package tests depend on `build` and not on each other, so they run concurrently once it is done.
+A package may split its slowest test files into a second step, `packages/<name>:test-slow`, which runs beside its `test` step
+(today `variant-api` and `variant-cli`). The files are named in the `test:slow` script and ignored in the `test` script
+(`--path-ignore-patterns`); `scripts/test-split.spec.ts` fails when the two lists disagree or name a missing file. To move a file,
+edit both scripts, and give the package the `test-slow` step in its `hk.pkl` when it has none (copy the one of `variant-api`).
+`task test` runs `test` and then `test:slow`.
 A new package needs its own `hk.pkl` (copy the one-liner); `scripts/hk-config.spec.ts` fails without it.
 A package-specific step goes into that package's `hk.pkl` below the `amends` line, in the hook that should run it.
 
