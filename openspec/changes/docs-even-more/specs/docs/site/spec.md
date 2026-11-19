@@ -5,6 +5,12 @@
 
 ## REMOVED Requirements
 
+### Requirement: API reference from a fresh checkout
+
+**Reason**: the site no longer has a generated API reference, so TypeDoc is not part of the docs build.
+
+**Migration**: none; the library page shows the client and the command definitions.
+
 ### Requirement: Installation into an existing project
 
 **Reason**: the installation page shows the extension flavor first and no longer links to Development.
@@ -15,7 +21,7 @@
 
 ### Requirement: Sidebar groups
 
-The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link to the site root above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Overview, then Commands, then CLI, then Configuration, then Installation, then Runtime, then Workspace. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the page named Extension and, under it, a configuration page, and SHALL sit above Development. Development SHALL list Building, then the library, then the API reference. The library SHALL NOT be an item of the Variant Worktrees group. The sidebar SHALL NOT link to a guide about replacing shell scripts.
+The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link to the site root above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Overview, then Commands, then CLI, then Configuration, then Installation, then Runtime, then Workspace. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the page named Extension and, under it, a configuration page, and SHALL sit above Development. Development SHALL list Building, then the library. The library SHALL NOT be an item of the Variant Worktrees group. The sidebar SHALL NOT link to a guide about replacing shell scripts.
 
 #### Scenario: Installation page lists the groups in order
 
@@ -24,7 +30,7 @@ The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a V
 - **AND** Commands precede CLI, which precedes Configuration, which precedes Installation, which precedes Runtime, which precedes Workspace
 - **AND** Workspace precedes the VSCode / Cursor group, which lists Extension, then the MCP server, then the Socket IPC page
 - **AND** Chat Renamer lists its configuration page under the Extension page
-- **AND** Development lists Building, then the library, then the API reference
+- **AND** Development lists Building, then the library
 - **AND** the page does not link to `/guide/scripts`
 
 ### Requirement: Top navigation
@@ -50,6 +56,61 @@ The top navigation SHALL include links named Configuration, CLI, and MCP, and SH
 - **THEN** the top navigation links to `https://github.com/jubr/variant-worktrees`
 - **AND** it shows `v` followed by the `version` in the repository root `package.json`
 - **AND** that version links to `https://github.com/jubr/variant-worktrees/releases`
+
+### Requirement: Dark document shell
+
+Guide pages and the MCP page SHALL render in a document shell with a left sidebar of grouped links, a top navigation bar that shows the product logo and a search control, and a right-hand outline on pages that have headings. The outline SHALL list the second- and third-level headings of the page. Fenced code SHALL include a copy control. The initial appearance SHALL be dark when the reader has no stored preference, and the page SHALL include a control that switches appearance. The dark page background SHALL be `#141414`. The brand accent SHALL be `#EC0000`.
+
+#### Scenario: Installation page shows the shell
+
+- **WHEN** the built installation page is read
+- **THEN** it includes the sidebar, a search control, the navigation logo, an outline of its headings, and a copy control on a fenced code block
+- **AND** the built page selects the dark appearance when no preference is stored
+- **AND** the built stylesheet sets the dark page background to `#141414` and the brand accent to `#EC0000`
+
+#### Scenario: Appearance can be switched
+
+- **WHEN** the built installation page is read
+- **THEN** it includes a dark/light appearance switch
+
+#### Scenario: Outline covers second and third level
+
+- **WHEN** the documentation site configuration is read
+- **THEN** the outline levels are 2 and 3
+- **AND** the built Configuration page has the third-level heading `variant.abbr` and the second-level heading Templates
+
+### Requirement: Internal links resolve
+
+Every internal link in a built page of the documentation site (a link that is not to another origin), resolved against its page, SHALL name a file in the build output, and when it has a fragment, an element with that `id` in that file. This covers links in the page content, the navigation bar, the sidebar and the footer, including links written as raw HTML.
+
+#### Scenario: Every internal link names a file
+
+- **WHEN** every internal `href` of every built HTML page is resolved against its page
+- **THEN** each resolves to a file in the build output, where a path without extension or with a trailing slash names the `.html` file or the `index.html` of that path
+
+#### Scenario: The check sees links the build does not
+
+- **WHEN** the test collects links from the built pages
+- **THEN** it includes the navigation and sidebar links and at least one link in the page content
+
+### Requirement: Sentences are on separate lines
+
+Prose in the Markdown files under `docs/` SHALL put each sentence on a line of its own, which Markdown renders as one paragraph. Consecutive sentences MAY share a line while the line stays below 100 characters. This applies to paragraphs and list items, and not to headings, tables, fenced code, HTML or front matter. A repository test SHALL fail for a file whose prose differs from what the rule produces, and a script SHALL rewrite a file to comply.
+
+#### Scenario: A long sentence has its own line
+
+- **WHEN** a paragraph holds two sentences of which the combined line would be 100 characters or more
+- **THEN** they are on two lines
+
+#### Scenario: Short sentences share a line
+
+- **WHEN** two consecutive sentences together are shorter than 100 characters
+- **THEN** a file that puts them on separate lines fails the test
+
+#### Scenario: Every docs file complies
+
+- **WHEN** the rule is applied to each tracked Markdown file under `docs/`
+- **THEN** the result equals the file
 
 ### Requirement: Commands groups lifecycle commands
 

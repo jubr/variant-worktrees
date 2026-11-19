@@ -11,6 +11,7 @@ Core lists `init` under *Other commands*, though it is the first command a new p
 - **Palette Commands.** Both extension pages get a *Palette Commands* section that describes every command in the palette.
 - **Workspace page.** A last page of the Variant Worktrees group, *Workspace*, shows an ASCII tree of an ideal workspace rooted at `vw` and explains why it looks that way.
 - **Site layout.** The docs directories match the sidebar: `index.md` is Getting Started (the old landing page and the top-right *Guide* link go), `guide/` holds the Variant Worktrees pages, `vscode/` the Extension, MCP server and Socket IPC pages, `chat-renamer/` and `development/` stay. *Core* is renamed *Commands*, and a new `guide/cli.md` takes the CLI-specific content (slug, global flags, completions). `cli-vscode-webview` is removed and its command definitions move to the library page.
+- **BREAKING: no API reference.** The generated TypeDoc reference, its sidebar entry, `docs:api` and the TypeDoc dependencies are removed.
 - **Installation.** The extension comes first, with links to the Visual Studio Marketplace and Open VSX; the mise CLI follows.
 - **Chat Renamer.** The note on the `Variant:` titles of the two commands moves below the list.
 - **Configuration.** The `db.multi` section links to the Overview heading *Custom multi-tenancy steps*.
