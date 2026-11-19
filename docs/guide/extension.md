@@ -72,4 +72,21 @@ The tools and the client configuration for other editors are in [MCP Server](/mc
 
 The extension embeds the chat renamer: it names a Cursor chat after the variant it works on, from the first prompt (`/chat-rename my-title`, `/vw-spec-start my-slug`, or a dragged worktree folder), numbers chats of the same name, and renames the chats of the last seven days.
 The palette commands are **Variant: Rename active chat** and **Variant: Rename Existing Chats**.
-See [Chat Renamer](/chat-renamer/) and its [configuration](/chat-renamer/configuration).
+See [Chat Renamer Extension](/chat-renamer/) and its [configuration](/chat-renamer/configuration).
+
+## Palette Commands
+
+Open the palette with `Cmd+Shift+P` (`Ctrl+Shift+P`).
+The commands marked *needs a folder* appear only when a workspace folder is open.
+The row actions of the Variants view (play, stop, open url, show output, implode) act on one variant and are not in the palette.
+
+- **Variant: Initialize in this Repo** (needs a folder): Shows the [onboarding](#onboarding) dialog that runs [`variant init`](./core#init).
+- **Create variant** (needs a folder): Asks for a slug in an input box, then runs [`create`](./core#create) for it and refreshes the view.
+  The schema is not created; that is `provision`.
+- **Variant: Open Variants Panel** (needs a folder): Shows the list of variants in an editor panel, in the same order as the view.
+- **Variant: Open Variants in Browser** (needs a folder): Opens the web page of `variant ui` in the browser, and names `variant ui --detach` when no server runs.
+- **Variant: Rename active chat**: Renames the active Cursor chat from its first prompt.
+- **Variant: Rename Existing Chats**: Renames the chats of the last seven days again, ignoring which ones were examined before.
+- **Variant: Probe Cursor Chat Commands**: Lists the Cursor chat-title commands that this editor offers in the output channel **Cursor Command Probe**.
+  It is a diagnostic for the chat renamer.
+- **Name (A→Z)**, **Name (Z→A)**, **Created (old→new)**, **Created (new→old)**, **Changed (old→new)** and **Changed (new→old)**: Set the sort order of the Variants view; the setting is `variant.sort`.

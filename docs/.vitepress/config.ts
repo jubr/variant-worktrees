@@ -63,6 +63,7 @@ export default defineConfig({
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },
           { text: "Runtime", link: "/guide/runtime" },
+          { text: "Workspace", link: "/guide/workspace" },
         ],
       },
       {
@@ -76,7 +77,7 @@ export default defineConfig({
       {
         text: "Chat Renamer",
         items: [
-          { text: "Overview", link: "/chat-renamer/" },
+          { text: "Extension", link: "/chat-renamer/" },
           { text: "Configuration", link: "/chat-renamer/configuration" },
         ],
       },

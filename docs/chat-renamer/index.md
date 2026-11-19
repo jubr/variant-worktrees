@@ -1,4 +1,4 @@
-# Chat Renamer
+# Chat Renamer Extension
 
 Renames the Cursor chat from its first prompt. `variant-vscode` embeds it.
 If the standalone Chat Renamer extension is installed in the same window, `variant-vscode` owns renaming and the standalone copy stays idle.
@@ -62,7 +62,18 @@ A prompt that only matches a pattern still goes to the model.
 Options live in [Configuration](./configuration#options).
 Editor settings you set explicitly win over `variants.yaml`.
 
-Palette commands: **Variant: Rename active chat** and **Variant: Rename Existing Chats**.
+## Palette Commands
+
+The standalone extension has two commands.
+In `variant-vscode` the same two commands are titled **Variant: Rename active chat** and **Variant: Rename Existing Chats**.
+
+- **Chat Renamer: Rename active chat**: Renames the selected chat that Cursor lists as most recently updated, or the most recently updated chat when none is selected, from its first prompt.
+  It applies the [activation patterns](./configuration#chatrenamer-activationpatterns), numbers the title against the other open chats, and reads the whole prompt.
+- **Chat Renamer: Rename Existing Chats**: Runs the pass for the chats of the last [`chatRenamer.renameExistingDays`](./configuration#chatrenamer-renameexistingdays) days again.
+  It ignores the memory of chats that were examined before, so a title you changed by hand is renamed too, still inside the day window.
+
+## Logging
+
 Activity is logged to the **Variant Worktrees** log channel, which **Developer: Show Logs…** lists.
 The first prompt lines the title event read appear at Trace level, and each new chat gets one `[title-event] decision` line (matched or not, which pattern, rename/keep/ignore, and why).
 A rename that fails shows a notification with the cause.
