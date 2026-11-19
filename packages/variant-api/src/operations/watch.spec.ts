@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import {
   appendFileSync,
@@ -17,6 +17,7 @@ import { loadConfig, readRuntime } from "variant-config";
 import { stringify as stringifyYaml } from "yaml";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
+import { stopProjectProcesses } from "../test/project-processes.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
 import { relayModulePath, relaySpawnArgs } from "../watch-relay.js";
 import { downVariant } from "./down.js";
@@ -27,7 +28,25 @@ import { watchVariant } from "./watch.js";
 const originalPath = process.env.PATH;
 const killAtEnd: number[] = [];
 const servers: Server[] = [];
+/** Every pid a test project started, collected before its directory goes. */
+const everStarted = new Set<number>();
+/** Project directories of tests that have not ended, so a test that timed out is still cleaned up. */
+const projects = new Set<string>();
+/** Stops every process of the projects and removes their directories, however the test ended. */
+const stopProjects = (directories: readonly string[]): void => {
+  for (const pid of stopProjectProcesses(directories)) {
+    everStarted.add(pid);
+  }
+  for (const directory of directories) {
+    projects.delete(directory);
+  }
+};
+afterAll(() => {
+  const alive = [...everStarted].filter((pid) => isProcessAlive(pid));
+  expect(alive).toEqual([]);
+});
 afterEach(() => {
+  stopProjects([...projects]);
   process.env.PATH = originalPath;
   for (const pid of killAtEnd.splice(0)) {
     try {
@@ -149,6 +168,7 @@ const withProject = async (
   env: NodeJS.ProcessEnv = {},
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-watch-")));
+  projects.add(directory);
   try {
     for (const folder of ["fe", "be"]) {
       mkdirSync(join(directory, folder));
@@ -233,7 +253,7 @@ const withProject = async (
       },
     });
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    stopProjects([directory]);
   }
 };
 
