@@ -11,33 +11,33 @@ It makes a lot of sense if this aligns with [variant.abbr](./configuration#varia
 It holds the primary checkout on `main`, one worktree per variant next to it, and the files that every checkout shares.
 
 ```text
-vw/                                      # open this folder in the editor
-├── .agents/ -> variant-worktrees/.agents/             # symlink: skills and rules for agents
-├── .vscode/ -> variant-worktrees/.vscode/             # symlink: editor settings and the socket
-├── _ref/                                # other people's code, read only
+vw/                                 # open this folder in the editor
+├── .agents/ -> variant-worktrees/.agents/  # symlink: skills and rules for agents
+├── .vscode/ -> variant-worktrees/.vscode/  # symlink: editor settings and the socket
+├── _ref/                           # other people's code, read only
 │   ├── some-library/
 │   └── design-sketch.png
-├── _v-feature-one/                      # variant: a worktree on its own branch
+├── _v-feature-one/                 # variant: a worktree on its own branch
 │   ├── .cache/variant/
-│   │   ├── state.yaml                   # ports, pids, URLs
+│   │   ├── state.yaml              # ports, pids, URLs
 │   │   └── watch.log
-│   ├── packages/ ...
-│   └── .git                             # a file that points into ../variant-worktrees/.git
-├── _v-feature-42/                       # another variant, with its own schema and ports
-│   └── ...
-├── variant-worktrees/                   # the primary checkout, branch main
+│   ├── packages/…
+│   └── .git                        # a file that points into ../variant-worktrees/.git
+├── _v-feature-42/                  # another variant, with its own schema and ports
+│   └── …
+├── variant-worktrees/              # the primary checkout, branch main
 │   ├── .agents/
-│   ├── .git/                            # the one real git directory
+│   ├── .git/                       # the one real git directory
 │   ├── .vscode/
-│   ├── packages/ ...
+│   ├── packages/ …
 │   ├── AGENTS.md
 │   ├── CONTRIBUTING.md
-│   ├── mise.toml
+│   ├── mise.toml                   # variant, task, bun, etc
 │   └── variants.yaml
-├── AGENTS.md       -> variant-worktrees/AGENTS.md         # symlink: the instructions every agent reads
-├── CONTRIBUTING.md -> variant-worktrees/CONTRIBUTING.md   # symlink: how to change the code
-├── .cursorindexingignore                # names _ref/** so the index skips it
-└── mise.local.toml                      # database settings and tools, not in git
+├── AGENTS.md       -> variant-worktrees/AGENTS.md        # symlink: the instructions every agent reads
+├── CONTRIBUTING.md -> variant-worktrees/CONTRIBUTING.md  # symlink: how to change the code
+├── .cursorindexingignore           # names _ref/** so the index skips it
+└── mise.local.toml                 # database settings and tools, not in git
 ```
 
 The three symlinks are the ones to get right: `AGENTS.md`, `CONTRIBUTING.md` and `.agents`.
@@ -63,7 +63,7 @@ It sorts them together in a file listing, it separates them from the real direct
 A worktree that is placed inside the primary checkout gets the prefix added to `.gitignore`.
 Next to it, no ignore rule is needed.
 
-`AGENTS.md`**,** `CONTRIBUTING.md` **and** `.agents` **are symlinks into the primary checkout.**
+**Symlinks** `AGENTS.md`**,** `CONTRIBUTING.md` **and** `.agents` **are into the primary checkout.**
 There is one copy, tracked in git on `main`, and it is the one you review.
 An agent that starts at `vw`, at the primary checkout or in a variant finds the same instructions, skills and rules, so a rule written once applies to every variant.
 A variant carries its own committed copy of these files, because it is a checkout of the same repository.
@@ -71,18 +71,18 @@ The symlinks at the root are what keep the instructions available at the level a
 [`variant.main`](./configuration#variant-main) is found through the `AGENTS.md` symlink: it names the checkout that the link points into.
 That is why the symlink is a part of the layout and not a convenience.
 
-`.vscode` **is a symlink to a dir that contains the editor socket.**
+**Symlink** `.vscode` **is to a dir that contains the editor socket.**
 The extension hosts one Unix socket for the whole workspace, in the `.vscode` of the primary checkout.
 The CLI in a variant finds the editor through it.
 The details are in [Socket IPC](/vscode/socket-ipc#linked-checkout).
 
-**`mise.local.toml` **sits at the root, not in git.**
+**File** `mise.local.toml` **sits at the root, not in git.**
 Mise reads it from every checkout below it, so the primary checkout and every variant get the same database host, user and password.
 Each variant gets its own schema on that server. The credentials are in no repository.
 A project file such as `mise.toml` pins the tools and is committed.
 The settings that [`variants.yaml`](./configuration) reads come from here first, then from the environment.
 
-**The dir `_ref` holds code to read, not to change.**
+**The dir** `_ref` **holds code to read, not to change.**
 It is a place for another project's source, an API sample or a design sketch that an agent should be able to open.
 It is not a checkout of yours, so it is not a variant, and it is not in git.
 `.cursorindexingignore` names `_ref/**`, so the editor's index and its search skip it and its files do not drown out yours.
@@ -105,13 +105,13 @@ Create the root folder, clone the project into it, and add the symlinks and the 
 ```bash
 mkdir vw && cd vw
 git clone <repository> variant-worktrees
-ln -s variant-worktrees/AGENTS.md AGENTS.md
-ln -s variant-worktrees/CONTRIBUTING.md CONTRIBUTING.md
-ln -s variant-worktrees/.agents .agents
-ln -s variant-worktrees/.vscode .vscode
 cd variant-worktrees
-variant init
-variant create -s feature-one
+# read 'mise.toml', then:
+mise trust . && mise install
+task parent-symlink-here
+#variant init # already done
+#variant create -s feature-one # the manual way
+# or, in a new agent chat, '/vw-spec-start feature-one\n- requirement one\n- requirement two'
 ```
 
 [`variant init`](./commands#init) writes `variants.yaml`, adds the prefix to `.gitignore` and adds the CLI to the Mise configuration.
