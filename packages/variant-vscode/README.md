@@ -42,7 +42,9 @@ mise use github:jubr/variant-worktrees
 ```yaml
 variant:
   abbr: vw
-  seed: npm run db:seed
+  steps:
+    seed:
+      cmd: npm run db:seed
   watches:
     fe:
       kind: vite
@@ -75,7 +77,7 @@ The Variant Worktrees extension auto-registers the `variant` MCP server for the 
 }
 ```
 
-The tools are `variant_init`, `variant_config`, `variant_list`, `variant_create`, `variant_switch`, `variant_provision`, `variant_up`, `variant_down`, `variant_watch`, and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
+The tools are `variant_init`, `variant_config`, `variant_list`, `variant_create`, `variant_switch`, `variant_provision`, `variant_up`, `variant_down`, `variant_watch`, and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/vscode/mcp).
 
 ## See your variants
 
@@ -109,10 +111,10 @@ It also renames the chats you already have from the last seven days. The palette
 
 ## Learn more
 
-- [Getting started](https://jubr.github.io/variant-worktrees/guide/)
-- [Every `variant` command](https://jubr.github.io/variant-worktrees/guide/core)
+- [Getting started](https://jubr.github.io/variant-worktrees/)
+- [Every `variant` command](https://jubr.github.io/variant-worktrees/guide/commands)
 - [Configuration](https://jubr.github.io/variant-worktrees/guide/configuration)
-- [MCP server](https://jubr.github.io/variant-worktrees/mcp)
+- [MCP server](https://jubr.github.io/variant-worktrees/vscode/mcp)
 - [Chat renamer](https://jubr.github.io/variant-worktrees/chat-renamer/)
 - [Source and issues](https://github.com/jubr/variant-worktrees)
 

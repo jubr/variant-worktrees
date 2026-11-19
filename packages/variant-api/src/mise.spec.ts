@@ -119,7 +119,7 @@ describe("loadVariantConfig", () => {
     const mise = fakeMise(root, { env: "POSTGRES_HOST=db\nPOSTGRES_PASSWORD=s3\nJWT_SECRET=jwt\n" });
     writeFileSync(
       join(root, "variants.yaml"),
-      "db:\n  dialect: postgres\n  host: ${POSTGRES_HOST}\n  password: ${POSTGRES_PASSWORD}\nvariant:\n  seed: echo ${JWT_SECRET}\n",
+      "db:\n  dialect: postgres\n  host: ${POSTGRES_HOST}\n  password: ${POSTGRES_PASSWORD}\nvariant:\n  steps:\n    seed: { cmd: 'echo ${JWT_SECRET}' }\n",
     );
 
     const config = loadVariantConfig({ cwd: root, miseBinPath: mise.binary });

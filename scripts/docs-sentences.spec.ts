@@ -87,7 +87,7 @@ describe("docs prose", () => {
     const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
     const files = listed.stdout
       .split("\n")
-      .filter((file) => file.endsWith(".md") && !file.startsWith("docs/api/") && existsSync(join(root, file)));
+      .filter((file) => file.endsWith(".md") && existsSync(join(root, file)));
     expect(files.length).toBeGreaterThan(10);
     const offenders = files.filter((file) => {
       const text = readFileSync(join(root, file), "utf8");

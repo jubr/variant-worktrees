@@ -62,8 +62,8 @@ Any extra commands or functionality that you add must also be added to the
 [`README.md`](README.md) and to the documentation under `docs/`, in the same
 pull request.
 - a new CLI command appears in the README CLI section, as a section in
-`docs/guide/core.md`, and, when it is a lifecycle command, as a tool in
-`docs/mcp.md`
+`docs/guide/commands.md`, and, when it is a lifecycle command, as a tool in
+`docs/vscode/mcp.md`
 - a new flag, output format, or configuration key appears wherever
 its command or section is described. Record the change in `CHANGELOG.md`.
 - Binary-like flags are added as `yes|no` (not `true|false`) to facilitate future additional values.
@@ -119,7 +119,7 @@ task lint              # biome check packages/
 task format:write      # biome check --write packages/
 task build             # bun run build (libraries, variant-ui, then the extensions)
 task test              # bun run test
-task docs:dev          # TypeDoc + vitepress dev
+task docs:dev          # vitepress dev
 task commitlint        # mise-pinned commitlint on origin/main..HEAD
 ```
 
@@ -162,7 +162,7 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
   Visual Studio Marketplace and/or Open VSX. Triggered by `workflow_run` after
   `ci-release.yaml` completes, and only when that run created the release; also
   manually dispatchable.
-- `docs.yml` — TypeDoc + VitePress to GitHub Pages (main)
+- `docs.yml` — VitePress to GitHub Pages (main)
 
 When adding a gate, expose it as a `task` and call that task from the workflow.
 

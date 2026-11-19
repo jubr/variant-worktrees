@@ -461,8 +461,7 @@ describe("watch output mode", () => {
 });
 
 describe("variant-wide commands", () => {
-  it("ignores variant.up and variant.watch with a warning and keeps variant.seed", () => {
+  it("ignores variant.up and variant.watch with a warning", () => {
     expect(warned({ up: "bun run dev", watch: "bun run watch" }).sort()).toEqual(["up", "watch"]);
-    expect(warned({ seed: "bun run seed" })).toEqual([]);
   });
 });

@@ -26,9 +26,6 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - name: Generate API reference
-        run: bun run docs:api
-
       - name: Build docs
         run: bun run vitepress build docs
 

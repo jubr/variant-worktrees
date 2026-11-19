@@ -4,11 +4,11 @@
 The CLI and the MCP server call that logic in-process.
 Those commands are not sent to the VS Code extension. The socket itself is `variant-ipc`.
 
-The socket belongs to the [Extension](./extension); install it as described in [Installation](./installation).
+The socket belongs to the [Extension](./extension); install it as described in [Installation](/guide/installation).
 
 The extension's own views, the Variants view and the panel, call `variant-api` in-process inside the extension host for `list`, `watch`, `down` and `implode`.
 Those calls do not use the socket, and a socket request with one of the lifecycle names above still fails.
-What each of those commands does is in [Core](./core), and what a watch does at run time is in [Runtime](./runtime#watching).
+What each of those commands does is in [Commands](/guide/commands), and what a watch does at run time is in [Runtime](/guide/runtime#watching).
 
 Requests that need the editor are the socket traffic.
 Each request line is one JSON object, `{"name":"<command>","args":{...}}`.

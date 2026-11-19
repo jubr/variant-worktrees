@@ -46,37 +46,38 @@ export default defineConfig({
     search: { provider: "local" },
     outline: { level: [2, 3] },
     nav: [
-      { text: "Guide", link: "/guide/", activeMatch: "^/guide/" },
       { text: "Configuration", link: "/guide/configuration" },
-      { text: "CLI", link: "/cli-vscode-webview#cli" },
-      { text: "MCP", link: "/mcp", activeMatch: "^/mcp" },
+      { text: "CLI", link: "/guide/cli" },
+      { text: "MCP", link: "/vscode/mcp" },
       { text: `v${packageVersion}`, link: "https://github.com/jubr/variant-worktrees/releases" },
     ],
 
     sidebar: [
-      { text: "Getting Started", link: "/guide/" },
+      { text: "Getting Started", link: "/" },
       {
         text: "Variant Worktrees",
         items: [
           { text: "Overview", link: "/guide/overview" },
-          { text: "Core", link: "/guide/core" },
+          { text: "Commands", link: "/guide/commands" },
+          { text: "CLI", link: "/guide/cli" },
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Installation", link: "/guide/installation" },
           { text: "Runtime", link: "/guide/runtime" },
+          { text: "Workspace", link: "/guide/workspace" },
         ],
       },
       {
         text: "VSCode / Cursor",
         items: [
-          { text: "Extension", link: "/guide/extension" },
-          { text: "MCP Server", link: "/mcp" },
-          { text: "Socket IPC", link: "/guide/socket-ipc" },
+          { text: "Extension", link: "/vscode/extension" },
+          { text: "MCP Server", link: "/vscode/mcp" },
+          { text: "Socket IPC", link: "/vscode/socket-ipc" },
         ],
       },
       {
         text: "Chat Renamer",
         items: [
-          { text: "Overview", link: "/chat-renamer/" },
+          { text: "Extension", link: "/chat-renamer/" },
           { text: "Configuration", link: "/chat-renamer/configuration" },
         ],
       },
@@ -84,8 +85,7 @@ export default defineConfig({
         text: "Development",
         items: [
           { text: "Building", link: "/development/building" },
-          { text: "Library", link: "/guide/library" },
-          { text: "API Reference", link: "/api/" },
+          { text: "Library", link: "/development/library" },
         ],
       },
     ],

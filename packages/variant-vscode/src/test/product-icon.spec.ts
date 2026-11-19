@@ -72,7 +72,7 @@ describe("product icon", () => {
     expect(docsConfig.themeConfig.logo).toBe("/logo-256.png");
     for (const [relativePath, prefix] of [
       ["index.md", "./"],
-      ["guide/core.md", "../"],
+      ["guide/commands.md", "../"],
     ]) {
       const head = await docsConfig.transformHead?.({ pageData: { relativePath } } as never);
       expect(head).toContainEqual([

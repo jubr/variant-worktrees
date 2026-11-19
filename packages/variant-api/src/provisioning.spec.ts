@@ -86,10 +86,10 @@ describe("step log", () => {
           "db:",
           "  dialect: sqlite",
           "variant:",
-          `  seed: echo seed >> ${d}/order.log`,
           "  steps:",
           `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
           `    two: { cmd: "echo two >> ${d}/order.log", runBefore: seed }`,
+          `    seed: { cmd: "echo seed >> ${d}/order.log" }`,
         ),
       async (_directory, provision) => {
         const events: LogEvent[] = [];
@@ -166,9 +166,9 @@ describe("step log", () => {
     }
   });
 
-  it("quotes a seed command as a plus and a JSON string", () =>
+  it("quotes a seed step command as a plus and a JSON string", () =>
     withProject(
-      () => lines("db:", "  dialect: sqlite", "variant:", "  seed: printf seeded"),
+      () => lines("db:", "  dialect: sqlite", "variant:", "  steps:", "    seed: { cmd: printf seeded }"),
       async (_directory, provision) => {
         const events: LogEvent[] = [];
         setLogSink((event) => events.push(event));
@@ -183,9 +183,9 @@ describe("step log", () => {
       },
     ));
 
-  it("escapes a double quote in a seed command", () =>
+  it("escapes a double quote in a seed step command", () =>
     withProject(
-      () => lines("db:", "  dialect: sqlite", "variant:", '  seed: echo "hi"'),
+      () => lines("db:", "  dialect: sqlite", "variant:", "  steps:", `    seed: { cmd: 'echo "hi"' }`),
       async (_directory, provision) => {
         const events: LogEvent[] = [];
         setLogSink((event) => events.push(event));
@@ -200,19 +200,19 @@ describe("step log", () => {
 });
 
 describe("provisioning order", () => {
-  it("runs the up commands, the steps in order, then the seed command", () =>
+  it("runs the up commands, then the steps in order", () =>
     withProject(
       (d) =>
         lines(
           "db:",
           "  dialect: sqlite",
           "variant:",
-          `  seed: echo seed >> ${d}/order.log`,
           "  watches:",
           `    fe: { kind: vite, dir: fe, up: "echo up >> ${d}/order.log" }`,
           "  steps:",
           `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
           `    two: { cmd: "echo two >> ${d}/order.log", runBefore: seed }`,
+          `    seed: { cmd: "echo seed >> ${d}/order.log" }`,
         ),
       async (directory, provision) => {
         await provision();
@@ -229,10 +229,10 @@ describe("provisioning order", () => {
           "db:",
           "  dialect: sqlite",
           "variant:",
-          `  seed: echo seed >> ${d}/order.log`,
           "  steps:",
           '    first: { cmd: "echo boom; exit 3", runBefore: seed }',
           `    second: { cmd: "echo second >> ${d}/order.log", runBefore: seed }`,
+          `    seed: { cmd: "echo seed >> ${d}/order.log" }`,
         ),
       async (directory, provision) => {
         const failure = await provision().catch((error: Error) => error);
@@ -536,9 +536,9 @@ describe("interpolation in commands", () => {
       files,
     ));
 
-  it("expands an environment reference in the seed command", () =>
+  it("expands an environment reference in the seed step command", () =>
     withProject(
-      () => project(["  seed: 'echo ${SEED_ARG_FOR_TEST} > seed.out'"]),
+      () => project(["  steps:", "    seed: { cmd: 'echo ${SEED_ARG_FOR_TEST} > seed.out' }"]),
       async (directory, provision) => {
         setEnv("SEED_ARG_FOR_TEST", "fixtures");
         await provision();

@@ -111,9 +111,6 @@ packages/*/dist
 docs/.vitepress/dist
 docs/.vitepress/cache
 
-# Generated API docs (rebuilt on deploy)
-docs/api
-
 # Claude
 .claude/
 

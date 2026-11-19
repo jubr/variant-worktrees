@@ -9,8 +9,7 @@ context: |
   (VS Code extension), chat-renamer-config, chat-renamer-api, and chat-renamer
   (packages/chat-renamer-vscode, also embedded in variant-vscode).
   Runtime is Bun, language is TypeScript
-  strict ESM, validation is Zod v4, lint/format is Biome, docs are VitePress +
-  TypeDoc. Database settings autodetect from mise.local.toml and environment
+  strict ESM, validation is Zod v4, lint/format is Biome, docs are VitePress. Database settings autodetect from mise.local.toml and environment
   variables.
 
   Current observable product behavior belongs in namespaced capability specifications

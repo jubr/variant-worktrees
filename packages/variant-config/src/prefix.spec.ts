@@ -32,7 +32,7 @@ describe("readPrefix", () => {
   it("returns _v- when the file does not set a prefix", () => {
     const directory = tempDirectory();
     try {
-      writeFileSync(join(directory, "variants.yaml"), "variant:\n  seed: ./seed.sh\n");
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  open: false\n");
 
       expect(readPrefix(directory)).toBe("_v-");
     } finally {

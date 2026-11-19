@@ -2,7 +2,7 @@
 
 The **Variant Worktrees** extension brings variants into VS Code and Cursor: a view of every variant, onboarding for a project that has none yet, the MCP server for your agents, and the chat renamer.
 It is tested with Cursor and needs VS Code 1.101 or a host with Node.js 22.13 or newer.
-How to install it is in [Installation](./installation#vs-code-and-cursor-extension).
+How to install it is in [Installation](/guide/installation#vs-code-and-cursor-extension).
 
 The extension runs the lifecycle in-process, the same code as the CLI.
 
@@ -20,11 +20,11 @@ A one-time notification points at that section too.
 
 **Initialize** runs `variant init` inside the extension host, opens the written `variants.yaml` and confirms each step.
 A step that fails keeps the dialog open with its message.
-The steps are those of [`variant init`](./core#init).
+The steps are those of [`variant init`](/guide/commands#init).
 
 After a local commit in a workspace without `variants.yaml`, where a database and an application (Vite, NestJS or a package with a `watch` script) are detected, a notification such as `Detected postgres+vite, want to bootstrap Variant in this repo?` offers **Bootstrap Variant** once per workspace.
 
-When `variants.yaml` uses names of an earlier version, the extension rewrites it and shows a warning with the actions **Open file** and **Undo**; see [Unknown keys and migration](./configuration#unknown-keys-and-migration).
+When `variants.yaml` uses names of an earlier version, the extension rewrites it and shows a warning with the actions **Open file** and **Undo**; see [Unknown keys and migration](/guide/configuration#unknown-keys-and-migration).
 
 ## Variants view
 
@@ -54,22 +54,35 @@ A variant that exists only in the database has a small `d` after the slug.
 
 A failed watch, down or implode shows that error in a notification and in the extension log.
 The context menu shows the watch output (`.cache/variant/watch.log`), opens the URL, the panel and the web page.
-What a watch does while it starts is in [Runtime](./runtime#starting), and the keys, reattaching and exit status of an attached watch are under [Watching](./runtime#watching).
+What a watch does while it starts is in [Runtime](/guide/runtime#starting), and the keys, reattaching and exit status of an attached watch are under [Watching](/guide/runtime#watching).
 
 ## Environment and Mise
 
 The environment comes from Mise.
 When Mise fails, a notification names the directory and Mise's message, and for an untrusted configuration offers **Trust**, which runs `mise -C <dir> trust --all` and repeats the action.
-The setting [`variant.mise.binPath`](./configuration#variant-mise-binpath) names the Mise executable when it is not on the `PATH` of the editor; a change applies without a reload.
-The lookup order is in [Runtime](./runtime#environment-through-mise), and the matching key of `variants.yaml` is [`variant.mise`](./configuration#variant-mise).
+The setting [`variant.mise.binPath`](/guide/configuration#variant-mise-binpath) names the Mise executable when it is not on the `PATH` of the editor; a change applies without a reload.
+The lookup order is in [Runtime](/guide/runtime#environment-through-mise), and the matching key of `variants.yaml` is [`variant.mise`](/guide/configuration#variant-mise).
 
 ## MCP server
 
 The extension registers the `variant` MCP server for the open workspace in Cursor and VS Code, so an agent can create, watch and implode variants itself.
-The tools and the client configuration for other editors are in [MCP Server](/mcp).
+The tools and the client configuration for other editors are in [MCP Server](./mcp).
 
 ## Chat renamer
 
-The extension embeds the chat renamer: it names a Cursor chat after the variant it works on, from the first prompt (`/chat-rename my-title`, `/vw-spec-start my-slug`, or a dragged worktree folder), numbers chats of the same name, and renames the chats of the last seven days.
-The palette commands are **Variant: Rename active chat** and **Variant: Rename Existing Chats**.
-See [Chat Renamer](/chat-renamer/) and its [configuration](/chat-renamer/configuration).
+The extension embeds the full [Chat Renamer Extension](/chat-renamer/) functionality: it names a Cursor chat after the variant it works on, from the first prompt (`/chat-rename my-title`, `/vw-spec-start my-slug`, or a dragged worktree folder), numbers chats of the same name, and keeps the host awake while chats are active.
+See [configuration](/chat-renamer/configuration).
+
+## Palette Commands
+
+Open the palette with `Cmd+Shift+P` (`Ctrl+Shift+P`).
+The commands marked *needs a folder* appear only when a workspace folder is open.
+The row actions of the Variants view (play, stop, open url, show output, implode) act on one variant and are not in the palette.
+
+- **Variant: Initialize in this Repo** (needs a folder): Shows the [onboarding](#onboarding) dialog that runs [`variant init`](/guide/commands#init).
+- **Variant: Open Variants Panel** (needs a folder): Shows the list of variants in an editor panel, in the same order as the view.
+- **Variant: Open Variants in Browser** (needs a folder): Opens the web page of `variant ui` in the browser, and names `variant ui --detach` when no server runs.
+- **Variant: Rename active chat**: Renames the active Cursor chat from its first prompt.
+- **Variant: Rename Existing Chats**: Renames the chats of the last seven days again, ignoring which ones were examined before.
+- **Create variant** (needs a folder): Asks for a slug in an input box, then runs [`create`](/guide/commands#create) for it and refreshes the view.
+  The schema is not created; that is `provision`.

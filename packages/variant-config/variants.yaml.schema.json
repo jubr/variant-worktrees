@@ -260,10 +260,6 @@
           },
           "additionalProperties": false
         },
-        "seed": {
-          "type": "string",
-          "minLength": 1
-        },
         "watches": {
           "type": "object",
           "propertyNames": {

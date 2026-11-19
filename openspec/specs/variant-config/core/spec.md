@@ -113,10 +113,10 @@ When stdout is a terminal and `NO_COLOR` is unset, the text SHALL be colored in 
 
 #### Scenario: Override on the child
 
-- **WHEN** cwd is the directory of `variants.yaml`, that file sets `variant.prefix` to a literal and `variant.seed` to `${VARIANT_SEED}`, and `VARIANT_SEED` is `echo ok`
+- **WHEN** cwd is the directory of `variants.yaml`, that file sets `variant.prefix` to a literal and `variant.baseBranch` to `${VARIANT_BASE}`, and `VARIANT_BASE` is `develop`
 - **THEN** the `variant` line is commented `# from ./variants.yaml`
 - **AND** the `prefix` line has no origin comment
-- **AND** the `seed` line is commented `# from env VARIANT_SEED`
+- **AND** the `baseBranch` line is commented `# from env VARIANT_BASE`
 
 #### Scenario: Autodetected watch
 
@@ -173,23 +173,6 @@ When stdout is a terminal and `NO_COLOR` is unset, the text SHALL be colored in 
 #### Scenario: Validation error reporting
 - **WHEN** a user runs `variant config` and `variants.yaml` is invalid
 - **THEN** stderr shows the validation error and the exit code is 1
-
-### Requirement: Seed command configuration
-
-The system SHALL allow `variants.yaml` to define a seed command for all variants (`variant.seed`). A former top-level `seed` key and a top-level `variants` key SHALL be ignored with a warning, like any unknown key.
-
-#### Scenario: Global seed command
-- **WHEN** `variants.yaml` has `variant.seed: "bun run db:seed"`
-- **THEN** `variant provision` executes that command with variant environment
-
-#### Scenario: Former top-level seed
-- **WHEN** `variants.yaml` has a top-level `seed` key
-- **THEN** loading succeeds, the key is ignored and one warning names it
-
-#### Scenario: Per-variant seed override
-- **WHEN** `variants.yaml` has `variant.seed: "bun run db:seed"` and a top-level `variants` key with `main.seed: "echo skip"`
-- **THEN** loading succeeds and one warning names the `variants` key
-- **AND** provisioning slug `main` runs `bun run db:seed`
 
 ### Requirement: Runtime watch discovery
 

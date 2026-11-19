@@ -1,18 +1,46 @@
-# Core
+# Commands
 
-These are the `variant` commands, provided by the `variant-cli` package (see [Installation](./installation)).
-A slug command takes the slug as a positional argument or as `-s`/`--slug`. The flag wins.
-Without either, the slug comes from the current worktree branch.
-`--verbose` (`-v`) prints the full output of quiet provisioning steps; on `list` it shows all meta information of every variant.
-
-Commands print text for people. [Global flags](#global-flags) switch to JSON or YAML.
+These are the `variant` commands.
+The command line itself, with its slug argument, [global flags](./cli#global-flags) and shell [completions](./cli#completions), is in [CLI](./cli).
+The [MCP server](/vscode/mcp) and the [library](/development/library) offer the same commands.
 
 What `provision`, `up`, and `watch` actually run is set by [`variant.steps`](./configuration#variant-steps) and [`variant.watches`](./configuration#variant-watches).
 The [Overview](./overview#flow-of-steps) shows how the steps follow each other.
 
 ## Lifecycle commands
 
-These commands move a variant through the [flow of steps](./overview#flow-of-steps).
+`init` prepares a project for Variant.
+The others move a variant through the [flow of steps](./overview#flow-of-steps).
+
+### init
+
+Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
+
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
+  Other accepted values of a setting follow `#` on the same line.
+  Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
+  For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
+  [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
+- `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
+- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
+  Nothing is installed.
+  A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
+  A failing Mise step stops no other step.
+
+```bash
+variant init
+variant init --prefix wt- --mise=false
+variant init --force
+```
+
+`--prefix` (default `_v-`) must not be empty or contain a path separator.
+`init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory.
+The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on `PATH`](./runtime#bun-on-path)).
+In the result, `bun` has a `status` of `matches`, `differs` or `unchecked`, a `message` and the `hint` lines that say how to fix a difference.
+The check never fails `init` and changes nothing.
+With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`.
+The [extension](/vscode/extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure.
+Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
 
 ### create
 
@@ -184,37 +212,7 @@ variant implode -s feature-forty-two --force
 
 ## Other commands
 
-These commands set up, inspect and serve variants, and do not change their state.
-
-### init
-
-Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
-
-- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
-  Other accepted values of a setting follow `#` on the same line.
-  Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
-  For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
-  [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
-- `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
-- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
-  Nothing is installed.
-  A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
-  A failing Mise step stops no other step.
-
-```bash
-variant init
-variant init --prefix wt- --mise=false
-variant init --force
-```
-
-`--prefix` (default `_v-`) must not be empty or contain a path separator.
-`init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory.
-The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on `PATH`](./runtime#bun-on-path)).
-In the result, `bun` has a `status` of `matches`, `differs` or `unchecked`, a `message` and the `hint` lines that say how to fix a difference.
-The check never fails `init` and changes nothing.
-With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`.
-The [extension](./extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure.
-Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
+These commands inspect and serve variants, and do not change their state.
 
 ### config
 
@@ -329,73 +327,8 @@ Security model:
 - Loopback only, no remote access.
 - A random 128-bit token is required.
   The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie.
-  The token lives in an owner-only file next to the [socket](./socket-ipc) and is removed when the server ends.
+  The token lives in an owner-only file next to the [socket](/vscode/socket-ipc) and is removed when the server ends.
 - The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
 - POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
 - `implode` needs `confirm: true` in the request body, and `main` is never imploded.
 - A content security policy allows scripts and styles from the server's own origin only.
-
-### completions
-
-Print a completion script for `zsh`, `bash`, or `fish` to stdout.
-It needs no configuration, database, or git repository, and it writes nothing.
-The shell argument is required: an unsupported or missing shell fails and names the supported ones.
-
-The scripts complete the subcommands, the flags of each one, and the slugs of existing variants, read live from the local variant state and `_v-*` worktrees (never the database).
-Regenerate the script after you upgrade `variant`; the `eval`/`source` forms do it on every shell start.
-
-```bash
-# zsh: after compinit, in ~/.zshrc
-eval "$(variant completions zsh)"
-# or save it where $fpath finds it: variant completions zsh > ~/.zsh/completions/_variant
-
-# bash: in ~/.bashrc
-source <(variant completions bash)
-
-# fish
-variant completions fish > ~/.config/fish/completions/variant.fish
-```
-
-`variant completions --list-slugs` prints the slugs of existing variants, one per line.
-The scripts call it while you complete a slug, in the background in `zsh` and in `bash` 4.1 or newer.
-The result is kept in shell variables for 30 seconds, never in a file.
-It reads local files only, uses the autodetected settings when there is no `variants.yaml`, and prints nothing when the configuration is invalid.
-
-## Global flags
-
-These flags work on every command, before or after the command name.
-`variant --help` and `variant <command> --help` list them in a `Global flags` section, apart from the flags of the command.
-
-| Flag | Effect |
-| --- | --- |
-| `-C <path>` | Change directory before configuration is read |
-| `--json` | Print the result as JSON, exactly what the command returned |
-| `--yaml` | Print the same result as YAML |
-| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn`. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, then the step when the event has one. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, and the step is cyan |
-| `--help`, `-h` | Show help |
-| `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
-
-The CLI also sends each log event to the editor on the project Unix socket, except steps `ipc` and `cli`, which stay on standard error.
-The connection starts at the first event.
-Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line.
-CLI end is one `[debug] cli end` line.
-Those two stay `debug` even when the working directory is under `/tmp`.
-A write waits at most one second.
-An event with no slug carries `-s` or `--slug` when that flag was given, and otherwise the autodetected slug of the working directory.
-Standard error does not print that slug, and it does not add ` [cli]` or ` @cli`.
-A shell command is the message `+"<command>"`.
-`+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug.
-A lifecycle command adds one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`.
-A missing editor does not change the command result.
-On the Variant Worktrees channel a CLI line ends with ` @cli` and an MCP line ends with ` @mcp`.
-A library event for a variant whose project directory is under `/tmp` is emitted at `trace`.
-
-Without a flag, commands print a text summary meant for people.
-Scripts should use `--json` or `--yaml`; the text layout can change.
-Giving both `--json` and `--yaml` fails before anything runs.
-Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.
-
-```bash
-variant list --json
-variant --yaml status feature-forty-two
-```

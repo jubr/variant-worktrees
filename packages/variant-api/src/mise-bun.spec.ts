@@ -216,7 +216,7 @@ describe("provision with another Bun first on PATH", () => {
       }
       writeFileSync(
         join(root, "variants.yaml"),
-        "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n  seed: touch seeded\n",
+        "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n  steps:\n    seed: { cmd: touch seeded }\n",
       );
       process.env.PATH = `${foreign}:${mise}:${savedPath}`;
       const client = createVariantClient({

@@ -32,7 +32,7 @@ const counting = (values: NodeJS.ProcessEnv): { provider: () => NodeJS.ProcessEn
 
 describe("loadConfig environment provider", () => {
   it("does not call the provider when nothing reads the database", () => {
-    writeFileSync(join(directory, "variants.yaml"), "variant:\n  seed: ./seed.sh\n");
+    writeFileSync(join(directory, "variants.yaml"), "variant:\n  open: false\n");
     const environment = counting({ POSTGRES_HOST: "db.local" });
 
     const config = loadConfig({ cwd: directory, environment: environment.provider });

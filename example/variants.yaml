@@ -7,9 +7,10 @@ db:
 
 variant:
   abbr: vw # the host of the open URL below; without it the abbreviation would come from this directory's name
-  seed: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
   storage: {} # a per-variant .storage directory, passed to commands in STORAGE_ROOT
   steps:
+    seed:
+      cmd: bun scripts/seed.mjs # runs with the variant's database in SQLITE_DATABASE
     storage:
       cmd: echo "Preparing $VARIANT_SLUG with storage in $STORAGE_ROOT"
       filterLinesRegex: ^Preparing

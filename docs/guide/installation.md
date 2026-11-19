@@ -2,9 +2,19 @@
 
 Variant Worktrees goes into the project you already have.
 Both ways below end the same: a `variants.yaml` in your repository that says what a variant runs.
-Pick the CLI through mise, or the editor extension; they work side by side.
+Install the editor extension, or the CLI through mise; they work side by side.
 
-Building from a checkout of this repository is the other type of installation: see [Development](/development/building).
+## VS Code and Cursor extension
+
+Tested with Cursor.
+
+1. Install the **Variant Worktrees** extension from the Extensions view of your editor (search for `Variant Worktrees`), or from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees) or [Open VSX](https://open-vsx.org/extension/jubr/variant-worktrees).
+2. Open your project. A **Variant Worktrees** section appears in the Explorer.
+3. Follow its **Onboarding**: when the project has no `variants.yaml`, the section says that variants are not initialized and offers **Onboard**.
+   It opens the same initialization dialog as **Variant: Initialize in this Repo**; confirm with **Initialize**, and the three steps of `init` described [below](#mise-cli) run in your main checkout.
+
+After onboarding the section lists your variants, and you can create, watch and implode them from there.
+[Extension](/vscode/extension) describes everything it does, including registering the [MCP Server](/vscode/mcp) for your agents.
 
 ## mise CLI
 
@@ -34,16 +44,4 @@ mise x github:jubr/variant-worktrees@latest -- variant init
   Nothing is installed by that edit; run `mise install` and `variant` is on your `PATH` whenever you are in the project.
 
 Review the result with `git diff`, adjust `variants.yaml` (see [Configuration](./configuration#variant-options)), and commit it.
-The flags of `init`, such as `--prefix` and the `--file=false`, `--gitignore=false` and `--mise=false` switches, are in [Core](./core#init).
-
-## VS Code and Cursor extension
-
-Tested with Cursor.
-
-1. Install the **Variant Worktrees** extension from the Visual Studio Marketplace or Open VSX.
-2. Open your project. A **Variant Worktrees** section appears in the Explorer.
-3. Follow its **Onboarding**: when the project has no `variants.yaml`, the section says that variants are not initialized and offers **Onboard**.
-   It opens the same initialization dialog as **Variant: Initialize in this Repo**; confirm with **Initialize**, and the three steps of `init` above run in your main checkout.
-
-After onboarding the section lists your variants, and you can create, watch and implode them from there.
-[Extension](./extension) describes everything it does, including registering the [MCP Server](/mcp) for your agents.
+The flags of `init`, such as `--prefix` and the `--file=false`, `--gitignore=false` and `--mise=false` switches, are in [Commands](./commands#init).

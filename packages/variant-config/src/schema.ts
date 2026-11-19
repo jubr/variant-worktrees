@@ -377,8 +377,6 @@ export const VariantRuntimeSchema = z
     implode: VariantImplodeSchema.optional(),
     ui: VariantUiSchema.optional(),
     mise: VariantMiseSchema.optional(),
-    /** Command that seeds a new variant database. A per-variant `seed` wins. */
-    seed: z.string().min(1).optional(),
     /** Keyed by watch name; the key is the name in runtime state, templates and environment variables. */
     watches: z
       .record(

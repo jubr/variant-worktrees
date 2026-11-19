@@ -44,13 +44,13 @@ describe("provisioning command echo", () => {
       "db:",
       "  dialect: sqlite",
       "variant:",
-      "  seed: echo seed",
       "  watches:",
       '    fe: { kind: vite, dir: fe, up: "echo up" }',
       "  steps:",
       '    one: { cmd: "echo one", filterLinesRegex: "^never$", runBefore: seed }',
       '    skipped: { cmd: "echo skipped", runBefore: seed }',
       `    two: { cmd: "echo two > ${d}/two.txt", runBefore: seed }`,
+      '    seed: { cmd: "echo seed" }',
     );
 
   it("prints each command before it runs, in order, without verbose", () =>

@@ -39,11 +39,11 @@ describe("the example project", () => {
     expect(VariantsConfigSchema.safeParse(parsed).success).toBe(true);
   });
 
-  it("lists fe (Vite, url) and be (NestJS, env.sourceFile) with a seed command on SQLite", () => {
+  it("lists fe (Vite, url) and be (NestJS, env.sourceFile) with a seed step on SQLite", () => {
     const config = loadConfig({ cwd: exampleDirectory });
 
     expect(config.db.dialect).toBe("sqlite");
-    expect(config.variant?.seed).toBe("bun scripts/seed.mjs");
+    expect(config.variant.steps.seed?.cmd).toBe("bun scripts/seed.mjs");
     expect(config.variant.watches).toMatchObject({
       fe: { kind: "vite", dir: "fe", url: DEFAULT_URL },
       be: { kind: "nestjs", dir: "be", env: { sourceFile: ".env" } },

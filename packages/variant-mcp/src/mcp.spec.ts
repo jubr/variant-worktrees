@@ -32,7 +32,10 @@ const loudParent = (): string => {
 
 const configFile = (directory: string, seed = false): string => {
   const path = join(directory, "variants.yaml");
-  writeFileSync(path, `db:\n  dialect: sqlite\n${seed ? 'variant:\n  seed: "printf seeded"\n' : ""}`);
+  writeFileSync(
+    path,
+    `db:\n  dialect: sqlite\n${seed ? 'variant:\n  steps:\n    seed: { cmd: "printf seeded" }\n' : ""}`,
+  );
   return path;
 };
 

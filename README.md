@@ -71,7 +71,9 @@ An example `variants.yaml` at workspace main checkout:
 
 ```yaml
 variant:
-  seed: bun run db:seed
+  steps:
+    seed:
+      cmd: bun run db:seed
   watches:
     fe:
       kind: vite
@@ -176,7 +178,7 @@ variant ui --stop                      # end the UI server of the project
 Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
 PostgreSQL and MySQL use isolated schemas/databases; SQLite uses one database
 file per variant. Every command is explained in the
-[command reference](https://jubr.github.io/variant-worktrees/guide/core#lifecycle-commands).
+[command reference](https://jubr.github.io/variant-worktrees/guide/commands#lifecycle-commands).
 
 `variant status` reports one variant: the facts `list` shows plus all of its runtime state (mode,
 directory, database settings with the password hidden, and each watch's port, pid, URL, whether the
@@ -249,7 +251,7 @@ Configure an MCP client to run:
 
 Tools: `variant_init`, `variant_config`, `variant_create`, `variant_list`, `variant_status`,
 `variant_provision`, `variant_up`, `variant_down`, `variant_deprovision`, `variant_watch` (always
-detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/mcp).
+detached), and `variant_implode`. See the [MCP guide](https://jubr.github.io/variant-worktrees/vscode/mcp).
 
 ## Chat renamer
 
