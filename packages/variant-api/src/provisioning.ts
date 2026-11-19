@@ -99,7 +99,7 @@ const prepareEnvFile = (config: ResolvedConfig, run: VariantRun, key: string, wa
 
 /**
  * Prepares a variant for its watches, one pipeline for `provision`, `up` and `watch`: storage directory, watch
- * dependency installs, env file copies, the `up` commands, the steps of `variant.steps` and the seed command. The first
+ * dependency installs, env file copies, the `up` commands, the steps of `variant.steps`. The first
  * failure stops the pipeline and names the command.
  */
 export const runProvisioning = async (
@@ -162,7 +162,6 @@ export const runProvisioning = async (
         ]
       : [];
   });
-  const plainEnv = commandEnvironment(config, run, undefined);
   for (const up of upCommands) {
     command(up.text, up.cwd, up.env, "Command");
   }
@@ -226,14 +225,5 @@ export const runProvisioning = async (
     }
   }
 
-  const seed = config.variant.seed;
-  if (seed) {
-    const seedCommand = expandSetting(config, run, seed, "seed");
-    log(levelForDirectory(LogLevel.info, run.projectDir), commandMessage(seedCommand), {
-      slug: run.slug,
-      step: "seed",
-    });
-    command(seedCommand, run.projectDir, plainEnv);
-  }
   return { commands, output };
 };

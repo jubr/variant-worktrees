@@ -18,10 +18,11 @@ describe("provision", () => {
           "db:",
           "  dialect: sqlite",
           "variant:",
-          "  seed: pwd > seed.out",
           "  watches:",
           "    fe: { kind: vite, dir: fe, up: pwd > ../fe.out }",
           "    be: { kind: nestjs, dir: be, up: pwd > ../be.out }",
+          "  steps:",
+          "    seed: { cmd: pwd > seed.out }",
           "",
         ].join("\n"),
       );

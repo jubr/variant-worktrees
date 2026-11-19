@@ -71,7 +71,9 @@ An example `variants.yaml` at workspace main checkout:
 
 ```yaml
 variant:
-  seed: bun run db:seed
+  steps:
+    seed:
+      cmd: bun run db:seed
   watches:
     fe:
       kind: vite

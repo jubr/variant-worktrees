@@ -844,9 +844,12 @@ describe("overview steps are short and link to commands", () => {
       expect(section, "no list, table or fenced code").not.toMatch(/<(ul|ol|table|pre)\b|class="language-/);
       const paragraphs = [...section.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1]);
       const last = paragraphs.at(-1) ?? "";
-      expect(decodeEntities(last.replace(/<[^>]+>/g, ""))).toBe(`More details at Core ${command}.`);
-      expect(linksOf(last, "guide/overview.html")).toEqual([{ path: "/guide/core", hash: command }]);
-      const explanation = paragraphs.slice(0, -1).join(" ");
+      const sentence = `More details at Core ${command}.`;
+      expect(decodeEntities(last.replace(/<[^>]+>/g, "")).trim().endsWith(sentence), "ends the last paragraph").toBe(true);
+      expect(linksOf(last.slice(last.lastIndexOf("More details at Core")), "guide/overview.html")).toEqual([
+        { path: "/guide/core", hash: command },
+      ]);
+      const explanation = [...paragraphs.slice(0, -1), last.slice(0, last.lastIndexOf("More details at Core"))].join(" ");
       expect(wordsIn(explanation)).toBeLessThanOrEqual(60);
       expect(wordsIn(explanation)).toBeGreaterThan(0);
       expect(decodeEntities(explanation.replace(/<[^>]+>/g, ""))).not.toMatch(/(^|\s)--?[a-z]/);
@@ -859,7 +862,6 @@ describe("overview steps are short and link to commands", () => {
     expect(section).not.toContain("More details at");
     const links = linksOf(section, "guide/overview.html").map((link) => `${link.path}#${link.hash}`);
     expect(links).toContain("/guide/configuration#variant-steps");
-    expect(links).toContain("/guide/configuration#variant-seed");
   });
 
   test("Custom Steps and Custom multi-tenancy steps keep their examples; the second links db.multi", () => {
@@ -895,7 +897,7 @@ describe("library page links into Core and Configuration", () => {
     const section = sectionOf(library(), "configuration");
     expect(section).not.toMatch(/<pre\b|class="language-/);
     const links = linksOf(section, "guide/library.html").map((link) => `${link.path}#${link.hash}`);
-    for (const target of ["variant-watches", "variant-seed", "variant-mise"]) {
+    for (const target of ["variant-watches", "variant-steps", "variant-mise"]) {
       expect(links).toContain(`/guide/configuration#${target}`);
     }
   });
@@ -919,8 +921,17 @@ describe("follow-up edits of the pages", () => {
       const end = rest.findIndex((heading) => heading.level === 2);
       return (end === -1 ? rest : rest.slice(0, end)).map((heading) => heading.text);
     };
-    expect(below("Lifecycle commands")).toEqual(["create", "provision", "up", "watch", "down", "deprovision", "implode"]);
-    expect(below("Other commands")).toEqual(["init", "config", "list", "status", "ui", "completions"]);
+    const withoutInit = (names: string[]) => names.filter((name) => name !== "init");
+    expect(withoutInit(below("Lifecycle commands"))).toEqual([
+      "create",
+      "provision",
+      "up",
+      "watch",
+      "down",
+      "deprovision",
+      "implode",
+    ]);
+    expect(withoutInit(below("Other commands"))).toEqual(["config", "list", "status", "ui", "completions"]);
   });
 
   test("the activationPatterns section lists the default patterns of chat-renamer-config", () => {

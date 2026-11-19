@@ -100,12 +100,6 @@ Directory that holds the worktrees, relative to `variants.yaml`.
 Default: the directory that holds a parent `AGENTS.md` symlink pointing into [`variant.main`](#variant-main) (so `variant watch foo` creates `<parent>/_v-foo`), otherwise [`variant.main`](#variant-main) itself (`./_v-foo`).
 A worktree directory inside [`variant.main`](#variant-main) gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created.
 
-### `variant.seed`
-
-The seed command of every variant.
-It runs once, after provisioning, and creates the tables and loads the rows.
-Absent: nothing is seeded. The step of that name is explained in the [Overview](./overview#seed).
-
 ### `variant.steps`
 
 A map keyed by step name, merged on top of the builtin steps.
@@ -322,6 +316,7 @@ Exactly one of [`db.multi.tenants`](#db-multi-tenants) and [`db.multi.tenantsCmd
 The reported target stays `v_<slug>`.
 A step passes the list and the prefix through its `env` as `${multi.tenants}` and `${multi.schemaPrefix}`.
 [`db.multi`](#db-multi) on `mysql` or `sqlite` is refused. The runtime copy of `db` omits `multi`.
+A worked example is in [Custom multi-tenancy steps](./overview#custom-multi-tenancy-steps).
 
 ```yaml
 db:

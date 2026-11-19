@@ -42,7 +42,9 @@ mise use github:jubr/variant-worktrees
 ```yaml
 variant:
   abbr: vw
-  seed: npm run db:seed
+  steps:
+    seed:
+      cmd: npm run db:seed
   watches:
     fe:
       kind: vite

@@ -213,13 +213,16 @@ describe("legacy template syntax", () => {
     ));
 
   it("reads a former nested default", () => {
-    const { data } = migrateLegacy({ variant: { seed: "echo {{SECRET:-local-{{slug}}}}" } }, "f.yaml");
+    const { data } = migrateLegacy(
+      { variant: { steps: { seed: { cmd: "echo {{SECRET:-local-{{slug}}}}" } } } },
+      "f.yaml",
+    );
 
-    expect(data).toEqual({ variant: { seed: "echo ${SECRET:-local-${slug}}" } });
+    expect(data).toEqual({ variant: { steps: { seed: { cmd: "echo ${SECRET:-local-${slug}}" } } } });
   });
 
   it("leaves text without a placeholder shape alone", () => {
-    const input = { variant: { seed: "echo {{ not a placeholder }} {{}} {{a b}}" } };
+    const input = { variant: { steps: { seed: { cmd: "echo {{ not a placeholder }} {{}} {{a b}}" } } } };
 
     expect(migrateLegacy(input, "f.yaml")).toEqual({ data: input, notices: [] });
   });
@@ -249,8 +252,8 @@ describe("legacy template syntax", () => {
   });
 
   it("rewrites a nested default in the text", () => {
-    expect(migrateText('variant:\n  seed: "echo {{SECRET:-local-{{slug}}}}"\n')).toBe(
-      'variant:\n  seed: "echo ${SECRET:-local-${slug}}"\n',
+    expect(migrateText('variant:\n  steps:\n    seed:\n      cmd: "echo {{SECRET:-local-{{slug}}}}"\n')).toBe(
+      'variant:\n  steps:\n    seed:\n      cmd: "echo ${SECRET:-local-${slug}}"\n',
     );
   });
 

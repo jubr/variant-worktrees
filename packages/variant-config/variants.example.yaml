@@ -80,7 +80,6 @@ variant:
       - bun.lock
     requireMerged: true # false; refuse to implode a variant that is not merged into baseBranch
     maxDiffLines: 200 # kept lines of the filtered git diff -U1 patches; over this, status and stat only
-  seed: ./scripts/seed.sh # command that seeds a new variant database; a per-variant `seed` below wins
   watches: # keyed by watch name: runtime state, templates (${be.port}), containers and VARIANT_BE_PORT use the key
     fe:
       kind: vite # nestjs; optional, a label that autodetection sets

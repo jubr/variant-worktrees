@@ -55,17 +55,17 @@ describe("loadConfig", () => {
     }
   });
 
-  it("takes the seed command from variant.seed and warns about a top-level variants key without applying it", () => {
+  it("reads a seed step and warns about a top-level variants key without applying it", () => {
     const directory = tempDirectory();
     try {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "variant:\n  seed: bun run db:seed\nvariants:\n  main:\n    seed: echo skip\n",
+        "variant:\n  steps:\n    seed:\n      cmd: bun run db:seed\nvariants:\n  main:\n    seed: echo skip\n",
       );
 
       const config = loadConfig({ cwd: directory });
 
-      expect(config.variant.seed).toBe("bun run db:seed");
+      expect(config.variant.steps.seed?.cmd).toBe("bun run db:seed");
       expect(config.warnings).toEqual([`${join(directory, "variants.yaml")}: unknown key variants`]);
       expect(config).not.toHaveProperty("variants");
     } finally {
@@ -76,7 +76,7 @@ describe("loadConfig", () => {
   it("resolves the default prefix _v-", () => {
     const directory = tempDirectory();
     try {
-      writeFileSync(join(directory, "variants.yaml"), "variant:\n  seed: ./seed.sh\n");
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  open: false\n");
 
       expect(loadConfig({ cwd: directory }).variant?.prefix).toBe("_v-");
     } finally {

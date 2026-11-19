@@ -12,7 +12,38 @@ The [Overview](./overview#flow-of-steps) shows how the steps follow each other.
 
 ## Lifecycle commands
 
-These commands move a variant through the [flow of steps](./overview#flow-of-steps).
+`init` prepares a project for Variant.
+The others move a variant through the [flow of steps](./overview#flow-of-steps).
+
+### init
+
+Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
+
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
+  Other accepted values of a setting follow `#` on the same line.
+  Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
+  For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
+  [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
+- `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
+- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
+  Nothing is installed.
+  A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
+  A failing Mise step stops no other step.
+
+```bash
+variant init
+variant init --prefix wt- --mise=false
+variant init --force
+```
+
+`--prefix` (default `_v-`) must not be empty or contain a path separator.
+`init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory.
+The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on `PATH`](./runtime#bun-on-path)).
+In the result, `bun` has a `status` of `matches`, `differs` or `unchecked`, a `message` and the `hint` lines that say how to fix a difference.
+The check never fails `init` and changes nothing.
+With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`.
+The [extension](./extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure.
+Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
 
 ### create
 
@@ -184,37 +215,7 @@ variant implode -s feature-forty-two --force
 
 ## Other commands
 
-These commands set up, inspect and serve variants, and do not change their state.
-
-### init
-
-Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
-
-- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
-  Other accepted values of a setting follow `#` on the same line.
-  Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
-  For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
-  [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
-- `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
-- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
-  Nothing is installed.
-  A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
-  A failing Mise step stops no other step.
-
-```bash
-variant init
-variant init --prefix wt- --mise=false
-variant init --force
-```
-
-`--prefix` (default `_v-`) must not be empty or contain a path separator.
-`init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory.
-The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on `PATH`](./runtime#bun-on-path)).
-In the result, `bun` has a `status` of `matches`, `differs` or `unchecked`, a `message` and the `hint` lines that say how to fix a difference.
-The check never fails `init` and changes nothing.
-With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`.
-The [extension](./extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure.
-Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
+These commands inspect and serve variants, and do not change their state.
 
 ### config
 

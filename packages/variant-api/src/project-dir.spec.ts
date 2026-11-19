@@ -15,7 +15,6 @@ const CONFIG = lines(
   "  dialect: sqlite",
   "variant:",
   "  open: false",
-  "  seed: pwd > seed.cwd",
   "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 1 }",
   "  watches:",
   "    be:",
@@ -25,6 +24,7 @@ const CONFIG = lines(
   "      watch: pwd > watch.cwd",
   "  steps:",
   "    in-be: { cmd: pwd > step.cwd, dir: be, runBefore: seed }",
+  "    seed: { cmd: pwd > seed.cwd }",
 );
 
 interface Repository {

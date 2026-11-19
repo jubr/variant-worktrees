@@ -164,14 +164,14 @@ describe("config text origins", () => {
       expect(hasOrigin(line(result.stdout, "renameExistingDays"))).toBe(false);
     }));
 
-  it("comments a ${VARIANT_SEED} on seed and leaves a literal prefix bare", () =>
-    withProject("variant:\n  prefix: _work-\n  seed: ${VARIANT_SEED}\n", async (directory) => {
-      const result = await config(directory, ["config"], { VARIANT_SEED: "echo ok" });
+  it("comments a ${VARIANT_BASE} on baseBranch and leaves a literal prefix bare", () =>
+    withProject("variant:\n  prefix: _work-\n  baseBranch: ${VARIANT_BASE}\n", async (directory) => {
+      const result = await config(directory, ["config"], { VARIANT_BASE: "develop" });
 
       expect(result.exitCode).toBe(0);
       expect(line(result.stdout, "variant")).toContain("# from ./variants.yaml");
       expect(hasOrigin(line(result.stdout, "prefix"))).toBe(false);
-      expect(line(result.stdout, "seed")).toContain("# from env VARIANT_SEED");
+      expect(line(result.stdout, "baseBranch")).toContain("# from env VARIANT_BASE");
     }));
 
   it("comments a discovered Vite watch and leaves its children bare", () =>

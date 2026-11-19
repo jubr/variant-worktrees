@@ -29,7 +29,7 @@ describe("the example project", () => {
       const created = await client.create("demo");
       expect(created.target).toBe(join(directory, ".cache", "variants", "demo.db"));
 
-      const seed = config.variant?.seed;
+      const seed = config.variant.steps.seed?.cmd;
       expect(seed).toBeDefined();
       // `create` makes no database file, so nothing made the directory yet: `provision` does, and here the seed runs by hand.
       mkdirSync(dirname(created.target), { recursive: true });

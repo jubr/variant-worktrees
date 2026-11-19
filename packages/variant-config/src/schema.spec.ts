@@ -101,8 +101,7 @@ describe("VariantsConfigSchema", () => {
     expect(VariantsConfigSchema.safeParse({ variant: { prefix: "a/b" } }).success).toBe(false);
   });
 
-  it("accepts a seed command under variant and ignores the former top-level key with a warning", () => {
-    expect(warnings({ variant: { seed: "bun run db:seed" } })).toEqual([]);
+  it("ignores a top-level seed key with a warning", () => {
     expect(warnings({ seed: "bun run db:seed" })).toEqual(["seed"]);
   });
 
