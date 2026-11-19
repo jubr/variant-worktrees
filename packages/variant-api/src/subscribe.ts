@@ -76,6 +76,8 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
   let lastMise: MiseFailure | undefined;
   let reading = false;
   let readAgain = false;
+  /** A watcher was opened since the last read finished: it may not have been live yet for a change made meanwhile. */
+  let freshWatchers = false;
 
   const deliver = (subscriber: Subscriber, update: VariantUpdate): void => {
     if (subscriber.ended) {
@@ -155,6 +157,7 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
           schedule();
         });
         watchers.set(path, watcher);
+        freshWatchers = true;
       } catch {
         // A directory that is gone or cannot be watched is covered by the liveness timer.
       }
@@ -229,6 +232,11 @@ export const createStateSubscriptions = (options: StateSubscriptionOptions) => {
         }
       }
       arm();
+      if (freshWatchers) {
+        // A new watcher can start reporting a moment after it is opened. One more read covers a change made in between.
+        freshWatchers = false;
+        schedule();
+      }
     } finally {
       reading = false;
       if (readAgain) {
