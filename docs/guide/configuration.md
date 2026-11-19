@@ -159,7 +159,8 @@ The timing of `up` and `watch`: [`startDelaySeconds`](#variant-supervise-startde
 
 ### `variant.supervise.checkoutPollSeconds`
 
-How often an attached `watch` checks that the worktree still exists, in seconds (default 5; 0 turns the check off).
+How often a `watch`, attached or detached, checks that its worktree directory still exists, in seconds (default 5; 0 turns the check off).
+When the directory is gone the watch stops its processes and implodes the variant, see [Worktree removed](./runtime#worktree-removed).
 
 ### `variant.supervise.readyTimeoutSeconds`
 

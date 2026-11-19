@@ -322,7 +322,7 @@ export const VariantStorageSchema = z.strictObject({
 export const VariantSuperviseSchema = z.strictObject({
   startDelaySeconds: seconds.optional(),
   readyTimeoutSeconds: seconds.optional(),
-  /** 0 turns the check of the worktree off. */
+  /** How often a watch, attached or detached, checks that its worktree is still there. 0 turns the check off. */
   checkoutPollSeconds: seconds.optional(),
 });
 
