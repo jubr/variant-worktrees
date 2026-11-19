@@ -8,6 +8,7 @@ The release PR run of `check:full` stalled for 22 minutes (normally 2.5): 35 `va
 - A test that waits has a wait shorter than its own timeout, so a slow runner fails one test with the condition that was not met instead of timing out every test after it.
 - `variant-api` tests get an explicit test timeout through `bun test --timeout` in the package `test` script, one that fits a loaded CI runner (bun ignores a `[test] timeout` in `bunfig.toml`).
 - The CI jobs get a `timeout-minutes`, so a hang fails in minutes.
+- The slowest test files of `variant-api` and `variant-cli` run as a second step per package (`packages/<name>:test-slow`), so the two halves of each package run concurrently and the `ci` profile finishes sooner (the `variant-api` tests alone take about 234 s, `variant-cli` 141 s).
 - The orphaned `bun ../watch.js` processes and `variant-watch-*` directories already on this host are removed once, only those whose working directory is under `/tmp/variant-watch-*`.
 
 ## Capabilities
@@ -16,12 +17,13 @@ The release PR run of `check:full` stalled for 22 minutes (normally 2.5): 35 `va
 
 ### Modified Capabilities
 
-- `meta/local-checks`: a test run leaves no process behind.
+- `meta/local-checks`: a test run leaves no process behind; slow package tests run as their own step.
 - `meta/ci-feature-builds`: a hung gate fails within a bounded time.
 
 ## Impact
 
 - `packages/variant-api/src/operations/watch.spec.ts` (harness and the tests that record a single pid), the `test` script of `packages/variant-api/package.json`, other specs that spawn processes if the audit finds the same pattern. Everything about `watch-relay` (its code and its specs) is fixed in another change and is out of scope here.
+- `packages/variant-api` and `packages/variant-cli` (`package.json` scripts, `hk.pkl`), the root `hk.pkl` and `package.json`, `CONTRIBUTING.md`.
 - `.github/workflows/ci-branch.yaml` (`timeout-minutes` on both jobs).
 - No product code, no new dependency, no documentation or changelog entry (test and CI only).
 

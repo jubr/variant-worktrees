@@ -22,6 +22,9 @@ See proposal.md, Why. Findings so far:
 - **Job limit.** `timeout-minutes: 20` on both jobs (normal 2.5 min, observed worst 3 min).
 - **One-time host cleanup is a command, not code.** Select pids whose `cwd` (from `lsof -a -d cwd`) matches `/private/tmp/variant-watch-*`, show the list, `kill` them, then remove the `variant-watch-*` directories that no process uses. No script is added to the repository.
 
+- **Split by file list, not by shard.** Bun 1.4.2 also has `--parallel`, `--shard` and `--timings`. `--parallel` runs files in worker processes that would share ports and `/tmp` names the specs assume are theirs; `--shard` needs a timings file kept current. A short explicit list (`test:slow`, ignored in `test`) is visible in review and cannot lose a test: a file that is renamed falls back into `test`. A spec checks that the lists agree. Chosen from measured per-file times so the halves are close (`variant-api` 121 s and 113 s, `variant-cli` 91 s and 50 s).
+- **The step exists only where the script does.** `test-slow` is declared in the `hk.pkl` of the two packages, not in the shared `hk.package.pkl`, so no package runs an empty step.
+
 ## Risks / Trade-offs
 
 - [The loaded-runner hypothesis is wrong] → first task reproduces under load (CPU burners next to `bun test`); if the cascade does not reproduce, keep the cleanup and the limits and record what was seen in the task.
