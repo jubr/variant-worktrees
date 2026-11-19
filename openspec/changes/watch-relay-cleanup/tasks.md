@@ -1,25 +1,37 @@
 ## 1. Implode of a vanished worktree
 
-- [ ] 1.1 Extend `packages/variant-api/src/operations/implode.spec.ts` with failing assertions for [specs/variant-api/implode | Implode of a vanished worktree writes nothing there](../../specs/variant-api/implode/spec.md#requirement-implode-of-a-vanished-worktree-writes-nothing-there): after deleting the worktree directory, `implode` leaves the path missing (also `.cache/variant/`), still drops the database target and prunes, and with `branchRm: "no"` keeps the branch. Verify with `mise x -- bun test packages/variant-api/src/operations/implode.spec.ts`: the new assertions fail where something recreates the path.
+- [ ] 1.1 Extend `packages/variant-api/src/operations/implode.spec.ts` with failing assertions for [specs/variant-api/implode | Implode of a vanished worktree writes nothing there](../../specs/variant-api/implode/spec.md#requirement-implode-of-a-vanished-worktree-writes-nothing-there): after deleting the worktree directory, `implode` leaves the path missing (also `.cache/variant/`), still drops the database target and prunes, with `branchRm: "no"` keeps the branch, and with `announce` set calls it before the drop, the state-file removal (absolute path), the prune and the branch decision. Verify with `mise x -- bun test packages/variant-api/src/operations/implode.spec.ts`: the new assertions fail.
 
-- [ ] 1.2 Make `implodeVariant` and the helpers it calls (`teardownVariant`, `prepareRun`, runtime-state, state) write nothing under a missing worktree. Verify with the same `bun test` command: the file passes.
+- [ ] 1.2 Make `implodeVariant` and the helpers it calls (`teardownVariant`, `prepareRun`, runtime-state, state) write nothing under a missing worktree, and add the optional `announce` to `ImplodeOptions` (not a CLI flag or MCP argument). Verify with the same `bun test` command: the file passes, and `packages/variant-cli` and `packages/variant-mcp` flag specs still pass.
 
-## 2. Relay watches its worktree
+## 2. Shared cleanup
 
-- [ ] 2.1 Extend `packages/variant-api/src/operations/watch.spec.ts` (and `watch-relay.spec.ts` for the relay unit) with failing assertions for [specs/variant-api/runtime | Detached watch follows its worktree](../../specs/variant-api/runtime/spec.md#requirement-detached-watch-follows-its-worktree). Cover each scenario: removal ends the processes, drops the target and ends the relay; a line printed while stopping writes no file; `variant implode` of the running detached watch; a branch with unmerged commits survives; a recreated directory still counts as gone; slug `main` only stops; `checkoutPollSeconds: 0`; an intact directory is left alone. Verify with `mise x -- bun test packages/variant-api/src/operations/watch.spec.ts packages/variant-api/src/watch-relay.spec.ts`: the new assertions fail.
+- [ ] 2.1 Create `packages/variant-api/src/watch-cleanup.spec.ts` with failing assertions for [specs/variant-api/runtime | Watch follows its worktree](../../specs/variant-api/runtime/spec.md#requirement-watch-follows-its-worktree): `worktreeIdentity` says gone for a missing and for a recreated directory; `cleanupVanishedWorktree` silences first, stops each pid, implodes with the branch kept, skips the implode for `main`; each step is a `warn` event with step `watch-cleanup` and the slug before its action, naming the path, `fe` with its pid, the removed state file, the target, `git worktree prune`; a temporary project directory gives `trace`. Verify with `mise x -- bun test packages/variant-api/src/watch-cleanup.spec.ts`: the file fails.
 
-- [ ] 2.2 Add the optional `cleanup` object to `RelayPlan`, filled by `watchVariant` for a detached watch with `supervise.checkoutPollSeconds`, the slug, the surviving working directory and the worktree. Verify a plan without it still behaves as before (existing relay specs stay green).
+- [ ] 2.2 Add `watch-cleanup.ts` (`worktreeIdentity`, `cleanupVanishedWorktree`, the announcing emitter). Verify with the same command: the file passes.
 
-- [ ] 2.3 In `watch-relay.ts` record the worktree inode at start, tick on an `unref`ed timer, and on gone: set the writers' `gone` flag (log queue dropped, `in.sock` untouched, relayed lines discarded), stop the watch process trees by their own pids, and unless the slug is `main` lazily import and call `implodeVariant` with `branchRm: "no"`, then end the relay. Verify with the `bun test` command of 2.1: the file passes.
+## 3. Detached watch
 
-- [ ] 2.4 Extend `packages/variant-vscode/src/watch-relay-bundle.spec.ts` with a failing case that the bundled `watch-relay.js` cleans up when its worktree is removed, then pass it by checking the dynamic import is bundled. Verify with `mise x -- bun test packages/variant-vscode/src/watch-relay-bundle.spec.ts`.
+- [ ] 3.1 Extend `packages/variant-api/src/operations/watch.spec.ts` and `packages/variant-api/src/watch-relay.spec.ts` with failing assertions for the detached scenarios of the requirement: removal ends the processes, drops the target and ends the relay; a line printed while stopping writes no file; `variant implode` of the running detached watch; a branch with unmerged commits survives; a recreated directory still counts as gone; slug `main` only stops; `checkoutPollSeconds: 0`; an intact directory is left alone; the warnings land in the file that is the starter's standard error. Verify with `mise x -- bun test packages/variant-api/src/operations/watch.spec.ts packages/variant-api/src/watch-relay.spec.ts`: the new assertions fail.
 
-## 3. Docs and changelog
+- [ ] 3.2 Add the optional `cleanup` object to `RelayPlan` (filled by `watchVariant` for a detached watch with the poll seconds, slug, surviving working directory and worktree), run the relay's `unref`ed timer, make `openLog`, the stdin socket and the relayed lines honor the silence hook, call `cleanupVanishedWorktree` through a dynamic import, install the relay's stderr sink, and pass `stderr: "inherit"` in `startDetachedRelay`. Verify with the `bun test` command of 3.1: both files pass and a plan without `cleanup` still behaves as before.
 
-- [ ] 3.1 Update the `supervise.checkoutPollSeconds` description in `packages/variant-config/variants.example.yaml` and the schema source in `packages/variant-config/src/schema.ts` (it also covers a detached watch), the runtime and `watch` sections of `docs/guide/`, and add a Fixed bullet under `## Unreleased` in `CHANGELOG.md`. Verify each file says that, and that `mise x -- bun test scripts packages/variant-config` passes.
+- [ ] 3.3 Extend `packages/variant-vscode/src/watch-relay-bundle.spec.ts` with a failing case that the bundled `watch-relay.js` cleans up when its worktree is removed, then pass it by making sure the dynamic import is bundled. Verify with `mise x -- bun test packages/variant-vscode/src/watch-relay-bundle.spec.ts`.
 
-## 4. Verification
+## 4. Attached watch
 
-- [ ] 4.1 Run `mise x -- task lint`, `mise x -- task test`, `mise x -- task build`, `mise x -- openspec validate --all --strict --no-interactive` and `mise x -- openspec doctor --json`; all pass.
+- [ ] 4.1 Extend `packages/variant-api/src/operations/watch.spec.ts` with failing assertions for the attached scenarios: deleting the worktree stops the processes, drops the target, ends with exit status 1, leaves the path missing, clears nothing under it, and announces the steps; `checkoutPollSeconds: 0` keeps it running. Verify with `mise x -- bun test packages/variant-api/src/operations/watch.spec.ts`: the new assertions fail.
 
-- [ ] 4.2 Because the `variant` command changes, run `mise x -- task bleed:cli` and show in chat the command and output of the bled binary: start a detached watch in a scratch variant, delete its worktree, and show that the processes end and the path stays missing.
+- [ ] 4.2 Switch `untilEnd` to `worktreeIdentity` and replace the `checkout` branch of `watchVariant` (`adapter.destroy`, `clearVariantRuntime`) with `cleanupVanishedWorktree`, keeping exit status 1. Verify with the same command: the file passes.
+
+## 5. CLI keeps the events local
+
+- [ ] 5.1 Extend `packages/variant-cli/src/ipc-vscode.spec.ts` with a failing assertion for [specs/variant-cli/logging | Vscode log stream](../../specs/variant-cli/logging/spec.md#requirement-vscode-log-stream): a warn event with step `watch-cleanup` reaches stderr and no listener request. Verify with `mise x -- bun test packages/variant-cli/src/ipc-vscode.spec.ts`: it fails. Then add the step to `localOnly`; the same command passes.
+
+## 6. Docs and changelog
+
+- [ ] 6.1 Update the `supervise.checkoutPollSeconds` description in `packages/variant-config/variants.example.yaml` and the schema source in `packages/variant-config/src/schema.ts` (it covers every watch), the runtime and `watch` sections of `docs/guide/` (cleanup, the `watch-cleanup` warnings, the kept branch, the inherited standard error of a detached watch), and add a Fixed bullet under `## Unreleased` in `CHANGELOG.md`. Verify each file says that, and that `mise x -- bun test scripts packages/variant-config` passes.
+
+## 7. Verification
+
+- [ ] 7.1 Run `mise x -- task lint`, `mise x -- task test`, `mise x -- task build`, `mise x -- openspec validate --all --strict --no-interactive` and `mise x -- openspec doctor --json`; all pass.
