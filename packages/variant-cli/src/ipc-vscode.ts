@@ -94,8 +94,12 @@ const detectedSlug = (directory: string): string | undefined => {
   }
 };
 
-/** `ipc` and `cli` are the CLI's own bookkeeping. They stay on stderr and never go to vscode. */
-const localOnly = (event: LogEvent): boolean => event.step === "ipc" || event.step === "cli";
+/**
+ * `ipc` and `cli` are the CLI's own bookkeeping. `watch-cleanup` is a watch that tidies up after its vanished worktree,
+ * and the socket path lies below that directory. They stay on stderr and never go to vscode.
+ */
+const localOnly = (event: LogEvent): boolean =>
+  event.step === "ipc" || event.step === "cli" || event.step === "watch-cleanup";
 
 const deliver = async (event: LogEvent, directory: string, slug: string | undefined): Promise<void> => {
   if (connecting === undefined) {
@@ -135,7 +139,7 @@ const deliver = async (event: LogEvent, directory: string, slug: string | undefi
 
 /**
  * Prints events at or above `level` to stderr. Lower events are dropped.
- * `vscode` also sends every event on the project socket, except steps `ipc` and `cli`.
+ * `vscode` also sends every event on the project socket, except steps `ipc`, `cli` and `watch-cleanup`.
  * Specification: openspec/specs/variant-cli/logging/spec.md
  */
 export const attachLogLevel = (level: LogLevel, vscode?: { directory: string; slug?: string }): void => {

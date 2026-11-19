@@ -314,6 +314,39 @@ describe("vscode log stream", () => {
     expect(seen).toContainEqual({ name: "log", args: { level: "info", message: "listed variants", origin: "cli" } });
   });
 
+  it("keeps watch-cleanup warnings on stderr and off the socket", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
+    roots.push(directory);
+    const seen: IpcRequest[] = [];
+    const listener = createListener(socketPath(directory), (request) => {
+      seen.push(request);
+      return {};
+    });
+    await listener.start();
+    const lines: string[] = [];
+    const write = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      attachLogLevel(LogLevel.warn, { directory });
+      log(LogLevel.warn, "removing state file /work/.cache/variants/demo.yaml", {
+        step: "watch-cleanup",
+        slug: "demo",
+      });
+      log(LogLevel.info, "listed variants");
+      await finishCliLog();
+    } finally {
+      process.stderr.write = write;
+      setLogSink(undefined);
+      await listener.stop();
+    }
+
+    expect(lines.join("")).toContain("removing state file /work/.cache/variants/demo.yaml");
+    expect(seen.map((request) => request.args.message)).toEqual(["listed variants"]);
+  });
+
   it("does not fail or reconnect when vscode rejects the log request", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
