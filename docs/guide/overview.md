@@ -20,13 +20,13 @@ The builtin steps flow as follows:
 ### create
 
 Creates the git worktree and nothing else. The database is the next step.
-More details at Core [create](./core#create).
+More details at Commands [create](./commands#create).
 
 ### provision
 
 Creates the database schema of the variant, or every schema of [`db.multi`](./configuration#db-multi), and implies `create`.
 A step of the same name in [`variant.steps`](./configuration#variant-steps) replaces it.
-More details at Core [provision](./core#provision).
+More details at Commands [provision](./commands#provision).
 
 ### seed
 
@@ -50,24 +50,24 @@ variant:
 
 Starts the watch processes and stays attached.
 It implies `seed`, so the worktree, the schemas and the seed exist before the processes start.
-More details at Core [watch](./core#watch).
+More details at Commands [watch](./commands#watch).
 
 ### down
 
 Stops the watches of the variant.
 The schemas, the storage directory, the state and the worktree stay.
-More details at Core [down](./core#down).
+More details at Commands [down](./commands#down).
 
 ### deprovision
 
 Stops the watches and drops the schemas of the variant.
 The storage directory, the state and the worktree stay, and slug `main` is refused.
-More details at Core [deprovision](./core#deprovision).
+More details at Commands [deprovision](./commands#deprovision).
 
 ### implode
 
 Implies `deprovision`, then removes the worktree and, by default, the local branch.
-More details at Core [implode](./core#implode).
+More details at Commands [implode](./commands#implode).
 
 ## Custom Steps
 

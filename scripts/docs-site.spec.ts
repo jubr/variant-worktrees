@@ -108,19 +108,16 @@ describe("dark document shell and top navigation", () => {
     expect(css).toContain("#ec0000");
   });
 
-  test("links Guide, Configuration, CLI, MCP, the repository, and the versioned releases page", () => {
+  test("links Configuration, CLI, MCP, the repository, and the versioned releases page", () => {
     const links = navLinks(installation());
-    const guide = links.find((link) => link.text === "Guide");
     const configuration = links.find((link) => link.text === "Configuration");
     const cli = links.find((link) => link.text === "CLI");
     const mcp = links.find((link) => link.text === "MCP");
     const version = links.find((link) => link.text === `v${packageVersion}`);
-    expect(guide?.href).toContain("/guide/");
-    expect(guide?.href).not.toContain("library");
+    expect(links.find((link) => link.text === "Guide")).toBeUndefined();
     expect(configuration?.href).toContain("/guide/configuration");
-    expect(cli?.href).toContain("cli-vscode-webview");
-    expect(cli?.href).toContain("#cli");
-    expect(mcp?.href).toContain("/mcp");
+    expect(cli?.href).toContain("/guide/cli");
+    expect(mcp?.href).toContain("/vscode/mcp");
     expect(version?.href).toBe("https://github.com/jubr/variant-worktrees/releases");
     expect(installation()).toContain('href="https://github.com/jubr/variant-worktrees"');
   });
@@ -139,20 +136,21 @@ describe("dark document shell and top navigation", () => {
     const at = (needle: string) => sidebar.indexOf(needle);
     expect(at("Getting Started")).toBeGreaterThan(-1);
     expect(at("Getting Started")).toBeLessThan(at("Variant Worktrees"));
-    expect(at("/guide/core")).toBeLessThan(at("/guide/configuration"));
+    expect(at("/guide/commands")).toBeLessThan(at("/guide/cli"));
+    expect(at("/guide/cli")).toBeLessThan(at("/guide/configuration"));
     expect(at("/guide/configuration")).toBeLessThan(at("/guide/installation"));
     expect(at("/guide/installation")).toBeLessThan(at("/guide/runtime"));
     expect(at("/guide/runtime")).toBeLessThan(at("VSCode / Cursor"));
-    expect(at("VSCode / Cursor")).toBeLessThan(at("/guide/extension"));
-    expect(at("/guide/extension")).toBeLessThan(at("/mcp"));
-    expect(at("/mcp")).toBeLessThan(at("/guide/socket-ipc"));
-    expect(at("/guide/socket-ipc")).toBeLessThan(at("Chat Renamer"));
+    expect(at("VSCode / Cursor")).toBeLessThan(at("/vscode/extension"));
+    expect(at("/vscode/extension")).toBeLessThan(at("/vscode/mcp"));
+    expect(at("/vscode/mcp")).toBeLessThan(at("/vscode/socket-ipc"));
+    expect(at("/vscode/socket-ipc")).toBeLessThan(at("Chat Renamer"));
     expect(at("/chat-renamer/index")).toBeLessThan(at("/chat-renamer/configuration"));
     expect(at("Chat Renamer")).toBeGreaterThan(at("Variant Worktrees"));
     expect(at("Development")).toBeGreaterThan(at("Chat Renamer"));
     expect(at("Development")).toBeLessThan(at("/development/building"));
-    expect(at("/development/building")).toBeLessThan(at("/guide/library"));
-    expect(at("/guide/library")).toBeLessThan(at("/api/"));
+    expect(at("/development/building")).toBeLessThan(at("/development/library"));
+    expect(at("/development/library")).toBeLessThan(at("/api/"));
     expect(sidebar).toContain("/development/building");
     expect(sidebar).toContain("/chat-renamer/");
     expect(sidebar).not.toContain("Introduction");
@@ -163,7 +161,7 @@ describe("dark document shell and top navigation", () => {
 
 describe("getting started and building", () => {
   test("shows both workflows, the mise install, and optional databases", () => {
-    const html = readFileSync(join(dist, "guide/index.html"), "utf8");
+    const html = readFileSync(join(dist, "index.html"), "utf8");
     const text = html.replace(/<[^>]+>/g, "");
     expect(text.indexOf("How it works")).toBeLessThan(text.indexOf("mise use github:jubr/variant-worktrees"));
     expect(text).toContain("mise use github:jubr/variant-worktrees");
@@ -216,7 +214,7 @@ const trackedDocs = (): string[] => {
 };
 
 describe("installation into an existing project", () => {
-  test("shows the mise flavor first, then the extension flavor, and links to Development", () => {
+  test("shows the extension flavor first, then the mise flavor", () => {
     const html = page("guide/installation.html");
     const text = textOf(html);
     expect(text).toContain("mise x github:jubr/variant-worktrees@latest -- variant init");
@@ -225,8 +223,9 @@ describe("installation into an existing project", () => {
     expect(text).toContain("Variant Worktrees");
     expect(text).toContain("Cursor");
     expect(text).toContain("Onboarding");
-    expect(text.indexOf("variant init")).toBeLessThan(text.indexOf("Onboarding"));
-    expect(html).toContain("/development/");
+    expect(text.indexOf("Onboarding")).toBeLessThan(text.indexOf("variant init"));
+    expect(html).toContain("marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees");
+    expect(html).toContain("open-vsx.org/extension/jubr/variant-worktrees");
   });
 
   test("tracked docs have no npm install, npx or bun add", () => {
@@ -317,10 +316,10 @@ describe("runtime page", () => {
 });
 
 describe("library, extension and socket pages", () => {
-  test("the library page is code with one-line captions and links into Core", () => {
-    const html = page("guide/library.html");
+  test("the library page is code with one-line captions and links into Commands", () => {
+    const html = page("development/library.html");
     expect(html).toContain("createVariantClient");
-    expect(html).toContain("/guide/core");
+    expect(html).toContain("/guide/commands");
     const doc = html.slice(html.indexOf('class="vp-doc'), html.indexOf("VPDocFooter"));
     const captions = [...doc.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1].replace(/<[^>]+>/g, ""));
     for (const caption of captions) {
@@ -329,15 +328,15 @@ describe("library, extension and socket pages", () => {
   });
 
   test("the extension page documents the view, onboarding, MCP registration and the chat renamer", () => {
-    const text = textOf(page("guide/extension.html"));
+    const text = textOf(page("vscode/extension.html"));
     expect(text).toContain("Variants view");
     expect(text).toContain("Onboarding");
     expect(text).toContain("MCP");
     expect(text).toContain("chat renamer");
   });
 
-  test("the socket page is Socket IPC at /guide/socket-ipc", () => {
-    expect(headingsOf(page("guide/socket-ipc.html"))[0]?.text).toBe("Socket IPC");
+  test("the socket page is Socket IPC at /vscode/socket-ipc", () => {
+    expect(headingsOf(page("vscode/socket-ipc.html"))[0]?.text).toBe("Socket IPC");
     expect(existsSync(join(dist, "guide/ipc.html"))).toBe(false);
   });
 });
@@ -354,25 +353,25 @@ describe("cross-links into the VSCode / Cursor group", () => {
   };
   const guide = (name: string) => `guide/${name}.html`;
 
-  test("Getting Started, Installation, Core, Configuration, Runtime and Library link to the extension", () => {
-    for (const path of ["index", "installation", "core", "configuration", "runtime", "library"].map(guide)) {
-      expect(linksTo(path, "/guide/extension"), path).toBe(true);
+  test("Getting Started, Installation, Commands, Configuration, Runtime and Library link to the extension", () => {
+    for (const path of ["index.html", ...["installation", "commands", "configuration", "runtime"].map(guide), "development/library.html"]) {
+      expect(linksTo(path, "/vscode/extension"), path).toBe(true);
     }
   });
 
   test("Getting Started, Installation and Library link to the MCP server; Runtime to the socket", () => {
-    for (const path of ["index", "installation", "library"].map(guide)) {
-      expect(linksTo(path, "/mcp"), path).toBe(true);
+    for (const path of ["index.html", guide("installation"), "development/library.html"]) {
+      expect(linksTo(path, "/vscode/mcp"), path).toBe(true);
     }
-    expect(linksTo(guide("runtime"), "/guide/socket-ipc")).toBe(true);
+    expect(linksTo(guide("runtime"), "/vscode/socket-ipc")).toBe(true);
   });
 
   test("the group links back to Installation, and the extension to its neighbours", () => {
-    for (const path of [guide("extension"), "mcp.html", guide("socket-ipc")]) {
+    for (const path of ["vscode/extension.html", "vscode/mcp.html", "vscode/socket-ipc.html"]) {
       expect(linksTo(path, "/guide/installation"), path).toBe(true);
     }
-    for (const target of ["/mcp", "/guide/configuration", "/guide/runtime"]) {
-      expect(linksTo(guide("extension"), target), target).toBe(true);
+    for (const target of ["/vscode/mcp", "/guide/configuration", "/guide/runtime"]) {
+      expect(linksTo("vscode/extension.html", target), target).toBe(true);
     }
   });
 });
@@ -617,7 +616,7 @@ const { commands } = (await import(new URL("./commands.ts", import.meta.resolve(
 };
 
 describe("mcp tools have a heading each", () => {
-  const html = () => page("mcp.html");
+  const html = () => page("vscode/mcp.html");
   const toolHeadings = () => {
     const all = headingsOf(html());
     const start = all.findIndex((heading) => heading.level === 2 && heading.text === "Available tools");
@@ -632,11 +631,11 @@ describe("mcp tools have a heading each", () => {
   });
 
   for (const command of commands) {
-    test(`variant_${command.name} links to ${command.name} in Core and lists the parameters it takes`, () => {
+    test(`variant_${command.name} links to ${command.name} in Commands and lists the parameters it takes`, () => {
       const heading = toolHeadings().find((candidate) => candidate.text === `variant_${command.name}`);
       expect(heading, `heading variant_${command.name}`).toBeDefined();
       const section = sectionOf(html(), heading?.id ?? "");
-      expect(linksOf(section, "mcp.html")).toContainEqual({ path: "/guide/core", hash: command.name });
+      expect(linksOf(section, "vscode/mcp.html")).toContainEqual({ path: "/guide/commands", hash: command.name });
       const offered = command.args.map((arg) => arg.name).filter((name) => !(name in (command.mcpFixed ?? {})));
       expect(firstCells(section)).toEqual(offered);
     });
@@ -715,7 +714,7 @@ describe("internal links resolve", () => {
     const sidebar = nav.slice(nav.indexOf('class="VPSidebar'), nav.indexOf('class="VPContent'));
     expect(sidebar).toContain("href=");
     expect(fromNav.some((link) => sidebar.includes(`href="${link.href}"`))).toBe(true);
-    expect(fromNav.some((link) => link.file === "guide/core.html")).toBe(true);
+    expect(fromNav.some((link) => link.file === "guide/commands.html")).toBe(true);
     expect(all.filter((link) => link.from === "api/index.html").length).toBeGreaterThan(0);
   });
 
@@ -755,20 +754,20 @@ describe("pages link into the heading that explains the topic", () => {
     links.some((link) => link.path === path && (hash === undefined || link.hash === hash));
 
   test("Getting Started links to the flow of steps, and Configuration's variant.steps section does too", () => {
-    expect(has(linksFrom(`${GUIDE}index.html`), "/guide/overview", "flow-of-steps")).toBe(true);
+    expect(has(linksFrom("index.html"), "/guide/overview", "flow-of-steps")).toBe(true);
     const section = sectionOf(page("guide/configuration.html"), "variant-steps");
     expect(has(linksOf(section, "guide/configuration.html"), "/guide/overview", "flow-of-steps")).toBe(true);
   });
 
-  test("Core links to Configuration headings, never to the top of the page", () => {
-    const toConfiguration = linksFrom(`${GUIDE}core.html`).filter((link) => link.path === "/guide/configuration");
+  test("Commands links to Configuration headings, never to the top of the page", () => {
+    const toConfiguration = linksFrom(`${GUIDE}commands.html`).filter((link) => link.path === "/guide/configuration");
     expect(toConfiguration.length).toBeGreaterThan(0);
     expect(toConfiguration.filter((link) => link.hash === "")).toEqual([]);
   });
 
   test("the Extension page links to Watching and Socket IPC links to Runtime", () => {
-    expect(has(linksFrom(`${GUIDE}extension.html`), "/guide/runtime", "watching")).toBe(true);
-    expect(has(linksFrom(`${GUIDE}socket-ipc.html`), "/guide/runtime")).toBe(true);
+    expect(has(linksFrom("vscode/extension.html"), "/guide/runtime", "watching")).toBe(true);
+    expect(has(linksFrom("vscode/socket-ipc.html"), "/guide/runtime")).toBe(true);
   });
 });
 
@@ -818,9 +817,9 @@ describe("configuration keys are links", () => {
     expect(unlinked).toEqual([]);
   });
 
-  test("Overview, Runtime, Core, Library and Extension each have a linked mention", () => {
+  test("Overview, Runtime, Commands, Library and Extension each have a linked mention", () => {
     const keys = targets();
-    for (const file of ["overview", "runtime", "core", "library", "extension"].map((name) => `${GUIDE}${name}.html`)) {
+    for (const file of ["guide/overview", "guide/runtime", "guide/commands", "development/library", "vscode/extension"].map((name) => `${name}.html`)) {
       expect(
         mentions(file).filter((mention) => keys.has(mention.text) && mention.href === keys.get(mention.text)).length,
         file,
@@ -839,24 +838,24 @@ describe("overview steps are short and link to commands", () => {
   const overview = () => page("guide/overview.html");
 
   for (const command of ["create", "provision", "watch", "down", "deprovision", "implode"]) {
-    test(`the ${command} step is a short explanation that ends with a link to its Core section`, () => {
+    test(`the ${command} step is a short explanation that ends with a link to its Commands section`, () => {
       const section = sectionOf(overview(), command);
       expect(section, "no list, table or fenced code").not.toMatch(/<(ul|ol|table|pre)\b|class="language-/);
       const paragraphs = [...section.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1]);
       const last = paragraphs.at(-1) ?? "";
-      const sentence = `More details at Core ${command}.`;
+      const sentence = `More details at Commands ${command}.`;
       expect(decodeEntities(last.replace(/<[^>]+>/g, "")).trim().endsWith(sentence), "ends the last paragraph").toBe(true);
-      expect(linksOf(last.slice(last.lastIndexOf("More details at Core")), "guide/overview.html")).toEqual([
-        { path: "/guide/core", hash: command },
+      expect(linksOf(last.slice(last.lastIndexOf("More details at Commands")), "guide/overview.html")).toEqual([
+        { path: "/guide/commands", hash: command },
       ]);
-      const explanation = [...paragraphs.slice(0, -1), last.slice(0, last.lastIndexOf("More details at Core"))].join(" ");
+      const explanation = [...paragraphs.slice(0, -1), last.slice(0, last.lastIndexOf("More details at Commands"))].join(" ");
       expect(wordsIn(explanation)).toBeLessThanOrEqual(60);
       expect(wordsIn(explanation)).toBeGreaterThan(0);
       expect(decodeEntities(explanation.replace(/<[^>]+>/g, ""))).not.toMatch(/(^|\s)--?[a-z]/);
     });
   }
 
-  test("the seed step keeps its explanation and example, links its keys and has no Core link", () => {
+  test("the seed step keeps its explanation and example, links its keys and has no Commands link", () => {
     const section = sectionOf(overview(), "seed");
     expect(section).toContain("language-yaml");
     expect(section).not.toContain("More details at");
@@ -873,10 +872,10 @@ describe("overview steps are short and link to commands", () => {
     expect(links).toContain("/guide/configuration#db-multi-schemaprefix");
   });
 
-  test("Core carries what the Overview dropped", () => {
-    const core = page("guide/core.html");
+  test("Commands carries what the Overview dropped", () => {
+    const core = page("guide/commands.html");
     for (const command of ["provision", "deprovision"]) {
-      const links = linksOf(sectionOf(core, command), "guide/core.html").map((link) => `${link.path}#${link.hash}`);
+      const links = linksOf(sectionOf(core, command), "guide/commands.html").map((link) => `${link.path}#${link.hash}`);
       expect(links, command).toContain("/guide/configuration#variant-steps");
       expect(links, command).toContain("/guide/configuration#db-multi");
     }
@@ -884,19 +883,19 @@ describe("overview steps are short and link to commands", () => {
   });
 });
 
-describe("library page links into Core and Configuration", () => {
-  const library = () => page("guide/library.html");
+describe("library page links into Commands and Configuration", () => {
+  const library = () => page("development/library.html");
 
-  test("shows createVariantClient code and links to Core", () => {
+  test("shows createVariantClient code and links to Commands", () => {
     expect(bodyOf(library())).toContain("createVariantClient");
     expect(bodyOf(library())).toContain("language-");
-    expect(linksOf(bodyOf(library()), "guide/library.html").some((link) => link.path === "/guide/core")).toBe(true);
+    expect(linksOf(bodyOf(library()), "development/library.html").some((link) => link.path === "/guide/commands")).toBe(true);
   });
 
   test("its Configuration section is deep links and has no code block", () => {
     const section = sectionOf(library(), "configuration");
     expect(section).not.toMatch(/<pre\b|class="language-/);
-    const links = linksOf(section, "guide/library.html").map((link) => `${link.path}#${link.hash}`);
+    const links = linksOf(section, "development/library.html").map((link) => `${link.path}#${link.hash}`);
     for (const target of ["variant-watches", "variant-steps", "variant-mise"]) {
       expect(links).toContain(`/guide/configuration#${target}`);
     }
@@ -905,15 +904,14 @@ describe("library page links into Core and Configuration", () => {
 
 describe("follow-up edits of the pages", () => {
   test("the MCP page has no Testing section", () => {
-    expect(headingsOf(page("mcp.html")).map((heading) => heading.text)).not.toContain("Testing");
+    expect(headingsOf(page("vscode/mcp.html")).map((heading) => heading.text)).not.toContain("Testing");
   });
 
-  test("Core groups the lifecycle commands and the other commands", () => {
-    const headings = headingsOf(page("guide/core.html")).filter((heading) => heading.level <= 3);
+  test("Commands groups the lifecycle commands and the other commands", () => {
+    const headings = headingsOf(page("guide/commands.html")).filter((heading) => heading.level <= 3);
     expect(headings.filter((heading) => heading.level === 2).map((heading) => heading.text)).toEqual([
       "Lifecycle commands",
       "Other commands",
-      "Global flags",
     ]);
     const below = (group: string) => {
       const start = headings.findIndex((heading) => heading.text === group);
@@ -931,7 +929,7 @@ describe("follow-up edits of the pages", () => {
       "deprovision",
       "implode",
     ]);
-    expect(withoutInit(below("Other commands"))).toEqual(["config", "list", "status", "ui", "completions"]);
+    expect(withoutInit(below("Other commands"))).toEqual(["config", "list", "status", "ui"]);
   });
 
   test("the activationPatterns section lists the default patterns of chat-renamer-config", () => {

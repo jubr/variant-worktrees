@@ -41,7 +41,7 @@ bun link variant-api
 `variant-api` runs on Node.js 22.13 or newer and on Bun.
 It provides no `variant` command; the CLI does.
 SQLite variants use `node:sqlite` under Node and `bun:sqlite` under Bun.
-Examples are in [Library](/guide/library).
+Examples are in [Library](./library).
 
 ## MCP server
 
@@ -51,4 +51,4 @@ After `task build`, run the built server of `variant-mcp` with a workspace confi
 node variant-worktrees/packages/variant-mcp/dist/mcp.js --config /workspace/variants.yaml
 ```
 
-Point an MCP client at that command. The client configuration is in [MCP Server](/mcp).
+Point an MCP client at that command. The client configuration is in [MCP Server](/vscode/mcp).

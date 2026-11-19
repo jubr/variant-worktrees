@@ -4,7 +4,7 @@
 Database settings are autodetected from the environment (see [Environment through Mise](./runtime#environment-through-mise)): Postgres, MySQL, MariaDB (`MARIADB_*` or a `mariadb://` URL, dialect `mysql`) and SQLite.
 Explicit [`db`](#database-options) values override those.
 `variant init` writes the autodetected values into a first `variants.yaml`.
-What happens while watches run is in [Runtime](./runtime), and the editor side is in [Extension](./extension).
+What happens while watches run is in [Runtime](./runtime), and the editor side is in [Extension](/vscode/extension).
 
 ::: v-pre
 
@@ -33,7 +33,7 @@ The first prefixes a new branch; all are dropped to derive a slug (default `feat
 
 ### `variant.implode`
 
-Options of [`variant implode`](./core#implode), one heading each below.
+Options of [`variant implode`](./commands#implode), one heading each below.
 
 `implode` refuses `main`.
 Unless `force` is given it refuses work that is not an ancestor of `origin/<baseBranch>` (or `<baseBranch>` without a remote branch) and changes nothing.

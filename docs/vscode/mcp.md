@@ -4,7 +4,7 @@
 
 ## Setup
 
-The [Variant Worktrees extension](/guide/extension) registers the `variant` server for the open workspace in Cursor and VS Code.
+The [Variant Worktrees extension](./extension) registers the `variant` server for the open workspace in Cursor and VS Code.
 [Installation](/guide/installation) covers installing the CLI and the extension.
 The `mcp.json` snippet stays the setup for other clients.
 
@@ -29,14 +29,14 @@ MCP client configuration:
 
 ## Available tools
 
-Every tool is the command of the same name in [Core](/guide/core), run in-process.
+Every tool is the command of the same name in [Commands](/guide/commands), run in-process.
 Each tool below says only what differs from that command, and lists the parameters it takes.
 `slug` is optional for the operations that support git worktree detection, and an explicit slug always takes precedence.
 Every result is returned as JSON text.
 
 ### `variant_init`
 
-[`variant init`](/guide/core#init) in the working directory of the server.
+[`variant init`](/guide/commands#init) in the working directory of the server.
 It returns what each step did, and `bun`, the check that the Bun on `PATH` is the one Mise pins with a hint when it is not.
 It acts in-process, not through the editor.
 Each of `file`, `gitignore` and `mise` is on unless `false`.
@@ -51,7 +51,7 @@ Each of `file`, `gitignore` and `mise` is on unless `false`.
 
 ### `variant_config`
 
-[`variant config`](/guide/core#config): the resolved configuration.
+[`variant config`](/guide/commands#config): the resolved configuration.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -59,7 +59,7 @@ Each of `file`, `gitignore` and `mise` is on unless `false`.
 
 ### `variant_create`
 
-[`variant create`](/guide/core#create).
+[`variant create`](/guide/commands#create).
 `miseInstall` is `bg`, `sync` or `no`; omitted it is `bg`, and `bg` writes `{worktree}/.cache/variant/mise-install.log`.
 A failure includes the command to run again.
 
@@ -73,7 +73,7 @@ A failure includes the command to run again.
 
 ### `variant_list`
 
-[`variant list`](/guide/core#list): the state and the database variants with their mode, uptime and watch log file.
+[`variant list`](/guide/commands#list): the state and the database variants with their mode, uptime and watch log file.
 With `verbose` every item carries all meta information, the same as `variant_status`.
 With [`db.multi`](/guide/configuration#db-multi) set, items carry `schemas`.
 
@@ -83,9 +83,9 @@ With [`db.multi`](/guide/configuration#db-multi) set, items carry `schemas`.
 
 ### `variant_status`
 
-[`variant status`](/guide/core#status): the facts of `variant_list` plus a `runtime` object with the runtime state: mode, directory, database settings with the password hidden, and per watch the port, pid, URL, liveness and uptime.
+[`variant status`](/guide/commands#status): the facts of `variant_list` plus a `runtime` object with the runtime state: mode, directory, database settings with the password hidden, and per watch the port, pid, URL, liveness and uptime.
 An unknown slug is an error.
-With [`db.multi`](./guide/configuration#db-multi) set it carries `schemas`.
+With [`db.multi`](/guide/configuration#db-multi) set it carries `schemas`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -94,7 +94,7 @@ With [`db.multi`](./guide/configuration#db-multi) set it carries `schemas`.
 
 ### `variant_provision`
 
-[`variant provision`](/guide/core#provision): install, env file, `up`, step and seed commands.
+[`variant provision`](/guide/commands#provision): install, env file, `up`, step and seed commands.
 `miseInstall` is passed through to the create; omitted it is `sync`.
 
 | Parameter | Type | Required | Description |
@@ -107,7 +107,7 @@ With [`db.multi`](./guide/configuration#db-multi) set it carries `schemas`.
 
 ### `variant_up`
 
-[`variant up`](/guide/core#up), after provision and seed.
+[`variant up`](/guide/commands#up), after provision and seed.
 It returns the mode, worktree, database target, and the port, URL and container name of each watch.
 `up` does not take `miseInstall`.
 
@@ -120,7 +120,7 @@ It returns the mode, worktree, database target, and the port, URL and container 
 
 ### `variant_down`
 
-[`variant down`](/guide/core#down): stops the processes and containers of a variant and keeps its data.
+[`variant down`](/guide/commands#down): stops the processes and containers of a variant and keeps its data.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -129,7 +129,7 @@ It returns the mode, worktree, database target, and the port, URL and container 
 
 ### `variant_deprovision`
 
-[`variant deprovision`](/guide/core#deprovision): stops the watches and drops the schemas.
+[`variant deprovision`](/guide/commands#deprovision): stops the watches and drops the schemas.
 A `deprovision` step replaces the drop. It refuses `main` and leaves the worktree.
 
 | Parameter | Type | Required | Description |
@@ -139,7 +139,7 @@ A `deprovision` step replaces the drop. It refuses `main` and leaves the worktre
 
 ### `variant_watch`
 
-[`variant watch`](/guide/core#watch), always detached: a tool call cannot stay attached to a console, so `detach` is fixed and is not a parameter.
+[`variant watch`](/guide/commands#watch), always detached: a tool call cannot stay attached to a console, so `detach` is fixed and is not a parameter.
 It returns the pids, ports and URLs.
 Each output line is prefixed `[name]` and appended to `.cache/variant/watch.log` in the worktree (see `log` of `variant_status`).
 A detached watch writes no ready-probe line.
@@ -157,7 +157,7 @@ A detached watch writes no ready-probe line.
 
 ### `variant_implode`
 
-[`variant implode`](/guide/core#implode).
+[`variant implode`](/guide/commands#implode).
 `branchRm` is `yes` or `no`; omitted it is `yes`, and `no` keeps the local branch.
 It refuses `main` and work that is not merged into [`variant.baseBranch`](/guide/configuration#variant-basebranch), including a branch started with `from`; the error names `force`, which overrides the gate.
 There is no `variant_destroy`; `variant_implode` replaces it.

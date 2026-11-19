@@ -2,8 +2,8 @@
 
 A watch is one dev process or container of a variant: a Vite app, a NestJS server, anything with a `watch` command.
 This page is about how watches behave once `variant watch` or `variant up` starts them: ports, state files, output, keys, exit status, and the environment they see.
-Which watches exist is in [Configuration](./configuration#variant-watches); the commands are in [Core](./core#watch).
-In the editor, the [Extension](./extension) starts and stops watches for you, and the CLI reports to it over [Socket IPC](./socket-ipc).
+Which watches exist is in [Configuration](./configuration#variant-watches); the commands are in [Commands](./commands#watch).
+In the editor, the [Extension](/vscode/extension) starts and stops watches for you, and the CLI reports to it over [Socket IPC](/vscode/socket-ipc).
 
 ::: v-pre
 
@@ -26,7 +26,7 @@ A skipped step prints no command line.
 
 ## Watching
 
-How an attached or detached [`watch`](./core#watch) behaves once its processes run.
+How an attached or detached [`watch`](./commands#watch) behaves once its processes run.
 `watch` removes the containers of the variant before it starts them, and it keeps the database target.
 
 ### Interactive keys
@@ -51,7 +51,7 @@ The CLI sets the process exit code from it.
 
 ## Up
 
-[`up`](./core#up) goes through `create`, `provision` and `seed` like `watch`, see the [flow of steps](./overview#flow-of-steps).
+[`up`](./commands#up) goes through `create`, `provision` and `seed` like `watch`, see the [flow of steps](./overview#flow-of-steps).
 It then runs the watches as containers, see [`container`](./configuration#variant-watches-key-container).
 It does not drop an existing schema.
 It stops the processes recorded for the slug, where `watch` removes the containers.

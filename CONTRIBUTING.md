@@ -62,8 +62,8 @@ Any extra commands or functionality that you add must also be added to the
 [`README.md`](README.md) and to the documentation under `docs/`, in the same
 pull request.
 - a new CLI command appears in the README CLI section, as a section in
-`docs/guide/core.md`, and, when it is a lifecycle command, as a tool in
-`docs/mcp.md`
+`docs/guide/commands.md`, and, when it is a lifecycle command, as a tool in
+`docs/vscode/mcp.md`
 - a new flag, output format, or configuration key appears wherever
 its command or section is described. Record the change in `CHANGELOG.md`.
 - Binary-like flags are added as `yes|no` (not `true|false`) to facilitate future additional values.

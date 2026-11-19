@@ -70,15 +70,15 @@ describe("README CLI section", () => {
 });
 
 describe("documentation", () => {
-  test("the core guide has a section for every command", () => {
-    const core = read("docs/guide/core.md");
+  test("the commands guide has a section for every command", () => {
+    const core = read("docs/guide/commands.md");
     for (const name of names) {
       expect(core).toContain(`\n### ${name}\n`);
     }
   });
 
-  test("the core guide explains the global flags", () => {
-    const core = read("docs/guide/core.md");
+  test("the CLI guide explains the global flags", () => {
+    const core = read("docs/guide/cli.md");
 
     expect(core).toContain("## Global flags");
     expect(core).toContain("-C");
@@ -89,7 +89,7 @@ describe("documentation", () => {
   });
 
   test("the MCP guide lists a tool for every command", () => {
-    const mcp = read("docs/mcp.md");
+    const mcp = read("docs/vscode/mcp.md");
     for (const name of names) {
       expect(mcp).toContain(`variant_${name}`);
     }
