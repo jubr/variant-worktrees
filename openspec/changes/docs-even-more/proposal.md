@@ -10,6 +10,9 @@ Core lists `init` under *Other commands*, though it is the first command a new p
 - **Chat Renamer.** The Chat Renamer sidebar entry *Overview* is renamed *Extension*, and the page is titled *Chat Renamer Extension*.
 - **Palette Commands.** Both extension pages get a *Palette Commands* section that describes every command in the palette.
 - **Workspace page.** A last page of the Variant Worktrees group, *Workspace*, shows an ASCII tree of an ideal workspace rooted at `vw` and explains why it looks that way.
+- **Site layout.** The docs directories match the sidebar: `index.md` is Getting Started (the old landing page and the top-right *Guide* link go), `guide/` holds the Variant Worktrees pages, `vscode/` the Extension, MCP server and Socket IPC pages, `chat-renamer/` and `development/` stay. *Core* is renamed *Commands*, and a new `guide/cli.md` takes the CLI-specific content (slug, global flags, completions). `cli-vscode-webview` is removed and its command definitions move to the library page.
+- **Installation.** The extension comes first, with links to the Visual Studio Marketplace and Open VSX; the mise CLI follows.
+- **Chat Renamer.** The note on the `Variant:` titles of the two commands moves below the list.
 - **Configuration.** The `db.multi` section links to the Overview heading *Custom multi-tenancy steps*.
 
 ## Capabilities
@@ -27,4 +30,4 @@ Core lists `init` under *Other commands*, though it is the first command a new p
 
 - `packages/variant-config` (`schema.ts`, generated `variants.yaml.schema.json`, `variants.example.yaml`), `packages/variant-api/src/provisioning.ts`, and the specs of those packages and of `variant-cli`, `variant-mcp`.
 - `example/variants.yaml` moves its seed into a `seed` step.
-- `README.md`, `packages/variant-vscode/README.md`, `AGENTS.md`, `docs/guide/{core,configuration,overview,library,runtime}.md`, `docs/mcp.md`, and `scripts/docs-site.spec.ts`.
+- `README.md`, `packages/variant-vscode/README.md`, `AGENTS.md`, `docs/` pages (moved and renamed), `CONTRIBUTING.md`, the READMEs' site links, and `scripts/docs-site.spec.ts`.

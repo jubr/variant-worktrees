@@ -1,39 +1,76 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Core groups lifecycle commands`
+- TO: `### Requirement: Commands groups lifecycle commands`
+
+## REMOVED Requirements
+
+### Requirement: Installation into an existing project
+
+**Reason**: the installation page shows the extension flavor first and no longer links to Development.
+
+**Migration**: see the requirement Installation offers the extension first.
+
 ## MODIFIED Requirements
 
 ### Requirement: Sidebar groups
 
-The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Core, then Configuration, then Installation, then Runtime, then Workspace. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the page named Extension and, under it, a configuration page, and SHALL sit above Development. Development SHALL list Building, then the library, then the API reference. The library SHALL NOT be an item of the Variant Worktrees group. The sidebar SHALL NOT link to a guide about replacing shell scripts.
+The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link to the site root above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Overview, then Commands, then CLI, then Configuration, then Installation, then Runtime, then Workspace. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the page named Extension and, under it, a configuration page, and SHALL sit above Development. Development SHALL list Building, then the library, then the API reference. The library SHALL NOT be an item of the Variant Worktrees group. The sidebar SHALL NOT link to a guide about replacing shell scripts.
 
 #### Scenario: Installation page lists the groups in order
 
 - **WHEN** the built installation page is read
 - **THEN** the sidebar shows Getting Started, then Variant Worktrees, then VSCode / Cursor, then Chat Renamer, then Development
-- **AND** Core precedes Configuration, which precedes Installation, which precedes Runtime, which precedes Workspace
+- **AND** Commands precede CLI, which precedes Configuration, which precedes Installation, which precedes Runtime, which precedes Workspace
 - **AND** Workspace precedes the VSCode / Cursor group, which lists Extension, then the MCP server, then the Socket IPC page
 - **AND** Chat Renamer lists its configuration page under the Extension page
 - **AND** Development lists Building, then the library, then the API reference
 - **AND** the page does not link to `/guide/scripts`
 
-### Requirement: Core groups lifecycle commands
+### Requirement: Top navigation
 
-The Core page SHALL have the second-level sections *Lifecycle commands* and *Other commands*, followed by *Global flags*. *Lifecycle commands* SHALL hold `init` first, then `create`, `provision`, `up`, `watch`, `down`, `deprovision` and `implode` as third-level headings, in the order of the flow of steps after `init`. *Other commands* SHALL hold `config`, `list`, `status`, `ui` and `completions` as third-level headings. Every command heading keeps the id of its name, so `core#create` stays a valid deep link.
+The top navigation SHALL include links named Configuration, CLI, and MCP, and SHALL NOT include a link named Guide. Configuration SHALL open the configuration guide. CLI SHALL open the CLI page. MCP SHALL open the MCP server page. The top navigation SHALL include a search control and a dark/light appearance switch. The top navigation SHALL link to `https://github.com/jubr/variant-worktrees`. The top navigation SHALL show the repository root `package.json` version prefixed with `v`, and that version SHALL link to `https://github.com/jubr/variant-worktrees/releases`.
+
+#### Scenario: Section links
+
+- **WHEN** the built installation page is read
+- **THEN** the top navigation includes Configuration, CLI, and MCP, and no Guide
+- **AND** Configuration targets the configuration guide
+- **AND** CLI targets `/guide/cli`
+- **AND** MCP targets the MCP server page
+
+#### Scenario: Search and dark/light switch
+
+- **WHEN** the built installation page is read
+- **THEN** the top navigation includes a search control and a dark/light appearance switch
+
+#### Scenario: Repository, version, and releases
+
+- **WHEN** the built installation page is read
+- **THEN** the top navigation links to `https://github.com/jubr/variant-worktrees`
+- **AND** it shows `v` followed by the `version` in the repository root `package.json`
+- **AND** that version links to `https://github.com/jubr/variant-worktrees/releases`
+
+### Requirement: Commands groups lifecycle commands
+
+The Commands page SHALL have the second-level sections *Lifecycle commands* and *Other commands*. *Lifecycle commands* SHALL hold `init` first, then `create`, `provision`, `up`, `watch`, `down`, `deprovision` and `implode` as third-level headings, in the order of the flow of steps after `init`. *Other commands* SHALL hold `config`, `list`, `status` and `ui` as third-level headings. Every command heading keeps the id of its name, so `commands#create` stays a valid deep link.
 
 #### Scenario: Commands are grouped
 
-- **WHEN** the headings of the built Core page are listed in page order
-- **THEN** the second-level headings are Lifecycle commands, Other commands and Global flags
+- **WHEN** the headings of the built Commands page are listed in page order
+- **THEN** the second-level headings are Lifecycle commands and Other commands
 - **AND** the third-level headings below Lifecycle commands are `init`, `create`, `provision`, `up`, `watch`, `down`, `deprovision`, `implode`
-- **AND** the third-level headings below Other commands are `config`, `list`, `status`, `ui`, `completions`
+- **AND** the third-level headings below Other commands are `config`, `list`, `status`, `ui`
 
 ### Requirement: Overview steps are short and link to commands
 
-Each builtin step of the Overview that is also a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) SHALL be a minimal explanation of what the step does, of at most 60 words, with no list, no table, no flag or option list and no configuration example. It SHALL end with the sentence `More details at Core [<command>](core#<command>).`, linking to the section of that command in Core. That sentence SHALL be the last line of the explanation's paragraph, with no blank line before it, not a paragraph of its own. What the step no longer says SHALL be in that Core section. A step that is not a command, `seed`, and the Custom Steps and Custom multi-tenancy steps sections SHALL keep their full explanation and full configuration example, and SHALL link to the headings of the keys they use, such as `variant.steps`, `db.multi` and `db.multi.schemaPrefix`. The Overview SHALL show `VARIANT_STEP_<STEP>=no` as typed.
+Each builtin step of the Overview that is also a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) SHALL be a minimal explanation of what the step does, of at most 60 words, with no list, no table, no flag or option list and no configuration example. It SHALL end with the sentence `More details at Commands [<command>](commands#<command>).`, linking to the section of that command in Commands. That sentence SHALL be the last line of the explanation's paragraph, with no blank line before it, not a paragraph of its own. What the step no longer says SHALL be in that Commands section. A step that is not a command, `seed`, and the Custom Steps and Custom multi-tenancy steps sections SHALL keep their full explanation and full configuration example, and SHALL link to the headings of the keys they use, such as `variant.steps`, `db.multi` and `db.multi.schemaPrefix`. The Overview SHALL show `VARIANT_STEP_<STEP>=no` as typed.
 
 #### Scenario: Command steps are short and end with a Core link
 
 - **WHEN** the section of each of `create`, `provision`, `watch`, `down`, `deprovision` and `implode` in the built Overview page is read
-- **THEN** it has at most 60 words before the sentence `More details at Core` and contains no list, table or fenced code
-- **AND** that sentence is in the last paragraph of the section, which also holds the explanation, and it ends with a link whose text is the command and whose target is `/guide/core#<command>`, and a period
+- **THEN** it has at most 60 words before the sentence `More details at Commands` and contains no list, table or fenced code
+- **AND** that sentence is in the last paragraph of the section, which also holds the explanation, and it ends with a link whose text is the command and whose target is `/guide/commands#<command>`, and a period
 
 #### Scenario: The seed step keeps its explanation and example
 
@@ -50,11 +87,23 @@ Each builtin step of the Overview that is also a command (`create`, `provision`,
 
 #### Scenario: Core carries what the Overview drops
 
-- **WHEN** the built Core page is read
+- **WHEN** the built Commands page is read
 - **THEN** its `provision` and `deprovision` sections link to the Configuration headings of `variant.steps` and `db.multi`
 - **AND** its `watch` section names `--reprovision`
 
 ## ADDED Requirements
+
+### Requirement: Installation offers the extension first
+
+The installation page SHALL describe installing Variant Worktrees into the reader's existing project, in two flavors: the VS Code extension first, then the mise CLI. The extension flavor SHALL say it is tested with Cursor, SHALL name the **Variant Worktrees** extension, SHALL name installing it from the Extensions view of the editor as a way, SHALL link to its pages on the Visual Studio Marketplace and Open VSX, and SHALL send the reader to its **Onboarding** instructions. The mise flavor SHALL tell how to install mise (Homebrew and `mise.run`) and SHALL show `mise x github:jubr/variant-worktrees@latest -- variant init` run in the reader's project, followed by an explanation of what `init` does. The page SHALL NOT document installing the TypeScript library or the MCP server; the Development section SHALL. No tracked file under `docs/` SHALL contain `npm install`, `npx` or `bun add`.
+
+#### Scenario: Extension flavor comes first
+
+- **WHEN** the built installation page is read
+- **THEN** the extension flavor precedes the mise flavor
+- **AND** it names the **Variant Worktrees** extension, Cursor and Onboarding, and Homebrew and `mise.run`
+- **AND** it contains `mise x github:jubr/variant-worktrees@latest -- variant init`
+- **AND** it links to `https://marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees` and `https://open-vsx.org/extension/jubr/variant-worktrees`
 
 ### Requirement: db.multi points to the multi-tenancy steps
 
@@ -83,3 +132,14 @@ A page *Workspace*, the last page of the Variant Worktrees group, SHALL describe
 - **WHEN** the built Workspace page is read
 - **THEN** it has a fenced tree that starts at `vw` and shows `_ref`, `.cursorindexingignore`, the three symlinks and at least one `_v-` directory
 - **AND** it explains why the worktrees are siblings of the main checkout
+
+### Requirement: Site layout
+
+The pages of the site SHALL live in directories that match the sidebar: `index.md` is Getting Started and the landing page, `guide/` holds the Variant Worktrees pages (Overview, Commands, CLI, Configuration, Installation, Runtime, Workspace), `vscode/` holds Extension, MCP server and Socket IPC, `chat-renamer/` holds the Chat Renamer pages, and `development/` holds Building and the library. The Commands page is `guide/commands`. What belongs to the command line itself (the slug argument, the global flags and the shell completions) SHALL be on `guide/cli`. The library page SHALL hold the command definitions. Where another requirement names a page by an earlier URL or as Core, the page of this layout applies.
+
+#### Scenario: Pages are where the sidebar says
+
+- **WHEN** the built site is listed
+- **THEN** it has `index.html`, `guide/commands.html`, `guide/cli.html`, `vscode/extension.html`, `vscode/mcp.html`, `vscode/socket-ipc.html` and `development/library.html`
+- **AND** it has no `guide/index.html`, `guide/core.html` or `cli-vscode-webview.html`
+- **AND** the built library page has the heading Command definitions
