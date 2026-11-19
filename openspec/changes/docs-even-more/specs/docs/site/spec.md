@@ -13,13 +13,13 @@ The Core page SHALL have the second-level sections *Lifecycle commands* and *Oth
 
 ### Requirement: Overview steps are short and link to commands
 
-Each builtin step of the Overview that is also a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) SHALL be a minimal explanation of what the step does, of at most 60 words, with no list, no table, no flag or option list and no configuration example. It SHALL end with the sentence `More details at Core [<command>](core#<command>).`, linking to the section of that command in Core. What the step no longer says SHALL be in that Core section. A step that is not a command, `seed`, and the Custom Steps and Custom multi-tenancy steps sections SHALL keep their full explanation and full configuration example, and SHALL link to the headings of the keys they use, such as `variant.steps`, `db.multi` and `db.multi.schemaPrefix`. The Overview SHALL show `VARIANT_STEP_<STEP>=no` as typed.
+Each builtin step of the Overview that is also a command (`create`, `provision`, `watch`, `down`, `deprovision`, `implode`) SHALL be a minimal explanation of what the step does, of at most 60 words, with no list, no table, no flag or option list and no configuration example. It SHALL end with the sentence `More details at Core [<command>](core#<command>).`, linking to the section of that command in Core. That sentence SHALL be the last line of the explanation's paragraph, with no blank line before it, not a paragraph of its own. What the step no longer says SHALL be in that Core section. A step that is not a command, `seed`, and the Custom Steps and Custom multi-tenancy steps sections SHALL keep their full explanation and full configuration example, and SHALL link to the headings of the keys they use, such as `variant.steps`, `db.multi` and `db.multi.schemaPrefix`. The Overview SHALL show `VARIANT_STEP_<STEP>=no` as typed.
 
 #### Scenario: Command steps are short and end with a Core link
 
 - **WHEN** the section of each of `create`, `provision`, `watch`, `down`, `deprovision` and `implode` in the built Overview page is read
-- **THEN** it has at most 60 words before its last paragraph and contains no list, table or fenced code
-- **AND** its last paragraph is `More details at Core` followed by a link whose text is the command and whose target is `/guide/core#<command>`, and a period
+- **THEN** it has at most 60 words before the sentence `More details at Core` and contains no list, table or fenced code
+- **AND** that sentence is in the last paragraph of the section, which also holds the explanation, and it ends with a link whose text is the command and whose target is `/guide/core#<command>`, and a period
 
 #### Scenario: The seed step keeps its explanation and example
 
@@ -40,3 +40,13 @@ Each builtin step of the Overview that is also a command (`create`, `provision`,
 - **THEN** its `provision` and `deprovision` sections link to the Configuration headings of `variant.steps` and `db.multi`
 - **AND** its `watch` section names `--reprovision`
 
+## ADDED Requirements
+
+### Requirement: db.multi points to the multi-tenancy steps
+
+The `db.multi` section of the Configuration page SHALL link to the heading *Custom multi-tenancy steps* of the Overview (`/guide/overview#custom-multi-tenancy-steps`).
+
+#### Scenario: db.multi links the worked example
+
+- **WHEN** the section `db.multi` of the built Configuration page is read
+- **THEN** it links to `/guide/overview#custom-multi-tenancy-steps`
