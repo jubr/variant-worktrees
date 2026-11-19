@@ -4,7 +4,7 @@
 
 A `watch`, attached or detached, SHALL check every `supervise.checkoutPollSeconds` while its processes run that the worktree directory it was started for still exists as the same directory. A directory that was removed and then partly recreated by a path that a watch process writes is not that directory. `supervise.checkoutPollSeconds` of 0 SHALL turn the check off. When the directory is gone, the watch SHALL, in this order: stop writing under the worktree path, stop every watch process together with its descendants, and implode the variant keeping the local branch. A watch of slug `main` SHALL only stop its processes: the primary checkout is never imploded. The implode SHALL succeed when the worktree directory, its `.cache/variant/` and its state are already gone. From the moment the directory is found gone, the watch SHALL NOT create or write any file or directory under the worktree path: no line of `.cache/variant/watch.log`, no `.cache/variant/in.sock`, no `state.yaml` or `runtime.yaml`. Output that the processes still produce while they stop SHALL be dropped. A detached watch SHALL end after the cleanup.
 
-The watch SHALL emit a log event at level `warn` with step `watch-cleanup` and the slug, before each action: when it finds the worktree gone (naming the path), for each watch process it stops (the watch key and pid), for each file or directory it removes (the absolute path), for each container it removes (the name), when it drops the database target (the target), when it runs `git worktree prune`, and when it keeps the branch (the branch name, or that none exists). These events SHALL NOT be sent over the editor socket and SHALL NOT be written to any file under the worktree path. A detached watch SHALL write them to the standard error it inherited from the command that started it. The known-temporary-directory rule applies to them like to any library event.
+The watch SHALL emit a log event at level `warn` with step `watch-cleanup` and the slug, before each action: when it finds the worktree gone (naming the path), for each watch process it stops (the watch key and pid), for each file or directory it removes (the absolute path), for each container it removes (the name), when it drops the database target (the target), when it runs `git worktree prune`, and when it keeps the branch (the branch name, or that none exists). These events SHALL NOT be sent over the editor socket and SHALL NOT be written to any file under the worktree path. A detached watch SHALL write them to the standard error of the command that started it when that is a terminal or a file, and SHALL write them nowhere when it is a pipe, so a caller that waits for the end of its pipe is not held by the watch. The known-temporary-directory rule applies to them like to any library event.
 
 #### Scenario: Worktree removed under a detached watch
 
@@ -62,6 +62,11 @@ The watch SHALL emit a log event at level `warn` with step `watch-cleanup` and t
 
 - **WHEN** a detached watch was started by a command whose standard error is a file and its worktree is deleted
 - **THEN** that file holds the `watch-cleanup` warnings and no file exists under the worktree path
+
+#### Scenario: A pipe is not held open
+
+- **WHEN** a detached watch was started by a command whose standard error is a pipe
+- **THEN** the watch does not hold that pipe, and the reader of the pipe sees its end when the command ends
 
 #### Scenario: Temporary directory emits trace
 

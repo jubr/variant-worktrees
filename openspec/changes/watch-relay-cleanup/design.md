@@ -49,7 +49,7 @@ Alternative: the relay runs `variant implode` as a child process. Rejected: the 
 
 ### The plan carries what cleanup needs
 
-`RelayPlan` gains an optional `cleanup` object: `slug`, `cwd` (the directory the operation context is built from: the primary checkout or the variant root, never the vanished worktree), `worktree`, and `pollSeconds`. `watchVariant` fills it only for a detached watch. A plan without it behaves as today, so existing callers and an already-built relay file stay compatible.
+`RelayPlan` gains an optional `cleanup` object: `slug`, `worktree`, `cwd` (the directory the operation context is built from: `variant.main`, else the variant root, else the parent of the worktree, whichever exists and is not the worktree), `stateDir`, the resolved `config` (the worktree's own `variants.yaml` may be what vanished, so the relay cannot reload it), `useWorktree`, `pollSeconds` and the Mise path. `watchVariant` fills it only for a detached watch. A plan without it behaves as today, so existing callers and an already-built relay file stay compatible.
 
 ### Announcements: warn, step `watch-cleanup`, never on the socket
 
@@ -58,7 +58,7 @@ Alternative: the relay runs `variant implode` as a child process. Rejected: the 
 Delivery:
 
 - Attached: the CLI sink prints it to stderr at threshold `warn`. `localOnly` in `ipc-vscode.ts` gains the step `watch-cleanup`, so the socket never receives it.
-- Detached: the relay is its own process with no sink. It installs a minimal stderr sink for the cleanup (`[warn] message`), and `startDetachedRelay` passes `stderr: "inherit"` instead of `"ignore"`, so the lines reach the terminal or output channel that started the watch. No file is involved; a file under the worktree is forbidden and a file elsewhere has no natural home.
+- Detached: the relay is its own process with no sink. It installs a minimal stderr sink for the cleanup (`[level] message`, for the `watch-cleanup` step only), and `startDetachedRelay` passes the caller's standard error to it instead of `"ignore"` when that is a terminal or a file (`relayStderrMode`). A pipe stays `"ignore"`: a script that runs `variant watch --detach` and reads its stderr until the end would otherwise wait for the relay, which outlives the command. No file of our own is involved; a file under the worktree is forbidden and a file elsewhere has no natural home.
 
 Alternative: write the warnings to a cache file outside the worktree. Rejected: nobody reads it, and it invents a location. Alternative: send them over the socket. Rejected by the request, and the socket path lies under the vanished directory.
 
@@ -75,7 +75,7 @@ Alternative: default `branchRm` (delete). Rejected: it turns a directory removal
 ## Risks / Trade-offs
 
 - [The relay is a separate bundle (`watch-relay.js`, the compiled executable, the extension); the lazy import inflates it] → The bundle spec asserts the relay starts and cleans up from the bundled file.
-- [Inherited stderr of a relay that outlives its parent can print into an unrelated terminal later] → Accepted: the event is rare and the lines are exactly what the user would want to see; `2>/dev/null` at the start silences it.
+- [Inherited stderr of a relay that outlives its parent can print into an unrelated terminal later] → Accepted: the event is rare and the lines are exactly what the user would want to see; `2>/dev/null` at the start silences it. Pipes are never inherited, so no caller hangs on them.
 - [The context rebuilt in the relay differs from the caller's (environment, Mise)] → The relay receives `cwd` and inherits the caller's environment (as for the watches); the implode only needs configuration and the database target.
 - [Two cleanups race: `variant implode` is still running while the watch ticks] → `implodeVariant` is idempotent for a missing worktree; a second run reports nothing removed.
 - [A removal that only briefly makes the directory unavailable, such as an unmounted volume, counts as gone] → Accepted; the attached watch already behaved this way, and 0 turns the check off.
