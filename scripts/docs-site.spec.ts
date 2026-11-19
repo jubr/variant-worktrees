@@ -62,9 +62,7 @@ const linkedStylesheet = (html: string, path: string): string => {
 
 describe("relocatable asset URLs", () => {
   beforeAll(() => {
-    // AIDEV-NOTE: with the packages built, docs:site skips the package rebuild that rewrites dist/ beside concurrent package tests
-    const prebuilt = existsSync(join(root, "packages/variant-log/dist/index.js"));
-    const built = spawnSync("task", [prebuilt ? "docs:site" : "docs:build"], { cwd: root, encoding: "utf8" });
+    const built = spawnSync("task", ["docs:build"], { cwd: root, encoding: "utf8" });
     if (built.status !== 0) {
       throw new Error(built.stderr || built.stdout);
     }
@@ -150,7 +148,6 @@ describe("dark document shell and top navigation", () => {
     expect(at("Development")).toBeGreaterThan(at("Chat Renamer"));
     expect(at("Development")).toBeLessThan(at("/development/building"));
     expect(at("/development/building")).toBeLessThan(at("/development/library"));
-    expect(at("/development/library")).toBeLessThan(at("/api/"));
     expect(sidebar).toContain("/development/building");
     expect(sidebar).toContain("/chat-renamer/");
     expect(sidebar).not.toContain("Introduction");
@@ -704,7 +701,7 @@ describe("internal links resolve", () => {
     expect(dead).toEqual([]);
   });
 
-  test("the check sees the navigation, the sidebar and the generated API reference", () => {
+  test("the check sees the navigation and the sidebar", () => {
     const all = links();
     const nav = page("guide/installation.html");
     const navStart = nav.indexOf("VPNavBarMenu menu");
@@ -715,7 +712,6 @@ describe("internal links resolve", () => {
     expect(sidebar).toContain("href=");
     expect(fromNav.some((link) => sidebar.includes(`href="${link.href}"`))).toBe(true);
     expect(fromNav.some((link) => link.file === "guide/commands.html")).toBe(true);
-    expect(all.filter((link) => link.from === "api/index.html").length).toBeGreaterThan(0);
   });
 
   test("every fragment of an internal link is an id of the page it names", () => {
@@ -802,7 +798,7 @@ describe("configuration keys are links", () => {
     });
   };
 
-  const docPages = () => builtPages().filter((file) => !file.startsWith("api/") && file !== "404.html");
+  const docPages = () => builtPages().filter((file) => file !== "404.html");
 
   test("each mention of a key with a heading is the content of a link to that heading", () => {
     const keys = targets();

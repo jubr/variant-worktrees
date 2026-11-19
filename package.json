@@ -13,18 +13,14 @@
     "lint:fix": "biome check --write packages/",
     "test": "VARIANT_OPEN=0 bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-log build && bun run --filter variant-api build && bun run --filter variant-server build && bun run --filter variant-cli build && bun run --filter variant-ipc build && bun run --filter chat-renamer-api build && bun run --filter '*' test && bun test scripts",
     "clean": "rm -rf packages/*/dist",
-    "docs:api": "bun run --filter chat-renamer-config build && bun run --filter variant-config build && bun run --filter variant-log build && typedoc",
-    "docs:dev": "bun run docs:api && vitepress dev docs",
-    "docs:build": "bun run docs:api && bun run docs:site",
-    "docs:site": "typedoc && vitepress build docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",
     "@types/bun": "^1.3.9",
     "sharp": "^0.35.5",
-    "typedoc": "^0.28.17",
-    "typedoc-plugin-markdown": "^4.10.0",
     "typescript": "^5",
     "vitepress": "2.0.0-alpha.21"
   }

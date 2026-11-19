@@ -86,7 +86,6 @@ export default defineConfig({
         items: [
           { text: "Building", link: "/development/building" },
           { text: "Library", link: "/development/library" },
-          { text: "API Reference", link: "/api/" },
         ],
       },
     ],

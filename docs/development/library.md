@@ -117,4 +117,3 @@ Commands include `config`, `create`, `list`, `provision`, `up`, `down`, `watch`,
 ## Elsewhere
 
 The same operations are tools of the [MCP Server](/vscode/mcp), and the [Extension](/vscode/extension) runs them from the editor.
-Every export is in the [API Reference](/api/).

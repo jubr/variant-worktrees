@@ -119,7 +119,7 @@ task lint              # biome check packages/
 task format:write      # biome check --write packages/
 task build             # bun run build (libraries, variant-ui, then the extensions)
 task test              # bun run test
-task docs:dev          # TypeDoc + vitepress dev
+task docs:dev          # vitepress dev
 task commitlint        # mise-pinned commitlint on origin/main..HEAD
 ```
 
@@ -162,7 +162,7 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
   Visual Studio Marketplace and/or Open VSX. Triggered by `workflow_run` after
   `ci-release.yaml` completes, and only when that run created the release; also
   manually dispatchable.
-- `docs.yml` — TypeDoc + VitePress to GitHub Pages (main)
+- `docs.yml` — VitePress to GitHub Pages (main)
 
 When adding a gate, expose it as a `task` and call that task from the workflow.
 

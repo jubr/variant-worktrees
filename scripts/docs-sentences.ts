@@ -143,12 +143,12 @@ export const sentenceLines = (markdown: string): string => {
 
 const root = join(import.meta.dir, "..");
 
-/** The tracked Markdown files under docs/, without the generated API reference. */
+/** The tracked Markdown files under docs/. */
 export const docsMarkdown = (): string[] => {
   const listed = spawnSync("git", ["ls-files", "docs"], { cwd: root, encoding: "utf8" });
   return listed.stdout
     .split("\n")
-    .filter((file) => file.endsWith(".md") && !file.startsWith("docs/api/") && existsSync(join(root, file)));
+    .filter((file) => file.endsWith(".md") && existsSync(join(root, file)));
 };
 
 if (import.meta.main) {

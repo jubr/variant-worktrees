@@ -42,7 +42,7 @@ Bun workspace monorepo in `packages/`:
 
 Most variant commands run in `variant-api`. The CLI and the MCP server call that core logic in-process. Only requests that need the editor go over the Unix socket the VS Code extension hosts, and that socket refuses every lifecycle command. The extension's own views (the Variants view and the panel) call `variant-api` in-process for `list`, `watch`, `down` and `implode`; those calls are not reachable from the socket. Do not route the rest through the extension.
 
-Tech: Bun, TypeScript strict ESM, Zod v4, Drizzle ORM, Biome, VitePress + TypeDoc. Database connection settings autodetect from `mise.local.toml`, then environment variables.
+Tech: Bun, TypeScript strict ESM, Zod v4, Drizzle ORM, Biome, VitePress. Database connection settings autodetect from `mise.local.toml`, then environment variables.
 
 ## Command execution
 

@@ -12,32 +12,32 @@ It holds the primary checkout on `main`, one worktree per variant next to it, an
 
 ```text
 vw/                                      # open this folder in the editor
-├── .agents -> variant-worktrees/.agents             # symlink: skills and rules for agents
-├── .vscode -> variant-worktrees/.vscode             # symlink: editor settings and the socket
-├── AGENTS.md -> variant-worktrees/AGENTS.md         # symlink: the instructions every agent reads
-├── CONTRIBUTING.md -> variant-worktrees/CONTRIBUTING.md   # symlink: how to change the code
-├── .cursorindexingignore                # names _ref/** so the index skips it
-├── mise.local.toml                      # database settings and tools, not in git
+├── .agents/ -> variant-worktrees/.agents/             # symlink: skills and rules for agents
+├── .vscode/ -> variant-worktrees/.vscode/             # symlink: editor settings and the socket
 ├── _ref/                                # other people's code, read only
 │   ├── some-library/
 │   └── design-sketch.png
-├── variant-worktrees/                   # the primary checkout, branch main
-│   ├── .git/                            # the one real git directory
-│   ├── .agents/
-│   ├── .vscode/
-│   ├── AGENTS.md
-│   ├── CONTRIBUTING.md
-│   ├── mise.toml
-│   ├── variants.yaml
-│   └── packages/ ...
 ├── _v-feature-one/                      # variant: a worktree on its own branch
-│   ├── .git                             # a file that points into ../variant-worktrees/.git
 │   ├── .cache/variant/
 │   │   ├── state.yaml                   # ports, pids, URLs
 │   │   └── watch.log
-│   └── packages/ ...
-└── _v-feature-42/                       # another variant, with its own schema and ports
-    └── ...
+│   ├── packages/ ...
+│   └── .git                             # a file that points into ../variant-worktrees/.git
+├── _v-feature-42/                       # another variant, with its own schema and ports
+│   └── ...
+├── variant-worktrees/                   # the primary checkout, branch main
+│   ├── .agents/
+│   ├── .git/                            # the one real git directory
+│   ├── .vscode/
+│   ├── packages/ ...
+│   ├── AGENTS.md
+│   ├── CONTRIBUTING.md
+│   ├── mise.toml
+│   └── variants.yaml
+├── AGENTS.md       -> variant-worktrees/AGENTS.md         # symlink: the instructions every agent reads
+├── CONTRIBUTING.md -> variant-worktrees/CONTRIBUTING.md   # symlink: how to change the code
+├── .cursorindexingignore                # names _ref/** so the index skips it
+└── mise.local.toml                      # database settings and tools, not in git
 ```
 
 The three symlinks are the ones to get right: `AGENTS.md`, `CONTRIBUTING.md` and `.agents`.
@@ -71,18 +71,18 @@ The symlinks at the root are what keep the instructions available at the level a
 [`variant.main`](./configuration#variant-main) is found through the `AGENTS.md` symlink: it names the checkout that the link points into.
 That is why the symlink is a part of the layout and not a convenience.
 
-`.vscode` **is a symlink for the editor socket.**
+`.vscode` **is a symlink to a dir that contains the editor socket.**
 The extension hosts one Unix socket for the whole workspace, in the `.vscode` of the primary checkout.
 The CLI in a variant finds the editor through it.
 The details are in [Socket IPC](/vscode/socket-ipc#linked-checkout).
 
-`mise.local.toml` **sits at the root, not in git.**
+**`mise.local.toml` **sits at the root, not in git.**
 Mise reads it from every checkout below it, so the primary checkout and every variant get the same database host, user and password.
 Each variant gets its own schema on that server. The credentials are in no repository.
 A project file such as `mise.toml` pins the tools and is committed.
 The settings that [`variants.yaml`](./configuration) reads come from here first, then from the environment.
 
-`_ref` **holds code to read, not to change.**
+**The dir `_ref` holds code to read, not to change.**
 It is a place for another project's source, an API sample or a design sketch that an agent should be able to open.
 It is not a checkout of yours, so it is not a variant, and it is not in git.
 `.cursorindexingignore` names `_ref/**`, so the editor's index and its search skip it and its files do not drown out yours.
