@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.12] - 2026-11-19
+
+### Release notes
+
+- docs: restructure the site, remove variant.seed and the API reference by @jubr in https://github.com/jubr/variant-worktrees/pull/79
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.11...v0.0.12
+
 ## [0.0.11] - 2026-11-18
 
 ### Release notes
