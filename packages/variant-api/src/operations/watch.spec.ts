@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { loadConfig, readRuntime } from "variant-config";
 import { stringify as stringifyYaml } from "yaml";
+import { type LogEvent, setLogSink } from "../log.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
@@ -849,6 +850,54 @@ describe("watch supervision", () => {
         expect(result.exitCode).toBe(1);
         expect(database).toContain("destroy demo");
         await untilDead(fe);
+        expect(existsSync(directory)).toBe(false);
+      },
+      BASE.replace("checkoutPollSeconds: 0", "checkoutPollSeconds: 1"),
+    ));
+
+  it("announces what it does with watch-cleanup events when the worktree disappears", () =>
+    withProject(
+      async ({ attach, started, directory }) => {
+        const events: LogEvent[] = [];
+        setLogSink((event) => events.push(event));
+        try {
+          const { done } = attach();
+          const fe = await started("fe");
+          const be = await started("be");
+
+          rmSync(directory, { recursive: true, force: true });
+          await done;
+
+          const cleanup = events.filter((event) => event.step === "watch-cleanup");
+          const messages = cleanup.map((event) => event.message);
+          expect(cleanup.every((event) => event.slug === "demo")).toBe(true);
+          expect(messages[0]).toContain(directory);
+          expect(messages).toContain(`stopping watch fe pid ${fe}`);
+          expect(messages).toContain(`stopping watch be pid ${be}`);
+          expect(messages).toContain("dropping database target v_demo");
+          expect(messages.indexOf("dropping database target v_demo")).toBeGreaterThan(
+            messages.indexOf(`stopping watch fe pid ${fe}`),
+          );
+        } finally {
+          setLogSink(undefined);
+        }
+      },
+      BASE.replace("checkoutPollSeconds: 0", "checkoutPollSeconds: 1"),
+    ));
+
+  it("counts a recreated worktree directory as gone", () =>
+    withProject(
+      async ({ attach, started, directory, database }) => {
+        const { done } = attach();
+        await started("fe");
+        await started("be");
+
+        rmSync(directory, { recursive: true, force: true });
+        mkdirSync(join(directory, "recreated"), { recursive: true });
+        const result = await done;
+
+        expect(result.exitCode).toBe(1);
+        expect(database).toContain("destroy demo");
       },
       BASE.replace("checkoutPollSeconds: 0", "checkoutPollSeconds: 1"),
     ));
