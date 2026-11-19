@@ -1,5 +1,19 @@
 ## MODIFIED Requirements
 
+### Requirement: Sidebar groups
+
+The sidebar SHALL list Getting Started, then a Variant Worktrees group, then a VSCode / Cursor group, then Chat Renamer, then Development. Getting Started SHALL be a link above the Variant Worktrees group and SHALL NOT be an item inside that group. Variant Worktrees SHALL list Core, then Configuration, then Installation, then Runtime, then Workspace. VSCode / Cursor SHALL list Extension, then the MCP server, then the Socket IPC page, and those three SHALL NOT be items of the Variant Worktrees group. Chat Renamer SHALL include the page named Extension and, under it, a configuration page, and SHALL sit above Development. Development SHALL list Building, then the library, then the API reference. The library SHALL NOT be an item of the Variant Worktrees group. The sidebar SHALL NOT link to a guide about replacing shell scripts.
+
+#### Scenario: Installation page lists the groups in order
+
+- **WHEN** the built installation page is read
+- **THEN** the sidebar shows Getting Started, then Variant Worktrees, then VSCode / Cursor, then Chat Renamer, then Development
+- **AND** Core precedes Configuration, which precedes Installation, which precedes Runtime, which precedes Workspace
+- **AND** Workspace precedes the VSCode / Cursor group, which lists Extension, then the MCP server, then the Socket IPC page
+- **AND** Chat Renamer lists its configuration page under the Extension page
+- **AND** Development lists Building, then the library, then the API reference
+- **AND** the page does not link to `/guide/scripts`
+
 ### Requirement: Core groups lifecycle commands
 
 The Core page SHALL have the second-level sections *Lifecycle commands* and *Other commands*, followed by *Global flags*. *Lifecycle commands* SHALL hold `init` first, then `create`, `provision`, `up`, `watch`, `down`, `deprovision` and `implode` as third-level headings, in the order of the flow of steps after `init`. *Other commands* SHALL hold `config`, `list`, `status`, `ui` and `completions` as third-level headings. Every command heading keeps the id of its name, so `core#create` stays a valid deep link.
@@ -50,3 +64,22 @@ The `db.multi` section of the Configuration page SHALL link to the heading *Cust
 
 - **WHEN** the section `db.multi` of the built Configuration page is read
 - **THEN** it links to `/guide/overview#custom-multi-tenancy-steps`
+
+### Requirement: Palette Commands
+
+The Extension page and the Chat Renamer Extension page SHALL each have a second-level section *Palette Commands* that lists every command the extension shows in the command palette, by its title, and says what it does.
+
+#### Scenario: Both extension pages list their commands
+
+- **WHEN** the built Extension page and the built Chat Renamer Extension page are read
+- **THEN** each has the heading *Palette Commands*
+
+### Requirement: Workspace page
+
+A page *Workspace*, the last page of the Variant Worktrees group, SHALL describe an ideal workspace for the tool. It SHALL show an ASCII tree whose root directory is `vw` and which holds the main checkout, one or two `_v-*` variant worktrees as siblings of it, `AGENTS.md`, `CONTRIBUTING.md` and `.agents` as symlinks into the main checkout (marked as such), and a `_ref` directory that `.cursorindexingignore` names. It SHALL give the reasoning for the layout, including why the worktrees are siblings of the primary checkout on `main`.
+
+#### Scenario: Workspace page shows and explains the layout
+
+- **WHEN** the built Workspace page is read
+- **THEN** it has a fenced tree that starts at `vw` and shows `_ref`, `.cursorindexingignore`, the three symlinks and at least one `_v-` directory
+- **AND** it explains why the worktrees are siblings of the main checkout
