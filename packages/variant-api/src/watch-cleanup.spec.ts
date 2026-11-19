@@ -155,7 +155,7 @@ describe("cleanup of a vanished worktree", () => {
     expect(isProcessAlive(pid)).toBe(false);
   });
 
-  it("warns with step watch-cleanup and the slug before each action", async () => {
+  it("emits one warn that the worktree is gone and the rest at debug, before each action", async () => {
     const events = capture();
     const pid = await sleeper();
     const seen: string[] = [];
@@ -178,20 +178,19 @@ describe("cleanup of a vanished worktree", () => {
     expect(messages).toContain("removing state file /work/.cache/variants/demo.yaml");
     expect(messages.indexOf("git worktree prune")).toBeGreaterThan(messages.indexOf(`stopping watch fe pid ${pid}`));
     expect(seen).toContain(`stopping watch fe pid ${pid}`);
+    expect(events.map((event) => event.level)).toEqual(events.map((_, index) => (index === 0 ? "warn" : "debug")));
     for (const event of events) {
-      expect(event).toMatchObject({ level: "warn", step: "watch-cleanup", slug: "demo" });
+      expect(event).toMatchObject({ step: "watch-cleanup", slug: "demo" });
     }
   });
 
-  it("emits warn when the project directory is not a known temporary directory", async () => {
+  it("emits one warn and debug events when the project directory is not a known temporary directory", async () => {
     const events = capture();
 
-    await cleanupVanishedWorktree(request({ directory: "/work/app" }));
+    await cleanupVanishedWorktree(request({ directory: "/work/app", slug: "main" }));
 
-    expect(events.length).toBeGreaterThan(0);
-    for (const event of events) {
-      expect(event.level).toBe("warn");
-    }
+    expect(events.filter((event) => event.level === "warn")).toHaveLength(1);
+    expect(events.filter((event) => event.level === "debug").length).toBeGreaterThan(0);
   });
 
   it("emits trace under a temporary directory", async () => {
@@ -217,5 +216,6 @@ describe("cleanup of a vanished worktree", () => {
     );
 
     expect(events.map((event) => event.message)).toContain("implode failed: boom");
+    expect(events.find((event) => event.message === "implode failed: boom")?.level).toBe("warn");
   });
 });

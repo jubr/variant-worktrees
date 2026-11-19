@@ -64,18 +64,22 @@ export interface CleanupRequest {
 
 /**
  * What a watch does once its worktree is gone: silence its writers, stop its processes, implode the variant keeping the
- * local branch. Each action is announced as a `watch-cleanup` warning first. Nothing here writes below the worktree.
+ * local branch. One `watch-cleanup` warning says the worktree is gone; each action is announced at debug before it runs. Nothing here writes below the worktree.
  * A failed implode is reported and does not throw, so the caller can still end.
  */
 export const cleanupVanishedWorktree = async (request: CleanupRequest): Promise<void> => {
-  const say = (message: string): void => {
-    log(levelForDirectory(LogLevel.warn, request.directory), message, {
-      slug: request.slug,
-      step: WATCH_CLEANUP_STEP,
-    });
+  const emit = (level: LogLevel, message: string): void => {
+    log(levelForDirectory(level, request.directory), message, { slug: request.slug, step: WATCH_CLEANUP_STEP });
   };
+  /** The one `warn`: the worktree is gone and what that causes. Everything after it is `debug`. */
+  const warn = (message: string): void => emit(LogLevel.warn, message);
+  const say = (message: string): void => emit(LogLevel.debug, message);
   request.silence();
-  say(`worktree ${request.worktree} is gone: stopping the watches of ${request.slug}`);
+  warn(
+    request.slug === "main"
+      ? `worktree ${request.worktree} is gone: stopping the watches of main`
+      : `worktree ${request.worktree} is gone: stopping the watches of ${request.slug}, then imploding it and keeping its branch`,
+  );
   for (const { key, pid } of request.processes) {
     say(`stopping watch ${key} pid ${pid}`);
     await stopProcessTree(pid);
@@ -84,10 +88,10 @@ export const cleanupVanishedWorktree = async (request: CleanupRequest): Promise<
     say("main is never imploded");
     return;
   }
-  say(`imploding ${request.slug} and keeping its branch`);
   try {
     await request.implode({ branchRm: "no", announce: say });
   } catch (error) {
-    say(`implode failed: ${error instanceof Error ? error.message : String(error)}`);
+    // A failure is not routine: it stays visible at warn.
+    warn(`implode failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
