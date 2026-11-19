@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import esbuild, { type BuildOptions } from "esbuild";
+import { loadConfig } from "variant-config";
 
 /**
  * Specification: openspec/specs/variant-api/runtime/spec.md
@@ -55,6 +56,76 @@ describe("bundled watch relay", () => {
     } finally {
       started?.kill();
       rmSync(directory, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("stops its watches and implodes the variant when node runs the bundle and the worktree is removed", async () => {
+    const builds = await import("../scripts/esbuild.config.ts");
+    const project = realpathSync(mkdtempSync(join("/tmp", "variant-watch-relay-")));
+    const bundle = join(project, "bundle");
+    const worktree = join(project, "_v-demo");
+    const stateDir = join(project, ".cache", "variants");
+    const stateFile = join(stateDir, "demo.yaml");
+    let started: ReturnType<typeof Bun.spawn> | undefined;
+    let fe: number | undefined;
+    try {
+      mkdirSync(bundle);
+      mkdirSync(worktree);
+      mkdirSync(stateDir, { recursive: true });
+      writeFileSync(stateFile, "slug: demo\n");
+      writeFileSync(join(bundle, "package.json"), JSON.stringify({ type: "module" }));
+      writeFileSync(
+        join(project, "variants.yaml"),
+        "db:\n  dialect: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: . }\n",
+      );
+      await buildBundle(builds.watchRelayBundle as BuildOptions, join(bundle, "watch-relay.js"));
+      const plan = {
+        launches: [{ key: "fe", command: "sleep 300", cwd: worktree, env: { PATH: process.env.PATH ?? "" } }],
+        startDelayMs: 0,
+        logPath: join(worktree, ".cache", "variant", "watch.log"),
+        cleanup: {
+          slug: "demo",
+          worktree,
+          cwd: project,
+          stateDir,
+          config: loadConfig({ cwd: project, env: {} }),
+          useWorktree: true,
+          pollSeconds: 1,
+        },
+      };
+      started = Bun.spawn(["node", join(bundle, "watch-relay.js")], {
+        cwd: project,
+        stdin: new Blob([JSON.stringify(plan)]),
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const { line, stderr } = await firstLine(started, 15_000);
+      if (!line.startsWith("{")) {
+        throw new Error(`relay wrote ${JSON.stringify(line)}: ${stderr}`);
+      }
+      fe = (JSON.parse(line) as { pids: Record<string, number> }).pids.fe;
+
+      rmSync(worktree, { recursive: true, force: true });
+      const exit = await Promise.race([
+        started.exited,
+        new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 20_000)),
+      ]);
+
+      expect(exit).toBe(0);
+      expect(existsSync(stateFile)).toBe(false);
+      expect(existsSync(worktree)).toBe(false);
+    } finally {
+      for (const pid of [fe]) {
+        if (pid !== undefined) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {
+            // already gone
+          }
+        }
+      }
+      started?.kill();
+      rmSync(project, { recursive: true, force: true });
     }
   }, 60_000);
 });

@@ -853,6 +853,23 @@ describe("watch supervision", () => {
       BASE.replace("checkoutPollSeconds: 0", "checkoutPollSeconds: 1"),
     ));
 
+  it("stops a detached watch and leaves the path missing when the worktree disappears", () =>
+    withProject(
+      async ({ watch, started, directory }) => {
+        await watch({ detach: true });
+        const fe = await started("fe");
+        const be = await started("be");
+
+        rmSync(directory, { recursive: true, force: true });
+        await untilDead(fe);
+        await untilDead(be);
+        await sleep(1500);
+
+        expect(existsSync(directory)).toBe(false);
+      },
+      BASE.replace("checkoutPollSeconds: 0", "checkoutPollSeconds: 1"),
+    ));
+
   it("does not check the worktree when checkoutPollSeconds is 0", () =>
     withProject(async ({ attach, started, directory, database }) => {
       const { done, stop } = attach();

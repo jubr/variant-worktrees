@@ -18,6 +18,7 @@ import {
 } from "../runtime-state.js";
 import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
+import { survivingDirectory } from "../watch-cleanup.js";
 import { launchWatches, startDetachedRelay } from "../watch-relay.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
@@ -453,6 +454,21 @@ export const watchVariant = async (
           logPath: logFile,
           args,
           ...(mise === undefined ? {} : { mise }),
+          cleanup: {
+            slug,
+            worktree: run.worktree,
+            cwd: survivingDirectory(
+              [config.variant.main, context.variantRoot, dirname(run.worktree)].filter(
+                (path): path is string => typeof path === "string",
+              ),
+              run.worktree,
+            ),
+            stateDir: context.stateDir,
+            config,
+            useWorktree: context.useWorktree,
+            pollSeconds: config.variant.supervise.checkoutPollSeconds,
+            ...(context.miseBinPath === undefined ? {} : { miseBinPath: context.miseBinPath }),
+          },
         });
       } catch (error) {
         rmSync(logFile, { force: true });
