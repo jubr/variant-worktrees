@@ -6,7 +6,7 @@ The attached `watch` detects a vanished worktree in `untilEnd` (`operations/watc
 
 `implodeVariant` already handles an absent worktree (`present` is false: `teardownVariant` runs without a worktree, `git worktree prune` runs, the branch is removed). What is missing is one shared cleanup that both paths call, and a guarantee that nothing is written under the dead path.
 
-The CLI forwards every log event to the editor over the project socket, except steps `ipc` and `cli` (`localOnly` in `variant-cli/src/ipc-vscode.ts`). That socket lives under the project directory, so it must not carry these events.
+The CLI forwards every log event to the editor over the project socket. It only connects, never creates the socket file, and a failed attempt is silent, so events emitted after the project directory is gone are harmless there.
 
 ## Goals / Non-Goals
 
@@ -14,7 +14,7 @@ The CLI forwards every log event to the editor over the project socket, except s
 
 - A watch whose worktree is gone stops its processes and cleans the variant, with no operator action, attached or detached.
 - No file or directory appears under the vanished path because of the watch, its captured output, or the cleanup implode.
-- The cleanup says what it does, at `warn`, including every removal, without using the editor socket.
+- The cleanup says what it does in the log: one `warn` that the worktree is gone, then a `debug` line before every action, including every removal.
 
 **Non-Goals:**
 
@@ -51,16 +51,16 @@ Alternative: the relay runs `variant implode` as a child process. Rejected: the 
 
 `RelayPlan` gains an optional `cleanup` object: `slug`, `worktree`, `cwd` (the directory the operation context is built from: `variant.main`, else the variant root, else the parent of the worktree, whichever exists and is not the worktree), `stateDir`, the resolved `config` (the worktree's own `variants.yaml` may be what vanished, so the relay cannot reload it), `useWorktree`, `pollSeconds` and the Mise path. `watchVariant` fills it only for a detached watch. A plan without it behaves as today, so existing callers and an already-built relay file stay compatible.
 
-### Announcements: warn, step `watch-cleanup`, never on the socket
+### Log events: one warn, then debug, trace under temporary directories
 
-`implodeVariant` gets an optional `announce(message)` in `ImplodeOptions`, called before each removing action: container removal, target drop, state-file removal (absolute path), `git worktree prune`, branch kept or removed. It is not exposed as a CLI flag or MCP argument, because those derive from `commands.ts`. The cleanup module wraps both its own steps and `announce` into one emitter: `log(levelForDirectory(LogLevel.warn, cwd), message, { slug, step: "watch-cleanup" })`. Going through `levelForDirectory` keeps the logging capability's rule that events for a known temporary directory are `trace`; tests that need `warn` pass a project directory that is not temporary.
+`implodeVariant` gets an optional `announce(message)` in `ImplodeOptions`, called before each removing action: container removal, target drop, state-file removal (absolute path), `git worktree prune`, branch kept or removed. It is not exposed as a CLI flag or MCP argument, because those derive from `commands.ts`. The cleanup module turns each announcement into an event with step `watch-cleanup` and the slug, at `debug`. Its own first event, that the worktree is gone and what follows, is the only routine `warn`. A failed implode is a second `warn`, because hiding a failure at `debug` would hide the one thing a user must see. Every event goes through `levelForDirectory(level, cwd)`, so under a known temporary directory they are all `trace`, as the logging capability already demands; tests that need `warn` pass a project directory that is not temporary.
 
-Delivery:
+Delivery uses the existing transports and nothing new:
 
-- Attached: the CLI sink prints it to stderr at threshold `warn`. `localOnly` in `ipc-vscode.ts` gains the step `watch-cleanup`, so the socket never receives it.
-- Detached: the relay is its own process with no sink. It installs a minimal stderr sink for the cleanup (`[level] message`, for the `watch-cleanup` step only), and `startDetachedRelay` passes the caller's standard error to it instead of `"ignore"` when that is a terminal or a file (`relayStderrMode`). A pipe stays `"ignore"`: a script that runs `variant watch --detach` and reads its stderr until the end would otherwise wait for the relay, which outlives the command. No file of our own is involved; a file under the worktree is forbidden and a file elsewhere has no natural home.
+- Attached: the CLI sink prints events at its threshold and forwards each to the editor over the project socket, as for any other event. That socket path lies below the project directory, but the CLI only connects and never creates the file, so a missing socket costs one silent failed attempt. No exclusion is needed.
+- Detached: the relay is its own process with no sink and no socket. It installs a minimal stderr sink for the cleanup (`[level] message`, for the `watch-cleanup` step only), and `startDetachedRelay` passes the caller's standard error to it instead of `"ignore"` when that is a terminal or a file (`relayStderrMode`). A pipe stays `"ignore"`: a script that runs `variant watch --detach` and reads its stderr until the end would otherwise wait for the relay, which outlives the command. No file of our own is involved; a file under the worktree is forbidden and a file elsewhere has no natural home.
 
-Alternative: write the warnings to a cache file outside the worktree. Rejected: nobody reads it, and it invents a location. Alternative: send them over the socket. Rejected by the request, and the socket path lies under the vanished directory.
+Alternative: a `warn` per action. Rejected: it is noise for a routine consequence of removing a directory. Alternative: keep the events off the editor socket. Rejected: forwarding already works and the editor benefits from the lines.
 
 ### Implode of a missing worktree must not recreate it
 

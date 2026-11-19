@@ -6,7 +6,7 @@
 
 ## 2. Shared cleanup
 
-- [ ] 2.1 Create `packages/variant-api/src/watch-cleanup.spec.ts` with failing assertions for [specs/variant-api/runtime | Watch follows its worktree](../../specs/variant-api/runtime/spec.md#requirement-watch-follows-its-worktree): `worktreeIdentity` says gone for a missing and for a recreated directory; `cleanupVanishedWorktree` silences first, stops each pid, implodes with the branch kept, skips the implode for `main`; each step is a `warn` event with step `watch-cleanup` and the slug before its action, naming the path, `fe` with its pid, the removed state file, the target, `git worktree prune`; a temporary project directory gives `trace`. Verify with `mise x -- bun test packages/variant-api/src/watch-cleanup.spec.ts`: the file fails.
+- [ ] 2.1 Create `packages/variant-api/src/watch-cleanup.spec.ts` with failing assertions for [specs/variant-api/runtime | Watch follows its worktree](../../specs/variant-api/runtime/spec.md#requirement-watch-follows-its-worktree): `worktreeIdentity` says gone for a missing and for a recreated directory; `cleanupVanishedWorktree` silences first, stops each pid, implodes with the branch kept, skips the implode for `main`; the first event is the one `warn` (the path is gone) and every later event is `debug` with step `watch-cleanup` and the slug before its action, naming `fe` with its pid, the removed state file, the target, `git worktree prune`; a failed implode is a `warn`; a temporary project directory gives `trace` throughout. Verify with `mise x -- bun test packages/variant-api/src/watch-cleanup.spec.ts`: the file fails.
 
 - [ ] 2.2 Add `watch-cleanup.ts` (`worktreeIdentity`, `cleanupVanishedWorktree`, the announcing emitter). Verify with the same command: the file passes.
 
@@ -20,18 +20,14 @@
 
 ## 4. Attached watch
 
-- [ ] 4.1 Extend `packages/variant-api/src/operations/watch.spec.ts` with failing assertions for the attached scenarios: deleting the worktree stops the processes, drops the target, ends with exit status 1, leaves the path missing, clears nothing under it, and announces the steps; `checkoutPollSeconds: 0` keeps it running. Verify with `mise x -- bun test packages/variant-api/src/operations/watch.spec.ts`: the new assertions fail.
+- [ ] 4.1 Extend `packages/variant-api/src/operations/watch.spec.ts` with failing assertions for the attached scenarios: deleting the worktree stops the processes, drops the target, ends with exit status 1, leaves the path missing, clears nothing under it, and logs the steps; `checkoutPollSeconds: 0` keeps it running. Verify with `mise x -- bun test packages/variant-api/src/operations/watch.spec.ts`: the new assertions fail.
 
 - [ ] 4.2 Switch `untilEnd` to `worktreeIdentity` and replace the `checkout` branch of `watchVariant` (`adapter.destroy`, `clearVariantRuntime`) with `cleanupVanishedWorktree`, keeping exit status 1. Verify with the same command: the file passes.
 
-## 5. CLI keeps the events local
+## 5. Docs and changelog
 
-- [ ] 5.1 Extend `packages/variant-cli/src/ipc-vscode.spec.ts` with a failing assertion for [specs/variant-cli/logging | Vscode log stream](../../specs/variant-cli/logging/spec.md#requirement-vscode-log-stream): a warn event with step `watch-cleanup` reaches stderr and no listener request. Verify with `mise x -- bun test packages/variant-cli/src/ipc-vscode.spec.ts`: it fails. Then add the step to `localOnly`; the same command passes.
+- [ ] 5.1 Update the `supervise.checkoutPollSeconds` description in `packages/variant-config/variants.example.yaml` and the schema source in `packages/variant-config/src/schema.ts` (it covers every watch), the runtime and `watch` sections of `docs/guide/` (cleanup, the `watch-cleanup` log events, the kept branch, the inherited standard error of a detached watch), and add a Fixed bullet under `## Unreleased` in `CHANGELOG.md`. Verify each file says that, and that `mise x -- bun test scripts packages/variant-config` passes.
 
-## 6. Docs and changelog
+## 6. Verification
 
-- [ ] 6.1 Update the `supervise.checkoutPollSeconds` description in `packages/variant-config/variants.example.yaml` and the schema source in `packages/variant-config/src/schema.ts` (it covers every watch), the runtime and `watch` sections of `docs/guide/` (cleanup, the `watch-cleanup` warnings, the kept branch, the inherited standard error of a detached watch), and add a Fixed bullet under `## Unreleased` in `CHANGELOG.md`. Verify each file says that, and that `mise x -- bun test scripts packages/variant-config` passes.
-
-## 7. Verification
-
-- [ ] 7.1 Run `mise x -- task lint`, `mise x -- task test`, `mise x -- task build`, `mise x -- openspec validate --all --strict --no-interactive` and `mise x -- openspec doctor --json`; all pass.
+- [ ] 6.1 Run `mise x -- task lint`, `mise x -- task test`, `mise x -- task build`, `mise x -- openspec validate --all --strict --no-interactive` and `mise x -- openspec doctor --json`; all pass.
