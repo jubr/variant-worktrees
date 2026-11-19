@@ -557,7 +557,6 @@ describe("watch starts host processes", () => {
         return next !== be && isProcessAlive(next);
       });
       const next = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(next);
       abort.abort();
       const result = await done;
 
@@ -779,7 +778,6 @@ describe("watch supervision", () => {
       const marker = join(directory, "be", "started-be.txt");
       await until(() => existsSync(marker));
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(0);
       expect(isProcessAlive(be)).toBe(true);
@@ -793,7 +791,6 @@ describe("watch supervision", () => {
         terminal.write("\x03");
       });
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(130);
       expect(isProcessAlive(be)).toBe(false);
@@ -808,7 +805,6 @@ describe("watch supervision", () => {
       const marker = join(directory, "be", "started-be.txt");
       await until(() => existsSync(marker));
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(0);
       expect(isProcessAlive(be)).toBe(false);
@@ -828,11 +824,9 @@ describe("watch supervision", () => {
           const next = Number(readFileSync(marker, "utf8"));
           return next !== first && isProcessAlive(next) && hints() > before;
         });
-        killAtEnd.push(first);
         terminal.write("3\r");
       });
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(0);
       expect(isProcessAlive(be)).toBe(false);
