@@ -14,14 +14,17 @@
       ".": "./dist/cli.js"
     }
   },
+  "config": {
+    "slow_tests": "src/completions-shells.spec.ts"
+  },
   "scripts": {
     "build": "bun run build:js && bun run build:ui && bun run build:types && chmod +x dist/cli.js",
     "build:js": "bun ../../scripts/build-cli.ts",
     "build:ui": "bun run scripts/build-ui.ts",
     "build:types": "tsc --emitDeclarationOnly",
     "prepublishOnly": "bun run build",
-    "test": "VARIANT_OPEN=0 bun test --path-ignore-patterns 'src/completions-shells.spec.ts'",
-    "test:slow": "VARIANT_OPEN=0 bun test src/completions-shells.spec.ts"
+    "test": "export VARIANT_OPEN=0; set -x; bun test ${npm_package_config_slow_tests//src\\//--path-ignore-patterns src\\/}",
+    "test:slow": "export VARIANT_OPEN=0; set -x; bun test $npm_package_config_slow_tests"
   },
   "homepage": "https://github.com/jubr/variant-worktrees",
   "repository": {
