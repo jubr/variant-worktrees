@@ -20,7 +20,7 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 
 ## Decisions
 
-- **Environment variable `VARIANT_BUN_RUNTIME`, not a CLI flag or Taskfile variable.** `bleed:cli` and `package:cli` share `compileCli`; one env var reaches both and `task:` passes the environment through. A `TARGET`-style task variable would need wiring into `bleed:cli` and the `all` loop. Alternative: auto-detect `../_ref/...` by path. Rejected: machine paths in committed code, and implicit behavior.
+- **Environment variable `VARIANT_BUN_RUNTIME`, not a CLI flag or Taskfile variable.** `bleed:cli` and `package:cli` share `compileCli`; one env var reaches both and `task:` passes the environment through. A `TARGET`-style task variable would need wiring into `bleed:cli` and the `all` loop. Alternative: auto-detect a sibling clone by path. Rejected: machine paths in committed code, and implicit behavior.
 - **Validate in `compileCli` before compiling.** Missing or non-executable file fails with the path in the message, so `publishCli` never reaches its replace step and the existing "failed compile leaves directory unchanged" guarantee holds. Alternative: let Bun report the error. Rejected: the message does not name our variable and may still touch outputs.
 - **Runtime and target must match.** When the variable is set the caller owns that match (macOS arm64 build for a macOS arm64 host). `compileCli` passes no `target` for the host default; with `package:cli all` the same executable would be embedded in every platform's output, so the variable is documented as a single-target aid and `package:cli:all` rejects it. Alternative: infer from the file's header. Rejected: more code than the experiment justifies.
 - **Build the PR with its own scripts.** `bun run build:standalone` in the clone (release profile, `--standalone=on`) produces `build/release-standalone/bun-standalone`. The clone is a shallow fetch of the PR head, pinned by commit in these notes. Alternative: cherry-pick into a fork. Rejected: no reason to carry patches.
@@ -37,3 +37,24 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 ## Migration Plan
 
 None for users; the option is off by default. Rollback is deleting the env var. If the PR lands upstream, a follow-up change can pin a released standalone runtime, fetch it, and apply it to release builds.
+
+## Build notes
+
+- Built PR head `f1a9925` (`1.4.0-standalone-canary.1+f1a99252a`) for macOS arm64 with `bun run build:standalone`; the stripped `bun-standalone` is 47,295,472 bytes (45.1 MiB), a Mach-O arm64 executable.
+- Needed beyond the PR's own instructions: LLVM 21.1.x from the official release (Apple clang is 21.0), and `SDKROOT` set so that host-compiled helpers find the macOS SDK.
+- `bun-standalone -e 'console.log(Bun.version, process.arch)'` prints `1.4.0-standalone arm64`. `bun-standalone build x.ts` exits 1 and says `bun build` is not available in this executable.
+
+## Results (macOS arm64)
+
+Compiled the same checkout twice, once with the released Bun 1.4.2 runtime and once with `VARIANT_BUN_RUNTIME` naming the standalone build above.
+
+| Executable | Bytes | MiB |
+| --- | ---: | ---: |
+| `variant` with the default runtime | 65,909,106 | 62.9 |
+| `variant` with `bun-standalone` | 50,977,634 | 48.6 |
+| Difference | -14,931,472 | -14.2 (-22.7%) |
+
+- The two outputs behave the same for `variant --version` (apart from the build timestamp), `variant list`, `variant ui --detach` (the page and an embedded script chunk are served; `--stop` ends it) and `variant mcp` (initialize, then `tools/list` returns the same 11 tools, nothing on standard error).
+- The saving is larger than the 7.6 MB the pull request reports for linux-x64. The baseline here is a released Bun, not a full build of the same pull request commit, so the difference mixes the removed subcommands with build differences. A like-for-like number needs a full build of that commit.
+- Not exercised: `variant watch`, `variant create` and the other lifecycle commands against a live database, and any platform other than macOS arm64.
+- Verdict: the CLI runs on the slim runtime for every command family tried. Pursuing it for releases waits for an upstream release of the standalone binary (see the migration plan); until then the variable stays a local aid.
