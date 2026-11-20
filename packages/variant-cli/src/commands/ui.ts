@@ -3,12 +3,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { command } from "cleye";
 import { runUi, type StaticApp } from "variant-server";
-import { UI_DESCRIPTION, UI_FLAGS } from "./cli-flags.js";
-import { embeddedApp } from "./embedded-app.js";
-import { renderHelp } from "./help.js";
+import { embeddedApp } from "../embedded-app.js";
+import { renderHelp } from "../help.js";
 
-/** The commands of the CLI that are not in the library's command list, because the library has no use for them. */
-export const CLI_ONLY_COMMANDS = ["ui"] as const;
+/** The description and flags of `variant ui`, shared by the command and the shell completion scripts. */
+export const UI_DESCRIPTION = "Serve the variants web page on a local port and print its URL with the token";
+export const UI_FLAGS = {
+  detach: { type: Boolean, description: "Start the server in the background and return after printing the URL" },
+  stop: { type: Boolean, description: "Stop the server of the project" },
+} as const;
 
 /** The script path a compiled executable reports for itself: a file in its embedded file system, which exists only there. */
 const EMBEDDED_SCRIPT = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/;

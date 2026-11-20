@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cli, command } from "cleye";
+import { cli } from "cleye";
 import {
-  createVariantClient,
   LogLevel,
-  listSlugs,
   log,
   platformToken,
   renderVersion,
@@ -13,21 +11,16 @@ import {
   resolveVersionFacts,
   runWatchRelay,
   versionColor,
-  type WatchResult,
 } from "variant-api";
-import { type CommandDefinition, commands, LIFECYCLE_COMMANDS } from "variant-api/commands";
+import { commands, LIFECYCLE_COMMANDS } from "variant-api/commands";
 import pkg from "../package.json" with { type: "json" };
 import { takeDirectory } from "./chdir.js";
-import { collectArgs } from "./cli-args.js";
-import { flagSpecsFor } from "./cli-flags.js";
-import { completionsCommand, generateCompletions, isShell, SHELLS } from "./completions.js";
+import { CLI_ONLY_COMMANDS, cliOnlyCommands } from "./commands/index.js";
+import { lifecycleCommand } from "./commands/lifecycle.js";
 import { renderHelp } from "./help.js";
 import { takeLogLevel } from "./ipc-log.js";
 import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.js";
-import { migrateConfigFiles } from "./migration.js";
-import { GLOBAL_FLAGS, type OutputFormat, renderOutput, stdoutColor } from "./output.js";
-import { CLI_ONLY_COMMANDS, uiCommand } from "./ui.js";
-import { printWarnings } from "./warnings.js";
+import { GLOBAL_FLAGS, type OutputFormat } from "./output.js";
 
 declare const VARIANT_BUILD_DATE: string | undefined;
 declare const VARIANT_BUILD_VARIANT: string | undefined;
@@ -39,91 +32,6 @@ const bakedVersion = (): { date?: string; variant?: string } => ({
 });
 
 const { version } = pkg;
-
-const flagTypes = { string: String, number: Number, boolean: Boolean } as const;
-
-const flagsFor = (definition: CommandDefinition) =>
-  Object.fromEntries(
-    flagSpecsFor(definition).map((flag) => [
-      flag.name,
-      {
-        type: flagTypes[flag.type],
-        ...(flag.short ? { alias: flag.short } : {}),
-        description: flag.description,
-      },
-    ]),
-  );
-
-const runCommand = (definition: CommandDefinition, format: OutputFormat) =>
-  command(
-    {
-      name: String(definition.name),
-      help: { description: definition.description, render: renderHelp },
-      parameters: definition.args.some((arg) => arg.name === "slug") ? ["[slug]"] : [],
-      flags: flagsFor(definition),
-    },
-    async (argv) => {
-      const flags = argv.flags as Record<string, unknown>;
-      const positional = (argv._ as unknown as { slug?: string }).slug;
-      const args = collectArgs(definition, flags, positional);
-      const client = createVariantClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
-      printWarnings(client.config().warnings);
-      migrateConfigFiles(client.config());
-      const rendered = {
-        format,
-        variantRoot: client.config().variant.root,
-        verbose: flags.verbose === true,
-        color: stdoutColor(process.stdout, process.env),
-      };
-      let printedStart = false;
-      if (definition.name === "watch" && format === "text" && args.detach !== true) {
-        args.onStarted = (started: WatchResult) => {
-          printedStart = true;
-          console.log(renderOutput("watch", started, rendered));
-        };
-      }
-      const result = await definition.execute(client, args);
-      if (printedStart) {
-        const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
-        if (typeof exitCode === "number" && exitCode !== 0) {
-          console.log(`exit code:  ${exitCode}`);
-        }
-      } else {
-        console.log(renderOutput(String(definition.name), result, rendered));
-      }
-      const exitCode = (result as { exitCode?: unknown } | undefined)?.exitCode;
-      if (typeof exitCode === "number" && exitCode !== 0) {
-        process.exitCode = exitCode;
-      }
-    },
-  );
-
-/** CLI-only: prints a shell completion script. It needs no configuration, database, or git, so no client is created. */
-const completionsCli = command(
-  {
-    name: completionsCommand.name,
-    help: { description: completionsCommand.description, render: renderHelp },
-    parameters: ["[shell]"],
-    flags: { listSlugs: { type: Boolean, description: "Print the slugs of existing variants, one per line" } },
-  },
-  (argv) => {
-    if (argv.flags.listSlugs) {
-      process.stdout.write(
-        listSlugs()
-          .map((slug) => `${slug}\n`)
-          .join(""),
-      );
-      return;
-    }
-    const shell = argv._.shell;
-    if (!isShell(shell)) {
-      throw new Error(
-        `${shell === undefined ? "Missing shell" : `Unsupported shell: ${shell}`}. Supported shells: ${SHELLS.join(", ")}.`,
-      );
-    }
-    process.stdout.write(generateCompletions(shell));
-  },
-);
 
 /** Takes the global output flags out of the arguments, wherever they stand, and returns the format they ask for. */
 const takeFormat = (argv: string[]): { args: string[]; format: OutputFormat } => {
@@ -147,8 +55,7 @@ if (process.argv.includes("--internal-watch-relay")) {
     const requested = args.find((arg) => !arg.startsWith("-"));
     const known = (name: string): boolean =>
       commands.some((definition) => definition.name === name) ||
-      (CLI_ONLY_COMMANDS as readonly string[]).includes(name) ||
-      name === completionsCommand.name;
+      (CLI_ONLY_COMMANDS as readonly string[]).includes(name);
     if (requested !== undefined && !known(requested)) {
       throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
     }
@@ -182,7 +89,7 @@ if (process.argv.includes("--internal-watch-relay")) {
             render: renderHelp,
           },
           strictFlags: true,
-          commands: [...commands.map((definition) => runCommand(definition, format)), uiCommand(), completionsCli],
+          commands: [...commands.map((definition) => lifecycleCommand(definition, format)), ...cliOnlyCommands()],
         },
         undefined,
         args.length === 0 ? ["--help"] : args,

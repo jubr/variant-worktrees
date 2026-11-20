@@ -5,9 +5,9 @@
  */
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { runCommand, withVariants } from "./test/cli.js";
+import { runCommand, withVariants } from "../test/cli.js";
 
-const cli = ["bun", "run", join(import.meta.dir, "../src/cli.ts")];
+const cli = ["bun", "run", join(import.meta.dir, "../cli.ts")];
 const URL_LINE = /^http:\/\/ui\.[a-z0-9-]+\.localhost:\d+\/\?token=[A-Za-z0-9_-]+$/;
 
 interface Listed {

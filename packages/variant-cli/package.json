@@ -15,7 +15,7 @@
     }
   },
   "config": {
-    "slow_tests": "src/completions-shells.spec.ts"
+    "slow_tests": "src/commands/completions-shells.spec.ts"
   },
   "scripts": {
     "build": "bun run build:js && bun run build:ui && bun run build:types && chmod +x dist/cli.js",
