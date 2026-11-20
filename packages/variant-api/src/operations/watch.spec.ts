@@ -869,8 +869,8 @@ describe("watch supervision", () => {
         setLogSink((event) => events.push(event));
         try {
           const { done } = attach();
-          const fe = await started("fe");
-          const be = await started("be");
+          await started("fe");
+          await started("be");
 
           rmSync(directory, { recursive: true, force: true });
           await done;
@@ -879,12 +879,13 @@ describe("watch supervision", () => {
           const messages = cleanup.map((event) => event.message);
           expect(cleanup.every((event) => event.slug === "demo")).toBe(true);
           expect(messages[0]).toContain(directory);
-          expect(messages).toContain(`stopping watch fe pid ${fe}`);
-          expect(messages).toContain(`stopping watch be pid ${be}`);
+          // The pid the supervision holds can be that of a wrapper of the process that records its own pid.
+          const stopping = (key: string): number =>
+            messages.findIndex((message) => /^stopping watch (\w+) pid \d+$/.exec(message)?.[1] === key);
+          expect(stopping("fe")).toBeGreaterThan(0);
+          expect(stopping("be")).toBeGreaterThan(0);
           expect(messages).toContain("dropping database target v_demo");
-          expect(messages.indexOf("dropping database target v_demo")).toBeGreaterThan(
-            messages.indexOf(`stopping watch fe pid ${fe}`),
-          );
+          expect(messages.indexOf("dropping database target v_demo")).toBeGreaterThan(stopping("fe"));
         } finally {
           setLogSink(undefined);
         }
