@@ -95,3 +95,5 @@ Bun has no Cargo feature left to switch off; the only gate is `cfg(bun_standalon
 - JavaScriptCore (23 MB) is prebuilt and sets the floor.
 - The sed expressions need GNU sed, so the macOS jobs install `gnu-sed`. A patch that matches nothing fails the step, so an upstream rewrite of those lines shows up as a red run instead of a silently larger binary.
 - A spec runs the step on fixtures of the upstream lines; the same step applied to a clean checkout of the pull request head matches the local experiment apart from comments.
+
+CI run [44807627357](https://github.com/jubr/variant-worktrees/actions/runs/44807627357), started by the push that edited the workflow (new hash, so every platform compiled): the patch step printed a `diff -u` for the eight patched and the two added files on all four platforms, and the smoke test, including the `Bun.Image` and `dlopen` checks, passed. Archive sizes (zip): darwin-arm64 14.9 MB (was 18.0), darwin-x64 16.2 MB (was 19.9), linux-x64 24.4 MB (was 28.3), linux-arm64 24.0 MB (was 27.9).
