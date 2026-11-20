@@ -70,7 +70,7 @@ The CLI SHALL accept the boolean global flags `--json` and `--yaml` on every com
 
 ### Requirement: Global flags are listed apart in help
 
-`variant --help` and `variant <command> --help` SHALL list the global flags `--json`, `--yaml`, `--help`, and `-C <path>` in a section titled `Global flags`, separate from the flags of the command. The `-C` row SHALL show the short option and `<path>` and SHALL NOT show a long option. The per-command `Flags` section SHALL NOT repeat the global flags. From the first line of the `Global flags` section that contains a flag through the last such line, no line SHALL be empty. That absence of an empty line SHALL hold when standard output is not a terminal and when it is a terminal, including when the terminal is too narrow for a flag and its description to fit on one line. The README CLI section SHALL likewise list the global flags in a section apart from the per-command flags.
+`variant --help` and `variant <command> --help` SHALL list the global flags `--json`, `--yaml`, `--help`, and `-C <path>` in a section titled `Global flags`, separate from the flags of the command. The `-C` row SHALL show the short option and `<path>` and SHALL NOT show a long option. The per-command `Flags` section SHALL NOT repeat the global flags. From the first line of the `Global flags` section that contains a flag through the last such line, no line SHALL be empty. That absence of an empty line SHALL hold when standard output is not a terminal and when it is a terminal, including when the terminal is too narrow for a flag and its description to fit on one line, and including a terminal or multiplexer (such as GNU screen) that wraps a line which fills the whole width. To that end no line of help output SHALL end in a space or tab, so a row never fills the width of the terminal with padding. The README CLI section SHALL likewise list the global flags in a section apart from the per-command flags.
 
 #### Scenario: Top-level help
 
@@ -90,3 +90,13 @@ The CLI SHALL accept the boolean global flags `--json` and `--yaml` on every com
 - **WHEN** a user runs `variant config --help` with standard output on a terminal too narrow for `--log-level` and its description to fit on one line
 - **THEN** the `Global flags` section still lists `--json` and `-C`
 - **AND** the lines of that section from the first flag line through the last flag line include no empty line
+
+#### Scenario: No trailing padding
+
+- **WHEN** a user runs `variant --help` or `variant watch --help` with standard output on a terminal of any width
+- **THEN** no output line ends in a space or tab
+
+#### Scenario: GNU screen
+
+- **WHEN** `variant watch --help` runs inside GNU screen of 80 columns
+- **THEN** the screen shows no empty line between the first and the last flag line of `Global flags`

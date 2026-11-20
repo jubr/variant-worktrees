@@ -3,32 +3,29 @@
   "version": "0.0.12",
   "description": "Database variants as an MCP server for AI clients",
   "type": "module",
-  "main": "dist/mcp.js",
-  "types": "dist/mcp.d.ts",
-  "bin": {
-    "variant-mcp": "./dist/mcp.js"
-  },
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/mcp.d.ts",
-      "import": "./dist/mcp.js"
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
     },
-    "./bundle": "./src/mcp.ts"
+    "./bundle": "./src/server.ts"
   },
   "publishConfig": {
     "exports": {
       ".": {
-        "types": "./dist/mcp.d.ts",
-        "import": "./dist/mcp.js"
+        "types": "./dist/server.d.ts",
+        "import": "./dist/server.js"
       }
     }
   },
   "scripts": {
-    "build": "bun run build:js && bun run build:types && chmod +x dist/mcp.js",
-    "build:js": "bun build ./src/mcp.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external @modelcontextprotocol/sdk --external variant-api --external variant-config --external variant-ipc --external variant-log",
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build ./src/server.ts --outdir dist --target node --format esm --sourcemap=external --external zod --external @modelcontextprotocol/sdk --external variant-api --external variant-config --external variant-ipc --external variant-log",
     "build:types": "tsc --emitDeclarationOnly",
     "mcp": "bun run src/mcp.ts",
-    "mcp:inspect": "npx @modelcontextprotocol/inspector node dist/mcp.js",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector variant mcp",
     "prepublishOnly": "bun run build",
     "test": "VARIANT_OPEN=0 bun test"
   },

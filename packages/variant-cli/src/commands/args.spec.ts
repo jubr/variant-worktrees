@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { type CommandDefinition, commands } from "variant-api/commands";
-import { collectArgs } from "./cli-args.js";
+import { collectArgs } from "./args.js";
 
 const definition = (name: string): CommandDefinition => {
   const found = commands.find((command) => command.name === name);

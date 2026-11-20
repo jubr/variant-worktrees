@@ -66,9 +66,21 @@ describe("extension README", () => {
   });
 
   it("covers configuration, the MCP server, and the chat renamer", () => {
-    for (const expected of ["variants.yaml", "variant-mcp", "/chat-rename"]) {
+    for (const expected of ["variants.yaml", "variant mcp", "/chat-rename"]) {
       expect(text).toContain(expected);
     }
+  });
+});
+
+describe("MCP client configuration", () => {
+  it("runs variant with the argument mcp in both READMEs, the MCP page and the building page", () => {
+    for (const file of ["README.md", "packages/variant-vscode/README.md", "docs/vscode/mcp.md"]) {
+      const text = read(file);
+      expect(text, file).toContain('"command": "variant"');
+      expect(text, file).toContain('"mcp"');
+      expect(text, file).not.toContain('"command": "variant-mcp"');
+    }
+    expect(read("docs/development/building.md")).not.toContain("dist/mcp.js");
   });
 });
 

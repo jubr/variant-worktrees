@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [mcp](docs/guide/cli.md#mcp-server).
+
+### Changed
+
+- **BREAKING:** the `variant-mcp` executable is gone, and so are `task bleed:mcp` and `vw-bleeds/variant-mcp`. Point MCP clients at `variant` with the argument `mcp`: `"command": "variant", "args": ["mcp", "--config", "/workspace/variants.yaml"]`. The `variant-mcp` package is a library now, started by `variant mcp`. Remove a leftover `vw-bleeds/variant-mcp` by hand.
+- The help of `variant` no longer pads its lines with trailing spaces, so GNU screen shows no empty line between the global flags.
+- The code of each CLI command lives in `packages/variant-cli/src/commands/`.
+
 ### Fixed
 
 - A `watch` whose worktree directory disappears (`variant implode`, or a directory removed by hand) now cleans up, attached and detached: it stops its processes and implodes the variant, keeping the local branch, and writes nothing below the removed path, so `.cache/variant/` is not recreated. A detached watch checks every `variant.supervise.checkoutPollSeconds` as an attached one does. One `warn` event with step `watch-cleanup` says the worktree is gone, and a `debug` event names each step before it runs, each removed path included; under a temporary directory all are `trace`. See [Worktree removed](docs/guide/runtime.md#worktree-removed).

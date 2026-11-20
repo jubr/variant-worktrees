@@ -6,10 +6,15 @@
  * (`describeCli()`), which is built from the same command definitions the CLI runs, so a command or flag added there is
  * completed without a separate edit. The scripts are plain strings: no file next to the binary is needed.
  */
+import { command } from "cleye";
+import { listSlugs } from "variant-api";
 import { commands } from "variant-api/commands";
-import { flagSpecsFor, UI_DESCRIPTION, UI_FLAGS } from "./cli-flags.js";
-import { LOG_LEVEL_FLAG } from "./ipc-log.js";
-import { GLOBAL_FLAGS } from "./output.js";
+import { renderHelp } from "../help.js";
+import { LOG_LEVEL_FLAG } from "../ipc-log.js";
+import { GLOBAL_FLAGS } from "../output.js";
+import { flagSpecsFor } from "./flags.js";
+import { MCP_DESCRIPTION, MCP_FLAGS } from "./mcp.js";
+import { UI_DESCRIPTION, UI_FLAGS } from "./ui.js";
 
 export const SHELLS = ["zsh", "bash", "fish"] as const;
 export type Shell = (typeof SHELLS)[number];
@@ -66,6 +71,14 @@ const uiCommandModel: CommandModel = {
   flags: Object.entries(UI_FLAGS).map(([long, flag]) => ({ long, description: flag.description, takesValue: false })),
 };
 
+/** `variant mcp`, which is CLI-only and takes a value for each flag. */
+const mcpCommandModel: CommandModel = {
+  name: "mcp",
+  description: MCP_DESCRIPTION,
+  takesSlug: false,
+  flags: Object.entries(MCP_FLAGS).map(([long, flag]) => ({ long, description: flag.description, takesValue: true })),
+};
+
 /** The output flags every lifecycle command accepts. */
 const outputFlags: FlagModel[] = [
   ...GLOBAL_FLAGS.map(({ name, description }) => ({
@@ -102,6 +115,7 @@ export const describeCli = (): CommandModel[] =>
       }),
     ),
     uiCommandModel,
+    mcpCommandModel,
     completionsCommand,
   ].map(withDirectory);
 
@@ -449,3 +463,31 @@ export const generateCompletions = (shell: Shell, model: CommandModel[] = descri
   generators[shell](model);
 
 export const isShell = (value: string | undefined): value is Shell => SHELLS.some((shell) => shell === value);
+
+/** CLI-only: prints a shell completion script. It needs no configuration, database, or git, so no client is created. */
+export const completionsCli = () =>
+  command(
+    {
+      name: completionsCommand.name,
+      help: { description: completionsCommand.description, render: renderHelp },
+      parameters: ["[shell]"],
+      flags: { listSlugs: { type: Boolean, description: "Print the slugs of existing variants, one per line" } },
+    },
+    (argv) => {
+      if (argv.flags.listSlugs) {
+        process.stdout.write(
+          listSlugs()
+            .map((slug) => `${slug}\n`)
+            .join(""),
+        );
+        return;
+      }
+      const shell = argv._.shell;
+      if (!isShell(shell)) {
+        throw new Error(
+          `${shell === undefined ? "Missing shell" : `Unsupported shell: ${shell}`}. Supported shells: ${SHELLS.join(", ")}.`,
+        );
+      }
+      process.stdout.write(generateCompletions(shell));
+    },
+  );

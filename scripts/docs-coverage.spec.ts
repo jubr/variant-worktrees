@@ -140,3 +140,11 @@ describe("VARIANT_* environment variables", () => {
     });
   }
 });
+
+describe("variant mcp", () => {
+  test("is in the README CLI section and on the CLI page, and is not a command of the commands guide", () => {
+    expect(section(read("README.md"), "CLI")).toContain("variant mcp");
+    expect(read("docs/guide/cli.md")).toContain("\n## MCP server\n");
+    expect(read("docs/guide/commands.md")).not.toContain("\n### mcp\n");
+  });
+});

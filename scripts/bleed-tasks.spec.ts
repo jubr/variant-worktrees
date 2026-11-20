@@ -19,7 +19,7 @@ const command = (task: Task, index: number): string => {
 };
 
 describe("bleed tasks", () => {
-  test("defines bleed:vsix, bleed:cli, bleed:mcp, and bleed:all, and drops package:vsix:unpacked", () => {
+  test("defines bleed:vsix, bleed:cli and bleed:all, and drops package:vsix:unpacked and bleed:mcp", () => {
     expect(tasks["package:vsix:unpacked"]).toBeUndefined();
     expect(tasks["package:vsix"]).toBeDefined();
     expect(tasks["package:cli"]).toBeDefined();
@@ -32,9 +32,7 @@ describe("bleed tasks", () => {
     expect(command(tasks["bleed:cli"] as Task, 0)).toBe("mkdir -p {{.ROOT_DIR}}/../vw-bleeds");
     expect(command(tasks["bleed:cli"] as Task, 1)).toBe("build");
     expect(command(tasks["bleed:cli"] as Task, 2)).toBe("bun scripts/bleed.ts cli");
-    expect(command(tasks["bleed:mcp"] as Task, 0)).toBe("mkdir -p {{.ROOT_DIR}}/../vw-bleeds");
-    expect(command(tasks["bleed:mcp"] as Task, 1)).toBe("build");
-    expect(command(tasks["bleed:mcp"] as Task, 2)).toBe("bun scripts/bleed.ts mcp");
-    expect(tasks["bleed:all"]?.cmds).toEqual([{ task: "bleed:vsix" }, { task: "bleed:cli" }, { task: "bleed:mcp" }]);
+    expect(tasks["bleed:mcp"]).toBeUndefined();
+    expect(tasks["bleed:all"]?.cmds).toEqual([{ task: "bleed:vsix" }, { task: "bleed:cli" }]);
   });
 });

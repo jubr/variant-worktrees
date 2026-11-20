@@ -70,6 +70,7 @@
         "yaml": "^2.9.1",
       },
       "devDependencies": {
+        "variant-mcp": "workspace:*",
         "variant-server": "workspace:*",
         "variant-ui": "workspace:*",
       },
@@ -100,9 +101,6 @@
     "packages/variant-mcp": {
       "name": "variant-mcp",
       "version": "0.0.12",
-      "bin": {
-        "variant-mcp": "./dist/mcp.js",
-      },
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
         "variant-api": "workspace:*",

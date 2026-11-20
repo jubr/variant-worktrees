@@ -117,6 +117,17 @@ export const withGlobalFlags = <Node>(nodes: Node[]): Node[] => {
   });
 };
 
+const ESCAPE = String.fromCharCode(27);
+
+/** Trailing blanks of a line, and the color resets after them, which stay. */
+const TRAILING_BLANKS = new RegExp(`[ \\t]+((?:${ESCAPE}\\[[0-9;]*m)*)$`, "gm");
+
+/**
+ * The help without the padding cleye gives every table row up to the width of the terminal. A row that fills the
+ * whole width makes a terminal that wraps at the last column (GNU screen) print an empty line after it.
+ */
+export const withoutTrailingBlanks = (text: string): string => text.replace(TRAILING_BLANKS, "$1");
+
 /** The `render` option of cleye's `help`, for the top level and for every command. */
 export const renderHelp = <Node>(nodes: Node[], renderers: { render: (nodes: Node[]) => string }): string =>
-  renderers.render(withGlobalFlags(nodes));
+  withoutTrailingBlanks(renderers.render(withGlobalFlags(nodes)));

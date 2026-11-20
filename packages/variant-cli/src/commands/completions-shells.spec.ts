@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { generateCompletions, type Shell } from "./completions.js";
 
-const support = `${import.meta.dir}/test/completions`;
+const support = `${import.meta.dir}/../test/completions`;
 const slow = 120_000;
 
 type Transcript = Record<string, string>;

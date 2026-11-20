@@ -55,19 +55,17 @@ describe("bundled MCP server", () => {
     }
   }, 60_000);
 
-  it("keeps the standalone bin and its --config-only parser", () => {
+  it("starts the server of the variant-mcp package, which has no bin and a --config-only parser", () => {
     const bundle = new URL(import.meta.resolve("variant-mcp/bundle"));
-    const pkg = JSON.parse(readFileSync(new URL("../package.json", bundle), "utf8")) as {
-      bin: Record<string, string>;
-    };
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", bundle), "utf8")) as { bin?: unknown };
     const source = readFileSync(bundle, "utf8");
     const options = source.slice(source.indexOf("options:"), source.indexOf("strict:"));
     const entry = readFileSync(new URL("./mcp-entry.ts", import.meta.url), "utf8");
 
-    expect(pkg.bin).toEqual({ "variant-mcp": "./dist/mcp.js" });
+    expect(pkg.bin).toBeUndefined();
     expect(options).toContain("config:");
     expect(options).not.toContain("cwd");
-    expect(entry).toContain('import("variant-mcp/bundle")');
+    expect(entry).toContain('from "variant-mcp/bundle"');
     expect(entry).not.toContain("variant-mcp/src/");
   });
 });

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const cliPath = `${import.meta.dir}/../src/cli.ts`;
+const cliPath = `${import.meta.dir}/../cli.ts`;
 
 interface CliResult {
   stdout: string;
@@ -16,7 +16,7 @@ const runCli = async (
   options: { cwd?: string; env?: Record<string, string> } = {},
 ): Promise<CliResult> => {
   const proc = Bun.spawn(["bun", "run", cliPath, ...args], {
-    cwd: options.cwd ?? `${import.meta.dir}/..`,
+    cwd: options.cwd ?? `${import.meta.dir}/../..`,
     env: { ...process.env, VARIANT_WORKTREE: "0", ...options.env },
     stdout: "pipe",
     stderr: "pipe",

@@ -2,7 +2,7 @@
 
 `variant` is the command line of Variant Worktrees, provided by the `variant-cli` package (see [Installation](./installation)).
 Each command is explained in [Commands](./commands).
-This page holds what belongs to the command line itself: how it takes a slug, how it prints, and its shell completions.
+This page holds what belongs to the command line itself: how it takes a slug, how it prints, its shell completions, and `variant mcp`.
 
 ## Slug
 
@@ -43,6 +43,26 @@ variant completions fish > ~/.config/fish/completions/variant.fish
 The scripts call it while you complete a slug, in the background in `zsh` and in `bash` 4.1 or newer.
 The result is kept in shell variables for 30 seconds, never in a file.
 It reads local files only, uses the autodetected settings when there is no `variants.yaml`, and prints nothing when the configuration is invalid.
+
+## MCP server
+
+Start the MCP server on standard input and output, for an MCP client such as Cursor or Claude.
+It serves one [tool](/vscode/mcp) per lifecycle command, with the results as JSON text, and it is what the `mcp.json` of a client runs.
+It is part of `variant`: the `variant-cli` package and every compiled executable carry it, and there is no `variant-mcp` executable to install next to them.
+
+```bash
+variant mcp
+variant mcp --config /workspace/variants.yaml
+variant -C /workspace mcp
+```
+
+- `--config <path>` loads that `variants.yaml`.
+  Omitted, the configuration of the working directory is loaded.
+- `-C <path>` changes the working directory first, as it does for every command.
+- Standard output carries only the MCP protocol, so `mcp` prints no banner, warning or log line there.
+  The server's logs go to the client as MCP logging notifications, and to the editor.
+  `--log-level`, `--json` and `--yaml` are accepted and change nothing.
+- An unknown option fails before the server starts, with the error on standard error.
 
 ## Global flags
 
