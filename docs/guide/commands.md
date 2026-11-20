@@ -1,9 +1,9 @@
 # Commands
 
-[Basic commands](#basic-commands) set up a project and show what is known.  
-[Lifecycle commands](#lifecycle-commands) move a variant through the [flow of steps](./overview#flow-of-steps).  
-The [MCP server](/vscode/mcp) and the [library](/development/library) offer the same commands.  
-The CLI-only commands (`ui`, `mcp`, `completions`)  are on the [CLI](./cli) page.
+[Basic commands](#basic-commands) set up a project and show what is known.
+[Lifecycle commands](#lifecycle-commands) move a variant through the [flow of steps](./overview#flow-of-steps).
+The [MCP server](/vscode/mcp) and the [library](/development/library) offer the same commands.
+The CLI-only commands (`ui`, `mcp`, `completions`) are on the [CLI](./cli) page.
 
 ## Basic commands
 
@@ -12,15 +12,15 @@ The CLI-only commands (`ui`, `mcp`, `completions`)  are on the [CLI](./cli) page
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
 - `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
-Other accepted values of a setting follow `#` on the same line.
-Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
-For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
-[`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
+  Other accepted values of a setting follow `#` on the same line.
+  Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
+  For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
+  [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
 - `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
 - `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
-Nothing is installed.
-A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
-A failing Mise step stops no other step.
+  Nothing is installed.
+  A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
+  A failing Mise step stops no other step.
 
 ```bash
 variant init
@@ -51,13 +51,13 @@ The file path is relative to the working directory and uses `/`: `./variants.yam
 
 - `# from <path>` — the loaded file set the value
 - `# from env NAME` — that variable supplied the value, including a `${NAME}` in the file when `NAME` is set.
-A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
+  A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
 - `# autodetect <reason>` — the value was discovered.
-`<reason>` is one word: `watch`, `config`, or `connection`
+  `<reason>` is one word: `watch`, `config`, or `connection`
 - `# autodetect from <source>` — the discovery names a source the key does not.
-`abbr` quotes the main directory's base name.
-`main` names `AGENTS.md` or ``git rev-parse --git-common-dir``.
-`root` names `AGENTS.md` only when it is not the same path as `main`
+  `abbr` quotes the main directory's base name.
+  `main` names `AGENTS.md` or ``git rev-parse --git-common-dir``.
+  `root` names `AGENTS.md` only when it is not the same path as `main`
 - `# default` — a built-in default filled a key the file omits
 
 A comment that only repeats its key is left off, including `runtime` and a `main` or `root` that is only the config directory.

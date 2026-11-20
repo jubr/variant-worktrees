@@ -36,11 +36,11 @@ variant -C /workspace mcp
 ```
 
 - `--config <path>` loads that `variants.yaml`.
-Omitted, the configuration of the working directory is loaded.
+  Omitted, the configuration of the working directory is loaded.
 - `-C <path>` changes the working directory first, as it does for every command.
 - Standard output carries only the MCP protocol, so `mcp` prints no banner, warning or log line there.
-The server's logs go to the client as MCP logging notifications, and to the editor.
-The other [global flags](#global-flags) (`-s`, `-v`, `--log-level`, `--json`, `--yaml`) are accepted and change nothing.
+  The server's logs go to the client as MCP logging notifications, and to the editor.
+  The other [global flags](#global-flags) (`-s`, `-v`, `--log-level`, `--json`, `--yaml`) are accepted and change nothing.
 - An unknown option fails before the server starts, with the error on standard error.
 
 ### `variant ui`
@@ -81,8 +81,8 @@ Security model:
 
 - Loopback only, no remote access.
 - A random 128-bit token is required.
-The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie.
-The token lives in an owner-only file next to the [socket](/vscode/socket-ipc) and is removed when the server ends.
+  The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie.
+  The token lives in an owner-only file next to the [socket](/vscode/socket-ipc) and is removed when the server ends.
 - The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
 - POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
 - `implode` needs `confirm: true` in the request body, and `main` is never imploded.
@@ -135,8 +135,8 @@ variant -s preview-one watch --detach
 variant list -vv --json
 ```
 
-The CLI also sends each log event to the editor on the project Unix socket, if found.  
-On the Variant Worktrees channel a CLI line ends with  `@cli` and an MCP line ends with  `@mcp`.  
+The CLI also sends each log event to the editor on the project Unix socket, if found.
+On the Variant Worktrees channel a CLI line ends with `@cli` and an MCP line ends with `@mcp`.
 All events for a variant whose project directory is under `/tmp` is emitted at `trace`.
 
 Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.
