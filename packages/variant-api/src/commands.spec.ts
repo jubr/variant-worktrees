@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { type CommandDefinition, commands, LEVELS, LIFECYCLE_COMMANDS } from "./commands.js";
+import { COMMAND_SECTIONS, type CommandDefinition, commands, LEVELS, LIFECYCLE_COMMANDS } from "./commands.js";
 import type { VariantClient } from "./types.js";
 
 const definition = (name: string): CommandDefinition => {
@@ -38,6 +38,20 @@ describe("socket command names", () => {
       "implode",
     ]);
     expect([...LEVELS]).toEqual(["trace", "debug", "info", "warn", "error"]);
+  });
+});
+
+describe("command sections", () => {
+  it("names the sections the documentation lists commands under", () => {
+    expect([...COMMAND_SECTIONS]).toEqual(["basic", "lifecycle", "cli"]);
+  });
+
+  it("puts init, config, list and status in basic and the flow of steps in lifecycle", () => {
+    const names = (section: string) => commands.filter((command) => command.section === section).map((c) => c.name);
+
+    expect(names("basic")).toEqual(["init", "config", "list", "status"]);
+    expect(names("lifecycle")).toEqual(["create", "provision", "up", "down", "deprovision", "watch", "implode"]);
+    expect(commands.every((command) => command.section === "basic" || command.section === "lifecycle")).toBe(true);
   });
 });
 
