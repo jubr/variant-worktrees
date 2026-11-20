@@ -4,19 +4,23 @@
 - [ ] 1.2 Trim trailing spaces and tabs per line in `renderHelp` (`packages/variant-cli/src/help.ts`), keeping a trailing ANSI reset; verify 1.1 and the existing global-flag spacing tests pass
 - [ ] 1.3 Verify by hand in GNU screen (80 columns): `variant watch --help` shows no empty line between the `Global flags` rows; paste the result in the PR
 
+## 0. Command layout
+
+- [x] 0.1 Move the code of each command into `packages/variant-cli/src/commands/` (`ui`, `completions` with their specs, `args`, `flags`, `lifecycle`, `mcp`, `index`); verify `bun run test` of `variant-cli` is green and `test:slow` names `src/commands/completions-shells.spec.ts`
+
 ## 2. MCP server as a library
 
-- [ ] 2.1 Add failing tests in `packages/variant-mcp/src/mcp.spec.ts` that call the exported start function with `args`, `version` and `cwd` (`--config` honored, unknown option rejected) and import it without side effects
-- [ ] 2.2 Turn `packages/variant-mcp/src/mcp.ts` into `runMcpServer`, remove the top-level run, the `--internal-watch-relay` branch and the `package.json` version read; verify the existing MCP tests pass against the function
-- [ ] 2.3 Remove `bin` and the `dist/mcp.js` shebang use from `packages/variant-mcp/package.json`, point `mcp:inspect` at `variant mcp`, and verify a spec reads the manifest and finds no `bin` (`variant-vscode` `mcp-entry.spec.ts` updated from `{ "variant-mcp": ... }`)
-- [ ] 2.4 Update `packages/variant-vscode/src/mcp-entry.ts` to handle `--internal-watch-relay`, then call `runMcpServer` with the extension version; verify `mcp-entry.spec.ts` (tools list has `variant_list`, no `variant_destroy`, `--cwd` works) and `commands.spec.ts` in `variant-api` pass
+- [x] 2.1 Add failing tests in `packages/variant-mcp/src/mcp.spec.ts` that call the exported start function with `args`, `version` and `cwd` (`--config` honored, unknown option rejected) and import it without side effects
+- [x] 2.2 Turn `packages/variant-mcp/src/mcp.ts` into `src/server.ts` exporting `runMcpServer` (`src/mcp.ts` stays a tiny script for tests and `bun run mcp`), remove the top-level run, the `--internal-watch-relay` branch and the `package.json` version read; verify the existing MCP tests pass against the function
+- [x] 2.3 Remove `bin` and the `dist/mcp.js` shebang use from `packages/variant-mcp/package.json`, point `mcp:inspect` at `variant mcp`, and verify a spec reads the manifest and finds no `bin` (`variant-vscode` `mcp-entry.spec.ts` updated from `{ "variant-mcp": ... }`)
+- [x] 2.4 Update `packages/variant-vscode/src/mcp-entry.ts` to handle `--internal-watch-relay`, then call `runMcpServer` with the extension version; verify `mcp-entry.spec.ts` (tools list has `variant_list`, no `variant_destroy`, `--cwd` works) and `commands.spec.ts` in `variant-api` pass
 
 ## 3. variant mcp command
 
-- [ ] 3.1 Add failing CLI tests (`packages/variant-cli/src/mcp.spec.ts`): subprocess `variant mcp` answers `initialize` and `tools/list` with `variant_list`, no `variant_destroy`; every stdout line is JSON-RPC; `--config` and `-C` pick the configuration; `--nope` exits non-zero with nothing on stdout; `--json` does not change the server; no `[debug] cli end` or `ipc` line on stderr
-- [ ] 3.2 Add the `mcp` command (cleye, flag `--config`) in `packages/variant-cli/src/mcp.ts`, add it to `CLI_ONLY_COMMANDS`, skip the CLI log sink, lifecycle info line and `cli end` for it, and load `variant-mcp` lazily; verify 3.1 passes
-- [ ] 3.3 Add `variant-mcp` as a `devDependency` of `variant-cli`, keep it out of `external` in `scripts/build-cli.ts`, and verify `task build` produces a `dist/cli.js` whose `node dist/cli.js mcp` lists the tools with no `node_modules` of the SDK next to it
-- [ ] 3.4 Add `mcp` to help command listing and to the completion scripts; verify `completions*.spec.ts` and the `help` tests name `mcp`, and `variant mcp --help` lists `--config`
+- [x] 3.1 Add failing CLI tests (`packages/variant-cli/src/commands/mcp.spec.ts`): subprocess `variant mcp` answers `initialize` and `tools/list` with `variant_list`, no `variant_destroy`; every stdout line is JSON-RPC; `--config` and `-C` pick the configuration; `--nope` exits non-zero with nothing on stdout; `--json` does not change the server; no `[debug] cli end` or `ipc` line on stderr
+- [x] 3.2 Add the `mcp` command (cleye, flag `--config`) in `packages/variant-cli/src/commands/mcp.ts`, add it to `CLI_ONLY_COMMANDS`, skip the CLI log sink, lifecycle info line and `cli end` for it, and load `variant-mcp` lazily; verify 3.1 passes
+- [x] 3.3 Add `variant-mcp` as a `devDependency` of `variant-cli`, keep it out of `external` in `scripts/build-cli.ts`, and verify `task build` produces a `dist/cli.js` whose `node dist/cli.js mcp` lists the tools with no `node_modules` of the SDK next to it
+- [x] 3.4 Add `mcp` to help command listing and to the completion scripts; verify `completions*.spec.ts` and the `help` tests name `mcp`, and `variant mcp --help` lists `--config`
 - [ ] 3.5 Time `variant --version` and `variant list --help` before and after; verify no measurable startup regression (the lazy import holds)
 
 ## 4. Remove the separate executable
