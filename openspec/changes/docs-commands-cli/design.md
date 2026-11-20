@@ -18,7 +18,17 @@
 - **Option separator.** A raw `<hr class="option-sep">` before every option heading (`###`) of the Variant options and Database options sections except the first below its `##`. CSS in `custom.css` gives the rule `margin: 12px 0` and the heading after it `margin-top: 12px`, against VitePress's 24px rule margin and 32px heading margin. Markdown `---` would also work, but a class lets the CSS target only options.
 - **Task order inside the change.** Code tags and their test first (TDD), then the failing docs tests, then the docs.
 
+- **Global options are taken out before cleye runs.** Like `-C`, `--log-level` and `--json`, `-s`/`--slug` and `-v+` are removed from the arguments in `cli.ts` wherever they stand, so strict flag parsing never sees them and commands without a slug ignore them with no code of their own. The slug reaches `collectArgs` as a parameter instead of a flag or positional. The per-command flag lists leave out `slug`; the shell scripts keep it, since they complete its value.
+- **A stray positional fails.** With the positional slug gone, `variant implode preview-one` would otherwise ignore `preview-one` and act on the slug of the current branch. Lifecycle commands therefore fail on any positional argument and say to use `-s`.
+- **`-v` is the log level.** `-v` leaves `--verbose` (no short form now) so `-v`, `-vv`, `-vvv` can map to `info`, `debug`, `trace`. A longer run is `trace`. `--log-level` wins.
+- **`warning` is a hidden alias.** It stays in the parser; the help text, the bad-value message and the docs list the five levels only.
+- **`--help` shows the version first.** The top-level help (also `variant` alone) writes the same text `--version` prints, a blank line, then the help; the help's own `variant v<version>` line is dropped. Command help is unchanged.
+- **Global flags close the CLI page.** *Global flags* moves below *CLI-only commands* and absorbs the Slug section. The heading keeps its name, as in the help.
+- **Separator spacing.** `hr.option-sep` margin 16px (was 12px), following heading 20px (was 12px); the VitePress defaults are 24px and 32px.
+
 ## Risks / Trade-offs
 
 - [External links to `commands#create` break] → Docs-only site; accepted and listed as BREAKING in the changelog.
 - [Raw HTML in Markdown is easy to forget on new options] → The docs test fails when an option heading lacks the rule.
+- [`-v` changes meaning] → Listed as BREAKING in the changelog; `--verbose` keeps the old behavior.
+- [A stray positional fails where it was ignored] → Intended: it avoids acting on the wrong variant.
