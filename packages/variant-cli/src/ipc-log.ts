@@ -1,12 +1,22 @@
 import { LOG_LEVELS, type LogEvent, LogLevel } from "variant-api";
 
-/** A global flag, accepted before or after the command name. `warning` selects `warn`. */
+/** A global flag, accepted before or after the command name. */
 export const LOG_LEVEL_FLAG = {
   name: "log-level",
-  description: "Minimum log level written to stderr: trace, debug, info, warn, error (warning selects warn)",
+  description: "Minimum log level written to stderr: trace, debug, info, warn, error",
 } as const;
 
-const NAMES = [...LOG_LEVELS, "warning"] as const;
+/** `-v`, `-vv` and `-vvv`: the log level of a run of `v`, so `-v` is `info` and `-vvv` is `trace`. */
+export const VERBOSITY_FLAG = {
+  name: "v",
+  description: "Log at info; -vv at debug, -vvv at trace",
+} as const;
+
+const VERBOSITY_LEVELS = [LogLevel.info, LogLevel.debug, LogLevel.trace] as const;
+
+/** The log level of a run of `v` such as `-vv`; a longer run than the levels there are is `trace`. */
+const verbosityLevel = (arg: string): LogLevel | undefined =>
+  /^-v+$/.test(arg) ? VERBOSITY_LEVELS[Math.min(arg.length - 1, VERBOSITY_LEVELS.length) - 1] : undefined;
 
 const RANK: Record<LogLevel, number> = {
   [LogLevel.trace]: 0,
@@ -40,14 +50,21 @@ const normalize = (value: string | undefined): LogLevel | undefined => {
 };
 
 /**
- * Takes `--log-level` out of the arguments, wherever it stands.
- * An unknown value fails before the command runs.
+ * Takes `--log-level`, `-v`, `-vv` and `-vvv` out of the arguments, wherever they stand. A given `--log-level` wins
+ * over the `-v` flags; otherwise the level is the most verbose of them, and `warn` without any.
+ * An unknown value fails before the command runs. `warning` is accepted as `warn` but never named.
  */
 export const takeLogLevel = (argv: string[]): { args: string[]; level: LogLevel } => {
   const args: string[] = [];
-  let level: LogLevel = LogLevel.warn;
+  let level: LogLevel | undefined;
+  let verbosity: LogLevel | undefined;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? "";
+    const short = verbosityLevel(arg);
+    if (short !== undefined) {
+      verbosity = verbosity === undefined || RANK[short] < RANK[verbosity] ? short : verbosity;
+      continue;
+    }
     const inline = arg.startsWith("--log-level=") ? arg.slice("--log-level=".length) : undefined;
     if (inline === undefined && arg !== "--log-level") {
       args.push(arg);
@@ -59,11 +76,11 @@ export const takeLogLevel = (argv: string[]): { args: string[]; level: LogLevel 
     }
     const parsed = normalize(value);
     if (parsed === undefined) {
-      throw new Error(`--log-level must be one of ${NAMES.join(", ")}.`);
+      throw new Error(`--log-level must be one of ${LOG_LEVELS.join(", ")}.`);
     }
     level = parsed;
   }
-  return { args, level };
+  return { args, level: level ?? verbosity ?? LogLevel.warn };
 };
 
 /** One stderr line. Color follows a terminal and an unset `NO_COLOR`. The slug is not printed. */

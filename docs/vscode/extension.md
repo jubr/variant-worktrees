@@ -20,7 +20,7 @@ A one-time notification points at that section too.
 
 **Initialize** runs `variant init` inside the extension host, opens the written `variants.yaml` and confirms each step.
 A step that fails keeps the dialog open with its message.
-The steps are those of [`variant init`](/guide/commands#init).
+The steps are those of [`variant init`](/guide/commands#variant-init).
 
 After a local commit in a workspace without `variants.yaml`, where a database and an application (Vite, NestJS or a package with a `watch` script) are detected, a notification such as `Detected postgres+vite, want to bootstrap Variant in this repo?` offers **Bootstrap Variant** once per workspace.
 
@@ -79,10 +79,10 @@ Open the palette with `Cmd+Shift+P` (`Ctrl+Shift+P`).
 The commands marked *needs a folder* appear only when a workspace folder is open.
 The row actions of the Variants view (play, stop, open url, show output, implode) act on one variant and are not in the palette.
 
-- **Variant: Initialize in this Repo** (needs a folder): Shows the [onboarding](#onboarding) dialog that runs [`variant init`](/guide/commands#init).
+- **Variant: Initialize in this Repo** (needs a folder): Shows the [onboarding](#onboarding) dialog that runs [`variant init`](/guide/commands#variant-init).
 - **Variant: Open Variants Panel** (needs a folder): Shows the list of variants in an editor panel, in the same order as the view.
 - **Variant: Open Variants in Browser** (needs a folder): Opens the web page of `variant ui` in the browser, and names `variant ui --detach` when no server runs.
 - **Variant: Rename active chat**: Renames the active Cursor chat from its first prompt.
 - **Variant: Rename Existing Chats**: Renames the chats of the last seven days again, ignoring which ones were examined before.
-- **Create variant** (needs a folder): Asks for a slug in an input box, then runs [`create`](/guide/commands#create) for it and refreshes the view.
+- **Create variant** (needs a folder): Asks for a slug in an input box, then runs [`variant create`](/guide/commands#variant-create) for it and refreshes the view.
   The schema is not created; that is `provision`.

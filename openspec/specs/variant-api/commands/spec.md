@@ -43,7 +43,7 @@ On a build from the `main` branch, and when the commit id cannot be determined, 
 
 On a build from the `main` branch the version token SHALL be the package version. On a build from any other branch the version token SHALL be the package version, a hyphen, and `{slug}-{n}-{hash4}`. `slug` SHALL be that branch with a variant branch prefix removed (`feat/`, `fix/`, `feature/`) and with every other character that is not a letter or digit turned into a single hyphen. `n` SHALL be the number of commits after the nearest tag reachable from that commit, or the number of commits in the history when no tag is reachable. `{hash4}` SHALL be the first four characters of the full lowercase hexadecimal commit id and SHALL NOT be lengthened to stay unique. A branch that is not `main` and has `n` of zero SHALL still use that suffix. When that commit id cannot be determined, the version token SHALL be the package version with no suffix, and the details line SHALL still contain the platform and the URL.
 
-The first line of `variant --help` SHALL be `variant v` followed by the package version and SHALL NOT contain the banner, the platform, the date, the hash, or the URL. This SHALL hold when the CLI runs from source, from the built `dist/`, and from the compiled single-file executable.
+`variant --help` and `variant` without arguments SHALL start with exactly the text `variant --version` prints (version token and parenthetical, then, on a terminal, the drawing and a blank line, then the details line), followed by one blank line and then the help. The help SHALL NOT repeat the version in a `variant v<version>` line. `variant <command> --help` SHALL NOT print the version text; its first line SHALL be `variant <command> v` followed by the package version. This SHALL hold when the CLI runs from source, from the built `dist/`, and from the compiled single-file executable.
 
 #### Scenario: Version flag
 
@@ -89,9 +89,15 @@ The first line of `variant --help` SHALL be `variant v` followed by the package 
 
 #### Scenario: Help header
 
-- **WHEN** a user runs `variant --help`
-- **THEN** the first line is `variant v` followed by the `version` in the `variant-cli` `package.json`
-- **AND** that line does not contain the date, the hash, or the repository URL
+- **WHEN** a user runs `variant --help` with standard output not on a terminal
+- **THEN** the first line is the `version` in the `variant-cli` `package.json` and its parenthetical, exactly as `variant --version` prints it
+- **AND** the second line is the runtime platform, a comma, and the repository URL
+- **AND** a blank line and the help follow, and no line of the help is `variant v` followed by the version
+
+#### Scenario: Command help has no version text
+
+- **WHEN** a user runs `variant list --help`
+- **THEN** the output does not contain the repository URL
 
 ### Requirement: MCP tool generation
 
@@ -246,20 +252,6 @@ The system SHALL print `variant list` as a text table with the columns `slug`, `
 - **WHEN** a user runs `variant list --json` without `verbose`
 - **THEN** the records have no `runtime` object
 
-### Requirement: Short verbose flag
-
-The CLI SHALL accept `-v` as the short form of `--verbose` on every command that has `--verbose`. `--version` SHALL remain the only way to print the version.
-
-#### Scenario: Short flag
-
-- **WHEN** a user runs `variant list -v`
-- **THEN** `execute()` receives `{ verbose: true }`
-
-#### Scenario: Version unaffected
-
-- **WHEN** a user runs `variant --version`
-- **THEN** the output is the version and not a verbose listing
-
 ### Requirement: Start-branch fast-forward flag
 
 The commands `create`, `provision`, `up`, and `watch` SHALL accept an optional boolean `pullFf`. No other command SHALL take `pullFf`. The CLI, the MCP server, and the webview forms SHALL derive the flag, tool input, and field from that definition. The CLI flag SHALL be `--pull-ff` and SHALL have no short flag. When the flag is omitted, `execute()` SHALL NOT receive `pullFf`.
@@ -392,3 +384,18 @@ The commands `create`, `provision`, and `watch` SHALL accept an optional string 
 - **WHEN** a user runs `variant create --slug demo` in a worktree that contains `mise.toml` and `install` writes a marker when it exits
 - **THEN** the process exits 0 before that marker exists
 - **AND** the marker is written afterwards
+
+### Requirement: Commands belong to a documentation section
+
+Every command SHALL belong to one section, `basic`, `lifecycle` or `cli`, which names where the documentation lists it. Every `CommandDefinition` SHALL carry `section` with the value `basic` or `lifecycle`: `init`, `config`, `list` and `status` are `basic`; `create`, `provision`, `up`, `watch`, `down`, `deprovision` and `implode` are `lifecycle`. The commands only the CLI offers, `ui`, `mcp` and `completions`, SHALL be in section `cli`. The section SHALL NOT change what a command does or how it is routed.
+
+#### Scenario: Every registered command has a section
+
+- **WHEN** the command registry is read
+- **THEN** each command has `section` equal to `basic` or `lifecycle`
+- **AND** the `basic` commands are `init`, `config`, `list`, `status` and the `lifecycle` commands are `create`, `provision`, `up`, `watch`, `down`, `deprovision`, `implode`
+
+#### Scenario: CLI-only commands are in section cli
+
+- **WHEN** the CLI-only commands are listed with their sections
+- **THEN** `ui`, `mcp` and `completions` are each in section `cli`

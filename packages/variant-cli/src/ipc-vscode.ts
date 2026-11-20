@@ -2,24 +2,6 @@ import { type LogEvent, type LogLevel, LogOrigin, loadConfig, logD, logW, resolv
 import { connect, type IpcClient, socketPath } from "variant-ipc";
 import { showsOnStderr, writeStderrLog } from "./ipc-log.js";
 
-export const explicitSlug = (argv: string[]): string | undefined => {
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === undefined) {
-      continue;
-    }
-    if (arg === "-s" || arg === "--slug") {
-      const value = argv[index + 1];
-      return value !== undefined && !value.startsWith("-") ? value : undefined;
-    }
-    if (arg.startsWith("--slug=")) {
-      const value = arg.slice("--slug=".length);
-      return value === "" ? undefined : value;
-    }
-  }
-  return undefined;
-};
-
 const WRITE_MS = 1000;
 
 let vscodeClient: IpcClient | undefined;

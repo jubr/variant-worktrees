@@ -23,6 +23,7 @@ export default defineConfig({
   description:
     "Manages git worktrees, database schemas, watches, environment variables, and implodes. CLI, MCP server, VS Code extension, and library.",
   base: "./",
+  vite: { clearScreen: false },
   transformHead({ pageData }) {
     return faviconHeads(pageData.relativePath);
   },

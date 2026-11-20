@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { platformToken, VERSION_BANNER, variantString } from "variant-api";
-import { runCli, runCommand } from "./test/cli.js";
+import { runCli, runCommand, withVariants } from "./test/cli.js";
 
 /** Package version plus `variantString` for this checkout. */
 const versionToken = (version: string): string => {
@@ -23,6 +23,9 @@ const versionToken = (version: string): string => {
   return variant ? `${version}-${variant}` : version;
 };
 
+/** The version text of two runs differs by the clock when the build is not of `main`, so compare it without the time. */
+const sameClock = (text: string): string => text.replace(/\(\d{4}-\d{2}-\d{2}[^)]*\)/, "(date)");
+
 const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
 
 /** Empty variant (`main`, or no commit) is a UTC date. Any other variant is a UTC date and time. */
@@ -41,10 +44,10 @@ const expectVersionOutput = (stdout: string, token: string, version: string): vo
 
 describe("variant CLI", () => {
   it("logs a lifecycle command and the arguments typed after it at info", async () => {
-    const result = await runCli(["list", "-v", "--log-level=info"]);
+    const result = await runCli(["list", "--verbose", "--log-level=info"]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stderr).toContain("[info] list -v\n");
+    expect(result.stderr).toContain("[info] list --verbose\n");
   });
 
   it("does not log config", async () => {
@@ -88,21 +91,30 @@ describe("variant CLI", () => {
     const noArgs = await runCli([]);
     const explicitHelp = await runCli(["--help"]);
     expect(noArgs.exitCode).toBe(0);
-    expect(noArgs.stdout).toBe(explicitHelp.stdout);
+    expect(sameClock(noArgs.stdout)).toBe(sameClock(explicitHelp.stdout));
     expect(noArgs.stderr).toBe(explicitHelp.stderr);
   });
 
-  it("reports the package version in help and --version", async () => {
+  it("starts the help with the text of --version", async () => {
     const { version } = (await Bun.file(`${import.meta.dir}/../package.json`).json()) as { version: string };
-    const help = await runCli(["--help"]);
     const flag = await runCli(["--version"]);
     const token = versionToken(version);
-
-    expect(help.stdout.trimStart().startsWith(`variant v${version}`)).toBe(true);
-    expect(help.stdout).not.toContain(VERSION_BANNER);
-    expect(help.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
-    expect(flag.exitCode).toBe(0);
     expectVersionOutput(flag.stdout, token, version);
+
+    for (const args of [["--help"], ["-h"], []]) {
+      const help = await runCli(args);
+      expect(help.exitCode).toBe(0);
+      expect(sameClock(help.stdout).startsWith(`${sameClock(flag.stdout)}\n`)).toBe(true);
+      expect(help.stdout.slice(flag.stdout.length + 1)).toContain("USAGE:");
+      expect(help.stdout).not.toMatch(/^variant v\d/m);
+    }
+  });
+
+  it("leaves the help of a command without the version text", async () => {
+    const help = await runCli(["list", "--help"]);
+
+    expect(help.stdout).toMatch(/^variant list v\d/);
+    expect(help.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
   });
 
   it("has no destroy command; implode replaces it", async () => {
@@ -188,7 +200,7 @@ describe("variant CLI", () => {
 
   it("rejects branch-rm tokens other than yes and no", async () => {
     for (const value of ["true", "false", "maybe"]) {
-      const result = await runCli(["implode", `--branch-rm=${value}`, "demo"]);
+      const result = await runCli(["implode", `--branch-rm=${value}`, "-s", "demo"]);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("--branch-rm");
       expect(result.stderr).toContain("yes, no");
@@ -199,22 +211,68 @@ describe("variant CLI", () => {
     expect(bare.stderr).toContain("yes, no");
   });
 
-  it("takes -v as the short form of --verbose on every command", async () => {
+  it("takes --verbose, and not -v, on every command that has it", async () => {
     for (const name of ["config", "create", "list", "provision", "up", "down", "deprovision", "watch", "implode"]) {
-      expect((await runCli([name, "--help"])).stdout).toContain("-v, --verbose");
+      const help = (await runCli([name, "--help"])).stdout;
+      expect(help).toContain("--verbose");
+      expect(help).not.toContain("-v, --verbose");
     }
-    expect((await runCli(["config", "-v"])).exitCode).toBe(0);
+    expect((await runCli(["config", "--verbose"])).exitCode).toBe(0);
   });
 
   it("keeps --version as the only version flag", async () => {
     const { version } = (await Bun.file(`${import.meta.dir}/../package.json`).json()) as { version: string };
     const token = versionToken(version);
-    const verbose = await runCli(["-v"]);
+    const verbose = await runCli(["-v", "config"]);
     const flag = await runCli(["--version"]);
 
     expect(verbose.stdout).not.toContain(token);
     expect(verbose.stdout).not.toContain(VERSION_BANNER);
     expectVersionOutput(flag.stdout, token, version);
+  });
+
+  describe("global slug option", () => {
+    it("takes -s after and before the command name", () =>
+      withVariants(async (environment) => {
+        const after = await runCli(["status", "-s", "alpha", "--json"], environment);
+        const before = await runCli(["-s", "alpha", "status", "--json"], environment);
+        const long = await runCli(["--slug=alpha", "status", "--json"], environment);
+
+        expect(JSON.parse(after.stdout)).toMatchObject({ slug: "alpha" });
+        expect(before.stdout).toBe(after.stdout);
+        expect(long.stdout).toBe(after.stdout);
+      }));
+
+    it("is ignored without a message by commands that take no slug", () =>
+      withVariants(async (environment) => {
+        const plain = await runCli(["list", "--json"], environment);
+        const list = await runCli(["list", "-s", "alpha", "--json"], environment);
+        const config = await runCli(["-s", "alpha", "config", "--json"], environment);
+
+        expect(list.exitCode).toBe(0);
+        expect(list.stderr).toBe("");
+        expect(list.stdout).toBe(plain.stdout);
+        expect(config.exitCode).toBe(0);
+        expect(config.stderr).toBe("");
+      }));
+
+    it("fails when a slug is given as a positional argument", () =>
+      withVariants(async (environment) => {
+        for (const name of ["status", "implode", "create"]) {
+          const result = await runCli([name, "alpha"], environment);
+          expect(result.exitCode).toBe(1);
+          expect(result.stderr).toContain("alpha");
+          expect(result.stderr).toContain("-s");
+          expect(result.stdout).toBe("");
+        }
+      }));
+
+    it("fails when -s has no value", () =>
+      withVariants(async (environment) => {
+        const result = await runCli(["status", "-s"], environment);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("-s requires a slug");
+      }));
   });
 
   describe("warnings for extra properties", () => {

@@ -113,7 +113,7 @@ describe("output formats", () => {
   describe("status", () => {
     it("prints the facts and runtime meta information of one variant as text", () =>
       withVariants(async (environment, directory) => {
-        const result = await runCli(["status", "alpha"], environment);
+        const result = await runCli(["status", "-s", "alpha"], environment);
 
         expect(result.exitCode).toBe(0);
         expect(result.stdout.split("\n")[0]).toBe("alpha");
@@ -125,24 +125,25 @@ describe("output formats", () => {
 
     it("prints the same record as JSON and YAML", () =>
       withVariants(async (environment) => {
-        const json = await runCli(["status", "alpha", "--json"], environment);
-        const yaml = await runCli(["status", "alpha", "--yaml"], environment);
+        const json = await runCli(["status", "-s", "alpha", "--json"], environment);
+        const yaml = await runCli(["status", "-s", "alpha", "--yaml"], environment);
 
         expect(JSON.parse(json.stdout)).toMatchObject({ slug: "alpha", mode: "watch", runtime: { slug: "alpha" } });
         expect(parseYaml(yaml.stdout)).toEqual(JSON.parse(json.stdout));
       }));
 
-    it("takes the slug from -s as well as from the positional argument", () =>
+    it("takes the slug from -s before and after the command", () =>
       withVariants(async (environment) => {
-        const positional = await runCli(["status", "alpha", "--json"], environment);
-        const flag = await runCli(["status", "-s", "alpha", "--json"], environment);
+        const after = await runCli(["status", "-s", "alpha", "--json"], environment);
+        const before = await runCli(["-s", "alpha", "status", "--json"], environment);
 
-        expect(flag.stdout).toBe(positional.stdout);
+        expect(JSON.parse(after.stdout)).toMatchObject({ slug: "alpha" });
+        expect(before.stdout).toBe(after.stdout);
       }));
 
     it("fails with a message naming an unknown slug", () =>
       withVariants(async (environment) => {
-        const result = await runCli(["status", "ghost"], environment);
+        const result = await runCli(["status", "-s", "ghost"], environment);
 
         expect(result.exitCode).toBe(1);
         expect(result.stderr).toContain("Unknown variant: ghost");
@@ -236,9 +237,9 @@ describe("output formats", () => {
   describe("list --verbose", () => {
     it("prints each variant as status does, separated by a blank line, instead of the table", () =>
       withVariants(async (environment) => {
-        const verbose = await runCli(["list", "-v"], environment);
-        const alpha = await runCli(["status", "alpha"], environment);
-        const beta = await runCli(["status", "beta"], environment);
+        const verbose = await runCli(["list", "--verbose"], environment);
+        const alpha = await runCli(["status", "-s", "alpha"], environment);
+        const beta = await runCli(["status", "-s", "beta"], environment);
 
         expect(verbose.exitCode).toBe(0);
         expect(verbose.stdout).toBe(`${alpha.stdout}\n${beta.stdout}`);
@@ -249,7 +250,7 @@ describe("output formats", () => {
     it("prints the records of status as JSON", () =>
       withVariants(async (environment) => {
         const verbose = JSON.parse((await runCli(["list", "--verbose", "--json"], environment)).stdout);
-        const alpha = JSON.parse((await runCli(["status", "alpha", "--json"], environment)).stdout);
+        const alpha = JSON.parse((await runCli(["status", "-s", "alpha", "--json"], environment)).stdout);
 
         expect(verbose).toHaveLength(2);
         expect(verbose[0]).toEqual(alpha);

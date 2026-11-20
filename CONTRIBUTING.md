@@ -61,9 +61,10 @@ allowed.
 Any extra commands or functionality that you add must also be added to the
 [`README.md`](README.md) and to the documentation under `docs/`, in the same
 pull request.
-- a new CLI command appears in the README CLI section, as a section in
-`docs/guide/commands.md`, and, when it is a lifecycle command, as a tool in
-`docs/vscode/mcp.md`
+- a new CLI command appears in the README CLI section, gets a `section` (`basic`, `lifecycle`, or `cli` for
+a command only the CLI offers) and, as ``### `variant <name>` ``, a heading under that section in
+`docs/guide/commands.md` (`docs/guide/cli.md` for `cli`) plus a link in the lists of `docs/guide/cli.md`, and, when it
+is a lifecycle command, a tool in `docs/vscode/mcp.md`. Links to a command read ``[`variant <name>`](…#variant-<name>)``
 - a new flag, output format, or configuration key appears wherever
 its command or section is described. Record the change in `CHANGELOG.md`.
 - Binary-like flags are added as `yes|no` (not `true|false`) to facilitate future additional values.

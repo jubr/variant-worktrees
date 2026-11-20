@@ -61,8 +61,8 @@ To try it on a working project, use [`example/`](https://github.com/jubr/variant
 ```bash
 cd example
 variant config # see what it finds
-variant create demo
-variant watch demo --detach
+variant create -s demo
+variant watch -s demo --detach
 ```
 
 ## Configuration
@@ -155,8 +155,8 @@ variant create -s preview-one --from feat/other   # new branch starts at that co
 variant create -s preview-one --pull-ff           # fast-forward the start branch first
 variant create -s preview-one --mise-install=sync # wait for mise install in the worktree
 variant list                           # slug, mode, uptime, full url, watch log file, dir
-variant list -v                        # all meta information of every variant
-variant status preview-one             # everything known about one variant
+variant list --verbose                 # all meta information of every variant
+variant status -s preview-one          # everything known about one variant
 variant provision -s preview-one
 variant up -s preview-one              # watches as containers
 variant watch -s preview-one --detach  # watches as host processes
@@ -177,7 +177,7 @@ variant mcp --config /workspace/variants.yaml
 
 `--mise-install` on `create`, `provision`, and `watch` (library and MCP `miseInstall`, no short flag) is `bg`, `sync`, or `no`. Omit it on `create` and the value is `bg`. Omit it on `provision` and `watch` and the value is `sync`. The install runs only when that worktree has a Mise config. `up` does not take it, and `variants.yaml` has no key for it. The run is `mise -C <worktree> trust --all`, then `mise install`. `bg` returns immediately and writes `{worktree}/.cache/variant/mise-install.log`. `sync` waits and fails the command when Mise fails, and the worktree stays. Slug `main` and a create that makes no worktree skip it.
 
-Without `-s`/`--slug`, the CLI derives a slug from the current git worktree.
+Without `-s`/`--slug`, the CLI derives a slug from the current git worktree. `-s` is a global flag, so it may come before or after the command name, and a command that takes no slug ignores it. A slug is never a positional argument.
 PostgreSQL and MySQL use isolated schemas/databases; SQLite uses one database
 file per variant. Every command is explained in the
 [command reference](https://jubr.github.io/variant-worktrees/guide/commands#lifecycle-commands).
@@ -197,13 +197,15 @@ flags in `variant --help` and `variant <command> --help`.
 | Flag | Effect |
 | --- | --- |
 | `-C <path>` | Change directory before configuration is read |
+| `-s <slug>`, `--slug <slug>` | The variant to act on; without it the slug comes from the current worktree branch. A command that takes no slug ignores it |
 | `--json` | Print the result as JSON |
 | `--yaml` | Print the result as YAML |
-| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn` |
-| `--help`, `-h` | Show help |
+| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. Default `warn` |
+| `-v`, `-vv`, `-vvv` | Print log lines from `info`, `debug` or `trace`; `--log-level` wins when both are given |
+| `--help`, `-h` | Show help; the top level starts with the same text as `--version` |
 | `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
 
-Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`. When the event has a step, that word follows the bracket. A shell command is the message `+"<command>"`. `+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug. A lifecycle command adds one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, the step is cyan, and the message stays the default color. Otherwise those same characters have no color. An unknown level names the flag and the allowed values, and the command does not run. `-v` is richer command output, not a log level. The CLI also sends each log event to the editor on the project Unix socket, except steps `ipc` and `cli`, which stay on standard error. The connection starts at the first event. Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line. CLI end is one `[debug] cli end` line. Those two stay `debug` even when the working directory is under `/tmp`. A write waits at most one second. An event with no slug carries `-s` when that flag was given, and otherwise the autodetected slug of the working directory. Standard error does not print that slug. A missing editor does not change the command result. On the Variant Worktrees channel a CLI line ends with  `@cli` and an MCP line ends with  `@mcp`. A library event for a variant whose project directory is under `/tmp` is emitted at `trace`.
+Give at most one of `--json` and `--yaml`. `--log-level` may sit before or after the command name. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`. When the event has a step, that word follows the bracket. A shell command is the message `+"<command>"`. `+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug. A lifecycle command adds one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, the step is cyan, and the message stays the default color. Otherwise those same characters have no color. An unknown level names the flag and the allowed values, and the command does not run. `-v` sets the log level and is not richer command output. The CLI also sends each log event to the editor on the project Unix socket, except steps `ipc` and `cli`, which stay on standard error. The connection starts at the first event. Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line. CLI end is one `[debug] cli end` line. Those two stay `debug` even when the working directory is under `/tmp`. A write waits at most one second. An event with no slug carries `-s` when that flag was given, and otherwise the autodetected slug of the working directory. Standard error does not print that slug. A missing editor does not change the command result. On the Variant Worktrees channel a CLI line ends with  `@cli` and an MCP line ends with  `@mcp`. A library event for a variant whose project directory is under `/tmp` is emitted at `trace`.
 
 When PostgreSQL or MySQL cannot be contacted, `list` and `status` of a known variant still print the variants recorded in state files and worktrees, and one `[warn]` line names the database and host. `create` and other changes fail with that sentence, run no SQL, and `create` does not add a worktree. A missing SQLite file is not this case. The editor trees keep their rows, list `Database unreachable` first, and show one warning per outage.
 

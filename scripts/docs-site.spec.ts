@@ -284,6 +284,40 @@ describe("configuration page structure", () => {
   });
 });
 
+describe("configuration options are separated by a rule", () => {
+  const html = () => page("guide/configuration.html");
+  const optionHeadings = (section: string) => {
+    const all = headingsOf(html()).filter((heading) => heading.level <= 3);
+    const start = all.findIndex((heading) => heading.level === 2 && heading.text === section);
+    expect(start, section).toBeGreaterThanOrEqual(0);
+    const rest = all.slice(start + 1);
+    const end = rest.findIndex((heading) => heading.level === 2);
+    return (end === -1 ? rest : rest.slice(0, end)).filter((heading) => heading.level === 3);
+  };
+
+  for (const section of ["Variant options", "Database options"]) {
+    test(`every option of ${section} but the first follows an hr.option-sep`, () => {
+      const options = optionHeadings(section);
+      expect(options.length).toBeGreaterThan(1);
+      const without = options.slice(1).filter((heading) => {
+        const before = html().slice(0, html().search(new RegExp(`<h3 id="${heading.id}"`)));
+        return !/<hr class="option-sep"[^>]*>\s*$/.test(before);
+      });
+      expect(without.map((heading) => heading.text)).toEqual([]);
+    });
+  }
+
+  test("the stylesheet gives the rule and the heading after it less space than the defaults", () => {
+    const css = linkedStylesheet(html(), "guide/configuration.html");
+    const px = (rules: string[], property: string): number[] =>
+      rules.flatMap((rule) => [...rule.matchAll(new RegExp(`${property}:(\\d+)px`, "g"))].map((match) => Number(match[1])));
+    expect(px(declarationsFor(css, ".vp-doc hr.option-sep"), "margin").every((value) => value < 24)).toBe(true);
+    expect(px(declarationsFor(css, ".vp-doc hr.option-sep"), "margin").length).toBeGreaterThan(0);
+    expect(px(declarationsFor(css, ".vp-doc hr.option-sep+h3"), "margin-top").every((value) => value < 32)).toBe(true);
+    expect(px(declarationsFor(css, ".vp-doc hr.option-sep+h3"), "margin-top").length).toBeGreaterThan(0);
+  });
+});
+
 describe("outline", () => {
   test("covers second and third level headings", () => {
     // AIDEV-NOTE: the outline items are drawn in the browser, so the static HTML only proves the levels and the headings
@@ -609,7 +643,10 @@ describe("runtime page, watching and up", () => {
 });
 
 const { commands } = (await import(new URL("./commands.ts", import.meta.resolve("variant-api/bundle")).href)) as {
-  commands: { name: string; args: { name: string }[]; mcpFixed?: Record<string, unknown> }[];
+  commands: { name: string; section: string; args: { name: string }[]; mcpFixed?: Record<string, unknown> }[];
+};
+const { CLI_ONLY_COMMANDS } = (await import(new URL("./commands/index.ts", import.meta.resolve("variant-cli/bundle")).href)) as {
+  CLI_ONLY_COMMANDS: readonly string[];
 };
 
 describe("mcp tools have a heading each", () => {
@@ -632,7 +669,7 @@ describe("mcp tools have a heading each", () => {
       const heading = toolHeadings().find((candidate) => candidate.text === `variant_${command.name}`);
       expect(heading, `heading variant_${command.name}`).toBeDefined();
       const section = sectionOf(html(), heading?.id ?? "");
-      expect(linksOf(section, "vscode/mcp.html")).toContainEqual({ path: "/guide/commands", hash: command.name });
+      expect(linksOf(section, "vscode/mcp.html")).toContainEqual({ path: "/guide/commands", hash: `variant-${command.name}` });
       const offered = command.args.map((arg) => arg.name).filter((name) => !(name in (command.mcpFixed ?? {})));
       expect(firstCells(section)).toEqual(offered);
     });
@@ -839,10 +876,10 @@ describe("overview steps are short and link to commands", () => {
       expect(section, "no list, table or fenced code").not.toMatch(/<(ul|ol|table|pre)\b|class="language-/);
       const paragraphs = [...section.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((match) => match[1]);
       const last = paragraphs.at(-1) ?? "";
-      const sentence = `More details at Commands ${command}.`;
+      const sentence = `More details at Commands variant ${command}.`;
       expect(decodeEntities(last.replace(/<[^>]+>/g, "")).trim().endsWith(sentence), "ends the last paragraph").toBe(true);
       expect(linksOf(last.slice(last.lastIndexOf("More details at Commands")), "guide/overview.html")).toEqual([
-        { path: "/guide/commands", hash: command },
+        { path: "/guide/commands", hash: `variant-${command}` },
       ]);
       const explanation = [...paragraphs.slice(0, -1), last.slice(0, last.lastIndexOf("More details at Commands"))].join(" ");
       expect(wordsIn(explanation)).toBeLessThanOrEqual(60);
@@ -871,11 +908,11 @@ describe("overview steps are short and link to commands", () => {
   test("Commands carries what the Overview dropped", () => {
     const core = page("guide/commands.html");
     for (const command of ["provision", "deprovision"]) {
-      const links = linksOf(sectionOf(core, command), "guide/commands.html").map((link) => `${link.path}#${link.hash}`);
+      const links = linksOf(sectionOf(core, `variant-${command}`), "guide/commands.html").map((link) => `${link.path}#${link.hash}`);
       expect(links, command).toContain("/guide/configuration#variant-steps");
       expect(links, command).toContain("/guide/configuration#db-multi");
     }
-    expect(decodeEntities(sectionOf(core, "watch").replace(/<[^>]+>/g, ""))).toContain("--reprovision");
+    expect(decodeEntities(sectionOf(core, "variant-watch").replace(/<[^>]+>/g, ""))).toContain("--reprovision");
   });
 });
 
@@ -903,29 +940,143 @@ describe("follow-up edits of the pages", () => {
     expect(headingsOf(page("vscode/mcp.html")).map((heading) => heading.text)).not.toContain("Testing");
   });
 
-  test("Commands groups the lifecycle commands and the other commands", () => {
-    const headings = headingsOf(page("guide/commands.html")).filter((heading) => heading.level <= 3);
-    expect(headings.filter((heading) => heading.level === 2).map((heading) => heading.text)).toEqual([
-      "Lifecycle commands",
-      "Other commands",
-    ]);
-    const below = (group: string) => {
-      const start = headings.findIndex((heading) => heading.text === group);
-      const rest = headings.slice(start + 1);
-      const end = rest.findIndex((heading) => heading.level === 2);
-      return (end === -1 ? rest : rest.slice(0, end)).map((heading) => heading.text);
+  /** The `###` headings below a `##` heading of a built page, as text. */
+  const below = (path: string, group: string): string[] => {
+    const headings = headingsOf(page(path)).filter((heading) => heading.level <= 3);
+    const start = headings.findIndex((heading) => heading.level === 2 && heading.text === group);
+    expect(start, group).toBeGreaterThanOrEqual(0);
+    const rest = headings.slice(start + 1);
+    const end = rest.findIndex((heading) => heading.level === 2);
+    return (end === -1 ? rest : rest.slice(0, end)).map((heading) => heading.text);
+  };
+  const names = (section: string) => commands.filter((command) => command.section === section).map((c) => c.name);
+  // AIDEV-NOTE: the flow of steps, which the docs follow; the registry order differs (watch comes after deprovision)
+  const lifecycleOrder = ["create", "provision", "up", "watch", "down", "deprovision", "implode"];
+
+  test("Commands has Basic commands and Lifecycle commands, with the headings of each section tag", () => {
+    const h2 = headingsOf(page("guide/commands.html")).filter((heading) => heading.level === 2);
+    expect(h2.map((heading) => heading.text)).toEqual(["Basic commands", "Lifecycle commands"]);
+    expect(below("guide/commands.html", "Basic commands")).toEqual(names("basic").map((name) => `variant ${name}`));
+    expect(below("guide/commands.html", "Lifecycle commands")).toEqual(lifecycleOrder.map((name) => `variant ${name}`));
+    expect([...lifecycleOrder].sort()).toEqual(names("lifecycle").sort());
+  });
+
+  test("a command heading is the command line in code and has the id variant-<name>", () => {
+    const create = headingsOf(page("guide/commands.html")).find((heading) => heading.text === "variant create");
+    expect(create?.id).toBe("variant-create");
+    expect(page("guide/commands.html")).toMatch(/<h3 id="variant-create"[^>]*><code>variant create<\/code>/);
+  });
+
+  test("the Commands intro points to the CLI page for the commands only the CLI offers", () => {
+    const body = bodyOf(page("guide/commands.html"));
+    const intro = body.slice(0, body.search(/<h2 /));
+    expect(linksOf(intro, "guide/commands.html").some((link) => link.path === "/guide/cli")).toBe(true);
+  });
+
+  test("the CLI page ends with the command lists, CLI-only commands and Global flags, and has no Slug section", () => {
+    const h2 = headingsOf(page("guide/cli.html"))
+      .filter((heading) => heading.level === 2)
+      .map((heading) => heading.text);
+    expect(h2.slice(-4)).toEqual(["Basic commands", "Lifecycle commands", "CLI-only commands", "Global flags"]);
+    expect(h2).not.toContain("Slug");
+    expect(h2).not.toContain("MCP server");
+    expect(h2).not.toContain("Completions");
+  });
+
+  test("the Global flags table has a row for every global flag and keeps the hidden alias out", () => {
+    const html = sectionOf(page("guide/cli.html"), "global-flags");
+    const rows = new Map(
+      [...html.matchAll(/<tr>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/g)].map((match) => [
+        decodeEntities(match[1].replace(/<[^>]+>/g, "")).trim(),
+        decodeEntities(match[2].replace(/<[^>]+>/g, "")).trim(),
+      ]),
+    );
+    const flag = (start: string): string => {
+      const key = [...rows.keys()].find((name) => name.startsWith(start));
+      expect(key, start).toBeDefined();
+      return rows.get(key as string) as string;
     };
-    const withoutInit = (names: string[]) => names.filter((name) => name !== "init");
-    expect(withoutInit(below("Lifecycle commands"))).toEqual([
-      "create",
-      "provision",
-      "up",
-      "watch",
-      "down",
-      "deprovision",
-      "implode",
-    ]);
-    expect(withoutInit(below("Other commands"))).toEqual(["config", "list", "status", "ui"]);
+    for (const start of ["-C", "-s", "--json", "--yaml", "--log-level", "-v", "--help", "--version"]) flag(start);
+    expect([...rows.keys()].find((name) => name.startsWith("-s"))).toContain("--slug");
+    expect(flag("-s")).toMatch(/ignore/i);
+    expect(flag("-s")).toContain("worktree");
+    const verbosity = [...rows.keys()].find((name) => name.startsWith("-v")) as string;
+    expect(verbosity).toContain("-vv");
+    expect(verbosity).toContain("-vvv");
+    expect(flag("-v")).toMatch(/info.*debug.*trace/);
+    expect(flag("--log-level")).not.toContain("warning");
+  });
+
+  test("no documentation shows a slug as a positional argument", () => {
+    const positional =
+      /\bvariant (?:-\S+ +)*(create|provision|up|watch|down|deprovision|implode|status) +(?!-)(?!(?:a|the|and|or|in|is|to|for|when|with|that|it|as|on|of|also|still|only|from|but|has|does|no|every|one|stops|runs|your)\b)[a-z][\w-]*/;
+    const hits = [...trackedDocs(), "README.md"]
+      .filter((file) => file.endsWith(".md"))
+      .flatMap((file) =>
+        readFileSync(join(root, file), "utf8")
+          .split("\n")
+          .filter((line) => line.startsWith("variant ") || line.includes("`variant "))
+          .filter((line) => positional.test(line.replace(/^.*?(?=variant )/, "")))
+          .map((line) => `${file}: ${line.trim()}`),
+      );
+    expect(hits).toEqual([]);
+  });
+
+  test("the CLI-only commands are headings of the CLI page, not of the Commands page", () => {
+    const cliOnly = below("guide/cli.html", "CLI-only commands");
+    expect([...cliOnly].sort()).toEqual([...CLI_ONLY_COMMANDS].map((name) => `variant ${name}`).sort());
+    const ids = headingsOf(page("guide/cli.html")).map((heading) => heading.id);
+    for (const name of CLI_ONLY_COMMANDS) expect(ids).toContain(`variant-${name}`);
+    const onCommands = headingsOf(page("guide/commands.html")).map((heading) => heading.text);
+    for (const name of CLI_ONLY_COMMANDS) expect(onCommands).not.toContain(`variant ${name}`);
+  });
+
+  for (const [group, listed] of [
+    ["basic-commands", names("basic")],
+    ["lifecycle-commands", lifecycleOrder],
+  ] as const) {
+    test(`the CLI page ${group} is only deep links into Commands, in order`, () => {
+      const section = sectionOf(page("guide/cli.html"), group);
+      const body = section.slice(section.indexOf("</h2>"));
+      expect(body, "only a list").not.toMatch(/<p>|<h[3-6]/);
+      expect(linksOf(body, "guide/cli.html")).toEqual(
+        listed.map((name) => ({ path: "/guide/commands", hash: `variant-${name}` })),
+      );
+      expect(
+        [...body.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((item) => decodeEntities(item[1].replace(/<[^>]+>/g, "")).trim()),
+      ).toEqual(listed.map((name) => `variant ${name}`));
+    });
+  }
+
+  test("a link to a command heading is the code of that heading", () => {
+    const wrong: string[] = [];
+    let seen = 0;
+    for (const from of builtPages().filter((file) => file !== "404.html")) {
+      // AIDEV-NOTE: the permalink of a heading is not a reference to it
+      const body = bodyOf(page(from)).replace(/<a class="header-anchor"[^>]*>[\s\S]*?<\/a>/g, "");
+      for (const match of body.matchAll(/<a\b[^>]*?\shref="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)) {
+        const url = new URL(decodeEntities(match[1]), `https://docs.test/${from}`);
+        const path = url.pathname.replace(/\.html$/, "");
+        const hash = url.hash.slice(1);
+        if (!["/guide/commands", "/guide/cli"].includes(path) || !hash.startsWith("variant-")) continue;
+        const target = headingsOf(page(`${path.slice(1)}.html`)).find((heading) => heading.id === hash);
+        if (!target) continue;
+        seen += 1;
+        const label = match[2].replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, "");
+        if (!/^<code>[^<]*<\/code>$/.test(match[2].trim()) || decodeEntities(match[2].replace(/<[^>]+>/g, "")).trim() !== target.text) {
+          wrong.push(`${from}: ${label} -> ${path}#${hash}`);
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(20);
+    expect(wrong).toEqual([]);
+  });
+
+  test("no tracked doc or README links a bare command anchor", () => {
+    const bare =
+      /\bcommands#(init|config|create|list|status|provision|up|down|deprovision|watch|implode|ui|mcp|completions)\b|\bcli#(mcp-server|completions)\b/;
+    const hits = [...trackedDocs(), "README.md"].filter((file) => file.endsWith(".md") && bare.test(readFileSync(join(root, file), "utf8")));
+    expect(hits).toEqual([]);
   });
 
   test("the activationPatterns section lists the default patterns of chat-renamer-config", () => {

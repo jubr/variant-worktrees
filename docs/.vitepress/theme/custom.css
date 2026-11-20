@@ -74,3 +74,12 @@ pre {
   background-color: var(--vp-c-brand-soft);
   color: var(--vp-c-brand-1);
 }
+
+/* Options of the Configuration page: a rule between them, tighter than the regular rule (24px) and h3 (32px) */
+.vp-doc hr.option-sep {
+  margin: 16px 0;
+}
+
+.vp-doc hr.option-sep + h3 {
+  margin-top: 20px;
+}

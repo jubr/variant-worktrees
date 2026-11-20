@@ -6,10 +6,16 @@
 
 - `bun-standalone.yaml` builds the slim `bun-standalone` runtime from the head of upstream Bun pull request 32262 on macOS arm64, macOS x64, Linux x64 and Linux arm64 and attaches the zips to the run. It compiles only when that head or the workflow file changed, and restores the cached binary otherwise. `ci-branch.yaml` calls it as the job `Bun standalone` on `main`, or when `ci-release.yaml` is dispatched with the new input `bun-standalone: yes`.
 - `VARIANT_BUN_RUNTIME=<executable>` makes `task bleed:cli` and `task package:cli` embed that Bun runtime in the compiled `variant` instead of the default one. A missing or non-executable file fails before compiling and names the path; `task package:cli:all` refuses the variable. The release builds one executable job per platform and, for Linux and macOS, embeds the cached slim runtime when there is one; Windows keeps the default runtime.
-- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [mcp](docs/guide/cli.md#mcp-server).
+- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [`variant mcp`](docs/guide/cli.md#variant-mcp).
 
 ### Changed
 
+- `-s`/`--slug` is a global flag: `variant create -s preview-one` and `variant -s preview-one create` are the same, and a command that takes no slug ignores it. **BREAKING:** the positional slug (`variant provision preview-one`) is gone and fails with a hint to use `-s`.
+- `-v`, `-vv` and `-vvv` set the log level to `info`, `debug` and `trace`. **BREAKING:** `-v` is no longer the short form of `--verbose`; use `--verbose`. `--log-level` still takes `warning` as `warn`, but the help and the docs no longer name it.
+- `variant --help` starts with the same extended version text as `variant --version`.
+- The CLI page of the docs ends with the global flags, which now hold the slug; the separators between the Configuration options have a little more room.
+- **BREAKING (docs URLs):** the command headings of the docs are ``variant <name>``, so the anchors are `commands#variant-create` and so on instead of `commands#create`. `cli#mcp-server` and `cli#completions` are now `cli#variant-mcp` and `cli#variant-completions`, and `variant ui` moved from Commands to the CLI page. Commands has the sections Basic commands and Lifecycle commands, and the CLI page lists them and ends with CLI-only commands. The options of the Configuration page are separated by a rule.
+- Every command definition has a `section` (`basic` or `lifecycle`) that says where the docs list it; the CLI-only commands are in section `cli`.
 - **BREAKING:** the `variant-mcp` executable is gone, and so are `task bleed:mcp` and `vw-bleeds/variant-mcp`. Point MCP clients at `variant` with the argument `mcp`: `"command": "variant", "args": ["mcp", "--config", "/workspace/variants.yaml"]`. The `variant-mcp` package is a library now, started by `variant mcp`. Remove a leftover `vw-bleeds/variant-mcp` by hand.
 - The help of `variant` no longer pads its lines with trailing spaces, so GNU screen shows no empty line between the global flags.
 - The code of each CLI command lives in `packages/variant-cli/src/commands/`.
