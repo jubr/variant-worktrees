@@ -909,6 +909,47 @@ describe("overview steps are short and link to commands", () => {
   });
 });
 
+describe("overview starts with Installation and ends with next steps", () => {
+  const overview = () => page("guide/overview.html");
+  const keyOf = (link: { path: string; hash: string }) => `${link.path}${link.hash === "" ? "" : `#${link.hash}`}`;
+
+  test("Installation is the first step of the Flow of Steps and links to the Installation page", () => {
+    const headings = headingsOf(overview());
+    const flow = headings.findIndex((heading) => heading.id === "flow-of-steps");
+    expect(flow).toBeGreaterThanOrEqual(0);
+    const steps = headings.slice(flow + 1).filter((heading) => heading.level === 3);
+    expect(steps[0]).toMatchObject({ id: "installation", text: "Installation" });
+    expect(steps[1]?.id).toBe("create");
+    expect(linksOf(sectionOf(overview(), "installation"), "guide/overview.html").map(keyOf)).toContain("/guide/installation");
+  });
+
+  test("the flow line starts with Installation", () => {
+    const flow = decodeEntities(bodyOf(overview()).replace(/<[^>]+>/g, ""));
+    expect(flow).toMatch(/Installation\s*→\s*create\s*→\s*provision/);
+  });
+
+  test("Next steps is the last second-level section and links onward in sentences", () => {
+    const h2 = headingsOf(overview()).filter((heading) => heading.level === 2);
+    expect(h2.at(-1)).toMatchObject({ id: "next-steps", text: "Next steps" });
+    const section = sectionOf(overview(), "next-steps");
+    const links = linksOf(section, "guide/overview.html").map(keyOf);
+    for (const target of [
+      "/guide/workspace",
+      "/guide/overview#flow-of-steps",
+      "/guide/configuration#variant-options",
+      "/guide/cli",
+      "/vscode/extension",
+      "/vscode/mcp",
+      "/guide/runtime",
+    ]) {
+      expect(links, target).toContain(target);
+    }
+    expect(section, "sentences, not a list of links").not.toMatch(/<(ul|ol)\b/);
+    const sentences = decodeEntities(section.replace(/<[^>]+>/g, " ")).match(/[A-Z][^.]*\./g) ?? [];
+    expect(sentences.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
 describe("custom steps on the Configuration page", () => {
   const configuration = () => page("guide/configuration.html");
   const text = (html: string) => decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ");

@@ -15,9 +15,14 @@ The name in the variable is the step name with letters uppercased and every othe
 
 ## Flow of Steps
 
-The builtin steps flow as follows:
+The steps flow as follows:
 
-`create` *→* `provision` *→* `seed` *→* `watch` *→* `down` *→* `deprovision` *→* `implode`
+Installation *→* `create` *→* `provision` *→* `seed` *→* `watch` *→* `down` *→* `deprovision` *→* `implode`
+
+### Installation
+
+Installs mise and the `variant` command or the editor extension, and initializes your project with a `variants.yaml`.
+Everything else starts from there. More details at [Installation](./installation).
 
 ### create
 
@@ -71,3 +76,11 @@ More details at Commands [`variant deprovision`](./commands#variant-deprovision)
 Implies `deprovision`, then removes the worktree and, by default, the local branch.
 More details at Commands [`variant implode`](./commands#variant-implode).
 
+## Next steps
+
+To set up a workspace around your Git project, see how the [Workspace](./workspace) is laid out and why the worktrees sit next to your main checkout.
+How the steps follow one another is in the [Flow of Steps](#flow-of-steps) above: a later step implies the ones before it, so one `watch` can take a variant from nothing to running.
+To configure `variants.yaml`, go through the [Variant options](./configuration#variant-options), and add your own [Custom Steps](./configuration#custom-steps) when the project needs them.
+The commands you can run on the command line are listed on the [CLI](./cli) page, and each one is explained in [Commands](./commands).
+To work from your editor, use the [Extension](/vscode/extension) for VS Code and Cursor, and give your agents the [MCP Server](/vscode/mcp).
+To see how watches start, stay up and stop, read [Runtime](./runtime).
