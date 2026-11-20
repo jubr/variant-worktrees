@@ -1,0 +1,175 @@
+name: bun-standalone
+
+# Specification: openspec/specs/meta/bun-standalone-build/spec.md
+# AIDEV-NOTE: the pull request is upstream, so no push here announces a new head.
+# The schedule (default branch only) resolves the head; the binary cache key holds
+# that head and the hash of this file, so only a moved head or an edit compiles.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/bun-standalone.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bun-standalone-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUN_REPOSITORY: oven-sh/bun
+  BUN_PULL_REQUEST: "32262"
+
+jobs:
+  resolve:
+    name: Resolve the pull request head
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.head.outputs.sha }}
+      workflow: ${{ steps.workflow.outputs.hash }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/workflows/bun-standalone.yaml
+          sparse-checkout-cone-mode: false
+      # AIDEV-NOTE: hashed here because only this job checks out this repository; the build job checks out Bun.
+      - name: Hash this workflow
+        id: workflow
+        run: echo "hash=${{ hashFiles('.github/workflows/bun-standalone.yaml') }}" >> "$GITHUB_OUTPUT"
+      - name: Read the head commit
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(gh api "repos/${BUN_REPOSITORY}/pulls/${BUN_PULL_REQUEST}" --jq .head.sha)"
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "cannot read the head of ${BUN_REPOSITORY}#${BUN_PULL_REQUEST}" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: resolve
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 2G
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-15
+          - target: linux-x64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      # Hit: the stripped binary of an earlier run with this head and this workflow. Miss: everything below compiles.
+      - name: Restore the finished binary
+        id: binary
+        uses: actions/cache@v6
+        with:
+          path: build/release-standalone/bun-standalone
+          key: bun-standalone-${{ matrix.target }}-${{ needs.resolve.outputs.sha }}-${{ needs.resolve.outputs.workflow }}
+
+      - name: Check out the pull request head
+        if: steps.binary.outputs.cache-hit != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.BUN_REPOSITORY }}
+          ref: ${{ needs.resolve.outputs.sha }}
+          fetch-depth: 1
+
+      - name: Set up Bun
+        if: steps.binary.outputs.cache-hit != 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install the toolchain (macOS)
+        if: steps.binary.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        run: |
+          brew install llvm@21 cmake ninja ccache pkg-config automake libtool go ruby
+          echo "/opt/homebrew/opt/llvm@21/bin" >> "$GITHUB_PATH"
+          echo "SDKROOT=$(xcrun --show-sdk-path)" >> "$GITHUB_ENV"
+
+      - name: Install the toolchain (Linux)
+        if: steps.binary.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build ccache pkg-config golang xz-utils \
+            make nasm python3 libtool ruby perl curl lsb-release software-properties-common gnupg
+          curl -fsSL https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
+          sudo bash /tmp/llvm.sh 21 all
+
+      - name: Install the pinned Rust nightly
+        if: steps.binary.outputs.cache-hit != 'true'
+        run: |
+          channel="$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' rust-toolchain.toml | head -1)"
+          rustup toolchain install "$channel" --profile minimal --component rust-src,llvm-tools
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      # A stale entry only costs time, so these restore by prefix; the run id makes every compile save a fresh one.
+      - name: Restore dependencies and compiler output
+        id: dependencies
+        if: steps.binary.outputs.cache-hit != 'true'
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.bun/build-cache
+            vendor
+            .ccache
+          key: bun-standalone-deps-${{ matrix.target }}-${{ needs.resolve.outputs.sha }}-${{ github.run_id }}
+          restore-keys: |
+            bun-standalone-deps-${{ matrix.target }}-
+
+      - name: Compile bun-standalone
+        if: steps.binary.outputs.cache-hit != 'true'
+        run: |
+          bun install --frozen-lockfile
+          bun run build:standalone
+
+      # Runs for a restored binary as well, so a bad cache entry cannot ship.
+      - name: Smoke test
+        id: smoke
+        run: |
+          exe=build/release-standalone/bun-standalone
+          test -x "$exe"
+          "$exe" --version
+          "$exe" -e 'console.log(Bun.version, process.arch)'
+          if "$exe" build ./nothing.ts; then
+            echo "bun build must not be available in bun-standalone" >&2
+            exit 1
+          fi
+
+      - name: Package
+        run: |
+          name="bun-standalone-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp build/release-standalone/bun-standalone "dist/$name/bun-standalone"
+          (cd dist && zip -qr "$name.zip" "$name" && rm -r "$name")
+          ls -l dist
+
+      - name: Name the head in the summary
+        run: |
+          {
+            echo "### bun-standalone ${{ matrix.target }}"
+            echo "- pull request: ${BUN_REPOSITORY}#${BUN_PULL_REQUEST}"
+            echo "- head: \`${{ needs.resolve.outputs.sha }}\`"
+            echo "- binary: $(stat -c %s build/release-standalone/bun-standalone 2>/dev/null || stat -f %z build/release-standalone/bun-standalone) bytes"
+            echo "- compiled in this run: ${{ steps.binary.outputs.cache-hit != 'true' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach the archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: bun-standalone-${{ matrix.target }}
+          path: dist/bun-standalone-${{ matrix.target }}.zip
+          if-no-files-found: error
