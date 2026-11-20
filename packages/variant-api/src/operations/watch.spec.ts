@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
 import {
   appendFileSync,
@@ -18,6 +18,8 @@ import { stringify as stringifyYaml } from "yaml";
 import { type LogEvent, setLogSink } from "../log.js";
 import { isProcessAlive } from "../runtime-state.js";
 import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
+import { stopProjectProcesses } from "../test/project-processes.js";
+import { sleep, until } from "../test/wait.js";
 import type { DatabaseAdapter, WatchOptions, WatchResult } from "../types.js";
 import { relayModulePath, relaySpawnArgs } from "../watch-relay.js";
 import { downVariant } from "./down.js";
@@ -28,7 +30,25 @@ import { watchVariant } from "./watch.js";
 const originalPath = process.env.PATH;
 const killAtEnd: number[] = [];
 const servers: Server[] = [];
+/** Every pid a test project started, collected before its directory goes. */
+const everStarted = new Set<number>();
+/** Project directories of tests that have not ended, so a test that timed out is still cleaned up. */
+const projects = new Set<string>();
+/** Stops every process of the projects and removes their directories, however the test ended. */
+const stopProjects = (directories: readonly string[]): void => {
+  for (const pid of stopProjectProcesses(directories)) {
+    everStarted.add(pid);
+  }
+  for (const directory of directories) {
+    projects.delete(directory);
+  }
+};
+afterAll(() => {
+  const alive = [...everStarted].filter((pid) => isProcessAlive(pid));
+  expect(alive).toEqual([]);
+});
 afterEach(() => {
+  stopProjects([...projects]);
   process.env.PATH = originalPath;
   for (const pid of killAtEnd.splice(0)) {
     try {
@@ -43,14 +63,6 @@ afterEach(() => {
   }
 });
 
-const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
-const until = async (condition: () => boolean, ms = 10000): Promise<void> => {
-  for (const deadline = Date.now() + ms; !condition(); await sleep(25)) {
-    if (Date.now() > deadline) {
-      throw new Error("condition not met in time");
-    }
-  }
-};
 const untilDead = (pid: number): Promise<void> => until(() => !isProcessAlive(pid));
 
 /** What every watched process runs: it records itself, then idles, or exits after `DIE_AFTER` milliseconds. */
@@ -150,6 +162,7 @@ const withProject = async (
   env: NodeJS.ProcessEnv = {},
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-watch-")));
+  projects.add(directory);
   try {
     for (const folder of ["fe", "be"]) {
       mkdirSync(join(directory, folder));
@@ -234,7 +247,7 @@ const withProject = async (
       },
     });
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    stopProjects([directory]);
   }
 };
 
@@ -500,7 +513,7 @@ describe("watch starts host processes", () => {
       await started("fe");
       const input = new PassThrough();
       const done = watch({ input });
-      input.end("3\n");
+      input.write("3\n");
       const result = await Promise.race([done, sleep(1000).then(() => "hang" as const)]);
 
       expect(result).not.toBe("hang");
@@ -515,7 +528,7 @@ describe("watch starts host processes", () => {
       await started("fe");
       const input = new PassThrough();
       const done = watch({ input });
-      input.end("2\n");
+      input.write("2\n");
       const result = await Promise.race([done, sleep(1000).then(() => "hang" as const)]);
 
       expect(result).not.toBe("hang");
@@ -538,7 +551,6 @@ describe("watch starts host processes", () => {
         return next !== be && isProcessAlive(next);
       });
       const next = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(next);
       abort.abort();
       const result = await done;
 
@@ -732,7 +744,7 @@ describe("watch supervision", () => {
       const done = watch({ input });
       const be = await started("be");
       await started("fe");
-      input.end("3\n");
+      input.write("3\n");
       const result = await done;
 
       expect(result.exitCode).toBe(0);
@@ -744,7 +756,7 @@ describe("watch supervision", () => {
       const input = new PassThrough();
       const done = watch({ input });
       const be = await started("be");
-      input.end("2\n");
+      input.write("2\n");
       const result = await done;
 
       expect(result.exitCode).toBe(0);
@@ -760,7 +772,6 @@ describe("watch supervision", () => {
       const marker = join(directory, "be", "started-be.txt");
       await until(() => existsSync(marker));
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(0);
       expect(isProcessAlive(be)).toBe(true);
@@ -774,7 +785,6 @@ describe("watch supervision", () => {
         terminal.write("\x03");
       });
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(130);
       expect(isProcessAlive(be)).toBe(false);
@@ -789,7 +799,6 @@ describe("watch supervision", () => {
       const marker = join(directory, "be", "started-be.txt");
       await until(() => existsSync(marker));
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(0);
       expect(isProcessAlive(be)).toBe(false);
@@ -809,11 +818,9 @@ describe("watch supervision", () => {
           const next = Number(readFileSync(marker, "utf8"));
           return next !== first && isProcessAlive(next) && hints() > before;
         });
-        killAtEnd.push(first);
         terminal.write("3\r");
       });
       const be = Number(readFileSync(marker, "utf8"));
-      killAtEnd.push(be);
 
       expect(exitCode).toBe(0);
       expect(isProcessAlive(be)).toBe(false);
