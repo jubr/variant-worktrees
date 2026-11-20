@@ -105,19 +105,11 @@ tasks:
       - task: build
       - bun scripts/bleed.ts cli
 
-  bleed:mcp:
-    desc: "Build the host variant-mcp executable and publish it to ../vw-bleeds/variant-mcp/bin/variant-mcp"
-    cmds:
-      - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
-      - task: build
-      - bun scripts/bleed.ts mcp
-
   bleed:all:
-    desc: "Publish the extension, CLI, and MCP server into ../vw-bleeds"
+    desc: "Publish the extension and the CLI (which starts the MCP server as variant mcp) into ../vw-bleeds"
     cmds:
       - task: bleed:vsix
       - task: bleed:cli
-      - task: bleed:mcp
 
   package:cli:
     desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host)"
