@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { command } from "cleye";
-import { runUi, type StaticApp } from "variant-server";
+import type { StaticApp } from "variant-server";
 import { embeddedApp } from "../embedded-app.js";
 import { renderHelp } from "../help.js";
 
@@ -53,6 +53,8 @@ export const uiCommand = () =>
       flags: UI_FLAGS,
     },
     async (argv) => {
+      // AIDEV-NOTE: lazy, like `variant-mcp`: the server is loaded only when `ui` runs, so other commands start fast.
+      const { runUi } = await import("variant-server");
       const abort = new AbortController();
       for (const name of ["SIGINT", "SIGTERM"] as const) {
         process.on(name, () => abort.abort());
