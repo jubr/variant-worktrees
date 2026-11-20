@@ -23,6 +23,9 @@ const versionToken = (version: string): string => {
   return variant ? `${version}-${variant}` : version;
 };
 
+/** The version text of two runs differs by the clock when the build is not of `main`, so compare it without the time. */
+const sameClock = (text: string): string => text.replace(/\(\d{4}-\d{2}-\d{2}[^)]*\)/, "(date)");
+
 const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
 
 /** Empty variant (`main`, or no commit) is a UTC date. Any other variant is a UTC date and time. */
@@ -88,7 +91,7 @@ describe("variant CLI", () => {
     const noArgs = await runCli([]);
     const explicitHelp = await runCli(["--help"]);
     expect(noArgs.exitCode).toBe(0);
-    expect(noArgs.stdout).toBe(explicitHelp.stdout);
+    expect(sameClock(noArgs.stdout)).toBe(sameClock(explicitHelp.stdout));
     expect(noArgs.stderr).toBe(explicitHelp.stderr);
   });
 
@@ -98,8 +101,6 @@ describe("variant CLI", () => {
     const token = versionToken(version);
     expectVersionOutput(flag.stdout, token, version);
 
-    // The clock runs between the two processes, so the time of a non-main build may differ.
-    const sameClock = (text: string): string => text.replace(/\(\d{4}-\d{2}-\d{2}[^)]*\)/, "(date)");
     for (const args of [["--help"], ["-h"], []]) {
       const help = await runCli(args);
       expect(help.exitCode).toBe(0);
