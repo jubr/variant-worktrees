@@ -88,7 +88,7 @@ Each builtin step of the Overview that is also a command (`create`, `provision`,
 
 ### Requirement: Installation offers the extension first
 
-The installation page SHALL describe installing Variant Worktrees into the reader's existing project as three numbered steps and SHALL NOT repeat what `variant init` does. Step 1 SHALL tell how to install mise (Homebrew and `mise.run`) and SHALL tell the reader to activate it with `mise activate`. Step 2 SHALL offer two ways, in this order. Way 2a, *Extension for VSCode and Cursor*, SHALL say it is tested with Cursor, SHALL name the **Variant Worktrees** extension, SHALL name installing it from the Extensions view of the editor as a way, SHALL link to its pages on the Visual Studio Marketplace and Open VSX, SHALL say that the extension can run the init logic, and SHALL send the reader to its **Onboarding** instructions. Way 2b SHALL show `mise x packslip:jubr/variant-worktrees@latest -- variant init` run from the project directory (with a prompt of the form `my-project/ $`), SHALL show example output of that command, and SHALL link to the `variant init` section of Commands (`/guide/commands#variant-init`) for what `init` does and for its flags. Step 3 SHALL tell the reader to review `variants.yaml` and SHALL show an example of it. The page SHALL NOT document installing the TypeScript library or the MCP server; the Development section SHALL. No tracked file under `docs/` SHALL contain `npm install`, `npx` or `bun add`.
+The installation page SHALL describe installing Variant Worktrees into the reader's existing project as three numbered steps and SHALL NOT repeat what `variant init` does. Step 1 SHALL tell how to install mise (Homebrew and `mise.run`) and SHALL tell the reader to activate it with `mise activate`. Step 2 SHALL offer two ways, in this order. Way 2a, *Extension for VSCode and Cursor*, SHALL say it is tested with Cursor, SHALL name the **Variant Worktrees** extension, SHALL name installing it from the Extensions view of the editor as a way, SHALL link to its pages on the Visual Studio Marketplace and Open VSX, SHALL say that the extension can run the init logic, and SHALL send the reader to its **Onboarding** instructions. Way 2b SHALL show `mise x packslip:jubr/variant-worktrees@ -- variant init` run from the project directory (with a prompt of the form `my-project/ $`), SHALL show example output of that command, and SHALL link to the `variant init` section of Commands (`/guide/commands#variant-init`) for what `init` does and for its flags. Step 3 SHALL tell the reader to review `variants.yaml` and SHALL show an example of it. The page SHALL NOT document installing the TypeScript library or the MCP server; the Development section SHALL. No tracked file under `docs/` SHALL contain `npm install`, `npx` or `bun add`.
 
 #### Scenario: Extension flavor comes first
 
@@ -113,7 +113,7 @@ The installation page SHALL describe installing Variant Worktrees into the reade
 #### Scenario: init way links instead of repeating
 
 - **WHEN** the `variant init` section of the built installation page is read
-- **THEN** it contains `mise x packslip:jubr/variant-worktrees@latest -- variant init` and example output in fenced code
+- **THEN** it contains `mise x packslip:jubr/variant-worktrees@ -- variant init` and example output in fenced code
 - **AND** it links to `/guide/commands#variant-init`
 - **AND** the page does not contain the words `.gitignore` or `mise.toml` outside fenced code
 

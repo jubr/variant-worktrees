@@ -19,7 +19,7 @@
 
 ## 4. Installation
 
-- [ ] 4.1 Capture real output of `mise x packslip:jubr/variant-worktrees@latest -- variant init` in a scratch project and the `variants.yaml` it writes; remove machine paths and secrets
+- [ ] 4.1 Capture real output of `mise x packslip:jubr/variant-worktrees@ -- variant init` in a scratch project and the `variants.yaml` it writes; remove machine paths and secrets
 - [ ] 4.2 Rewrite `docs/guide/installation.md` as steps 1, 2a, 2b and 3 with the captured outputs; link to `commands#variant-init` instead of repeating; mention `mise activate`; 1.4 passes
 - [ ] 4.3 Move *Installation* after *Overview* in `docs/.vitepress/config.ts`; 1.1 passes; links from other pages to Installation still resolve
 
