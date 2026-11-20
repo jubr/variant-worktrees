@@ -890,7 +890,7 @@ describe("MCP logging", () => {
   });
 
   it("imports the sink from variant-log", () => {
-    const source = readFileSync(new URL("../src/mcp.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf8");
     expect(source).toContain('from "variant-log"');
   });
 
