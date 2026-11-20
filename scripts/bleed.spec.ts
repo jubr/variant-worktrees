@@ -172,6 +172,21 @@ describe("bleedCli", () => {
 
     expect(readFileSync(bin, "utf8")).toBe("previous-bytes");
   });
+
+  test("leaves the previous executable when VARIANT_BUN_RUNTIME names a missing file", async () => {
+    const directory = temp();
+    const repo = join(directory, "checkout");
+    const bin = join(directory, "vw-bleeds", "variant-cli", "bin", "variant");
+    const missing = join(directory, "bun-standalone");
+    mkdirSync(join(directory, "vw-bleeds", "variant-cli", "bin"), { recursive: true });
+    writeFileSync(bin, "previous-bytes");
+    mkdirSync(repo);
+
+    await expect(bleedCli(repo, { VARIANT_BUN_RUNTIME: missing })).rejects.toThrow(missing);
+
+    expect(readFileSync(bin, "utf8")).toBe("previous-bytes");
+    expect(readdirSync(join(directory, "vw-bleeds", "variant-cli", "bin"))).toEqual(["variant"]);
+  });
 });
 
 process.on("exit", () => {

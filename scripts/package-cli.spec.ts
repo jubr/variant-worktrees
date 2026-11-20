@@ -1,10 +1,11 @@
 /**
  * Specification: openspec/specs/meta/release-artifacts/spec.md (Release contents)
+ * Specification: openspec/specs/meta/dev-bleeds/spec.md (Optional runtime executable for compiled CLI)
  */
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { assetName, compileCli, embeddedAppModule } from "./package-cli.ts";
+import { RELEASE_TARGETS, assetName, compileCli, compileTargets, embeddedAppModule, runtimeExecutable } from "./package-cli.ts";
 
 describe("package-cli assetName", () => {
   test("names a unix executable with version, os and arch", () => {
@@ -48,6 +49,85 @@ describe("package-cli embeddedAppModule", () => {
       await expect(compileCli(root, join(root, "variant"))).rejects.toThrow("the variants app is not built");
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("package-cli compileCli runtime", () => {
+  test("fails on a missing runtime before it looks at the app, naming the path", async () => {
+    const root = mkdtempSync(join("/tmp", "variant-root-"));
+    const missing = join(root, "bun-standalone");
+    try {
+      await expect(compileCli(root, join(root, "variant"), undefined, { VARIANT_BUN_RUNTIME: missing })).rejects.toThrow(
+        missing,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// Specification: openspec/specs/meta/dev-bleeds/spec.md (Optional runtime executable for compiled CLI)
+describe("workflows", () => {
+  test("leave VARIANT_BUN_RUNTIME to the release workflow", () => {
+    const workflows = join(import.meta.dir, "..", ".github", "workflows");
+    for (const name of readdirSync(workflows)) {
+      if (name !== "ci-release.yaml") {
+        expect(readFileSync(join(workflows, name), "utf8"), name).not.toContain("VARIANT_BUN_RUNTIME");
+      }
+    }
+  });
+});
+
+describe("package-cli compileTargets", () => {
+  test("expands all to the release platforms and keeps a single target as it is", () => {
+    expect(compileTargets("all", {})).toEqual([...RELEASE_TARGETS]);
+    expect(compileTargets("bun-darwin-arm64", {})).toEqual(["bun-darwin-arm64"]);
+  });
+
+  test("refuses all when one runtime is supplied, since it fits one platform", () => {
+    expect(() => compileTargets("all", { VARIANT_BUN_RUNTIME: "/runtime/bun-standalone" })).toThrow("VARIANT_BUN_RUNTIME");
+    expect(compileTargets("bun-darwin-arm64", { VARIANT_BUN_RUNTIME: "/runtime/bun-standalone" })).toEqual([
+      "bun-darwin-arm64",
+    ]);
+  });
+});
+
+describe("package-cli runtimeExecutable", () => {
+  test("names the executable that VARIANT_BUN_RUNTIME points at", () => {
+    const directory = mkdtempSync(join("/tmp", "variant-runtime-"));
+    try {
+      const runtime = join(directory, "bun-standalone");
+      writeFileSync(runtime, "#!/bin/sh\n");
+      chmodSync(runtime, 0o755);
+
+      expect(runtimeExecutable({ VARIANT_BUN_RUNTIME: runtime })).toBe(runtime);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("names no runtime when VARIANT_BUN_RUNTIME is unset or empty", () => {
+    expect(runtimeExecutable({})).toBeUndefined();
+    expect(runtimeExecutable({ VARIANT_BUN_RUNTIME: "" })).toBeUndefined();
+  });
+
+  test("fails naming the path when the runtime file does not exist", () => {
+    const missing = join("/tmp", "variant-runtime-missing", "bun-standalone");
+
+    expect(() => runtimeExecutable({ VARIANT_BUN_RUNTIME: missing })).toThrow(missing);
+  });
+
+  test("fails naming the path when the runtime file is not executable", () => {
+    const directory = mkdtempSync(join("/tmp", "variant-runtime-"));
+    try {
+      const runtime = join(directory, "bun-standalone");
+      writeFileSync(runtime, "bytes");
+      chmodSync(runtime, 0o644);
+
+      expect(() => runtimeExecutable({ VARIANT_BUN_RUNTIME: runtime })).toThrow(runtime);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 });

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { parse } from "yaml";
 
 type Step = { run?: string; with?: { name?: string; path?: string } };
-type Job = { "runs-on"?: string; "timeout-minutes"?: number; steps?: Step[] };
+type Job = { "runs-on"?: string; "timeout-minutes"?: number; steps?: Step[]; uses?: string };
 type Workflow = { jobs: Record<string, Job> };
 
 const workflow = (name: string): Workflow =>
@@ -38,12 +38,15 @@ describe("feature-branch CI", () => {
     expect(gate.indexOf("task package:vsix")).toBeGreaterThan(gate.indexOf("task check:full"));
 
     const release = workflow("ci-release.yaml");
-    expect(runs(release.jobs)).toContain("task package:cli:all");
+    expect(runs(release.jobs)).toContain("task package:cli TARGET=${{ matrix.target }}");
   });
 
   // Specification: openspec/specs/meta/ci-feature-builds/spec.md (A hung gate fails)
   test("limits every job to a time well above a normal run, so a hung test run fails the check", () => {
-    const limits = Object.entries(workflow("ci-branch.yaml").jobs).map(([name, job]) => [name, job["timeout-minutes"]]);
+    // AIDEV-NOTE: a job that calls a reusable workflow cannot set timeout-minutes; the called workflow's jobs do.
+    const limits = Object.entries(workflow("ci-branch.yaml").jobs)
+      .filter(([, job]) => job.uses === undefined)
+      .map(([name, job]) => [name, job["timeout-minutes"]]);
 
     for (const [name, limit] of limits) {
       expect(typeof limit, `${name} has no timeout-minutes`).toBe("number");

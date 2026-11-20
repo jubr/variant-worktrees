@@ -4,6 +4,8 @@
 
 ### Added
 
+- `bun-standalone.yaml` builds the slim `bun-standalone` runtime from the head of upstream Bun pull request 32262 on macOS arm64, macOS x64, Linux x64 and Linux arm64 and attaches the zips to the run. It compiles only when that head or the workflow file changed, and restores the cached binary otherwise. The compile is size-optimized (`MinSizeRel`) and patches Bun with `sed`, showing a `diff -u` per file, to stub out `Bun.Image` and `bun:ffi`. `ci-branch.yaml` calls it as the job `Bun standalone` on `main`, or when `ci-release.yaml` is dispatched with the new input `bun-standalone: yes`.
+- `VARIANT_BUN_RUNTIME=<executable>` makes `task bleed:cli` and `task package:cli` embed that Bun runtime in the compiled `variant` instead of the default one. A missing or non-executable file fails before compiling and names the path; `task package:cli:all` refuses the variable. The release builds one executable job per platform and, for Linux and macOS, embeds the cached slim runtime when there is one; Windows keeps the default runtime.
 - `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [`variant mcp`](docs/guide/cli.md#variant-mcp).
 
 ### Changed
