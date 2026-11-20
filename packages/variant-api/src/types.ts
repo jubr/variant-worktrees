@@ -186,6 +186,8 @@ export interface ImplodeOptions {
   branchRm?: "yes" | "no";
   /** Receives the report of what the worktree held; the default writes to stderr. */
   log?: (line: string) => void;
+  /** Called with a sentence before each action that stops or removes something. Not offered by the CLI or MCP. */
+  announce?: (message: string) => void;
 }
 
 /** What `implode` removed. */

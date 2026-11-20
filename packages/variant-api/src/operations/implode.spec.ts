@@ -197,6 +197,59 @@ describe("implode merge gate", () => {
     }));
 });
 
+describe("implode of a vanished worktree", () => {
+  const vanish = (worktree: string): void => rmSync(worktree, { recursive: true, force: true });
+
+  it("leaves the missing worktree path missing and drops the target", () =>
+    withProject(async ({ implode, worktree, database }) => {
+      mkdirSync(dirname(database), { recursive: true });
+      writeFileSync(database, "");
+      vanish(worktree);
+
+      const result = await implode({ branchRm: "no" });
+
+      expect(result.worktreeRemoved).toBe(false);
+      expect(existsSync(worktree)).toBe(false);
+      expect(existsSync(database)).toBe(false);
+    }));
+
+  it("keeps the branch with branchRm no and prunes the worktree record", () =>
+    withProject(async ({ implode, repo, worktree }) => {
+      vanish(worktree);
+
+      await implode({ branchRm: "no" });
+
+      expect(git(repo, "branch", "--list", "feat/demo")).toContain("feat/demo");
+      expect(git(repo, "worktree", "list", "--porcelain")).not.toContain(worktree);
+    }));
+
+  it("announces each action before it happens", () =>
+    withProject(async ({ implode, repo, worktree, database }) => {
+      mkdirSync(dirname(database), { recursive: true });
+      writeFileSync(database, "");
+      const statePath = join(repo, ".cache", "variants", "demo.yaml");
+      mkdirSync(dirname(statePath), { recursive: true });
+      writeFileSync(statePath, "slug: demo\n");
+      vanish(worktree);
+      const announced: { message: string; stateFileExists: boolean }[] = [];
+
+      await implode({
+        branchRm: "no",
+        announce: (message) => announced.push({ message, stateFileExists: existsSync(statePath) }),
+      });
+
+      const texts = announced.map(({ message }) => message);
+      expect(texts.some((text) => text.includes(database))).toBe(true);
+      expect(texts).toContain(`removing state file ${statePath}`);
+      expect(announced.find(({ message }) => message === `removing state file ${statePath}`)?.stateFileExists).toBe(
+        true,
+      );
+      expect(texts).toContain("git worktree prune");
+      expect(texts).toContain("keeping branch feat/demo");
+      expect(texts.indexOf("git worktree prune")).toBeLessThan(texts.indexOf("keeping branch feat/demo"));
+    }));
+});
+
 describe("implode teardown and worktree", () => {
   it("stops a running watch and drops the database before the worktree goes", () =>
     withProject(async ({ implode, worktree, database }) => {

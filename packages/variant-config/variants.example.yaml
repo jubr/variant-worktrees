@@ -70,7 +70,7 @@ variant:
   supervise: # `up` and `watch` timing
     startDelaySeconds: 2 # wait between starting two watches
     readyTimeoutSeconds: 180 # wait for the watches that set `ready`
-    checkoutPollSeconds: 5 # how often an attached watch checks that the worktree still exists; 0 turns it off
+    checkoutPollSeconds: 5 # how often a watch (attached or detached) checks that the worktree still exists; 0 turns it off
   implode: # `variant implode` removes the variant and its worktree
     preRm: # `rm -rf`` remove these before validate
       - dist

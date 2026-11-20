@@ -10,7 +10,7 @@ import { logToStderr } from "../ready.js";
 import { prepareRun } from "../run-context.js";
 import { removeVariantRuntime, variantConfigDir } from "../runtime-state.js";
 import { resolveSlug, worktreeEntries } from "../slug.js";
-import { readState, removeState } from "../state.js";
+import { readState, removeState, statePath } from "../state.js";
 import type { ImplodeOptions, ImplodeResult } from "../types.js";
 import { primaryWorktree } from "../worktree.js";
 import { deprovisionPhase } from "./deprovision.js";
@@ -34,14 +34,15 @@ const teardownVariant = async (
   slug: string,
   worktree: string | undefined,
   log?: (line: string) => void,
+  announce?: (message: string) => void,
 ): Promise<boolean> => {
   if (worktree) {
     await stopHostProcesses(context, worktree);
   }
-  stopContainers(context, slug, log);
+  stopContainers(context, slug, log, announce);
   const state = readState(context.stateDir, slug);
   const run = await prepareRun(context, slug, worktree ?? checkoutRoot(repositoryDirectory(context)));
-  const phase = await deprovisionPhase(context, run, log);
+  const phase = await deprovisionPhase(context, run, log, announce);
   const removed = phase.dropped.length > 0;
   const storage = context.config.variant.storage;
   if (worktree && storage) {
@@ -56,6 +57,9 @@ const teardownVariant = async (
     (existsSync(join(runtimeDir, STATE_FILE)) || existsSync(join(runtimeDir, LOCAL_FILENAME)));
   if (worktree) {
     removeVariantRuntime(context.config, worktree);
+  }
+  if (state !== undefined) {
+    announce?.(`removing state file ${statePath(context.stateDir, slug)}`);
   }
   removeState(context.stateDir, slug);
   return removed || state !== undefined || hadRuntime;
@@ -124,8 +128,10 @@ const removeLocalBranch = (
   branch: string | undefined,
   branchRm: ImplodeOptions["branchRm"],
   directory: string,
+  announce?: (message: string) => void,
 ): Pick<ImplodeResult, "branch" | "branchRemoved"> => {
   if (branchRm === "no") {
+    announce?.(branch ? `keeping branch ${branch}` : `no branch to keep for ${slug}`);
     emit(branch ? `kept branch ${branch}` : `no branch to remove for ${slug}`, slug, directory);
     return { ...(branch ? { branch } : {}), branchRemoved: false };
   }
@@ -133,6 +139,7 @@ const removeLocalBranch = (
     emit(`no branch to remove for ${slug}`, slug, directory);
     return { branchRemoved: false };
   }
+  announce?.(`removing branch ${branch}`);
   git(primaryWorktree(repositoryDirectory(context)), ["branch", "-D", branch]);
   emit(`removed branch ${branch}`, slug, directory);
   return { branch, branchRemoved: true };
@@ -171,17 +178,23 @@ export const implodeVariant = async (
 
   const branch = removable ? checkedOutBranch(context, removable) : present ? undefined : prefixedBranch(context, slug);
   const logDir = present && located !== undefined ? variantConfigDir(config, located) : context.cwd;
-  const removed = await teardownVariant(context, slug, present ? located : undefined, options.log);
+  const removed = await teardownVariant(context, slug, present ? located : undefined, options.log, options.announce);
   if (!removable) {
     if (located !== undefined && !present) {
-      git(primaryWorktree(repositoryDirectory(context)), ["worktree", "prune"]);
+      options.announce?.("git worktree prune");
+      // AIDEV-NOTE: a vanished worktree outside any git repository has no record to prune. That is not a failure.
+      try {
+        runGit(primaryWorktree(repositoryDirectory(context)), ["worktree", "prune"]);
+      } catch {
+        // not a git checkout
+      }
     }
     return finish(
       {
         slug,
         removed,
         worktreeRemoved: false,
-        ...removeLocalBranch(context, slug, branch, options.branchRm, logDir),
+        ...removeLocalBranch(context, slug, branch, options.branchRm, logDir, options.announce),
       },
       logDir,
     );
@@ -206,7 +219,7 @@ export const implodeVariant = async (
       worktreeRemoved: true,
       worktree: removable,
       report,
-      ...removeLocalBranch(context, slug, branch, options.branchRm, projectDir),
+      ...removeLocalBranch(context, slug, branch, options.branchRm, projectDir, options.announce),
     },
     projectDir,
   );

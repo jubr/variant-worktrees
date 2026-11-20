@@ -48,6 +48,25 @@ An interrupt exits 130 and leaves the processes running. `--detach` returns afte
 
 An attached `watch` ends with exit status 130 on SIGINT or SIGTERM, 1 when one watch ends or the worktree disappears, and 0 only when detached.
 The CLI sets the process exit code from it.
+A detached `watch` that sees its worktree disappear cleans up and ends on its own, see [Worktree removed](#worktree-removed).
+
+### Worktree removed
+
+A `watch`, attached or detached, checks every [`checkoutPollSeconds`](./configuration#variant-supervise-checkoutpollseconds) that the worktree directory it was started for is still the same directory.
+Removing the worktree with `variant implode` or by hand ends the watch.
+A directory that a watch process recreates below the removed path is not the worktree.
+The watch then stops every process with its descendants and implodes the variant.
+That drops the database target and the containers and removes the state file, and works when the directory is already gone.
+It keeps the local branch, because a directory that was removed by hand may have been the only copy of unmerged commits.
+The `main` variant only has its processes stopped.
+From that moment nothing is written below the removed path: no `watch.log`, no `in.sock`, no state files.
+
+One `warn` event with the step `watch-cleanup` says the path is gone and what follows.
+Before each action after it a `debug` event with that step names what it stops or removes: each process with its pid, the state file, the database target, `git worktree prune` and the kept branch.
+Under a temporary directory all of them are `trace`. A failed implode is another `warn`.
+The CLI treats them like its other log events.
+A detached watch writes them to the stderr of the command that started it, when that is a terminal or a file.
+A pipe is left alone, so a script that reads the output of `variant watch --detach` until its end does not wait for the watch.
 
 ## Up
 

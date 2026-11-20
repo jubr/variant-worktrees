@@ -1,13 +1,24 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { createWriteStream, existsSync, mkdirSync, realpathSync, rmSync, writeFileSync, writeSync } from "node:fs";
+import {
+  createWriteStream,
+  existsSync,
+  fstatSync,
+  mkdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 import { createServer, type Server } from "node:net";
 import { dirname, join } from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { logW } from "./log.js";
+import type { ResolvedConfig } from "variant-config";
+import { type LogEvent, logW, setLogSink } from "./log.js";
 import { stopProcessTree } from "./processes.js";
 import { sleep } from "./sleep.js";
+import { cleanupVanishedWorktree, WATCH_CLEANUP_STEP, worktreeGone, worktreeIdentity } from "./watch-cleanup.js";
 
 /** `tty` gives the process a terminal. `no-tty` keeps pipes. */
 export type WatchOutputMode = "tty" | "no-tty";
@@ -55,12 +66,17 @@ export interface LaunchResult {
   writeLog?: (text: string) => void;
   /** Waits until every captured stream has ended, then flushes the log. */
   close: () => Promise<void>;
+  /** Drops queued and later log lines and leaves the stdin socket path alone. Nothing is written afterwards. */
+  silence: () => void;
   /** Writes to every watch stdin. A later attach reaches this through the socket beside the log. */
   writeStdin?: (text: string) => void;
 }
 
 /** A log file that accepts lines without delaying the console write that queued them. */
-const openLog = (path: string, append: boolean): { write: (text: string) => void; close: () => Promise<void> } => {
+const openLog = (
+  path: string,
+  append: boolean,
+): { write: (text: string) => void; close: () => Promise<void>; silence: () => void } => {
   mkdirSync(dirname(path), { recursive: true });
   if (!append) writeFileSync(path, "");
   const stream = createWriteStream(path, { flags: "a" });
@@ -68,6 +84,7 @@ const openLog = (path: string, append: boolean): { write: (text: string) => void
   // AIDEV-NOTE: a full file buffer queues lines in order and writes them on drain; the console write does not wait.
   const pending: string[] = [];
   let blocked = false;
+  let silenced = false;
   const pump = (): void => {
     while (!blocked && pending.length > 0) {
       const text = pending.shift() as string;
@@ -81,11 +98,22 @@ const openLog = (path: string, append: boolean): { write: (text: string) => void
   stream.on("error", () => {});
   return {
     write: (text) => {
+      if (silenced) return;
       pending.push(text);
       pump();
     },
+    // AIDEV-NOTE: a vanished worktree must not get its log back. Drop the queue and the handle; nothing reopens the path.
+    silence: () => {
+      silenced = true;
+      pending.length = 0;
+      stream.destroy();
+    },
     close: () =>
       new Promise((resolve) => {
+        if (silenced) {
+          resolve();
+          return;
+        }
         const finish = (): void => {
           if (pending.length > 0 || blocked) {
             stream.once("drain", () => {
@@ -464,6 +492,7 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
   };
   const stdinPath = options.logPath === undefined ? undefined : join(dirname(options.logPath), "in.sock");
   let stdinServer: Server | undefined;
+  let silenced = false;
   if (stdinPath !== undefined) {
     rmSync(stdinPath, { force: true });
     stdinServer = createServer((socket) => {
@@ -486,9 +515,14 @@ export const launchWatches = async (options: LaunchWatchesOptions): Promise<Laun
     processes,
     ...(log ? { writeLog: (text: string) => log.write(text) } : {}),
     writeStdin,
+    silence: () => {
+      silenced = true;
+      log?.silence();
+      stdinServer?.close();
+    },
     close: async () => {
       stdinServer?.close();
-      if (stdinPath !== undefined) rmSync(stdinPath, { force: true });
+      if (stdinPath !== undefined && !silenced) rmSync(stdinPath, { force: true });
       await Promise.all(finished);
       await log?.close();
     },
@@ -535,6 +569,23 @@ export interface RelayPlan {
   args?: string;
   /** Mise executable this process already resolved. Absent when none was found. */
   mise?: string;
+  /** What the relay needs to clean up after its worktree. Absent: the relay never looks at the worktree. */
+  cleanup?: RelayCleanup;
+}
+
+/** Everything a relay needs to implode its variant once the worktree directory is gone. */
+export interface RelayCleanup {
+  slug: string;
+  /** The worktree the watches were started for. */
+  worktree: string;
+  /** A directory that survives the worktree: the operation context is built from it. */
+  cwd: string;
+  stateDir: string;
+  config: ResolvedConfig;
+  useWorktree: boolean;
+  /** `supervise.checkoutPollSeconds`. 0 turns the check off. */
+  pollSeconds: number;
+  miseBinPath?: string;
 }
 
 const readStdin = async (): Promise<string> => {
@@ -561,10 +612,44 @@ const readLine = (stream: NodeJS.ReadableStream): Promise<string> =>
     stream.on("end", () => reject(new Error("watch relay ended before it reported pids")));
   });
 
+/** The relay has no host. Its cleanup warnings go to the standard error it inherited, whatever their level. */
+const relayStderrSink = (event: LogEvent): void => {
+  if (event.step === WATCH_CLEANUP_STEP) {
+    process.stderr.write(`[${event.level}] ${event.message}\n`);
+  }
+};
+
+/** Stops the watches by the pids the relay holds and implodes the variant, writing nothing below the worktree. */
+const cleanupAfterWorktree = (settings: RelayCleanup, launched: LaunchResult): Promise<void> =>
+  cleanupVanishedWorktree({
+    slug: settings.slug,
+    worktree: settings.worktree,
+    directory: settings.cwd,
+    processes: launched.processes.map(({ key, pid }) => ({ key, pid })),
+    silence: launched.silence,
+    implode: async (options) => {
+      // AIDEV-NOTE: loaded here so a relay whose worktree stays never pays for the client and its database drivers.
+      const { createVariantClient } = await import("./variant-client.js");
+      const client = createVariantClient({
+        config: settings.config,
+        cwd: settings.cwd,
+        stateDir: settings.stateDir,
+        worktree: settings.useWorktree,
+        ...(settings.miseBinPath === undefined ? {} : { miseBinPath: settings.miseBinPath }),
+      });
+      return client.implode(settings.slug, options);
+    },
+  });
+
 /** Entry the relay child runs: one JSON plan on stdin, one JSON line of pids on stdout, then the watches. */
 export const runWatchRelay = async (): Promise<void> => {
   try {
     const plan = JSON.parse(await readStdin()) as RelayPlan;
+    const settings = plan.cleanup;
+    const identity = settings === undefined ? undefined : worktreeIdentity(settings.worktree);
+    if (settings !== undefined) {
+      setLogSink(relayStderrSink);
+    }
     const launched = await launchWatches({
       launches: plan.launches,
       startDelayMs: plan.startDelayMs,
@@ -575,6 +660,17 @@ export const runWatchRelay = async (): Promise<void> => {
     });
     const pids = Object.fromEntries(launched.processes.map(({ key, pid }) => [key, pid]));
     writeSync(1, `${JSON.stringify({ pids })}\n`);
+    let cleanup: Promise<void> | undefined;
+    if (settings !== undefined && settings.pollSeconds > 0) {
+      const timer = setInterval(() => {
+        if (cleanup === undefined && worktreeGone(settings.worktree, identity)) {
+          clearInterval(timer);
+          cleanup = cleanupAfterWorktree(settings, launched);
+        }
+      }, settings.pollSeconds * 1000);
+      // AIDEV-NOTE: the check never keeps the relay alive. The watch processes do.
+      timer.unref();
+    }
     await Promise.all(
       launched.processes.map(
         ({ child }) =>
@@ -587,10 +683,27 @@ export const runWatchRelay = async (): Promise<void> => {
           }),
       ),
     );
+    await cleanup;
     await launched.close();
   } catch (error) {
     writeSync(1, `${JSON.stringify({ error: (error as Error).message })}\n`);
     process.exitCode = 1;
+  }
+};
+
+/**
+ * Where the relay's standard error goes: the caller's own when that is a terminal or a file, else nowhere. A pipe stays
+ * closed to the relay, because a caller that waits for the end of that pipe would otherwise wait for the relay too.
+ */
+export const relayStderrMode = (
+  kind: { isFile: () => boolean; isCharacterDevice: () => boolean } | undefined,
+): "inherit" | "ignore" => (kind !== undefined && (kind.isFile() || kind.isCharacterDevice()) ? "inherit" : "ignore");
+
+const callerStderr = (): { isFile: () => boolean; isCharacterDevice: () => boolean } | undefined => {
+  try {
+    return fstatSync(2);
+  } catch {
+    return undefined;
   }
 };
 
@@ -606,7 +719,8 @@ export const startDetachedRelay = async (plan: RelayPlan): Promise<Record<string
   }
   const child = spawn(args[0] as string, args.slice(1), {
     detached: true,
-    stdio: ["pipe", "pipe", "ignore"],
+    // AIDEV-NOTE: the relay's only standard error output is its cleanup warnings. They reach whoever started it.
+    stdio: ["pipe", "pipe", relayStderrMode(callerStderr())],
     env,
   });
   child.unref();

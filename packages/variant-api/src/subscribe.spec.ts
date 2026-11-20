@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { type FSWatcher, mkdirSync, mkdtempSync, realpathSync, rmSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
@@ -258,6 +259,29 @@ describe("client.subscribe", () => {
 
 describe("state subscriptions", () => {
   const quick = { debounceMs: 10, livenessIntervalMs: 20 };
+
+  it("reads once more after it armed new watchers, for a change they cannot have seen yet", async () => {
+    let slugsNow = ["demo"];
+    const deaf = (): FSWatcher => Object.assign(new EventEmitter(), { close: () => {} }) as unknown as FSWatcher;
+    const subscriptions = createStateSubscriptions({
+      debounceMs: 10,
+      livenessIntervalMs: 60_000,
+      read: async () => slugsNow.map((slug) => record(slug)),
+      targets: () => [{ path: "/watched" }],
+      // A watcher that has not started yet reports nothing: the change below is never announced to it.
+      watch: (() => deaf()) as unknown as typeof watch,
+    });
+    const received = collector();
+    const unsubscribe = subscriptions.subscribe(received.listener);
+    try {
+      await received.until(() => true);
+      slugsNow = ["demo", "late"];
+
+      await received.until((update) => slugs(update).includes("late"), 1000);
+    } finally {
+      unsubscribe();
+    }
+  });
 
   it("ignores a change of uptimeSeconds alone", async () => {
     let uptime = 1;
