@@ -64,7 +64,6 @@ const verboseArg: ArgDefinition = {
   description: "Print the full output of quiet provisioning steps; for list, all meta information of every variant",
   type: "boolean",
   required: false,
-  short: "v",
 };
 
 const slugString = (args: Record<string, unknown>): string | undefined => args.slug as string | undefined;

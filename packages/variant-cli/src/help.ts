@@ -1,4 +1,4 @@
-import { LOG_LEVEL_FLAG } from "./ipc-log.js";
+import { LOG_LEVEL_FLAG, VERBOSITY_FLAG } from "./ipc-log.js";
 import { GLOBAL_FLAGS } from "./output.js";
 
 /** Flags cleye adds itself; they apply to every command, so they are listed with the global flags. */
@@ -28,17 +28,32 @@ const flagRow = (name: string, description: string): [FlagCell, FlagCell] => {
   ];
 };
 
-/** `-C <path>` with no long name. It is the first global flag. */
-const directoryRow = (): [FlagCell, FlagCell] => {
+/** A global flag with no long name, shown as typed: `-C <path>`, `-v`. */
+const shortRow = (name: string, description: string, placeholder?: string): [FlagCell, FlagCell] => {
   const data = {
-    name: "C",
+    name,
+    flag: { type: placeholder === undefined ? Boolean : String, description, ...(placeholder ? { placeholder } : {}) },
+    flagFormatted: `-${name}`,
+    aliasesEnabled: false,
+  };
+  return [
+    { type: "flagName", data },
+    { type: "flagDescription", data },
+  ];
+};
+
+/** `-s, --slug <slug>`: the slug is a global flag, so it is listed here and not among the flags of a command. */
+const slugRow = (): [FlagCell, FlagCell] => {
+  const data = {
+    name: "slug",
     flag: {
       type: String,
-      description: "Change to <path> before reading configuration",
-      placeholder: "<path>",
+      description: "Variant slug; defaults to the current git worktree",
+      placeholder: "<slug>",
     },
-    flagFormatted: "-C",
-    aliasesEnabled: false,
+    flagFormatted: "--slug",
+    aliasFormatted: "-s",
+    aliasesEnabled: true,
   };
   return [
     { type: "flagName", data },
@@ -75,8 +90,8 @@ const isFlagsSection = (node: unknown): node is Section => (node as { id?: strin
 const flagsSection = (nodes: readonly unknown[]): Section | undefined => nodes.find(isFlagsSection);
 
 /**
- * The help document with the global flags in a section of their own after `Flags`: `--json`, `--yaml` and the flags
- * cleye adds (`--help`, and `--version` on the top level), which then no longer appear among the flags of the command.
+ * The help document with the global flags in a section of their own after `Flags`: `-C`, `-s`, `--json`, `--yaml`, `--log-level`, `-v` and the
+ * flags cleye adds (`--help`, and `--version` on the top level), which then no longer appear among the flags of the command.
  * A `Flags` section left without flags is dropped.
  */
 export const withGlobalFlags = <Node>(nodes: Node[]): Node[] => {
@@ -95,9 +110,11 @@ export const withGlobalFlags = <Node>(nodes: Node[]): Node[] => {
           ...(flags?.data.body.data ?? {}),
           tableBreakpoints: withoutBottomPadding(flags?.data.body.data.tableBreakpoints),
           tableData: [
-            directoryRow(),
+            shortRow("C", "Change to <path> before reading configuration", "<path>"),
+            slugRow(),
             ...GLOBAL_FLAGS.map(({ name, description }) => flagRow(name, description)),
             flagRow(LOG_LEVEL_FLAG.name, LOG_LEVEL_FLAG.description),
+            shortRow(VERBOSITY_FLAG.name, VERBOSITY_FLAG.description),
             ...builtIn,
           ],
         },
@@ -131,3 +148,13 @@ export const withoutTrailingBlanks = (text: string): string => text.replace(TRAI
 /** The `render` option of cleye's `help`, for the top level and for every command. */
 export const renderHelp = <Node>(nodes: Node[], renderers: { render: (nodes: Node[]) => string }): string =>
   withoutTrailingBlanks(renderers.render(withGlobalFlags(nodes)));
+
+/** The `render` option of the top-level help, which follows the version text and so leaves out cleye's `variant v<version>` line. */
+export const renderTopHelp = <Node extends { id?: string }>(
+  nodes: Node[],
+  renderers: { render: (nodes: Node[]) => string },
+): string =>
+  renderHelp(
+    nodes.filter((node) => node.id !== "name"),
+    renderers,
+  );

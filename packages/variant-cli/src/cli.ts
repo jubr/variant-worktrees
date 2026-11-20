@@ -17,10 +17,11 @@ import pkg from "../package.json" with { type: "json" };
 import { takeDirectory } from "./chdir.js";
 import { CLI_ONLY_COMMANDS, cliOnlyCommands } from "./commands/index.js";
 import { lifecycleCommand } from "./commands/lifecycle.js";
-import { renderHelp } from "./help.js";
+import { renderHelp, renderTopHelp } from "./help.js";
 import { takeLogLevel } from "./ipc-log.js";
-import { attachLogLevel, explicitSlug, finishCliLog } from "./ipc-vscode.js";
+import { attachLogLevel, finishCliLog } from "./ipc-vscode.js";
 import { GLOBAL_FLAGS, type OutputFormat } from "./output.js";
+import { takeSlug } from "./slug-flag.js";
 
 declare const VARIANT_BUILD_DATE: string | undefined;
 declare const VARIANT_BUILD_VARIANT: string | undefined;
@@ -50,12 +51,12 @@ if (process.argv.includes("--internal-watch-relay")) {
   try {
     const { args: withoutDir } = takeDirectory(process.argv.slice(2));
     const { args: withoutLevel, level } = takeLogLevel(withoutDir);
-    const { args, format } = takeFormat(withoutLevel);
+    const { args: withoutSlug, slug } = takeSlug(withoutLevel);
+    const { args, format } = takeFormat(withoutSlug);
     const requested = args.find((arg) => !arg.startsWith("-"));
     // AIDEV-NOTE: `variant mcp` owns standard output and its own log sink, so the CLI's sink and its end line stay off.
     servesMcp = requested === "mcp" && !args.includes("--help") && !args.includes("-h");
     if (!servesMcp) {
-      const slug = explicitSlug(withoutLevel);
       attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
     }
     const known = (name: string): boolean =>
@@ -64,20 +65,23 @@ if (process.argv.includes("--internal-watch-relay")) {
     if (requested !== undefined && !known(requested)) {
       throw new Error(`Unknown command: ${requested}. Run variant --help for the commands.`);
     }
-    if (args.includes("--version") && requested === undefined) {
+    /** The text `--version` prints; the top-level help starts with it. */
+    const versionText = (): string => {
       const directory = dirname(fileURLToPath(import.meta.url));
       const facts = resolveVersionFacts(directory, new Date(), bakedVersion());
-      process.stdout.write(
-        renderVersion({
-          version,
-          platform: platformToken(process.platform, process.arch),
-          date: facts.date,
-          variant: facts.variant,
-          banner: process.stdout.isTTY === true,
-          color: versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
-          repository: repositoryUrl(),
-        }),
-      );
+      return renderVersion({
+        version,
+        platform: platformToken(process.platform, process.arch),
+        date: facts.date,
+        variant: facts.variant,
+        banner: process.stdout.isTTY === true,
+        color: versionColor({ isTTY: process.stdout.isTTY === true, NO_COLOR: process.env.NO_COLOR }),
+        repository: repositoryUrl(),
+      });
+    };
+    const asksForHelp = args.length === 0 || args.includes("--help") || args.includes("-h");
+    if (args.includes("--version") && requested === undefined) {
+      process.stdout.write(versionText());
     } else {
       if (!args.includes("--help") && !args.includes("-h")) {
         const name = args.find((arg) => !arg.startsWith("-"));
@@ -85,16 +89,20 @@ if (process.argv.includes("--internal-watch-relay")) {
           log(LogLevel.info, args.slice(args.indexOf(name)).join(" "));
         }
       }
+      const extended = requested === undefined && asksForHelp;
+      if (extended) {
+        process.stdout.write(`${versionText()}\n`);
+      }
       await cli(
         {
           name: "variant",
           version,
           help: {
             description: "Database variants for git worktrees",
-            render: renderHelp,
+            render: extended ? renderTopHelp : renderHelp,
           },
           strictFlags: true,
-          commands: [...commands.map((definition) => lifecycleCommand(definition, format)), ...cliOnlyCommands()],
+          commands: [...commands.map((definition) => lifecycleCommand(definition, format, slug)), ...cliOnlyCommands()],
         },
         undefined,
         args.length === 0 ? ["--help"] : args,

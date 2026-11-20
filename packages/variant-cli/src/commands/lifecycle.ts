@@ -10,31 +10,42 @@ import { flagSpecsFor } from "./flags.js";
 
 const flagTypes = { string: String, number: Number, boolean: Boolean } as const;
 
+/** The flags of a command. The slug is a global option, so it is not one of them. */
 const flagsFor = (definition: CommandDefinition) =>
   Object.fromEntries(
-    flagSpecsFor(definition).map((flag) => [
-      flag.name,
-      {
-        type: flagTypes[flag.type],
-        ...(flag.short ? { alias: flag.short } : {}),
-        description: flag.description,
-      },
-    ]),
+    flagSpecsFor(definition)
+      .filter((flag) => flag.name !== "slug")
+      .map((flag) => [
+        flag.name,
+        {
+          type: flagTypes[flag.type],
+          ...(flag.short ? { alias: flag.short } : {}),
+          description: flag.description,
+        },
+      ]),
   );
 
-/** One cleye command for a library command definition: it runs `execute()` in-process and prints the rendered result. */
-export const lifecycleCommand = (definition: CommandDefinition, format: OutputFormat) =>
+/**
+ * One cleye command for a library command definition: it runs `execute()` in-process and prints the rendered result.
+ * `slug` is the global `-s`/`--slug`, already taken out of the arguments. A positional argument is an error, so a slug
+ * typed without `-s` never leaves the command acting on the variant of the current branch.
+ */
+export const lifecycleCommand = (definition: CommandDefinition, format: OutputFormat, slug?: string) =>
   command(
     {
       name: String(definition.name),
       help: { description: definition.description, render: renderHelp },
-      parameters: definition.args.some((arg) => arg.name === "slug") ? ["[slug]"] : [],
       flags: flagsFor(definition),
     },
     async (argv) => {
+      const [stray] = argv._ as unknown as string[];
+      if (stray !== undefined) {
+        throw new Error(
+          `Unexpected argument: ${stray}.${definition.args.some((arg) => arg.name === "slug") ? " Name a variant with -s <slug>." : ""}`,
+        );
+      }
       const flags = argv.flags as Record<string, unknown>;
-      const positional = (argv._ as unknown as { slug?: string }).slug;
-      const args = collectArgs(definition, flags, positional);
+      const args = collectArgs(definition, flags, slug);
       const client = createVariantClient({ worktree: process.env.VARIANT_WORKTREE !== "0" });
       printWarnings(client.config().warnings);
       migrateConfigFiles(client.config());
