@@ -4,7 +4,7 @@
 
 ### Added
 
-- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [mcp](docs/guide/commands.md#mcp).
+- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [mcp](docs/guide/cli.md#mcp-server).
 
 ### Changed
 
