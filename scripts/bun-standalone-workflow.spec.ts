@@ -2,8 +2,10 @@
  * Specification: openspec/specs/meta/bun-standalone-build/spec.md
  */
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { parse } from "yaml";
 
 type Step = {
@@ -87,7 +89,7 @@ const guard = "steps.binary.outputs.cache-hit != 'true'";
 const buildSteps = (): Step[] => load().jobs?.build?.steps ?? [];
 const stepText = (step: Step): string => `${step.uses ?? ""}\n${step.run ?? ""}`;
 const isBuildWork = (step: Step): boolean =>
-  /build:standalone|brew install|apt-get|rustup|bun install/.test(step.run ?? "") ||
+  /scripts\/build\.ts|brew install|apt-get|rustup|bun install|sed /.test(step.run ?? "") ||
   /^(actions\/checkout|oven-sh\/setup-bun)@/.test(step.uses ?? "") ||
   step.id === "dependencies";
 
@@ -162,6 +164,229 @@ describe("bun-standalone workflow output", () => {
     expect(upload?.with?.["if-no-files-found"]).toBe("error");
     expect(steps.indexOf(upload as Step)).toBeGreaterThan(steps.findIndex((step) => step.id === "smoke"));
     expect(summary?.run).toContain("needs.resolve.outputs.sha");
+  });
+});
+
+const patchFiles = [
+  "scripts/build/flags.ts",
+  "scripts/build/rust.ts",
+  "src/runtime/lib.rs",
+  "src/runtime/api/BunObject.rs",
+  "src/runtime/webcore/Body.rs",
+  "src/runtime/image/Image.classes.ts",
+  "src/runtime/ffi/ffi.classes.ts",
+  "src/runtime/ffi/mod.rs",
+];
+const stubFiles = ["src/runtime/image_standalone_stub.rs", "src/runtime/ffi/ffi_standalone_stub.rs"];
+const patchStep = (): Step | undefined => buildSteps().find((step) => step.id === "patch");
+
+// Specification: openspec/specs/meta/bun-standalone-build/spec.md (Smaller runtime through source patches)
+describe("bun-standalone workflow patches", () => {
+  test("patches the checked-out source between the checkout and the compile, only when compiling", () => {
+    const steps = buildSteps();
+    const ids = steps.map((step) => step.id ?? step.name);
+    const compile = steps.findIndex((step) => step.run?.includes("scripts/build.ts"));
+
+    expect(patchStep()?.if).toContain(guard);
+    expect(ids.indexOf("patch")).toBeGreaterThan(ids.indexOf("Check out the pull request head"));
+    expect(ids.indexOf("patch")).toBeLessThan(compile);
+  });
+
+  test("patches with sed, shows a diff -u per file and fails when a patch changes nothing", () => {
+    const run = patchStep()?.run ?? "";
+
+    expect(run).toContain("sed");
+    expect(run).toContain("diff -u");
+    expect(run).toContain("did not change");
+    expect(run).not.toMatch(/git apply|\bpatch -p|git cherry-pick/);
+    for (const file of [...patchFiles, ...stubFiles]) {
+      expect(run, file).toContain(file);
+    }
+  });
+
+  test("compiles the standalone runtime size-optimized", () => {
+    const compile = buildSteps().find((step) => step.run?.includes("scripts/build.ts"));
+
+    expect(compile?.run).toContain("--standalone=on");
+    expect(compile?.run).toContain("--build-type=MinSizeRel");
+    expect(compile?.run).toContain("--build-dir=build/release-standalone");
+  });
+
+  test("checks that Bun.Image and bun:ffi are gone from the runtime, hit or fresh", () => {
+    const smoke = buildSteps().find((step) => step.id === "smoke");
+
+    expect(smoke?.run).toContain("Bun.Image");
+    expect(smoke?.run).toContain("dlopen");
+  });
+});
+
+const fixtures: Record<string, string> = {
+  "scripts/build/flags.ts": `  {
+    flag: "-Os",
+    when: c => c.unix && c.smol,
+    desc: "Optimize for size (MinSizeRel)",
+  },
+`,
+  "scripts/build/rust.ts": `    env.CARGO_PROFILE_RELEASE_LTO = "off";
+  }
+  if (rustflags.length > 0) env.CARGO_ENCODED_RUSTFLAGS = rustflags.join("\x1f");
+`,
+  "src/runtime/lib.rs": `pub mod dns_jsc;
+pub mod image;
+#[cfg(not(bun_standalone))]
+pub mod test_runner;
+`,
+  "src/runtime/api/BunObject.rs": `pub(crate) fn get_image_constructor(global_this: &JSGlobalObject, _: &JSObject) -> JSValue {
+    jsc::codegen::js::get_constructor::<crate::image::Image>(global_this)
+}
+`,
+  "src/runtime/webcore/Body.rs": `            if let Some(image) = value.as_class_ref::<crate::image::Image>() {
+                let x = 1;
+            }
+`,
+  "src/runtime/image/Image.classes.ts": `  define({
+    name: "Image",
+    construct: true,
+`,
+  "src/runtime/ffi/ffi.classes.ts": `  define({
+    name: "FFI",
+    construct: true,
+`,
+  "src/runtime/ffi/mod.rs": `use core::ffi::{c_char, c_void};
+use core::ptr::NonNull;
+
+use bun_core::ZBox;
+
+use crate::jsc::JSGlobalObject;
+
+mod host_fns;
+pub use host_fns::{generate_symbol_for_function, generate_symbols};
+
+#[path = "ffi_body.rs"]
+mod ffi_body;
+
+mod dom_call_slowpath {
+    use crate::jsc::{JSGlobalObject, JSValue};
+}
+
+use bun_tcc_sys as TCC;
+
+pub(crate) fn get_dl_error() -> Box<[u8]> {
+    unsafe {
+        let msg = 1;
+    }
+}
+
+pub struct Function {
+    pub x: u8,
+}
+
+impl Default for Function {
+    fn default() -> Self {}
+}
+
+pub static LIB_DIR_Z: bun_core::RacyCell<*const c_char> = bun_core::RacyCell::new(c"".as_ptr());
+
+unsafe extern "C" {
+    fn FFICallbackFunctionWrapper_destroy(_: *mut c_void);
+}
+
+impl Drop for Function {
+    fn drop(&mut self) {}
+}
+
+impl Function {
+    pub fn needs_handle_scope(&self) -> bool {}
+}
+
+pub enum Step {
+    Pending,
+}
+
+pub struct Compiled {
+    pub ptr: *mut c_void,
+}
+
+impl Default for Compiled {
+    fn default() -> Self {}
+}
+
+impl Step {
+    pub fn compiled_ptr(&self) {}
+}
+
+mod abi_type;
+pub use abi_type::{ABI_TYPE_LABEL, ABIType};
+`,
+};
+
+// A typo in a sed expression is the likely failure, and it only shows after a long compile, so run the step on fixtures.
+describe("bun-standalone workflow patch step on the upstream lines", () => {
+  const gnuSed = spawnSync("sed", ["--version"]).status === 0 || spawnSync("gsed", ["--version"]).status === 0;
+  const maybe = gnuSed ? test : test.skip;
+
+  maybe("rewrites each file as intended and adds the two stubs", () => {
+    const root = mkdtempSync(join(tmpdir(), "bun-patch-"));
+    for (const [file, text] of Object.entries(fixtures)) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), text);
+    }
+    const script = patchStep()?.run ?? "";
+    const result = spawnSync("bash", ["-e", "-c", script], { cwd: root, encoding: "utf8" });
+    const read = (file: string): string => readFileSync(join(root, file), "utf8");
+
+    expect(result.stderr).not.toContain("did not change");
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(read("scripts/build/flags.ts")).toContain('flag: "-Oz",');
+    expect(read("scripts/build/rust.ts")).toMatch(
+      /if \(cfg\.smol\) env\.CARGO_PROFILE_RELEASE_OPT_LEVEL = "z";\n {2}if \(rustflags/,
+    );
+    expect(read("src/runtime/lib.rs")).toContain(
+      '#[cfg(not(bun_standalone))]\npub mod image;\n#[cfg(bun_standalone)]\n#[path = "image_standalone_stub.rs"]\npub mod image;',
+    );
+    expect(read("src/runtime/api/BunObject.rs")).toMatch(
+      /#\[cfg\(bun_standalone\)\]\npub\(crate\) fn get_image_constructor\(_: &JSGlobalObject, _: &JSObject\) -> JSValue \{\n {4}JSValue::UNDEFINED\n\}\n\n#\[cfg\(not\(bun_standalone\)\)\]\npub\(crate\) fn get_image_constructor\(global_this/,
+    );
+    expect(read("src/runtime/webcore/Body.rs")).toMatch(
+      / {12}#\[cfg\(not\(bun_standalone\)\)\]\n {12}if let Some\(image\)/,
+    );
+    expect(read("src/runtime/image/Image.classes.ts")).toContain('name: "Image",\n    standaloneStub: "');
+    expect(read("src/runtime/ffi/ffi.classes.ts")).toContain('name: "FFI",\n    standaloneStub: "');
+    const mod = read("src/runtime/ffi/mod.rs");
+    for (const item of [
+      "mod host_fns;",
+      "pub use host_fns::",
+      '#[path = "ffi_body.rs"]',
+      "use bun_tcc_sys as TCC;",
+      "pub(crate) fn get_dl_error",
+      "pub struct Function",
+      "impl Default for Function",
+      "pub static LIB_DIR_Z",
+      'unsafe extern "C" {',
+      "impl Drop for Function",
+      "impl Function {",
+      "pub enum Step",
+      "pub struct Compiled",
+      "impl Default for Compiled",
+      "impl Step",
+      "mod abi_type;",
+      "pub use abi_type::",
+    ]) {
+      expect(mod, item).toContain(`#[cfg(not(bun_standalone))]\n${item}`);
+    }
+    expect(mod).toContain(
+      '#[path = "ffi_body.rs"]\nmod ffi_body;\n#[cfg(bun_standalone)]\n#[path = "ffi_standalone_stub.rs"]\nmod ffi_body;',
+    );
+    for (const item of [
+      "use core::ffi::{c_char, c_void};",
+      "use core::ptr::NonNull;",
+      "use bun_core::ZBox;",
+      "use crate::jsc::JSGlobalObject;",
+    ]) {
+      expect(mod, item).toContain(`#[cfg_attr(bun_standalone, allow(unused_imports))]\n${item}`);
+    }
+    expect(read("src/runtime/image_standalone_stub.rs")).toContain("pub struct AsyncImageTask");
+    expect(read("src/runtime/ffi/ffi_standalone_stub.rs")).toContain("pub fn bun__ffi__cc");
   });
 });
 

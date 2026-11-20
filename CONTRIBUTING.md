@@ -180,7 +180,9 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 - `docs.yml` — VitePress to GitHub Pages (main)
 - `bun-standalone.yaml` — builds `bun-standalone` from the head of an upstream Bun pull request on macOS arm64, macOS
   x64, Linux x64 and Linux arm64, and attaches the zips to its run. It compiles only when that head or the workflow
-  file changed since the last build, and restores the cached binary otherwise. `ci-branch.yaml` calls it as the job
+  file changed since the last build, and restores the cached binary otherwise. Before compiling it patches Bun with
+  `sed` (size-optimized build, `Bun.Image` and `bun:ffi` stubbed out) and prints a `diff -u` per file; edit the patches
+  in the `Patch Bun for a smaller runtime` step, which also starts a new compile. `ci-branch.yaml` calls it as the job
   `Bun standalone` on `main` (or when `ci-release.yaml` is dispatched with `bun-standalone: yes`); a schedule and a
   push to the workflow file also start it.
 
