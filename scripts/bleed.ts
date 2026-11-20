@@ -81,9 +81,9 @@ export const publishCli = async (cwd: string, compile: (outfile: string) => Prom
 };
 
 /** Compile the host `variant` executable and publish it beside the checkout. */
-export const bleedCli = (cwd: string): Promise<string> =>
+export const bleedCli = (cwd: string, env: NodeJS.ProcessEnv = process.env): Promise<string> =>
   publishCli(cwd, async (outfile) => {
-    await compileCli(cwd, outfile);
+    await compileCli(cwd, outfile, undefined, env);
   });
 
 if (import.meta.main) {

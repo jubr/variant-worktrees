@@ -151,6 +151,11 @@ publishes the host executable to `vw-bleeds/variant-cli/bin/`. The last step is
 a minimal command in chat, with the command and its output, proving the bled
 binary does the new thing.
 
+`bleed:cli` and `package:cli` embed the default Bun runtime. To try another, for
+example a locally built slim runtime, set `VARIANT_BUN_RUNTIME` to that
+executable (`VARIANT_BUN_RUNTIME=/path/to/bun-standalone task bleed:cli`). It is
+a local aid for one platform: `package:cli:all` refuses it and CI never sets it.
+
 ## Continuous integration
 
 GitHub Actions workflows live under `.github/workflows/`. Shared gates today:

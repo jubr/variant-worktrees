@@ -6,7 +6,7 @@
  * Usage: bun scripts/package-cli.ts [bun-target|all]   (default: the host platform)
  * Output: out/variant-<version>-<os>-<arch>[.exe]
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { versionDefines } from "./version-stamp.ts";
@@ -30,7 +30,33 @@ export const assetName = (version: string, target: string): string => {
   return `variant-${version}-${os}-${arch}${os === "windows" ? ".exe" : ""}`;
 };
 
+/** The bun targets to compile for `arg`: one target, or `all` release platforms. */
+export const compileTargets = (arg: string, env: NodeJS.ProcessEnv = process.env): readonly string[] => {
+  if (arg === "all" && env.VARIANT_BUN_RUNTIME) {
+    throw new Error("VARIANT_BUN_RUNTIME fits one platform; unset it to compile every release platform");
+  }
+  return arg === "all" ? RELEASE_TARGETS : [arg];
+};
+
 const hostTarget = (): string => `bun-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
+
+const isExecutableFile = (path: string): boolean => {
+  try {
+    accessSync(path, constants.X_OK);
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/** The runtime executable named by `VARIANT_BUN_RUNTIME`, when the caller supplied one. */
+export const runtimeExecutable = (env: NodeJS.ProcessEnv = process.env): string | undefined => {
+  const runtime = env.VARIANT_BUN_RUNTIME || undefined;
+  if (runtime !== undefined && !isExecutableFile(runtime)) {
+    throw new Error(`VARIANT_BUN_RUNTIME is not an executable file: ${runtime}`);
+  }
+  return runtime;
+};
 
 /** The module that stands in for `embedded-app.ts` beside `variant-cli/bundle` in a compiled executable. */
 export const embeddedAppModule = (appDirectory: string): string => {
@@ -45,7 +71,13 @@ export const embeddedAppModule = (appDirectory: string): string => {
  * Compile the CLI, with the built variants app (`packages/variant-cli/dist/ui`) embedded, to a single-file executable
  * at `outfile`; `target` is a bun target, the host platform by default.
  */
-export const compileCli = async (root: string, outfile: string, target?: string): Promise<string> => {
+export const compileCli = async (
+  root: string,
+  outfile: string,
+  target?: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string> => {
+  const executablePath = runtimeExecutable(env);
   const appDirectory = join(root, "packages/variant-cli/dist/ui");
   if (!existsSync(join(appDirectory, "index.html"))) {
     throw new Error(`the variants app is not built: ${appDirectory}/index.html is missing (run task build)`);
@@ -56,7 +88,11 @@ export const compileCli = async (root: string, outfile: string, target?: string)
   );
   const result = await Bun.build({
     entrypoints: [entry],
-    compile: target === undefined ? { outfile } : { outfile, target: target as Bun.Build.Target },
+    compile: {
+      outfile,
+      ...(target === undefined ? {} : { target: target as Bun.Build.Target }),
+      ...(executablePath === undefined ? {} : { executablePath }),
+    },
     define: versionDefines(root),
     plugins: [
       {
@@ -80,7 +116,7 @@ export const compileCli = async (root: string, outfile: string, target?: string)
 if (import.meta.main) {
   const root = resolve(import.meta.dir, "..");
   const arg = process.argv[2] ?? hostTarget();
-  const targets = arg === "all" ? RELEASE_TARGETS : [arg];
+  const targets = compileTargets(arg);
   const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version as string;
 
   mkdirSync(join(root, "out"), { recursive: true });

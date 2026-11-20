@@ -4,6 +4,7 @@
 
 ### Added
 
+- `VARIANT_BUN_RUNTIME=<executable>` makes `task bleed:cli` and `task package:cli` embed that Bun runtime in the compiled `variant` instead of the default one. A missing or non-executable file fails before compiling and names the path; `task package:cli:all` refuses the variable. Releases do not use it.
 - `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [mcp](docs/guide/cli.md#mcp-server).
 
 ### Changed
