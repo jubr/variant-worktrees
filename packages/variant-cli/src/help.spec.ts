@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import { withoutTrailingBlanks } from "./help.js";
 import { runCli } from "./test/cli.js";
 
 /** The lines of one help section, from its title (`FLAGS:`) up to the next blank line. */
@@ -133,5 +134,35 @@ describe("global flag spacing", () => {
     expect(span.some((line) => line.includes("-C") && line.includes("<path>"))).toBe(true);
     expect(span.join("\n")).not.toContain("--chdir");
     expect(span.some((line) => line.trim() === "")).toBe(false);
+  });
+});
+
+/** The lines of help that end in a space or tab, as a terminal that wraps at the last column would show them. */
+const paddedLines = (help: string): string[] =>
+  help
+    .replaceAll("\r", "")
+    .replace(ANSI, "")
+    .split("\n")
+    .filter((line) => /[ \t]$/.test(line));
+
+describe("help without trailing padding", () => {
+  it("ends no line in a space or tab when standard output is not a terminal", async () => {
+    for (const args of [["--help"], ["watch", "--help"], ["config", "--help"], ["mcp", "--help"]]) {
+      expect(paddedLines((await runCli(args)).stdout)).toEqual([]);
+    }
+  });
+
+  it("ends no line in a space or tab on terminals of 50, 80 and 120 columns", async () => {
+    for (const cols of [50, 80, 120]) {
+      for (const args of [["--help"], ["watch", "--help"]]) {
+        expect(paddedLines(await helpOnTerminal(args, cols))).toEqual([]);
+      }
+    }
+  });
+
+  it("trims blanks before a trailing color reset and keeps the reset", () => {
+    const reset = `${String.fromCharCode(27)}[0m`;
+
+    expect(withoutTrailingBlanks(`  --json  \t${reset}\n  next   \n`)).toBe(`  --json${reset}\n  next\n`);
   });
 });
