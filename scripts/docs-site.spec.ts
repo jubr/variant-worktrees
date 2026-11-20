@@ -134,10 +134,11 @@ describe("dark document shell and top navigation", () => {
     const at = (needle: string) => sidebar.indexOf(needle);
     expect(at("Getting Started")).toBeGreaterThan(-1);
     expect(at("Getting Started")).toBeLessThan(at("Variant Worktrees"));
+    expect(at("/guide/overview")).toBeLessThan(at("/guide/installation"));
+    expect(at("/guide/installation")).toBeLessThan(at("/guide/commands"));
     expect(at("/guide/commands")).toBeLessThan(at("/guide/cli"));
     expect(at("/guide/cli")).toBeLessThan(at("/guide/configuration"));
-    expect(at("/guide/configuration")).toBeLessThan(at("/guide/installation"));
-    expect(at("/guide/installation")).toBeLessThan(at("/guide/runtime"));
+    expect(at("/guide/configuration")).toBeLessThan(at("/guide/runtime"));
     expect(at("/guide/runtime")).toBeLessThan(at("VSCode / Cursor"));
     expect(at("VSCode / Cursor")).toBeLessThan(at("/vscode/extension"));
     expect(at("/vscode/extension")).toBeLessThan(at("/vscode/mcp"));
@@ -211,18 +212,60 @@ const trackedDocs = (): string[] => {
 };
 
 describe("installation into an existing project", () => {
-  test("shows the extension flavor first, then the mise flavor", () => {
+  const plainOf = (html: string): string => decodeEntities(html.replace(/<[^>]+>/g, ""));
+  const installationSections = () => {
     const html = page("guide/installation.html");
-    const text = textOf(html);
-    expect(text).toContain("mise x github:jubr/variant-worktrees@latest -- variant init");
+    const sections = headingsOf(html).filter((heading) => heading.level === 2);
+    return sections.map((heading) => ({ ...heading, html: sectionOf(html, heading.id) }));
+  };
+
+  test("is three steps: mise, the extension or variant init, and a review of variants.yaml", () => {
+    expect(installationSections().map((section) => section.text)).toEqual([
+      "1. Install mise",
+      "2a. Extension for VSCode and Cursor",
+      "2b. Install with variant init",
+      "3. Review variants.yaml",
+    ]);
+  });
+
+  test("step 1 names Homebrew, mise.run and mise activate", () => {
+    const text = plainOf(installationSections()[0]?.html ?? "");
     expect(text).toContain("brew install mise");
     expect(text).toContain("mise.run");
+    expect(text).toContain("mise activate");
+  });
+
+  test("step 2a names the extension, Cursor, the stores, Onboarding and the init logic", () => {
+    const section = installationSections()[1]?.html ?? "";
+    const text = plainOf(section);
     expect(text).toContain("Variant Worktrees");
     expect(text).toContain("Cursor");
     expect(text).toContain("Onboarding");
-    expect(text.indexOf("Onboarding")).toBeLessThan(text.indexOf("variant init"));
-    expect(html).toContain("marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees");
-    expect(html).toContain("open-vsx.org/extension/jubr/variant-worktrees");
+    expect(text).toMatch(/can run the init logic/);
+    expect(section).toContain("marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees");
+    expect(section).toContain("open-vsx.org/extension/jubr/variant-worktrees");
+  });
+
+  test("step 2b shows the packslip command and its output, and links to variant init instead of repeating it", () => {
+    const section = installationSections()[2]?.html ?? "";
+    expect(section).toContain("language-");
+    expect(plainOf(section)).toContain("my-project/ $ mise x packslip:jubr/variant-worktrees@ -- variant init");
+    expect(plainOf(section)).toContain("variants.yaml:");
+    expect(linksOf(section, "guide/installation.html")).toContainEqual({ path: "/guide/commands", hash: "variant-init" });
+    const prose = plainOf(section.replace(/<pre[\s\S]*?<\/pre>/g, ""));
+    expect(prose).not.toMatch(/\.gitignore|mise\.toml/);
+  });
+
+  test("step 3 shows a variants.yaml and links to the Configuration options", () => {
+    const section = installationSections()[3]?.html ?? "";
+    expect(section).toContain("language-yaml");
+    expect(plainOf(section)).toMatch(/variant\s*:/);
+    expect(linksOf(section, "guide/installation.html").map((link) => link.path)).toContain("/guide/configuration");
+  });
+
+  test("the extension way comes before the variant init way", () => {
+    const text = textOf(page("guide/installation.html"));
+    expect(text.indexOf("Onboarding")).toBeLessThan(text.indexOf("my-project/ $"));
   });
 
   test("tracked docs have no npm install, npx or bun add", () => {
