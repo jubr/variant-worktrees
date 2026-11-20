@@ -536,7 +536,7 @@ describe("configuration page, sub-keys and templates", () => {
     }
   });
 
-  test("the sections are the variant, chat renamer and database options, templates, and unknown keys", () => {
+  test("the sections are the variant, chat renamer and database options, the custom steps, templates, and unknown keys", () => {
     const sections = headings()
       .filter((heading) => heading.level === 2)
       .map((heading) => heading.text);
@@ -544,6 +544,8 @@ describe("configuration page, sub-keys and templates", () => {
       "Variant options",
       "Chat Renamer options",
       "Database options",
+      "Custom Steps",
+      "Custom multi-tenancy steps",
       "Templates",
       "Unknown keys and migration",
     ]);
@@ -896,15 +898,6 @@ describe("overview steps are short and link to commands", () => {
     expect(links).toContain("/guide/configuration#variant-steps");
   });
 
-  test("Custom Steps and Custom multi-tenancy steps keep their examples; the second links db.multi", () => {
-    expect(sectionOf(overview(), "custom-steps")).toContain("language-yaml");
-    const multi = sectionOf(overview(), "custom-multi-tenancy-steps");
-    expect(multi).toContain("language-yaml");
-    const links = linksOf(multi, "guide/overview.html").map((link) => `${link.path}#${link.hash}`);
-    expect(links).toContain("/guide/configuration#db-multi");
-    expect(links).toContain("/guide/configuration#db-multi-schemaprefix");
-  });
-
   test("Commands carries what the Overview dropped", () => {
     const core = page("guide/commands.html");
     for (const command of ["provision", "deprovision"]) {
@@ -913,6 +906,51 @@ describe("overview steps are short and link to commands", () => {
       expect(links, command).toContain("/guide/configuration#db-multi");
     }
     expect(decodeEntities(sectionOf(core, "variant-watch").replace(/<[^>]+>/g, ""))).toContain("--reprovision");
+  });
+});
+
+describe("custom steps on the Configuration page", () => {
+  const configuration = () => page("guide/configuration.html");
+  const text = (html: string) => decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ");
+
+  test("Custom Steps shows the migrations example and links the keys it names", () => {
+    const section = sectionOf(configuration(), "custom-steps");
+    expect(section).toContain("language-yaml");
+    expect(text(section)).toMatch(/runAfter\s*:\s*seed/);
+    const links = linksOf(section, "guide/configuration.html").map((link) => `${link.path}#${link.hash}`);
+    expect(links).toContain("/guide/configuration#variant-steps-name-runbefore");
+    expect(links).toContain("/guide/configuration#variant-steps-name-runafter");
+  });
+
+  test("Custom Steps says that steps around one anchor run in the order they are defined", () => {
+    const section = text(sectionOf(configuration(), "custom-steps"));
+    expect(section).toMatch(/several steps with the same .*run in the order .*written in .*variants\.yaml/i);
+  });
+
+  test("Custom Steps shows custom1 with runAfter: watch and what variant watch runs", () => {
+    const section = sectionOf(configuration(), "custom-steps");
+    expect(text(section)).toMatch(/custom1\s*:/);
+    expect(text(section)).toMatch(/runAfter\s*:\s*watch/);
+    expect(text(section)).toMatch(/create, provision, seed, watch, custom1/);
+  });
+
+  test("Custom multi-tenancy steps keep their example and link db.multi", () => {
+    const section = sectionOf(configuration(), "custom-multi-tenancy-steps");
+    expect(section).toContain("language-yaml");
+    const links = linksOf(section, "guide/configuration.html").map((link) => `${link.path}#${link.hash}`);
+    expect(links).toContain("/guide/configuration#db-multi");
+    expect(links).toContain("/guide/configuration#db-multi-schemaprefix");
+  });
+
+  test("db.multi links to the Custom multi-tenancy steps of the same page", () => {
+    const links = linksOf(sectionOf(configuration(), "db-multi"), "guide/configuration.html");
+    expect(links).toContainEqual({ path: "/guide/configuration", hash: "custom-multi-tenancy-steps" });
+  });
+
+  test("the Overview no longer has the custom step sections", () => {
+    const ids = headingsOf(page("guide/overview.html")).map((heading) => heading.id);
+    expect(ids).not.toContain("custom-steps");
+    expect(ids).not.toContain("custom-multi-tenancy-steps");
   });
 });
 

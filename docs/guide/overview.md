@@ -9,7 +9,9 @@ A later step implies the steps above it: `seed` implies `provision`, `provision`
 What the project itself runs is a step in [`variant.steps`](./configuration#variant-steps).
 The step is keyed by its name. `provision` and `deprovision` replace the builtin step of that name.
 `seed` is a script and there is no builtin seed.
-Every other name is a custom step, and it has exactly one of `runBefore` or `runAfter`.
+Every other name is a custom step, and it has exactly one of `runBefore` or `runAfter`; see [Custom Steps](./configuration#custom-steps).
+Setting `VARIANT_STEP_<STEP>=no` skips a step.
+The name in the variable is the step name with letters uppercased and every other character replaced by `_`.
 
 ## Flow of Steps
 
@@ -69,63 +71,3 @@ More details at Commands [`variant deprovision`](./commands#variant-deprovision)
 Implies `deprovision`, then removes the worktree and, by default, the local branch.
 More details at Commands [`variant implode`](./commands#variant-implode).
 
-## Custom Steps
-
-A custom step has exactly one of [`runBefore`](./configuration#variant-steps-name-runbefore) or [`runAfter`](./configuration#variant-steps-name-runafter).
-They name a builtin step (`create`, `provision`, `seed`, `watch`, `down`, `deprovision`, `implode`) or another custom step.
-
-```yaml
-variant:
-  steps:
-    migrations: # unique, only [A-Za-z0-9_-]{2,20}, VARIANT_STEP_MIGRATIONS=no skips
-      cmd: bun run migrate # shell commands
-      dir: be # relative to the worktree; default: the worktree root
-      env: # templated values; win over everything else the command sees
-        JWT_SECRET: '${JWT_SECRET:-variant-local-${slug}}' # ${NAME} and ${NAME:-default} read the environment
-      filterLinesRegex: '^Migration ' # print only the output lines that match; --verbose and failures print everything
-      runAfter: seed
-      #runBefore: watch
-```
-
-Setting `VARIANT_STEP_<STEP>=no` skips a step.
-The name in the variable is the step name with letters uppercased and every other character replaced by `_`.
-
-## Custom multi-tenancy steps
-
-With [`db.multi`](./configuration#db-multi) set, one provision run creates every schema under [`db.multi.schemaPrefix`](./configuration#db-multi-schemaprefix), and the list of tenants comes from [`db.multi.tenants`](./configuration#db-multi-tenants) or [`db.multi.tenantsCmd`](./configuration#db-multi-tenantscmd).
-
-```yaml
-db:
-  dialect: postgres
-  host: 127.0.0.1
-  multi:
-    schemaPrefix: v_${slug}-
-    #tenants: east,west
-    tenantsCmd: sed -rn ${worktree}/server/.env -e 's/^WITCHES=(.*)$/\1/p' # lazy evaluation
-
-variant:
-  steps:
-    provision: # one run; creates every schema and any users/roles it may need
-      cmd: bun run db:provision:witches
-      dir: server
-      env: &prov-env
-        MULTI_TENANT_LIST: ${multi.tenants} # populated by multi.tenantsCmd
-        MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix} # cmd creates 'v_${slug}-east' + west
-    seed: # one run; seeds every tenant schema
-      cmd: bun run db:seed:witches
-      dir: server
-      env: *prov-env
-    migrations:
-      cmd: bun run migrate
-      dir: server
-      env: *prov-env
-      runAfter: seed
-    deprovision: # one run; replaces the builtin schema drop
-      cmd: bun run db:deprovision:witches
-      dir: server
-      env: *prov-env
-```
-
-So with `slug=demo` and `.env` containing `WITCHES=east,west`, `watch` runs `db:provision:witches` once with `MULTI_TENANT_LIST=east,west` and `MULTI_SCHEMA_PREFIX=v_demo-`, then `db:seed:witches` once with the same vars, then `migrations` once.
-`deprovision` runs `db:deprovision:witches` once with the same vars and drops nothing itself.
-The script removes `v_demo-east`, `v_demo-west`, a leftover `v_demo-north` and any role.

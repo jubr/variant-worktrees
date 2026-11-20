@@ -425,7 +425,7 @@ Exactly one of [`db.multi.tenants`](#db-multi-tenants) and [`db.multi.tenantsCmd
 The reported target stays `v_<slug>`.
 A step passes the list and the prefix through its `env` as `${multi.tenants}` and `${multi.schemaPrefix}`.
 [`db.multi`](#db-multi) on `mysql` or `sqlite` is refused. The runtime copy of `db` omits `multi`.
-A worked example is in [Custom multi-tenancy steps](./overview#custom-multi-tenancy-steps).
+A worked example is in [Custom multi-tenancy steps](#custom-multi-tenancy-steps).
 
 ```yaml
 db:
@@ -498,6 +498,77 @@ Autodetected from `DATABASE_URL`.
 ### `db.user`
 
 The database user. Autodetected from `POSTGRES_USER`, `MYSQL_USER` or `MARIADB_USER`.
+
+## Custom Steps
+
+A custom step has exactly one of [`runBefore`](#variant-steps-name-runbefore) or [`runAfter`](#variant-steps-name-runafter).
+They name a builtin step (`create`, `provision`, `seed`, `watch`, `down`, `deprovision`, `implode`) or another custom step.
+The flow of the builtin steps is in the [Overview](./overview#flow-of-steps).
+
+```yaml
+variant:
+  steps:
+    migrations: # unique, only [A-Za-z0-9_-]{2,20}, VARIANT_STEP_MIGRATIONS=no skips
+      cmd: bun run migrate # shell commands
+      dir: be # relative to the worktree; default: the worktree root
+      env: # templated values; win over everything else the command sees
+        JWT_SECRET: '${JWT_SECRET:-variant-local-${slug}}' # ${NAME} and ${NAME:-default} read the environment
+      filterLinesRegex: '^Migration ' # print only the output lines that match; --verbose and failures print everything
+      runAfter: seed
+      #runBefore: watch
+```
+
+Several steps with the same `runBefore` or the same `runAfter` run in the order in which they are written in `variants.yaml`.
+
+With `runAfter: watch` on `custom1`, [`variant watch`](./commands#variant-watch) runs create, provision, seed, watch, custom1:
+
+```yaml
+variant:
+  steps:
+    custom1:
+      cmd: bun run notify
+      runAfter: watch
+```
+
+## Custom multi-tenancy steps
+
+With [`db.multi`](#db-multi) set, one provision run creates every schema under [`db.multi.schemaPrefix`](#db-multi-schemaprefix), and the list of tenants comes from [`db.multi.tenants`](#db-multi-tenants) or [`db.multi.tenantsCmd`](#db-multi-tenantscmd).
+
+```yaml
+db:
+  dialect: postgres
+  host: 127.0.0.1
+  multi:
+    schemaPrefix: v_${slug}-
+    #tenants: east,west
+    tenantsCmd: sed -rn ${worktree}/server/.env -e 's/^WITCHES=(.*)$/\1/p' # lazy evaluation
+
+variant:
+  steps:
+    provision: # one run; creates every schema and any users/roles it may need
+      cmd: bun run db:provision:witches
+      dir: server
+      env: &prov-env
+        MULTI_TENANT_LIST: ${multi.tenants} # populated by multi.tenantsCmd
+        MULTI_SCHEMA_PREFIX: ${multi.schemaPrefix} # cmd creates 'v_${slug}-east' + west
+    seed: # one run; seeds every tenant schema
+      cmd: bun run db:seed:witches
+      dir: server
+      env: *prov-env
+    migrations:
+      cmd: bun run migrate
+      dir: server
+      env: *prov-env
+      runAfter: seed
+    deprovision: # one run; replaces the builtin schema drop
+      cmd: bun run db:deprovision:witches
+      dir: server
+      env: *prov-env
+```
+
+So with `slug=demo` and `.env` containing `WITCHES=east,west`, `watch` runs `db:provision:witches` once with `MULTI_TENANT_LIST=east,west` and `MULTI_SCHEMA_PREFIX=v_demo-`, then `db:seed:witches` once with the same vars, then `migrations` once.
+`deprovision` runs `db:deprovision:witches` once with the same vars and drops nothing itself.
+The script removes `v_demo-east`, `v_demo-west`, a leftover `v_demo-north` and any role.
 
 ## Templates
 
