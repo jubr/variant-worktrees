@@ -215,7 +215,7 @@ describe.each(SHELLS)("%s completion script slug wiring", (shell) => {
   const slugCommands = commands.filter((command) => command.args.some((arg) => arg.name === "slug"));
   const otherCommands = commands.filter((command) => !slugCommands.includes(command));
 
-  /** What the section of a command holds when it completes slugs for `--slug`/`-s` and for the positional. */
+  /** What the section of a command holds when it completes slugs for `--slug`/`-s` and for a positional argument. */
   const wiring: Record<Shell, { flag: (part: string) => boolean; positional: (part: string) => boolean }> = {
     bash: {
       flag: (part) => part.includes("slug_flags='--slug -s'"),
@@ -233,11 +233,20 @@ describe.each(SHELLS)("%s completion script slug wiring", (shell) => {
     },
   };
 
-  it("completes slugs for --slug, -s and the positional of every slug-taking command", () => {
+  it("completes slugs for --slug and -s of every slug-taking command, and not as a positional argument", () => {
     for (const command of slugCommands) {
       const part = section(shell, script, String(command.name));
       expect(wiring[shell].flag(part)).toBe(true);
-      expect(wiring[shell].positional(part)).toBe(true);
+      expect(wiring[shell].positional(part)).toBe(false);
+    }
+  });
+
+  it("offers --verbose without a short -v, which is the global log-level flag", () => {
+    for (const command of commands.filter((definition) => definition.name !== "init")) {
+      const verbose = describeCli()
+        .find((model) => model.name === String(command.name))
+        ?.flags.find((flag) => flag.long === "verbose");
+      expect(verbose?.short).toBeUndefined();
     }
   });
 
