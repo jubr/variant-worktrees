@@ -61,14 +61,17 @@ describe("README CLI section", () => {
     expect(globals).toContain("-C");
     expect(globals).toContain("<path>");
     expect(globals).not.toContain("--chdir");
-    for (const flag of ["--slug", "--detach", "--force", "--verbose"]) {
+    expect(globals).toContain("--slug");
+    expect(globals).toContain("-vvv");
+    expect(globals.split("\n").find((line) => line.startsWith("| `--log-level`"))).not.toContain("warning");
+    for (const flag of ["--detach", "--force", "--verbose"]) {
       expect(globals).not.toContain(flag);
     }
   });
 
   test("names the watch log file and the minimal list columns", () => {
     expect(cli).toContain(".cache/variant/watch.log");
-    expect(cli).toContain("variant list -v");
+    expect(cli).toContain("variant list --verbose");
   });
 });
 

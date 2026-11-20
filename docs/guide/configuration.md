@@ -129,7 +129,7 @@ Starts every name derived from a slug, such as worktree directories (default `_v
 ### `variant.root`
 
 Directory that holds the worktrees, relative to `variants.yaml`.
-Default: the directory that holds a parent `AGENTS.md` symlink pointing into [`variant.main`](#variant-main) (so `variant watch foo` creates `<parent>/_v-foo`), otherwise [`variant.main`](#variant-main) itself (`./_v-foo`).
+Default: the directory that holds a parent `AGENTS.md` symlink pointing into [`variant.main`](#variant-main) (so `variant watch -s foo` creates `<parent>/_v-foo`), otherwise [`variant.main`](#variant-main) itself (`./_v-foo`).
 A worktree directory inside [`variant.main`](#variant-main) gets `_v-*` added to an existing `.gitignore` when missing; a `.gitignore` is never created.
 
 <hr class="option-sep">

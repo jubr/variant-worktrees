@@ -2,60 +2,7 @@
 
 `variant` is the command line of Variant Worktrees, provided by the `variant-cli` package (see [Installation](./installation)).
 The commands of a variant are explained in [Commands](./commands), and the lists below link to them.
-This page holds what belongs to the command line itself: how it takes a slug, how it prints, and the commands only it offers.
-
-## Slug
-
-A slug command takes the slug as a positional argument or as `-s`/`--slug`. The flag wins.
-Without either, the slug comes from the current worktree branch.
-`--verbose` (`-v`) prints the full output of quiet provisioning steps; on `list` it shows all meta information of every variant.
-
-```bash
-variant create -s preview-one
-variant provision preview-one
-variant watch --detach
-```
-
-Commands print text for people. [Global flags](#global-flags) switch to JSON or YAML.
-
-## Global flags
-
-These flags work on every command, before or after the command name.
-`variant --help` and `variant <command> --help` list them in a `Global flags` section, apart from the flags of the command.
-
-| Flag | Effect |
-| --- | --- |
-| `-C <path>` | Change directory before configuration is read |
-| `--json` | Print the result as JSON, exactly what the command returned |
-| `--yaml` | Print the same result as YAML |
-| `--log-level` | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. `warning` selects `warn`. Default `warn`. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, then the step when the event has one. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, and the step is cyan |
-| `--help`, `-h` | Show help |
-| `--version` | Print the version and a parenthetical (UTC date on `main`, UTC date and time otherwise), then the platform and `https://github.com/jubr/variant-worktrees` (top level only). On a terminal a cursive `Variant-Worktrees` banner and a blank line come before the platform line. A pipe omits both. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal the banner is orange and its hyphens stay the default color |
-
-The CLI also sends each log event to the editor on the project Unix socket, except steps `ipc` and `cli`, which stay on standard error.
-The connection starts at the first event.
-Success is one `[debug] ipc connected` line and failure is one `[debug] ipc connect failed: <reason>` line.
-CLI end is one `[debug] cli end` line.
-Those two stay `debug` even when the working directory is under `/tmp`.
-A write waits at most one second.
-An event with no slug carries `-s` or `--slug` when that flag was given, and otherwise the autodetected slug of the working directory.
-Standard error does not print that slug, and it does not add ` [cli]` or ` @cli`.
-A shell command is the message `+"<command>"`.
-`+"mise trust --all"`, `+"mise install"`, and `create schema …` are debug.
-A lifecycle command adds one info line of the command and the arguments typed after it, such as `watch --from abc --pull-ff=no`.
-A missing editor does not change the command result.
-On the Variant Worktrees channel a CLI line ends with ` @cli` and an MCP line ends with ` @mcp`.
-A library event for a variant whose project directory is under `/tmp` is emitted at `trace`.
-
-Without a flag, commands print a text summary meant for people.
-Scripts should use `--json` or `--yaml`; the text layout can change.
-Giving both `--json` and `--yaml` fails before anything runs.
-Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.
-
-```bash
-variant list --json
-variant --yaml status feature-forty-two
-```
+This page holds what belongs to the command line itself: the commands only it offers and the [global flags](#global-flags) that work on every command, such as `-s` for the slug.
 
 ## Basic commands
 
@@ -89,11 +36,11 @@ variant -C /workspace mcp
 ```
 
 - `--config <path>` loads that `variants.yaml`.
-  Omitted, the configuration of the working directory is loaded.
+Omitted, the configuration of the working directory is loaded.
 - `-C <path>` changes the working directory first, as it does for every command.
 - Standard output carries only the MCP protocol, so `mcp` prints no banner, warning or log line there.
-  The server's logs go to the client as MCP logging notifications, and to the editor.
-  `--log-level`, `--json` and `--yaml` are accepted and change nothing.
+The server's logs go to the client as MCP logging notifications, and to the editor.
+The other [global flags](#global-flags) (`-s`, `-v`, `--log-level`, `--json`, `--yaml`) are accepted and change nothing.
 - An unknown option fails before the server starts, with the error on standard error.
 
 ### `variant ui`
@@ -124,7 +71,7 @@ Without `--detach` it stays attached until interrupted; `--detach` starts it in 
 
 There is one server per project.
 While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced.
-The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it.
+The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status -s main` show it.
 `watch`, `up` and `down` of `main` leave that entry alone.
 The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): [`variant.watches`](./configuration#variant-watches) must not define either.
 
@@ -134,8 +81,8 @@ Security model:
 
 - Loopback only, no remote access.
 - A random 128-bit token is required.
-  The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie.
-  The token lives in an owner-only file next to the [socket](/vscode/socket-ipc) and is removed when the server ends.
+The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie.
+The token lives in an owner-only file next to the [socket](/vscode/socket-ipc) and is removed when the server ends.
 - The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
 - POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
 - `implode` needs `confirm: true` in the request body, and `main` is never imploded.
@@ -166,3 +113,30 @@ variant completions fish > ~/.config/fish/completions/variant.fish
 The scripts call it while you complete a slug, in the background in `zsh` and in `bash` 4.1 or newer.
 The result is kept in shell variables for 30 seconds, never in a file.
 It reads local files only, uses the autodetected settings when there is no `variants.yaml`, and prints nothing when the configuration is invalid.
+
+## Global flags
+
+These flags work on every command, before or after the command name: `variant create -s preview-one` and `variant -s preview-one create` are the same command.
+
+| Flag                         | Effect                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-C <path>`                  | Change directory before configuration is read                                                                                                                                                                                                                                                                                                            |
+| `-s <slug>`, `--slug <slug>` | The variant to act on. Without it the slug comes from the current worktree branch. A command that takes no slug ignores it. A slug is never a positional argument                                                                                                                                                                                        |
+| `--json`                     | Print the result as JSON, exactly what the command returned                                                                                                                                                                                                                                                                                              |
+| `--yaml`                     | Print the same result as YAML                                                                                                                                                                                                                                                                                                                            |
+| `--log-level`                | Print library log lines on standard error from this level: `trace`, `debug`, `info`, `warn`, `error`. Default `warn`. A line starts with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, then the step when the event has one. On a terminal, with `NO_COLOR` unset, the brackets are dark gray, the level word is colored, and the step is cyan |
+| `-v`, `-vv`, `-vvv`          | Print log lines on standard error from `info`, `debug` or `trace`. `--log-level` wins when both are given                                                                                                                                                                                                                                                |
+| `--help`, `-h`               | Show help. The help of the top level starts with the same text as `--version`                                                                                                                                                                                                                                                                            |
+| `--version`                  | Print the version and build date. Off `main`, the version gains `-{slug}-{n}-{hash4}`. On a terminal you also get the colorized banner.                                                                                                                                                                                                                  |
+
+```bash
+variant create -s preview-one
+variant -s preview-one watch --detach
+variant list -vv --json
+```
+
+The CLI also sends each log event to the editor on the project Unix socket, if found.  
+On the Variant Worktrees channel a CLI line ends with  `@cli` and an MCP line ends with  `@mcp`.  
+All events for a variant whose project directory is under `/tmp` is emitted at `trace`.
+
+Passwords are shown as `***` in every format, and a command that sets an exit code (an attached `watch`) keeps it with every flag.

@@ -77,9 +77,9 @@ pre {
 
 /* Options of the Configuration page: a rule between them, tighter than the regular rule (24px) and h3 (32px) */
 .vp-doc hr.option-sep {
-  margin: 12px 0;
+  margin: 16px 0;
 }
 
 .vp-doc hr.option-sep + h3 {
-  margin-top: 12px;
+  margin-top: 20px;
 }

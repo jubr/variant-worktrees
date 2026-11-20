@@ -1,13 +1,9 @@
 # Commands
 
-These are the `variant` commands.
-[Basic commands](#basic-commands) set up a project and show what is known.
-[Lifecycle commands](#lifecycle-commands) move a variant through the [flow of steps](./overview#flow-of-steps).
-The [MCP server](/vscode/mcp) and the [library](/development/library) offer the same commands.
-The commands only the command line offers (`ui`, `mcp`, `completions`), its slug argument and its [global flags](./cli#global-flags) are on the [CLI](./cli) page.
-
-What `provision`, `up`, and `watch` actually run is set by [`variant.steps`](./configuration#variant-steps) and [`variant.watches`](./configuration#variant-watches).
-The [Overview](./overview#flow-of-steps) shows how the steps follow each other.
+[Basic commands](#basic-commands) set up a project and show what is known.  
+[Lifecycle commands](#lifecycle-commands) move a variant through the [flow of steps](./overview#flow-of-steps).  
+The [MCP server](/vscode/mcp) and the [library](/development/library) offer the same commands.  
+The CLI-only commands (`ui`, `mcp`, `completions`)  are on the [CLI](./cli) page.
 
 ## Basic commands
 
@@ -16,15 +12,15 @@ The [Overview](./overview#flow-of-steps) shows how the steps follow each other.
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
 - `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
-  Other accepted values of a setting follow `#` on the same line.
-  Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
-  For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
-  [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
+Other accepted values of a setting follow `#` on the same line.
+Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
+For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
+[`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
 - `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
 - `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
-  Nothing is installed.
-  A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
-  A failing Mise step stops no other step.
+Nothing is installed.
+A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
+A failing Mise step stops no other step.
 
 ```bash
 variant init
@@ -34,7 +30,7 @@ variant init --force
 
 `--prefix` (default `_v-`) must not be empty or contain a path separator.
 `init` refuses to run when a `variants.yaml` or `variants.yml` is found (the lookup of every other command) and changes nothing, unless `--file=false` skips that step or `--force` replaces the `variants.yaml` of this directory.
-The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on `PATH`](./runtime#bun-on-path)).
+The result lists what each step did, and a `bun` line: `init` also checks that the first `bun` on `PATH` is the version Mise pins (see [Bun on](./runtime#bun-on-path) `PATH`).
 In the result, `bun` has a `status` of `matches`, `differs` or `unchecked`, a `message` and the `hint` lines that say how to fix a difference.
 The check never fails `init` and changes nothing.
 With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_init`.
@@ -55,13 +51,13 @@ The file path is relative to the working directory and uses `/`: `./variants.yam
 
 - `# from <path>` — the loaded file set the value
 - `# from env NAME` — that variable supplied the value, including a `${NAME}` in the file when `NAME` is set.
-  A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
+A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
 - `# autodetect <reason>` — the value was discovered.
-  `<reason>` is one word: `watch`, `config`, or `connection`
+`<reason>` is one word: `watch`, `config`, or `connection`
 - `# autodetect from <source>` — the discovery names a source the key does not.
-  `abbr` quotes the main directory's base name.
-  `main` names `AGENTS.md` or `` `git rev-parse --git-common-dir` ``.
-  `root` names `AGENTS.md` only when it is not the same path as `main`
+`abbr` quotes the main directory's base name.
+`main` names `AGENTS.md` or ``git rev-parse --git-common-dir``.
+`root` names `AGENTS.md` only when it is not the same path as `main`
 - `# default` — a built-in default filled a key the file omits
 
 A comment that only repeats its key is left off, including `runtime` and a `main` or `root` that is only the config directory.
@@ -83,7 +79,7 @@ variant config
 List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`.
 `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of `.cache/variant/watch.log` while `watch` is running, and `dir` is relative to the variant root.
 A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
-A variant with [`db.multi`](./configuration#db-multi) is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record.
+A variant with [`db.multi`](./configuration#db-multi) is still one row; its `schemas` are printed by `status` and by `list --verbose`, and they are on the JSON and YAML record.
 Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment.
 PostgreSQL schemas named `v_<slug>-<tenant>` group the same way when [`db.multi`](./configuration#db-multi) is absent: hyphens in the slug are stored as underscores, and the tenant is the text after the last hyphen, so `v_fix_entra_vbu_login-de99` and its siblings are one row, `fix-entra-vbu-login`.
 
@@ -95,13 +91,13 @@ When PostgreSQL or MySQL cannot be contacted, `list` still prints variants known
 Variants that exist only as schemas are left out. A missing SQLite file is not this case.
 `status` of a slug known that way succeeds; a slug known only from the database fails with the same warning.
 
-With `-v`/`--verbose` every variant is printed as `variant status` prints it, with all its meta information, instead of the table.
-`-v` is not a log level.
+With `--verbose` every variant is printed as `variant status` prints it, with all its meta information, instead of the table.
+`--verbose` is not a log level; [`-v`](./cli#global-flags) is.
 
 ```bash
-variant list -v
+variant list --verbose
 variant list --json   # the records, without the runtime object
-variant list -v --json
+variant list --verbose --json
 ```
 
 ### `variant status`
@@ -111,7 +107,7 @@ It also shows the path of that file and the log file of a running `watch`.
 `VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
 
 ```bash
-variant status feature-forty-two
+variant status -s feature-forty-two
 variant status -s feature-forty-two --json
 ```
 
@@ -218,7 +214,7 @@ The exit code is printed when the watch ends.
 `--detach` starts the processes in the background and returns.
 Attached and detached, the output of all its processes goes to one log file, `.cache/variant/watch.log` in the worktree.
 The file is emptied when the watch starts.
-Each process is announced as `[name] command`, and each later line is prefixed `[name] `.
+Each process is announced as `[name] command`, and each later line is prefixed `[name]` .
 Attached, stdout stays on stdout and stderr stays on stderr, with the same prefix, and the file is written without waiting for that write.
 `output.mode: tty` gives that process a pseudo-terminal, so color is in the log; the terminal mixes stderr into those stdout lines.
 Otherwise the watch runs with pipes and a warning.

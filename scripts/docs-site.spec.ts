@@ -973,13 +973,53 @@ describe("follow-up edits of the pages", () => {
     expect(linksOf(intro, "guide/commands.html").some((link) => link.path === "/guide/cli")).toBe(true);
   });
 
-  test("the CLI page ends with Basic commands, Lifecycle commands and CLI-only commands", () => {
+  test("the CLI page ends with the command lists, CLI-only commands and Global flags, and has no Slug section", () => {
     const h2 = headingsOf(page("guide/cli.html"))
       .filter((heading) => heading.level === 2)
       .map((heading) => heading.text);
-    expect(h2.slice(-3)).toEqual(["Basic commands", "Lifecycle commands", "CLI-only commands"]);
+    expect(h2.slice(-4)).toEqual(["Basic commands", "Lifecycle commands", "CLI-only commands", "Global flags"]);
+    expect(h2).not.toContain("Slug");
     expect(h2).not.toContain("MCP server");
     expect(h2).not.toContain("Completions");
+  });
+
+  test("the Global flags table has a row for every global flag and keeps the hidden alias out", () => {
+    const html = sectionOf(page("guide/cli.html"), "global-flags");
+    const rows = new Map(
+      [...html.matchAll(/<tr>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/g)].map((match) => [
+        decodeEntities(match[1].replace(/<[^>]+>/g, "")).trim(),
+        decodeEntities(match[2].replace(/<[^>]+>/g, "")).trim(),
+      ]),
+    );
+    const flag = (start: string): string => {
+      const key = [...rows.keys()].find((name) => name.startsWith(start));
+      expect(key, start).toBeDefined();
+      return rows.get(key as string) as string;
+    };
+    for (const start of ["-C", "-s", "--json", "--yaml", "--log-level", "-v", "--help", "--version"]) flag(start);
+    expect([...rows.keys()].find((name) => name.startsWith("-s"))).toContain("--slug");
+    expect(flag("-s")).toMatch(/ignore/i);
+    expect(flag("-s")).toContain("worktree");
+    const verbosity = [...rows.keys()].find((name) => name.startsWith("-v")) as string;
+    expect(verbosity).toContain("-vv");
+    expect(verbosity).toContain("-vvv");
+    expect(flag("-v")).toMatch(/info.*debug.*trace/);
+    expect(flag("--log-level")).not.toContain("warning");
+  });
+
+  test("no documentation shows a slug as a positional argument", () => {
+    const positional =
+      /\bvariant (?:-\S+ +)*(create|provision|up|watch|down|deprovision|implode|status) +(?!-)(?!(?:a|the|and|or|in|is|to|for|when|with|that|it|as|on|of|also|still|only|from|but|has|does|no|every|one|stops|runs|your)\b)[a-z][\w-]*/;
+    const hits = [...trackedDocs(), "README.md"]
+      .filter((file) => file.endsWith(".md"))
+      .flatMap((file) =>
+        readFileSync(join(root, file), "utf8")
+          .split("\n")
+          .filter((line) => line.startsWith("variant ") || line.includes("`variant "))
+          .filter((line) => positional.test(line.replace(/^.*?(?=variant )/, "")))
+          .map((line) => `${file}: ${line.trim()}`),
+      );
+    expect(hits).toEqual([]);
   });
 
   test("the CLI-only commands are headings of the CLI page, not of the Commands page", () => {
