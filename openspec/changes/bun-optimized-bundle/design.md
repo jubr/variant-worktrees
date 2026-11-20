@@ -68,3 +68,12 @@ Compiled the same checkout twice, once with the released Bun 1.4.2 runtime and o
 - The saving is larger than the 7.6 MB the pull request reports for linux-x64. The baseline here is a released Bun, not a full build of the same pull request commit, so the difference mixes the removed subcommands with build differences. A like-for-like number needs a full build of that commit.
 - Not exercised: `variant watch`, `variant create` and the other lifecycle commands against a live database, and any platform other than macOS arm64.
 - Verdict: the CLI runs on the slim runtime for every command family tried. Pursuing it for releases waits for an upstream release of the standalone binary (see the migration plan); until then the variable stays a local aid.
+
+## Results (CI, branch dispatch)
+
+Dispatch of `ci-release.yaml` from `feat/bun-optimized-bundle` with `dry-run` and `bun-standalone: yes`:
+
+- Run [44785600269](https://github.com/jubr/variant-worktrees/actions/runs/44785600269) (cold cache): all four `Bun standalone` builds compiled (linux-arm64 about 8 min, darwin-arm64 about 15 min; linux-x64 spent about 18 min installing the toolchain first). Every platform job then restored the cached slim runtime and ran `Embed the cached slim runtime`; the two Windows jobs skipped both steps. Release assets were gathered and the release was skipped (dry run).
+- The Linux runner embedded the macOS runtimes without trouble, so the fallback to macOS runners is not needed. The compiled macOS executables were not run.
+- Run [44792533276](https://github.com/jubr/variant-worktrees/actions/runs/44792533276) (same head and workflow hash): `Compile bun-standalone` was skipped on all four builds; the smoke tests ran on the restored binaries.
+- Executable sizes (artifact zips, bytes): linux-x64 29.9 M, linux-arm64 29.8 M, darwin-x64 21.2 M, darwin-arm64 19.5 M with the slim runtime; windows-x64 41.5 M and windows-arm64 38.4 M with the default runtime.
