@@ -4,10 +4,12 @@
 
 ### Added
 
-- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [mcp](docs/guide/cli.md#mcp-server).
+- `variant mcp [--config <path>]` starts the stdio MCP server from the `variant` command (CLI, `variant-cli` package and every compiled executable). Standard output carries only the MCP protocol. See [`variant mcp`](docs/guide/cli.md#variant-mcp).
 
 ### Changed
 
+- **BREAKING (docs URLs):** the command headings of the docs are ``variant <name>``, so the anchors are `commands#variant-create` and so on instead of `commands#create`. `cli#mcp-server` and `cli#completions` are now `cli#variant-mcp` and `cli#variant-completions`, and `variant ui` moved from Commands to the CLI page. Commands has the sections Basic commands and Lifecycle commands, and the CLI page lists them and ends with CLI-only commands. The options of the Configuration page are separated by a rule.
+- Every command definition has a `section` (`basic` or `lifecycle`) that says where the docs list it; the CLI-only commands are in section `cli`.
 - **BREAKING:** the `variant-mcp` executable is gone, and so are `task bleed:mcp` and `vw-bleeds/variant-mcp`. Point MCP clients at `variant` with the argument `mcp`: `"command": "variant", "args": ["mcp", "--config", "/workspace/variants.yaml"]`. The `variant-mcp` package is a library now, started by `variant mcp`. Remove a leftover `vw-bleeds/variant-mcp` by hand.
 - The help of `variant` no longer pads its lines with trailing spaces, so GNU screen shows no empty line between the global flags.
 - The code of each CLI command lives in `packages/variant-cli/src/commands/`.
