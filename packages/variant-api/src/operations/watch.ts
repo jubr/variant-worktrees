@@ -9,16 +9,18 @@ import { miseBinaryFor } from "../mise.js";
 import { ownedByWorktree, signalProcessTree, stopProcessTree } from "../processes.js";
 import { announce, logToStderr, readyStatusLines, watchCommandLine, watchTailComment } from "../ready.js";
 import { commandEnvironment, expandSetting, prepareRun, type VariantRun } from "../run-context.js";
-import {
-  clearVariantRuntime,
-  isProcessAlive,
-  readVariantRuntime,
-  watchLogPath,
-  writeVariantRuntime,
-} from "../runtime-state.js";
+import { isProcessAlive, readVariantRuntime, watchLogPath, writeVariantRuntime } from "../runtime-state.js";
 import { resolveSlug } from "../slug.js";
 import type { WatchOptions, WatchResult } from "../types.js";
+import {
+  cleanupVanishedWorktree,
+  survivingDirectory,
+  type WorktreeIdentity,
+  worktreeGone,
+  worktreeIdentity,
+} from "../watch-cleanup.js";
 import { launchWatches, startDetachedRelay } from "../watch-relay.js";
+import { implodeVariant } from "./implode.js";
 import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 import { runtimeOf, watchReports } from "./up.js";
@@ -212,6 +214,15 @@ const launches = (context: OperationContext, run: VariantRun, outputMode?: "tty"
   });
 };
 
+/** A directory that is not the worktree and exists, for the operations that run after the worktree is gone. */
+const survivingWorktreeDirectory = (context: OperationContext, worktree: string): string =>
+  survivingDirectory(
+    [context.config.variant.main, context.variantRoot, dirname(worktree)].filter(
+      (path): path is string => typeof path === "string",
+    ),
+    worktree,
+  );
+
 /** Flags of this invocation. A default `miseInstall` of `sync` is omitted, because the CLI fills that in. */
 const invocationArgs = (
   options: WatchOptions & { from?: string; pullFf?: boolean; miseInstall?: "bg" | "sync" | "no" },
@@ -234,6 +245,7 @@ const invocationArgs = (
 const untilEnd = (
   context: OperationContext,
   worktree: string,
+  identity: WorktreeIdentity | undefined,
   started: Started[],
   signal: AbortSignal | undefined,
 ): { done: Promise<Outcome>; release: () => void } => {
@@ -277,7 +289,7 @@ const untilEnd = (
     const poll = context.config.variant.supervise.checkoutPollSeconds;
     if (poll > 0) {
       const timer = setInterval(() => {
-        if (!existsSync(worktree)) {
+        if (worktreeGone(worktree, identity)) {
           settle("checkout");
         }
       }, poll * 1000);
@@ -423,6 +435,7 @@ export const watchVariant = async (
       ? await prepareVariant(context, slug, "watch", options)
       : { run: keptRun, provisioned: { commands: [], output: "" } };
 
+  const identity = worktreeIdentity(run.worktree);
   const delay = config.variant.supervise.startDelaySeconds * 1000;
   let started: Started[] = [];
   const interactiveInput = options.input ?? (process.stderr.isTTY === true ? process.stdin : undefined);
@@ -438,6 +451,7 @@ export const watchVariant = async (
   const logFile = toStart.length === 0 ? undefined : watchLogPath(config, run.worktree);
   const mise = miseBinaryFor(config, context.miseBinPath);
   let closeLog: () => Promise<void> = async () => {};
+  let silenceLog: () => void = () => {};
   let record: ((line: string) => void) | undefined;
   let writeStdin: ((text: string) => void) | undefined;
   let detachedPids: Record<string, number> | undefined;
@@ -453,6 +467,16 @@ export const watchVariant = async (
           logPath: logFile,
           args,
           ...(mise === undefined ? {} : { mise }),
+          cleanup: {
+            slug,
+            worktree: run.worktree,
+            cwd: survivingWorktreeDirectory(context, run.worktree),
+            stateDir: context.stateDir,
+            config,
+            useWorktree: context.useWorktree,
+            pollSeconds: config.variant.supervise.checkoutPollSeconds,
+            ...(context.miseBinPath === undefined ? {} : { miseBinPath: context.miseBinPath }),
+          },
         });
       } catch (error) {
         rmSync(logFile, { force: true });
@@ -475,6 +499,7 @@ export const watchVariant = async (
         ...(mise === undefined ? {} : { mise }),
       });
       closeLog = launched.close;
+      silenceLog = launched.silence;
       writeStdin = launched.writeStdin;
       if (launched.writeLog) {
         const writeLog = launched.writeLog;
@@ -557,7 +582,7 @@ export const watchVariant = async (
             tty: process.stderr.isTTY === true,
           })
         : Promise.resolve(false);
-    const wait = untilEnd(context, run.worktree, started, options.signal);
+    const wait = untilEnd(context, run.worktree, identity, started, options.signal);
     const winner = await Promise.race([
       wait.done.then((end) => ({ kind: "end" as const, end })),
       (keys?.take() ?? never).then((action) => ({ kind: "key" as const, action })),
@@ -636,6 +661,7 @@ export const watchVariant = async (
         ...(mise === undefined ? {} : { mise }),
       });
       closeLog = launched.close;
+      silenceLog = launched.silence;
       writeStdin = launched.writeStdin;
       if (launched.writeLog) {
         const writeLog = launched.writeLog;
@@ -676,6 +702,29 @@ export const watchVariant = async (
     };
   }
 
+  if (outcome === "checkout") {
+    log(`The worktree ${run.worktree} is gone: stopped ${slug}`);
+    const survivor = survivingWorktreeDirectory(context, run.worktree);
+    await cleanupVanishedWorktree({
+      slug,
+      worktree: run.worktree,
+      directory: survivor,
+      processes: started.map(({ key, pid }) => ({ key, pid })),
+      silence: silenceLog,
+      implode: (implodeOptions) => implodeVariant({ ...context, cwd: survivor }, slug, implodeOptions),
+    });
+    for (const { child } of started) {
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+    }
+    await closeLog();
+    return {
+      ...result,
+      processes: started.map(({ key, pid, command }) => ({ key, pid, command })),
+      exitCode: 1,
+    };
+  }
+
   if (!quitSignaled) {
     await Promise.all(started.map(({ pid }) => stopProcessTree(pid)));
   }
@@ -685,13 +734,7 @@ export const watchVariant = async (
   }
   await closeLog();
 
-  if (outcome === "checkout") {
-    log(`The worktree ${run.worktree} is gone: stopped ${slug}`);
-    if (slug !== "main") {
-      await context.adapter.destroy(slug);
-    }
-    clearVariantRuntime(config, run.worktree);
-  } else if (existsSync(run.worktree)) {
+  if (existsSync(run.worktree)) {
     writeVariantRuntime(
       config,
       run.worktree,
