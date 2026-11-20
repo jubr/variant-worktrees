@@ -13,8 +13,8 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 - Keep the hook small, opt-in, and invisible when unused.
 
 **Non-Goals:**
-- No download, pin, or cache of a standalone runtime.
-- No change to release executables, the CI workflows, or the `--version` output.
+- No download or pin of a standalone runtime by `variant` builds; the new workflow only builds and caches it.
+- No change to release executables, the CI gate or release workflow, or the `--version` output.
 - No change to the full-Bun toolchain that `mise` pins.
 - No fix for Bun itself; a gap found in the PR is reported, not patched here.
 
@@ -25,6 +25,12 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 - **Runtime and target must match.** When the variable is set the caller owns that match (macOS arm64 build for a macOS arm64 host). `compileCli` passes no `target` for the host default; with `package:cli all` the same executable would be embedded in every platform's output, so the variable is documented as a single-target aid and `package:cli:all` rejects it. Alternative: infer from the file's header. Rejected: more code than the experiment justifies.
 - **Build the PR with its own scripts.** `bun run build:standalone` in the clone (release profile, `--standalone=on`) produces `build/release-standalone/bun-standalone`. The clone is a shallow fetch of the PR head, pinned by commit in these notes. Alternative: cherry-pick into a fork. Rejected: no reason to carry patches.
 - **Measure, then decide.** Compare byte size of the stripped output against the current 65.3 MB bled binary, and run `variant --version`, `variant list`, `variant ui --detach` (page served), and `variant mcp` (initialize handshake) with the bled binary.
+
+- **Workflow `bun-standalone.yaml`: schedule plus path-filtered push, build only on a cache miss.** The pull request is upstream, so no push event announces a new head. A scheduled run (the default branch only) resolves the head with the GitHub API; the binary cache key is `<platform>-<head sha>-<hashFiles of the workflow>`, so a moved head or an edited workflow is a miss and everything else restores. A push that changes the workflow file runs it on any branch, so an edit is verified where it is made. Alternative: poll with a separate trigger service. Rejected: more moving parts than a cron.
+- **Resolve once, in a short job.** A `resolve` job reads the head sha and hands it and the key suffix to a matrix job, so every platform builds the same commit even if the pull request moves mid-run. The matrix jobs still start on a hit and skip every step after the cache restore; a restore costs seconds, which is accepted over a cross-platform cache lookup that depends on cache versioning.
+- **Dependency and compiler cache restored by prefix, binary cache by exact key.** A stale dependency cache only costs time; a stale binary would be a wrong result.
+- **Same build recipe as the local build.** LLVM 21.1.x, CMake, the pinned Rust nightly from the checked-out repository, Bun for the scripts, and `SDKROOT` on macOS. Alternative: reuse the upstream Buildkite pipeline. Rejected: it needs their agents and secrets.
+- **Artifacts only.** The output is a run artifact, retained for the default period. Nothing in this repository downloads it; using it in the gate or releases is a later change.
 
 ## Risks / Trade-offs
 
