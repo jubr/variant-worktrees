@@ -8,7 +8,7 @@ Prints the variant log stream on the `variant` CLI and lets a person choose how 
 
 ### Requirement: Log level flag
 
-The CLI SHALL accept a global `--log-level` whose value is `trace`, `debug`, `info`, `warn`, `error`, or `warning`. `warning` SHALL select `warn`. The flag SHALL be accepted before and after the command name. The default threshold SHALL be `warn`. An event below the threshold SHALL NOT be written. An event at or above the threshold SHALL be written to standard error and SHALL NOT be written to standard output.
+The CLI SHALL accept a global `--log-level` whose value is `trace`, `debug`, `info`, `warn` or `error`. The value `warning` SHALL also be accepted and SHALL select `warn`; the help, the error message for a bad value and the documentation SHALL NOT name it. The flag SHALL be accepted before and after the command name. The default threshold SHALL be `warn`. The flags `-v`, `-vv` and `-vvv` (see Short verbosity flags) SHALL also set the threshold, and a given `--log-level` SHALL win over them. An event below the threshold SHALL NOT be written. An event at or above the threshold SHALL be written to standard error and SHALL NOT be written to standard output.
 
 A written line SHALL start with `[trace]`, `[debug]`, `[info]`, `[warn]`, or `[error]`, using `warn` for a `warn` event. When the event has a step, that step SHALL be printed once, after the level bracket and one space, and the message SHALL follow the step after one space. When the step is absent, the message SHALL follow the level bracket after one space. The CLI SHALL NOT invent a step by reading brackets in the message. The CLI SHALL NOT rewrite a command message into `cmd=`. The event's slug SHALL NOT be printed.
 
@@ -44,7 +44,7 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 #### Scenario: Bad value
 
 - **WHEN** a user runs `variant list --log-level=loud`
-- **THEN** the process exits non-zero, standard error names `--log-level` and the allowed values, and the command does not run
+- **THEN** the process exits non-zero, standard error names `--log-level` and the allowed values `trace`, `debug`, `info`, `warn`, `error`, and not `warning`, and the command does not run
 
 #### Scenario: Step from the event
 
@@ -71,16 +71,6 @@ When standard error is a terminal and `NO_COLOR` is unset, the line SHALL be col
 
 - **WHEN** standard error is not a terminal, or `NO_COLOR` is set, and a warn event whose message does not begin with `[` is written
 - **THEN** the line starts with `[warn]`, contains the message, and contains no ANSI sequence
-
-### Requirement: Verbose is not a log level
-
-`-v` and `--verbose` SHALL keep their meaning as richer command output. They SHALL NOT change the log threshold.
-
-#### Scenario: Verbose list stays a richer result
-
-- **WHEN** a user runs `variant list -v` and the library emits a debug event during that command
-- **THEN** standard output is the verbose list text
-- **AND** standard error does not contain a line that starts with `[debug]`
 
 ### Requirement: Vscode log stream
 
@@ -170,3 +160,30 @@ When the CLI runs a lifecycle command and the arguments do not include `--help` 
 
 - **WHEN** a user runs `variant watch --help`
 - **THEN** no info event has the message `watch --help`
+
+### Requirement: Short verbosity flags
+
+The CLI SHALL accept the global flags `-v`, `-vv` and `-vvv`, before and after the command name. `-v` SHALL set the log threshold to `info`, `-vv` to `debug` and `-vvv` to `trace`. A longer run of `v` SHALL select `trace`. When `--log-level` is also given, it SHALL win. `-v` SHALL NOT be the short form of `--verbose`, and no command SHALL declare a short flag `-v`. `--verbose` SHALL keep its meaning as richer command output and SHALL NOT change the log threshold.
+
+#### Scenario: One v is info
+
+- **WHEN** a user runs `variant -v list` or `variant list -v` and the library emits an info event
+- **THEN** standard error contains a line that starts with `[info]`
+- **AND** standard output is the list text and not the verbose list
+
+#### Scenario: Two and three v
+
+- **WHEN** a user runs `variant list -vv` and the library emits a debug event
+- **THEN** standard error contains a line that starts with `[debug]`
+- **AND** with `-vvv` and a trace event, it contains a line that starts with `[trace]`
+
+#### Scenario: Log level wins
+
+- **WHEN** a user runs `variant list -vvv --log-level=error`
+- **THEN** the threshold is `error`
+
+#### Scenario: Verbose stays a richer result
+
+- **WHEN** a user runs `variant list --verbose` and the library emits a debug event during that command
+- **THEN** standard output is the verbose list text
+- **AND** standard error does not contain a line that starts with `[debug]`
