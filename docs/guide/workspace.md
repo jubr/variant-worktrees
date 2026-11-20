@@ -114,5 +114,5 @@ task parent-symlink-here
 # or, in a new agent chat, '/vw-spec-start feature-one\n- requirement one\n- requirement two'
 ```
 
-[`variant init`](./commands#init) writes `variants.yaml`, adds the prefix to `.gitignore` and adds the CLI to the Mise configuration.
+[`variant init`](./commands#variant-init) writes `variants.yaml`, adds the prefix to `.gitignore` and adds the CLI to the Mise configuration.
 `variant create` then adds `_v-feature-one` beside the checkout.

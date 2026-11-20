@@ -1,18 +1,17 @@
 # Commands
 
 These are the `variant` commands.
-The command line itself, with its slug argument, [global flags](./cli#global-flags) and shell [completions](./cli#completions), is in [CLI](./cli).
+[Basic commands](#basic-commands) set up a project and show what is known.
+[Lifecycle commands](#lifecycle-commands) move a variant through the [flow of steps](./overview#flow-of-steps).
 The [MCP server](/vscode/mcp) and the [library](/development/library) offer the same commands.
+The commands only the command line offers (`ui`, `mcp`, `completions`), its slug argument and its [global flags](./cli#global-flags) are on the [CLI](./cli) page.
 
 What `provision`, `up`, and `watch` actually run is set by [`variant.steps`](./configuration#variant-steps) and [`variant.watches`](./configuration#variant-watches).
 The [Overview](./overview#flow-of-steps) shows how the steps follow each other.
 
-## Lifecycle commands
+## Basic commands
 
-`init` prepares a project for Variant.
-The others move a variant through the [flow of steps](./overview#flow-of-steps).
-
-### init
+### `variant init`
 
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
@@ -42,7 +41,85 @@ With `--json` or `--yaml` it is the returned object. The MCP tool is `variant_in
 The [extension](/vscode/extension#onboarding) command **Variant: Initialize in this Repo** shows the same steps; its confirm button is **Initialize**, and **Prefix** sits in a collapsed **Advanced** disclosure.
 Without a config file the Explorer section offers **Onboard**, which opens that dialog; an activity-bar **Variant Worktrees** tree lists the same rows.
 
-### create
+### `variant config`
+
+Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment.
+The printed object includes the resolved [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) even though `init` does not write them, and it includes built-in defaults and discovered watches.
+Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not.
+[`db.port`](./configuration#db-port) may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
+
+The text is YAML. A comment names where a value came from, on that key.
+A child with the same origin is not commented again.
+A child from somewhere else is commented on its own line.
+The file path is relative to the working directory and uses `/`: `./variants.yaml` when the file is there, `../variants.yaml` when it is a parent.
+
+- `# from <path>` — the loaded file set the value
+- `# from env NAME` — that variable supplied the value, including a `${NAME}` in the file when `NAME` is set.
+  A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
+- `# autodetect <reason>` — the value was discovered.
+  `<reason>` is one word: `watch`, `config`, or `connection`
+- `# autodetect from <source>` — the discovery names a source the key does not.
+  `abbr` quotes the main directory's base name.
+  `main` names `AGENTS.md` or `` `git rev-parse --git-common-dir` ``.
+  `root` names `AGENTS.md` only when it is not the same path as `main`
+- `# default` — a built-in default filled a key the file omits
+
+A comment that only repeats its key is left off, including `runtime` and a `main` or `root` that is only the config directory.
+Items of an array written in the file use that file's origin, so the comment sits on the key that holds the array.
+`source` is not printed; where `db` came from is the comment on those fields.
+
+On a terminal, with `NO_COLOR` unset, keys are cyan, strings green, numbers and booleans bright magenta, and comments bright black.
+Null, `[]`, `{}`, colons, and dashes stay the default color.
+A pipe, or `NO_COLOR` set to any value including empty, prints the same characters with the comments and no color.
+`--json` and `--yaml` print the same document with no comments and no color.
+A password is `***` in all three.
+
+```bash
+variant config
+```
+
+### `variant list`
+
+List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`.
+`url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of `.cache/variant/watch.log` while `watch` is running, and `dir` is relative to the variant root.
+A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
+A variant with [`db.multi`](./configuration#db-multi) is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record.
+Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment.
+PostgreSQL schemas named `v_<slug>-<tenant>` group the same way when [`db.multi`](./configuration#db-multi) is absent: hyphens in the slug are stored as underscores, and the tenant is the text after the last hyphen, so `v_fix_entra_vbu_login-de99` and its siblings are one row, `fix-entra-vbu-login`.
+
+```bash
+variant list
+```
+
+When PostgreSQL or MySQL cannot be contacted, `list` still prints variants known from state files and worktrees and writes one contact warning.
+Variants that exist only as schemas are left out. A missing SQLite file is not this case.
+`status` of a slug known that way succeeds; a slug known only from the database fails with the same warning.
+
+With `-v`/`--verbose` every variant is printed as `variant status` prints it, with all its meta information, instead of the table.
+`-v` is not a log level.
+
+```bash
+variant list -v
+variant list --json   # the records, without the runtime object
+variant list -v --json
+```
+
+### `variant status`
+
+Show everything known about one variant: the facts `list` shows plus `.cache/variant/runtime.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime.
+It also shows the path of that file and the log file of a running `watch`.
+`VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
+
+```bash
+variant status feature-forty-two
+variant status -s feature-forty-two --json
+```
+
+## Lifecycle commands
+
+These commands move a variant through the [flow of steps](./overview#flow-of-steps).
+
+### `variant create`
 
 Create the git worktree and the state for a slug.
 This does not create a database schema or file; that is `provision`.
@@ -82,7 +159,7 @@ variant create -s feature-forty-two --pull-ff
 variant create -s feature-forty-two --mise-install=sync
 ```
 
-### provision
+### `variant provision`
 
 Create the schema `v_<slug>`, or every schema of [`db.multi`](./configuration#db-multi) in one pass, and run the configured install, env file, `up`, step, and seed commands.
 This implies `create`, and it prepares the variant without leaving a supervised `watch` in the foreground.
@@ -97,9 +174,9 @@ variant provision -s feature-forty-two --from feat/other
 ```
 
 `--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first.
-`--mise-install` installs Mise tools in the new worktree. See [create](#create).
+`--mise-install` installs Mise tools in the new worktree. See [`variant create`](#variant-create).
 
-### up
+### `variant up`
 
 Run the watches as containers.
 This implies `seed`, so the worktree, the schemas and the seed exist first.
@@ -112,9 +189,9 @@ variant up -s feature-forty-two --from feat/other
 ```
 
 `--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first.
-See [create](#create).
+See [`variant create`](#variant-create).
 
-### watch
+### `variant watch`
 
 Run the watches as supervised host processes.
 This implies `seed`, so the worktree, the schemas and the seed exist before the processes start.
@@ -128,7 +205,7 @@ variant watch -s feature-forty-two --from feat/other
 ```
 
 `--from` starts a new branch at that commit. `--pull-ff` fast-forwards the start branch first.
-`--mise-install` installs Mise tools in the new worktree. See [create](#create).
+`--mise-install` installs Mise tools in the new worktree. See [`variant create`](#variant-create).
 
 `--reprovision` runs `deprovision` before the provision phase, so the schemas are dropped and created again.
 Without it, `watch` does not drop a schema.
@@ -169,7 +246,7 @@ Status 204 does not count.
 Detach writes no try line and opens nothing.
 State is written to `.cache/variant/state.yaml` and `.cache/variant/runtime.yaml`.
 
-### down
+### `variant down`
 
 Stop the processes and containers of a variant and keep its data, database, and worktree.
 
@@ -177,7 +254,7 @@ Stop the processes and containers of a variant and keep its data, database, and 
 variant down -s feature-forty-two
 ```
 
-### deprovision
+### `variant deprovision`
 
 Stop the watches, then drop the schema `v_<slug>`.
 With [`db.multi`](./configuration#db-multi), drop every schema under [`db.multi.schemaPrefix`](./configuration#db-multi-schemaprefix), including one whose value has left the list.
@@ -190,7 +267,7 @@ The worktree, the storage directory and the state stay. It refuses `main`.
 variant deprovision -s feature-forty-two
 ```
 
-### implode
+### `variant implode`
 
 Stop the variant, drop its schemas and storage, clear its state, remove its worktree, and then remove its local branch.
 This implies `deprovision`.
@@ -209,126 +286,3 @@ variant implode -s feature-forty-two
 variant implode -s feature-forty-two --branch-rm=no
 variant implode -s feature-forty-two --force
 ```
-
-## Other commands
-
-These commands inspect and serve variants, and do not change their state.
-
-### config
-
-Print the detected configuration: `variants.yaml`, then the environment as Mise prints it, then the process environment.
-The printed object includes the resolved [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) even though `init` does not write them, and it includes built-in defaults and discovered watches.
-Inside a variant worktree that has its own `variants.yaml` or `variants.yml`, that file is loaded and an ancestor file is not.
-[`db.port`](./configuration#db-port) may be a positive integer or a string of digits or one `${NAME}`; the printed value is the resolved integer.
-
-The text is YAML. A comment names where a value came from, on that key.
-A child with the same origin is not commented again.
-A child from somewhere else is commented on its own line.
-The file path is relative to the working directory and uses `/`: `./variants.yaml` when the file is there, `../variants.yaml` when it is a parent.
-
-- `# from <path>` — the loaded file set the value
-- `# from env NAME` — that variable supplied the value, including a `${NAME}` in the file when `NAME` is set.
-  A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
-- `# autodetect <reason>` — the value was discovered.
-  `<reason>` is one word: `watch`, `config`, or `connection`
-- `# autodetect from <source>` — the discovery names a source the key does not.
-  `abbr` quotes the main directory's base name.
-  `main` names `AGENTS.md` or `` `git rev-parse --git-common-dir` ``.
-  `root` names `AGENTS.md` only when it is not the same path as `main`
-- `# default` — a built-in default filled a key the file omits
-
-A comment that only repeats its key is left off, including `runtime` and a `main` or `root` that is only the config directory.
-Items of an array written in the file use that file's origin, so the comment sits on the key that holds the array.
-`source` is not printed; where `db` came from is the comment on those fields.
-
-On a terminal, with `NO_COLOR` unset, keys are cyan, strings green, numbers and booleans bright magenta, and comments bright black.
-Null, `[]`, `{}`, colons, and dashes stay the default color.
-A pipe, or `NO_COLOR` set to any value including empty, prints the same characters with the comments and no color.
-`--json` and `--yaml` print the same document with no comments and no color.
-A password is `***` in all three.
-
-```bash
-variant config
-```
-
-### list
-
-List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`.
-`url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of `.cache/variant/watch.log` while `watch` is running, and `dir` is relative to the variant root.
-A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
-A variant with [`db.multi`](./configuration#db-multi) is still one row; its `schemas` are printed by `status` and by `list -v`, and they are on the JSON and YAML record.
-Schemas whose worktree is gone are grouped by `schemaPrefix`: the slug is the text before the last separator, and the tenant is the final segment.
-PostgreSQL schemas named `v_<slug>-<tenant>` group the same way when [`db.multi`](./configuration#db-multi) is absent: hyphens in the slug are stored as underscores, and the tenant is the text after the last hyphen, so `v_fix_entra_vbu_login-de99` and its siblings are one row, `fix-entra-vbu-login`.
-
-```bash
-variant list
-```
-
-When PostgreSQL or MySQL cannot be contacted, `list` still prints variants known from state files and worktrees and writes one contact warning.
-Variants that exist only as schemas are left out. A missing SQLite file is not this case.
-`status` of a slug known that way succeeds; a slug known only from the database fails with the same warning.
-
-With `-v`/`--verbose` every variant is printed as `variant status` prints it, with all its meta information, instead of the table.
-`-v` is not a log level.
-
-```bash
-variant list -v
-variant list --json   # the records, without the runtime object
-variant list -v --json
-```
-
-### status
-
-Show everything known about one variant: the facts `list` shows plus `.cache/variant/runtime.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime.
-It also shows the path of that file and the log file of a running `watch`.
-`VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
-
-```bash
-variant status feature-forty-two
-variant status -s feature-forty-two --json
-```
-
-### ui
-
-Serve the variants app as a web page on a local port, the same app as the Variant Worktrees view and panel of the VS Code extension.
-It lists every variant with its state (watching, up, down). `main` stays pinned first.
-The run control is the play icon **variant watch** when the variant is down, and a square stop when it is watching or up.
-In the editor, after this view starts a watch, the row stays on a loading icon until every watch that has both a URL and a `ready` path has a live pid and a GET of that URL joined with `ready` returns 200.
-The extension log records `[watch] {name} URL try {url}` on the first check and `[watch] {name} URL 200 {url}` on the first 200, and does not repeat them.
-The external browser opens the row URL once when the last 200 arrives.
-A watch with no URL, or no `ready` path, is not fetched and is not opened.
-The implode control is an explosion, muted when implode would fail, and `main` has none.
-In the editor, a row with a URL has **Open url** immediately left of the run control: it opens that URL in the external browser, and in a Cursor browser tab while Alt is held.
-Activating the muted explosion writes the colored implode report to the extension output, then asks whether to pass `--force`; **Force** implodes with force and does not open the clean confirmation.
-A failed watch, down, or implode shows that error in a notification.
-**Sort** (also the setting `variant.sort`) uses the labels `Name (A→Z)`, `Name (Z→A)`, `Created (old→new)`, `Created (new→old)`, `Changed (old→new)`, and `Changed (new→old)`.
-Created order uses `runtime.createdAt` (`YYYY-MM-DD_HH:MM:SS`).
-
-```bash
-variant ui
-variant ui --detach
-variant ui --stop
-```
-
-The port is `VARIANT_UI_PORT`, else [`variant.ui.port`](./configuration#variant-ui-port) from `variants.yaml`, else a free port picked the way a watch's is (from [`variant.ports.range`](./configuration#variant-ports-range)), listens on loopback only and prints `http://ui.<abbr>.localhost:<port>/?token=<token>`.
-Without `--detach` it stays attached until interrupted; `--detach` starts it in the background and returns after printing the URL.
-`--stop` ends the server of the project and exits 0 when there is none.
-
-There is one server per project.
-While it runs, `variant ui` prints its URL and exits 0 instead of starting another, and a recorded server whose process is gone is replaced.
-The server records itself in the runtime state of `main` as the watch `variant-ui` with `port`, `pid` and `url` (without the token), so `variant list` and `variant status main` show it.
-`watch`, `up` and `down` of `main` leave that entry alone.
-The key `variant-ui` is reserved, and so is `ui` (its port variable `VARIANT_UI_PORT` is the server's): [`variant.watches`](./configuration#variant-watches) must not define either.
-
-The server is part of `variant`, not a program of its own: the `variant-cli` package and every compiled executable carry it together with the app, so `variant ui` works from the `variant` you run, with nothing installed next to it.
-
-Security model:
-
-- Loopback only, no remote access.
-- A random 128-bit token is required.
-  The URL carries it once; the server then sets an HttpOnly, SameSite=Strict cookie.
-  The token lives in an owner-only file next to the [socket](/vscode/socket-ipc) and is removed when the server ends.
-- The `Host` header must name the server (`ui.<abbr>.localhost` or loopback); anything else gets 421, which stops DNS rebinding.
-- POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
-- `implode` needs `confirm: true` in the request body, and `main` is never imploded.
-- A content security policy allows scripts and styles from the server's own origin only.

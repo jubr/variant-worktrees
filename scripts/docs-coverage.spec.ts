@@ -11,6 +11,9 @@ import { join } from "node:path";
 const { commands } = (await import(new URL("./commands.ts", import.meta.resolve("variant-api/bundle")).href)) as {
   commands: { name: string }[];
 };
+const { CLI_ONLY_COMMANDS, CLI_ONLY_SECTION } = (await import(
+  new URL("./commands/index.ts", import.meta.resolve("variant-cli/bundle")).href
+)) as { CLI_ONLY_COMMANDS: readonly string[]; CLI_ONLY_SECTION: string };
 const { GLOBAL_FLAGS } = (await import(new URL("./output.ts", import.meta.resolve("variant-cli/bundle")).href)) as {
   GLOBAL_FLAGS: readonly { name: string }[];
 };
@@ -73,7 +76,15 @@ describe("documentation", () => {
   test("the commands guide has a section for every command", () => {
     const core = read("docs/guide/commands.md");
     for (const name of names) {
-      expect(core).toContain(`\n### ${name}\n`);
+      expect(core).toContain(`\n### \`variant ${name}\`\n`);
+    }
+  });
+
+  test("the CLI guide documents every CLI-only command under CLI-only commands", () => {
+    const cli = section(read("docs/guide/cli.md"), "CLI-only commands");
+    expect(CLI_ONLY_SECTION).toBe("cli");
+    for (const name of CLI_ONLY_COMMANDS) {
+      expect(cli).toContain(`\n### \`variant ${name}\`\n`);
     }
   });
 
@@ -144,7 +155,8 @@ describe("VARIANT_* environment variables", () => {
 describe("variant mcp", () => {
   test("is in the README CLI section and on the CLI page, and is not a command of the commands guide", () => {
     expect(section(read("README.md"), "CLI")).toContain("variant mcp");
-    expect(read("docs/guide/cli.md")).toContain("\n## MCP server\n");
-    expect(read("docs/guide/commands.md")).not.toContain("\n### mcp\n");
+    expect(read("docs/guide/cli.md")).toContain("\n### `variant mcp`\n");
+    expect(read("docs/guide/cli.md")).not.toContain("\n## MCP server\n");
+    expect(read("docs/guide/commands.md")).not.toContain("\n### `variant mcp`\n");
   });
 });
