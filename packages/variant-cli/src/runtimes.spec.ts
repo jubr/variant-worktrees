@@ -100,12 +100,12 @@ describe("variant on Node, Bun and as a compiled executable", () => {
       versionOut[name] = result.stdout;
     });
 
-    it(`shows the version in the help header under ${name}`, async () => {
+    it(`starts the help with the version text under ${name}`, async () => {
+      const flag = await runCommand(command(), ["--version"], {}, compiledDirectory);
       const result = await runCommand(command(), ["--help"], {}, compiledDirectory);
 
-      expect(result.stdout.trimStart().startsWith(`variant v${version}`)).toBe(true);
-      expect(result.stdout).not.toContain(VERSION_BANNER);
-      expect(result.stdout).not.toContain("https://github.com/jubr/variant-worktrees");
+      expect(result.stdout.startsWith(`${flag.stdout}\n`)).toBe(true);
+      expect(result.stdout).not.toMatch(/^variant v\d/m);
       expect(result.exitCode).toBe(0);
     });
 

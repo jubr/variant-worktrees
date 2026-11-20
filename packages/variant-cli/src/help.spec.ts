@@ -32,7 +32,7 @@ describe("global flags in help", () => {
     const globals = section(help, "Global flags").join("\n");
 
     expect(flags).toContain("--detach");
-    expect(flags).toContain("--slug");
+    expect(flags).not.toContain("--slug");
     expect(flags).not.toContain("--json");
     expect(flags).not.toContain("--yaml");
     expect(flags).not.toContain("--help");
@@ -40,6 +40,19 @@ describe("global flags in help", () => {
     expect(globals).toContain("--yaml");
     expect(globals).toContain("--help");
     expect(globals).not.toContain("--version");
+  });
+
+  it("lists the slug and the verbosity flags with the global flags and not the alias warning", async () => {
+    for (const args of [["--help"], ["watch", "--help"], ["list", "--help"]]) {
+      const globals = section((await runCli(args)).stdout, "Global flags");
+      const text = globals.join("\n");
+
+      expect(globals.some((line) => /-s, --slug\s+<slug>/.test(line))).toBe(true);
+      expect(globals.some((line) => /-v\b.*-vv.*-vvv/.test(line))).toBe(true);
+      expect(text).toMatch(/--log-level/);
+      expect(text).not.toContain("warning");
+      expect(globals.some((line) => line.trim() === "")).toBe(false);
+    }
   });
 
   it("puts the global flags section after the flags of the command", async () => {
@@ -128,7 +141,7 @@ describe("global flag spacing", () => {
     const span = globalFlagSpan(help);
 
     expect(flags).toContain("--detach");
-    expect(flags).toContain("--slug");
+    expect(flags).not.toContain("--slug");
     expect(flags).not.toContain("--json");
     expect(span.some((line) => line.includes("--json"))).toBe(true);
     expect(span.some((line) => line.includes("-C") && line.includes("<path>"))).toBe(true);

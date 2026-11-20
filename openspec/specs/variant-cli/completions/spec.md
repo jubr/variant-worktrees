@@ -67,7 +67,7 @@ Every generated script SHALL complete the following for `variant`: each subcomma
 
 - **WHEN** the script for any supported shell is generated
 - **THEN** it offers `--slug` and `-s` for `create`, `--detach` for `watch` and `ui`, `--stop` for `ui`, and `--force` for `implode`
-- **AND** it offers `--verbose` and `-v`, `--json`, and `--yaml` for every lifecycle subcommand
+- **AND** it offers `--verbose` (and not `-v`, which is a global log-level flag), `--json`, and `--yaml` for every lifecycle subcommand
 
 #### Scenario: Flags are not offered on other subcommands
 
@@ -120,7 +120,7 @@ Each script SHALL be loadable by its shell without errors: `zsh` as a `#compdef 
 
 ### Requirement: Slug completion
 
-Every generated script SHALL complete the value of `--slug` and `-s`, and the positional slug, for each subcommand that takes a slug, with the slugs of existing variants. The candidates SHALL be gathered while the user is completing, not embedded in the script, so a variant created after the script was generated is offered.
+Every generated script SHALL complete the value of `--slug` and `-s` for each subcommand that takes a slug, with the slugs of existing variants. The candidates SHALL be gathered while the user is completing, not embedded in the script, so a variant created after the script was generated is offered.
 
 The script SHALL keep the candidates in variables of the running shell only. It SHALL NOT write a cache file, a marker, or any other file, and nothing SHALL outlive the shell session. The remembered list belongs to the directory it was gathered in and SHALL NOT be offered in another directory. A list is fresh for 30 seconds after it was gathered.
 
@@ -138,7 +138,7 @@ Subcommands that take no slug SHALL NOT be offered slug candidates. When the can
 #### Scenario: Positional slug completed
 
 - **WHEN** variants `add-auth` and `fix-login` exist and a user completes `variant implode `
-- **THEN** `add-auth` and `fix-login` are offered
+- **THEN** no slug candidate is offered (a slug is no longer a positional argument), and `-s` and `--slug` are among the flags offered
 
 #### Scenario: Prefix narrows candidates
 

@@ -25,7 +25,7 @@ const custom = createVariantClient({ miseBinPath: "/opt/tools/mise" });
 
 ## Bootstrap
 
-`init` is [`variant init`](/guide/commands#init).
+`init` is [`variant init`](/guide/commands#variant-init).
 
 ```ts
 const result = await client.init({ prefix: "wt-", mise: false });
@@ -34,7 +34,7 @@ console.log(result.file, result.gitignore.status, result.detected?.dialect);
 
 ## Lifecycle
 
-Create, provision and list; see [`create`](/guide/commands#create) and [`provision`](/guide/commands#provision).
+Create, provision and list; see [`variant create`](/guide/commands#variant-create) and [`variant provision`](/guide/commands#variant-provision).
 
 ```ts
 await client.create("preview-one"); // starts at variant.baseBranch
@@ -44,7 +44,7 @@ await client.provision("preview-one");
 const variants = await client.list();
 ```
 
-Run, stop and remove; see [`watch`](/guide/commands#watch), [`down`](/guide/commands#down) and [`implode`](/guide/commands#implode).
+Run, stop and remove; see [`variant watch`](/guide/commands#variant-watch), [`variant down`](/guide/commands#variant-down) and [`variant implode`](/guide/commands#variant-implode).
 
 ```ts
 await client.up("preview-one"); // watches as containers, on a fresh database

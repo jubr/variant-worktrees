@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LogLevel, log, setLogSink } from "variant-api";
 import { schemaHeaderFor } from "variant-config";
-import { formatLogEvent } from "./ipc-log.ts";
+import { formatLogEvent, takeLogLevel } from "./ipc-log.ts";
 import { attachLogLevel } from "./ipc-vscode.ts";
 import { runCli, runCommand, withVariants } from "./test/cli.js";
 
@@ -105,7 +105,7 @@ describe("log level flag", () => {
       expect(result.stderr).toContain("info");
       expect(result.stderr).toContain("warn");
       expect(result.stderr).toContain("error");
-      expect(result.stderr).toContain("warning");
+      expect(result.stderr).not.toContain("warning");
       expect(result.stdout).not.toContain("alpha");
     }));
 
@@ -196,10 +196,55 @@ describe("log line color", () => {
   });
 });
 
+describe("short verbosity flags", () => {
+  it("maps -v, -vv and -vvv to info, debug and trace", () => {
+    expect(takeLogLevel(["-v"]).level).toBe(LogLevel.info);
+    expect(takeLogLevel(["list", "-vv"]).level).toBe(LogLevel.debug);
+    expect(takeLogLevel(["-vvv", "list"]).level).toBe(LogLevel.trace);
+    expect(takeLogLevel(["-vvvvv"]).level).toBe(LogLevel.trace);
+  });
+
+  it("takes the flags out of the arguments", () => {
+    expect(takeLogLevel(["-vv", "list", "--json"]).args).toEqual(["list", "--json"]);
+  });
+
+  it("lets --log-level win wherever it stands", () => {
+    expect(takeLogLevel(["-vvv", "--log-level=error"]).level).toBe(LogLevel.error);
+    expect(takeLogLevel(["--log-level", "error", "-vvv"]).level).toBe(LogLevel.error);
+  });
+
+  it("keeps warning as a silent alias of warn and does not name it in the error", () => {
+    expect(takeLogLevel(["--log-level=warning"]).level).toBe(LogLevel.warn);
+    expect(() => takeLogLevel(["--log-level=loud"])).toThrow(/trace, debug, info, warn, error\.$/);
+  });
+
+  it("prints info lines with -v after the command and before it", () =>
+    withVariants(async (environment) => {
+      for (const args of [
+        ["list", "-v"],
+        ["-v", "list"],
+      ]) {
+        const result = await runCli(args, environment);
+        expect(result.exitCode).toBe(0);
+        expect(result.stderr).toMatch(/^\[info\] list/m);
+        expect(result.stderr).not.toMatch(/^\[debug\]/m);
+        expect(result.stdout).not.toContain("runtime:");
+      }
+    }));
+
+  it("prints debug lines with -vv and keeps the plain list", () =>
+    withVariants(async (environment) => {
+      const result = await runCli(["list", "-vv"], environment);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toMatch(/^\[debug\]/m);
+      expect(result.stdout).not.toContain("runtime:");
+    }));
+});
+
 describe("verbose is not a log level", () => {
   it("keeps the verbose listing and does not print debug lines", () =>
     withVariants(async (environment) => {
-      const result = await runCli(["list", "-v"], environment);
+      const result = await runCli(["list", "--verbose"], environment);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("runtime:");
       expect(result.stderr).not.toMatch(/^\[debug\]/m);

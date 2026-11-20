@@ -11,12 +11,21 @@ const definition = (name: string): CommandDefinition => {
 };
 
 describe("command line arguments", () => {
-  it("passes --detach and --slug to watch", () => {
-    expect(collectArgs(definition("watch"), { slug: "demo", detach: true })).toEqual({ slug: "demo", detach: true });
+  it("passes the global slug and --detach to watch", () => {
+    expect(collectArgs(definition("watch"), { detach: true }, "demo")).toEqual({ slug: "demo", detach: true });
   });
 
-  it("takes the slug of implode from the positional argument", () => {
+  it("passes the global slug to implode", () => {
     expect(collectArgs(definition("implode"), { force: true }, "demo")).toEqual({ slug: "demo", force: true });
+  });
+
+  it("ignores the global slug for a command that takes none", () => {
+    expect(collectArgs(definition("list"), {}, "demo")).toEqual({});
+    expect(collectArgs(definition("init"), {}, "demo")).toEqual({});
+  });
+
+  it("reads no slug from the flags", () => {
+    expect(collectArgs(definition("watch"), { slug: "other" })).toEqual({});
   });
 
   it("passes branchRm yes and no and rejects other tokens", async () => {
@@ -49,7 +58,7 @@ describe("command line arguments", () => {
 
   it("passes --pull-ff to create, provision, up, and watch", () => {
     for (const name of ["create", "provision", "up", "watch"]) {
-      expect(collectArgs(definition(name), { slug: "demo", pullFf: true })).toEqual({ slug: "demo", pullFf: true });
+      expect(collectArgs(definition(name), { pullFf: true }, "demo")).toEqual({ slug: "demo", pullFf: true });
       expect(definition(name).args.find((arg) => arg.name === "pullFf")?.short).toBeUndefined();
     }
     for (const name of ["down", "implode"]) {
@@ -59,7 +68,7 @@ describe("command line arguments", () => {
 
   it("passes --mise-install to create, provision, and watch", () => {
     for (const name of ["create", "provision", "watch"]) {
-      expect(collectArgs(definition(name), { slug: "demo", miseInstall: "sync" })).toEqual({
+      expect(collectArgs(definition(name), { miseInstall: "sync" }, "demo")).toEqual({
         slug: "demo",
         miseInstall: "sync",
       });
@@ -84,7 +93,7 @@ describe("command line arguments", () => {
 
   it("passes --from to create, provision, up, and watch", () => {
     for (const name of ["create", "provision", "up", "watch"]) {
-      expect(collectArgs(definition(name), { slug: "demo", from: "feat/other" })).toEqual({
+      expect(collectArgs(definition(name), { from: "feat/other" }, "demo")).toEqual({
         slug: "demo",
         from: "feat/other",
       });
@@ -120,6 +129,6 @@ describe("command line arguments", () => {
   });
 
   it("leaves out flags that were not given", () => {
-    expect(collectArgs(definition("watch"), { detach: undefined, slug: undefined })).toEqual({});
+    expect(collectArgs(definition("watch"), { detach: undefined })).toEqual({});
   });
 });

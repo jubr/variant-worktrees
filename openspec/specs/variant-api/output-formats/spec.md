@@ -70,19 +70,19 @@ The CLI SHALL accept the boolean global flags `--json` and `--yaml` on every com
 
 ### Requirement: Global flags are listed apart in help
 
-`variant --help` and `variant <command> --help` SHALL list the global flags `--json`, `--yaml`, `--help`, and `-C <path>` in a section titled `Global flags`, separate from the flags of the command. The `-C` row SHALL show the short option and `<path>` and SHALL NOT show a long option. The per-command `Flags` section SHALL NOT repeat the global flags. From the first line of the `Global flags` section that contains a flag through the last such line, no line SHALL be empty. That absence of an empty line SHALL hold when standard output is not a terminal and when it is a terminal, including when the terminal is too narrow for a flag and its description to fit on one line, and including a terminal or multiplexer (such as GNU screen) that wraps a line which fills the whole width. To that end no line of help output SHALL end in a space or tab, so a row never fills the width of the terminal with padding. The README CLI section SHALL likewise list the global flags in a section apart from the per-command flags.
+`variant --help` and `variant <command> --help` SHALL list the global flags `-C <path>`, `-s, --slug <slug>`, `--json`, `--yaml`, `--log-level`, `-v` and `--help` in a section titled `Global flags`, separate from the flags of the command. The `-C` row SHALL show the short option and `<path>` and SHALL NOT show a long option. The `-v` row SHALL say that `-vv` and `-vvv` raise the level. The per-command `Flags` section SHALL NOT repeat the global flags, and so SHALL NOT list `--slug`. The row of `--log-level` SHALL NOT name `warning`. From the first line of the `Global flags` section that contains a flag through the last such line, no line SHALL be empty. That absence of an empty line SHALL hold when standard output is not a terminal and when it is a terminal, including when the terminal is too narrow for a flag and its description to fit on one line, and including a terminal or multiplexer (such as GNU screen) that wraps a line which fills the whole width. To that end no line of help output SHALL end in a space or tab, so a row never fills the width of the terminal with padding. The README CLI section SHALL likewise list the global flags in a section apart from the per-command flags.
 
 #### Scenario: Top-level help
 
 - **WHEN** a user runs `variant --help`
-- **THEN** the output has a `Global flags` section that lists `--json`, `--yaml`, and `-C`
+- **THEN** the output has a `Global flags` section that lists `--json`, `--yaml`, `-C`, `--slug`, and `-v`
 - **AND** the `-C` row contains `<path>` and does not contain `--chdir`
 - **AND** the lines of that section from the first flag line through the last flag line include no empty line
 
 #### Scenario: Command help
 
 - **WHEN** a user runs `variant watch --help`
-- **THEN** a `Flags` section lists `--detach` and `--slug` but not `--json`, and a `Global flags` section lists `--json`, `--yaml`, and `-C`
+- **THEN** a `Flags` section lists `--detach` but not `--json` and not `--slug`, and a `Global flags` section lists `--json`, `--yaml`, `-C`, and `--slug`
 - **AND** the lines of the `Global flags` section from the first flag line through the last flag line include no empty line
 
 #### Scenario: Narrow terminal

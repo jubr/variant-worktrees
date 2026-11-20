@@ -44,4 +44,4 @@ mise x github:jubr/variant-worktrees@latest -- variant init
   Nothing is installed by that edit; run `mise install` and `variant` is on your `PATH` whenever you are in the project.
 
 Review the result with `git diff`, adjust `variants.yaml` (see [Configuration](./configuration#variant-options)), and commit it.
-The flags of `init`, such as `--prefix` and the `--file=false`, `--gitignore=false` and `--mise=false` switches, are in [Commands](./commands#init).
+The flags of `init`, such as `--prefix` and the `--file=false`, `--gitignore=false` and `--mise=false` switches, are in [`variant init`](./commands#variant-init).

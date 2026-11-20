@@ -20,13 +20,13 @@ The builtin steps flow as follows:
 ### create
 
 Creates the git worktree and nothing else. The database is the next step.
-More details at Commands [create](./commands#create).
+More details at Commands [`variant create`](./commands#variant-create).
 
 ### provision
 
 Creates the database schema of the variant, or every schema of [`db.multi`](./configuration#db-multi), and implies `create`.
 A step of the same name in [`variant.steps`](./configuration#variant-steps) replaces it.
-More details at Commands [provision](./commands#provision).
+More details at Commands [`variant provision`](./commands#variant-provision).
 
 ### seed
 
@@ -50,24 +50,24 @@ variant:
 
 Starts the watch processes and stays attached.
 It implies `seed`, so the worktree, the schemas and the seed exist before the processes start.
-More details at Commands [watch](./commands#watch).
+More details at Commands [`variant watch`](./commands#variant-watch).
 
 ### down
 
 Stops the watches of the variant.
 The schemas, the storage directory, the state and the worktree stay.
-More details at Commands [down](./commands#down).
+More details at Commands [`variant down`](./commands#variant-down).
 
 ### deprovision
 
 Stops the watches and drops the schemas of the variant.
 The storage directory, the state and the worktree stay, and slug `main` is refused.
-More details at Commands [deprovision](./commands#deprovision).
+More details at Commands [`variant deprovision`](./commands#variant-deprovision).
 
 ### implode
 
 Implies `deprovision`, then removes the worktree and, by default, the local branch.
-More details at Commands [implode](./commands#implode).
+More details at Commands [`variant implode`](./commands#variant-implode).
 
 ## Custom Steps
 

@@ -7,6 +7,14 @@ export const LIFECYCLE_COMMANDS = new Set(["config", "create", "list", "provisio
 /** The shared log levels, as a set the socket can test a request against. */
 export const LEVELS = new Set<string>(LOG_LEVELS);
 
+/**
+ * Where the documentation lists a command. `basic` and `lifecycle` are the `###` sections of
+ * `docs/guide/commands.md`; `cli` is the commands only the CLI offers, documented in `docs/guide/cli.md`.
+ */
+export const COMMAND_SECTIONS = ["basic", "lifecycle", "cli"] as const;
+
+export type CommandSection = (typeof COMMAND_SECTIONS)[number];
+
 export interface ArgDefinition {
   name: string;
   description: string;
@@ -20,6 +28,8 @@ export interface ArgDefinition {
 export interface CommandDefinition {
   name: keyof VariantClient;
   description: string;
+  /** Documentation section of the command; `cli` commands are not in this registry. */
+  section: Exclude<CommandSection, "cli">;
   args: ArgDefinition[];
   execute: (client: VariantClient, args: Record<string, unknown>) => Promise<unknown>;
   /** Arguments the MCP tool always passes; they are not offered as tool inputs. */
@@ -54,7 +64,6 @@ const verboseArg: ArgDefinition = {
   description: "Print the full output of quiet provisioning steps; for list, all meta information of every variant",
   type: "boolean",
   required: false,
-  short: "v",
 };
 
 const slugString = (args: Record<string, unknown>): string | undefined => args.slug as string | undefined;
@@ -96,6 +105,7 @@ const initSteps = ["file", "gitignore", "mise"] as const;
 export const commands: CommandDefinition[] = [
   {
     name: "init",
+    section: "basic",
     description: "Bootstrap the directory: variants.yaml from autodetection, the .gitignore line and the Mise entry",
     args: [
       { name: "prefix", description: "Worktree directory prefix, default _v-", type: "string", required: false },
@@ -120,12 +130,14 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "config",
+    section: "basic",
     description: "Print detected variant configuration",
     args: [verboseArg],
     execute: async (client) => client.config(),
   },
   {
     name: "create",
+    section: "lifecycle",
     description: "Create or refresh a database variant",
     args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
     execute: (client, args) =>
@@ -133,18 +145,21 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "list",
+    section: "basic",
     description: "List known database variants",
     args: [verboseArg],
     execute: (client, args) => client.list(verbose(args)),
   },
   {
     name: "status",
+    section: "basic",
     description: "Show everything known about one variant: its runtime state, uptime and watch log file",
     args: [slugArg, verboseArg],
     execute: (client, args) => client.status(slugString(args)),
   },
   {
     name: "provision",
+    section: "lifecycle",
     description: "Run configured variant runtime and seed commands",
     args: [slugArg, fromArg, pullFfArg, miseInstallArg, verboseArg],
     execute: (client, args) =>
@@ -157,24 +172,28 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "up",
+    section: "lifecycle",
     description: "Run the watches of a variant as containers",
     args: [slugArg, fromArg, pullFfArg, verboseArg],
     execute: (client, args) => client.up(slugString(args), { ...verbose(args), ...fromOf(args), ...pullFfOf(args) }),
   },
   {
     name: "down",
+    section: "lifecycle",
     description: "Stop the processes and containers of a variant and keep its data",
     args: [slugArg, verboseArg],
     execute: (client, args) => client.down(slugString(args)),
   },
   {
     name: "deprovision",
+    section: "lifecycle",
     description: "Stop a variant and drop its schemas. A deprovision script replaces the drop",
     args: [slugArg, verboseArg],
     execute: (client, args) => client.deprovision(slugString(args), verbose(args)),
   },
   {
     name: "watch",
+    section: "lifecycle",
     description: "Run the watches of a variant as supervised host processes",
     args: [
       slugArg,
@@ -209,6 +228,7 @@ export const commands: CommandDefinition[] = [
   },
   {
     name: "implode",
+    section: "lifecycle",
     description: "Stop a variant, drop its database and storage, and remove its state and worktree",
     args: [
       slugArg,
