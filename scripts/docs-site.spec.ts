@@ -925,7 +925,7 @@ describe("follow-up edits of the pages", () => {
       "deprovision",
       "implode",
     ]);
-    expect(withoutInit(below("Other commands"))).toEqual(["config", "list", "status", "ui"]);
+    expect(withoutInit(below("Other commands"))).toEqual(["config", "list", "status", "ui", "mcp"]);
   });
 
   test("the activationPatterns section lists the default patterns of chat-renamer-config", () => {
