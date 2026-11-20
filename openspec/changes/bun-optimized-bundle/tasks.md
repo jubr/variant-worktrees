@@ -28,4 +28,12 @@
 - [ ] 4.3 Red then green: the binary cache key holds the platform, the resolved sha and `hashFiles` of the workflow; the dependency cache restores by prefix; every toolchain and compile step runs only when the binary cache missed
 - [ ] 4.4 Red then green: matrix of darwin-arm64, linux-x64 and linux-arm64; smoke test of version, script and refused `build`; archives `bun-standalone-<os>-<arch>.zip` uploaded with `actions/upload-artifact` v7; summary names the sha
 - [ ] 4.5 Record the workflow in `CHANGELOG.md` and `CONTRIBUTING.md` (CI list); verify `task check:full` passes
-- [ ] 4.6 Dispatch the workflow on the feature branch with `gh workflow run`, watch it to completion, then dispatch again and verify the second run compiles nothing; record both run results in design.md
+
+## 5. Run the build in CI and use it in the release
+
+- [ ] 5.1 Red then green: `bun-standalone.yaml` builds darwin-arm64, darwin-x64, linux-x64 and linux-arm64, takes `workflow_call` with outputs `sha` and `workflow`, and its concurrency group includes the calling workflow; update `scripts/bun-standalone-workflow.spec.ts` first and verify it fails
+- [ ] 5.2 Red then green: `ci-branch.yaml` has the job `Bun standalone` calling it, conditioned on `main` or a `bun-standalone` input of `yes`, and returns `sha` and `workflow`; verify a spec over the workflow files passes and `task lint:workflows` is clean
+- [ ] 5.3 Red then green: `ci-release.yaml` takes the input `bun-standalone` (`no` default) and passes it to the CI call; `build` becomes one job per platform running `task package:cli TARGET=<target>`, a `.vsix` job, and a gather job that still uploads `release-assets` with `SHA256SUMS`; verify the specs over the release workflow pass
+- [ ] 5.4 Red then green: Linux and macOS jobs restore `bun-standalone-<platform>-<sha>-<workflow>` without failing on a miss and set `VARIANT_BUN_RUNTIME` on a hit; Windows jobs have neither step; replace the old guard in `scripts/package-cli.spec.ts` with these checks
+- [ ] 5.5 Update `CHANGELOG.md` and `CONTRIBUTING.md` for the job, the input and the matrix; verify `task check:full` passes and `openspec validate --all --strict --no-interactive` passes
+- [ ] 5.6 After the branch is pushed: dispatch `ci-release.yaml` from it with `bun-standalone` set to `yes` (a dry run), verify the compile runs once and a second dispatch compiles nothing, and verify the Linux and macOS jobs report the embedded runtime; record both runs in design.md
