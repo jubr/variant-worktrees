@@ -19,7 +19,7 @@ mise x -- task build
 ```
 
 `task bootstrap` trusts the checkout, installs the pinned tools, and installs workspace dependencies.
-`task build` builds the workspace: `chat-renamer-config`, `variant-config`, `variant-log`, `variant-ipc`, `variant-api`, `variant-server`, `variant-cli`, `chat-renamer-api`, `variant-mcp`, `variant-ui`, then the `chat-renamer` and `variant-vscode` extensions.
+`task build` builds the workspace: `chat-renamer-config`, `variant-config`, `variant-log`, `variant-ipc`, `variant-api`, `variant-server`, `variant-mcp`, `variant-cli`, `chat-renamer-api`, `variant-ui`, then the `chat-renamer` and `variant-vscode` extensions.
 
 ```bash
 mise x -- task lint
@@ -45,10 +45,10 @@ Examples are in [Library](./library).
 
 ## MCP server
 
-After `task build`, run the built server of `variant-mcp` with a workspace configuration:
+After `task build`, run the MCP server through the built CLI (`variant-mcp` is the library behind `variant mcp`) with a workspace configuration:
 
 ```bash
-node variant-worktrees/packages/variant-mcp/dist/mcp.js --config /workspace/variants.yaml
+node variant-worktrees/packages/variant-cli/dist/cli.js mcp --config /workspace/variants.yaml
 ```
 
 Point an MCP client at that command. The client configuration is in [MCP Server](/vscode/mcp).

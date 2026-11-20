@@ -64,14 +64,14 @@ When `variants.yaml` is tracked by git without uncommitted changes (or untracked
 
 ## Let your agents drive
 
-The Variant Worktrees extension auto-registers the `variant` MCP server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients. The same operations are available there, so Cursor, Claude, or any MCP client can create, watch, and implode variants itself:
+The Variant Worktrees extension auto-registers the `variant` MCP server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients. The same operations are available there, so Cursor, Claude, or any MCP client can create, watch, and implode variants itself. Configure the client to run `variant mcp`, the same executable as the command line; there is no separate MCP executable:
 
 ```json
 {
   "mcpServers": {
     "variant": {
-      "command": "variant-mcp",
-      "args": ["--config", "/workspace/variants.yaml"]
+      "command": "variant",
+      "args": ["mcp", "--config", "/workspace/variants.yaml"]
     }
   }
 }

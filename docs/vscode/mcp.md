@@ -1,6 +1,7 @@
 # MCP Server
 
-`variant-mcp` exposes database variant lifecycle operations to MCP clients.
+`variant mcp` starts an MCP server that exposes database variant lifecycle operations to MCP clients.
+It is part of the `variant` command: no second executable is installed.
 
 ## Setup
 
@@ -11,7 +12,7 @@ The `mcp.json` snippet stays the setup for other clients.
 Run the server with a workspace configuration:
 
 ```bash
-variant-mcp --config /workspace/variants.yaml
+variant mcp --config /workspace/variants.yaml
 ```
 
 MCP client configuration:
@@ -20,8 +21,8 @@ MCP client configuration:
 {
   "mcpServers": {
     "variant": {
-      "command": "variant-mcp",
-      "args": ["--config", "/workspace/variants.yaml"]
+      "command": "variant",
+      "args": ["mcp", "--config", "/workspace/variants.yaml"]
     }
   }
 }

@@ -332,3 +332,23 @@ Security model:
 - POST requests must be `application/json` (415 otherwise), so a plain cross-site form cannot start an action.
 - `implode` needs `confirm: true` in the request body, and `main` is never imploded.
 - A content security policy allows scripts and styles from the server's own origin only.
+
+### mcp
+
+Start the MCP server on standard input and output, for an MCP client such as Cursor or Claude.
+It serves one [tool](/vscode/mcp) per lifecycle command, with the results as JSON text, and it is what the `mcp.json` of a client runs.
+It is part of `variant`: the `variant-cli` package and every compiled executable carry it, and there is no `variant-mcp` executable to install next to them.
+
+```bash
+variant mcp
+variant mcp --config /workspace/variants.yaml
+variant -C /workspace mcp
+```
+
+- `--config <path>` loads that `variants.yaml`.
+  Omitted, the configuration of the working directory is loaded.
+- `-C <path>` changes the working directory first, as it does for every command.
+- Standard output carries only the MCP protocol, so `mcp` prints no banner, warning or log line there.
+  The server's logs go to the client as MCP logging notifications, and to the editor.
+  `--log-level`, `--json` and `--yaml` are accepted and change nothing.
+- An unknown option fails before the server starts, with the error on standard error.

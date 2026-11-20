@@ -167,6 +167,8 @@ variant implode -s preview-one         # tear down, remove the worktree, then th
 variant implode -s preview-one --branch-rm=no  # keep the local branch
 variant ui --detach                    # the variants web page: print its URL with the token, keep serving
 variant ui --stop                      # end the UI server of the project
+variant mcp                            # the MCP server on standard input and output
+variant mcp --config /workspace/variants.yaml
 ```
 
 `--from` on `create`, `provision`, `up`, and `watch` is a commit, tag, or branch. A new variant branch starts there. Omit it and the branch starts at `variant.baseBranch`. There is no short flag. An existing worktree, or a branch that already uses a configured prefix, is left as it is. `implode` still requires the work to be merged into `variant.baseBranch`.
@@ -236,14 +238,14 @@ The extension adds a **Variant Worktrees** section to the Explorer. It starts co
 
 The Variant Worktrees extension registers the `variant` server for the open workspace in Cursor and VS Code. The `mcp.json` snippet stays the setup for other clients.
 
-Configure an MCP client to run:
+Configure an MCP client to run `variant mcp`, the same executable as the command line (there is no separate MCP executable):
 
 ```json
 {
   "mcpServers": {
     "variant": {
-      "command": "variant-mcp",
-      "args": ["--config", "/workspace/variants.yaml"]
+      "command": "variant",
+      "args": ["mcp", "--config", "/workspace/variants.yaml"]
     }
   }
 }
@@ -268,7 +270,7 @@ sink.
 Bun.
 - [`variant-cli`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-cli) — the `variant` command.
 - [`variant-mcp`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-mcp) — MCP tools for variant lifecycle
-operations.
+operations; started by `variant mcp`, bundled into `variant-cli`.
 - [`variant-ui`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-ui) — the variants React app for the editor
 webview and the browser.
 - [`variant-server`](https://github.com/jubr/variant-worktrees/tree/main/packages/variant-server) — the local web server behind

@@ -35,7 +35,7 @@ Bun workspace monorepo in `packages/`:
 - `variant-config` — shared `variants.yaml` parser and mise/env autodetection.
 - `variant-ipc` — Unix socket the VS Code extension hosts for editor requests. Lifecycle commands stay in `variant-api`.
 - `variant-log` — shared log events and the process sink used by the library, CLI, MCP, and the editor socket.
-- `variant-mcp` — MCP server exposing variant lifecycle tools.
+- `variant-mcp` — MCP server exposing variant lifecycle tools. A library, not a binary: `variant mcp` starts it, and the extension's bundled script runs the same code.
 - `variant-server` — loopback HTTP server (token, SSE, static app) behind `variant ui`. A library, not a binary: `variant-cli` bundles it, with the built app, into its package and executables.
 - `variant-ui` — the variants React app (one UI for the editor webview and the browser) and its transport seam.
 - `variant-vscode` — VS Code extension in the same workspace, included in the root build. Embeds chat-renamer.
@@ -116,6 +116,7 @@ packages/
       worktree.ts     — _v-* worktree management
   variant-cli/
     src/cli.ts        — `variant` entry point (bin)
+    src/commands/     — one module (and sibling spec) per command: ui, mcp, completions, and the lifecycle runner
     src/output.ts     — text, JSON and YAML rendering of command results
   variant-config/
     src/              — variants.yaml schema and config autodetection
@@ -124,7 +125,8 @@ packages/
   variant-ipc/
     src/index.ts      — Unix socket for editor requests
   variant-mcp/
-    src/mcp.ts        — MCP server entry point
+    src/server.ts     — runMcpServer(), called by `variant mcp` and the extension
+    src/mcp.ts        — the server as a script, for the tests and `bun run mcp`
     src/mcp.spec.ts   — MCP server tests
   variant-ui/
     src/              — React app, transports (memory, HTTP, webview messages), sibling *.spec.ts; src/test holds helpers such as setup.ts and specs that cover no source module
