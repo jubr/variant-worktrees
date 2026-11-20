@@ -35,7 +35,7 @@ The workflow SHALL cache each platform's finished binary under a key that contai
 #### Scenario: Binary key
 
 - **WHEN** the workflow is read
-- **THEN** the binary cache key contains the platform, the resolved head commit, and `hashFiles` of the workflow file
+- **THEN** the binary cache key contains the platform, the resolved head commit, and a hash of the workflow file computed from this repository
 
 #### Scenario: Recompile reuses dependencies
 
