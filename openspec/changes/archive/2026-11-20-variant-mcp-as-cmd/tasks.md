@@ -34,7 +34,7 @@
 - [x] 5.1 Update `README.md` (CLI section lists `mcp`; MCP client configuration uses `variant` + `["mcp"]`), `docs/guide/cli.md` (section `MCP server`; not on the Commands page), `docs/vscode/mcp.md`, `docs/development/building.md` (run `variant mcp` or `node packages/variant-cli/dist/cli.js mcp`), `packages/variant-vscode/README.md`, `AGENTS.md`; verify `packages/variant-vscode/src/test/readme.spec.ts` (now `variant mcp`), `scripts/docs-site.spec.ts` and the docs build pass, and `rg "variant-mcp" README.md docs packages/variant-vscode/README.md` finds no executable name
 - [x] 5.2 Record the **BREAKING** removal of the `variant-mcp` executable, the new `variant mcp` and the help fix under `## Unreleased` in `CHANGELOG.md`; verify with `task check:all` changelog-related checks
 - [x] 5.3 Add `"packslip:jubr/variant-worktrees" = "latest"` to `[tools]` of `mise.toml`; verify `mise ls --current --json` runs without a config error (the tool itself may need `mise install`)
-- [ ] 5.4 Update the Purpose line of `openspec/specs/meta/dev-bleeds/spec.md` (mentions the MCP server) directly at sync time; verify `openspec validate --all --strict --no-interactive`
+- [x] 5.4 Update the Purpose line of `openspec/specs/meta/dev-bleeds/spec.md` (mentions the MCP server) directly at sync time; verify `openspec validate --all --strict --no-interactive`
 
 ## 6. Verification
 
