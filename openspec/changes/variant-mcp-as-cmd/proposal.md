@@ -25,6 +25,7 @@ Two small items ride along: the repository's own Mise file does not yet list the
 - `variant-api/output-formats`: help lines carry no trailing padding, so no empty line appears between global flags on terminals that wrap at the last column.
 - `meta/dev-bleeds`: no MCP bleed; `bleed:all` runs two bleeds; load locations are two.
 - `docs/readmes`: the extension README names `variant mcp` instead of `variant-mcp`.
+- `docs/site`: the Commands page lists `mcp` among the other commands.
 
 ## Impact
 
