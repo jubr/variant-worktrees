@@ -77,3 +77,21 @@ Dispatch of `ci-release.yaml` from `feat/bun-optimized-bundle` with `dry-run` an
 - The Linux runner embedded the macOS runtimes without trouble, so the fallback to macOS runners is not needed. The compiled macOS executables were not run.
 - Run [44792533276](https://github.com/jubr/variant-worktrees/actions/runs/44792533276) (same head and workflow hash): `Compile bun-standalone` was skipped on all four builds; the smoke tests ran on the restored binaries.
 - Executable sizes (artifact zips, bytes): linux-x64 29.9 M, linux-arm64 29.8 M, darwin-x64 21.2 M, darwin-arm64 19.5 M with the slim runtime; windows-x64 41.5 M and windows-arm64 38.4 M with the default runtime.
+
+## Smaller runtime through sed patches
+
+Bun has no Cargo feature left to switch off; the only gate is `cfg(bun_standalone)`. So the workflow patches the upstream checkout with `sed` (no fork) and prints a `diff -u` of every file. Local experiment on macOS arm64, `bun-standalone` and the `variant` compiled with it:
+
+| Build | `bun-standalone` | `variant` |
+|---|---|---|
+| default Bun runtime | – | 65.9 MB |
+| the pull request as is | 47.3 MB | 51.0 MB |
+| `MinSizeRel`, C++ `-Os`, Rust `opt-level=z` | 41.0 MB | 44.7 MB |
+| same with C++ `-Oz` | 38.9 MB | 42.6 MB |
+| plus `Bun.Image` and `bun:ffi` stubbed | 38.1 MB | 41.8 MB |
+
+- `Bun.Image` and `bun:ffi` use the codegen `standaloneStub` flag plus a stub module each; libjpeg-turbo, libspng, libwebp and TinyCC drop out of the link. `--tinycc=off` alone does not link, because the Rust `ffi` code still references TinyCC.
+- Not done: the HTTP/2 and HTTP/3 fetch client (lshpack, lsquic, lsqpack, about 1.3 MB) has roughly 70 call sites in `bun_http`; shell, `Bun.sql`, Redis, `HTMLRewriter`, markdown and archive are about 0.1 to 0.2 MB each. Disabling crash-report upload did not change the size.
+- JavaScriptCore (23 MB) is prebuilt and sets the floor.
+- The sed expressions need GNU sed, so the macOS jobs install `gnu-sed`. A patch that matches nothing fails the step, so an upstream rewrite of those lines shows up as a red run instead of a silently larger binary.
+- A spec runs the step on fixtures of the upstream lines; the same step applied to a clean checkout of the pull request head matches the local experiment apart from comments.

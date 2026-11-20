@@ -37,3 +37,11 @@
 - [x] 5.4 Red then green: Linux and macOS jobs restore `bun-standalone-<platform>-<sha>-<workflow>` without failing on a miss and set `VARIANT_BUN_RUNTIME` on a hit; Windows jobs have neither step; replace the old guard in `scripts/package-cli.spec.ts` with these checks
 - [x] 5.5 Update `CHANGELOG.md` and `CONTRIBUTING.md` for the job, the input and the matrix; verify `task check:full` passes and `openspec validate --all --strict --no-interactive` passes
 - [x] 5.6 After the branch is pushed: dispatch `ci-release.yaml` from it with `bun-standalone` set to `yes` (a dry run), verify the compile runs once and a second dispatch compiles nothing, and verify the Linux and macOS jobs report the embedded runtime; record both runs in design.md
+
+## 6. Smaller runtime through sed patches
+
+- [x] 6.1 Red then green: `bun-standalone.yaml` has a `patch` step between the checkout and the compile that patches with sed, prints `diff -u` per file, fails on an unchanged file, and runs on fixtures of the upstream lines; the compile uses `--build-type=MinSizeRel`; the smoke test checks `Bun.Image` and `dlopen`; verify `scripts/bun-standalone-workflow.spec.ts` fails first
+- [x] 6.2 Run the patch step on a clean checkout of the pull request head and compare the result with the local experiment; verify they match apart from comments
+- [x] 6.3 Update `CHANGELOG.md`, `CONTRIBUTING.md` and `design.md` (patches, sizes); verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+- [ ] 6.4 After the push: the workflow compiles on its own push (the file changed); verify each patch diff is in the log, the smoke test passes on all four platforms, and record the sizes in design.md
+

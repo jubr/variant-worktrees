@@ -90,3 +90,27 @@ The CI workflow SHALL have a job named `Bun standalone` that calls the workflow,
 
 - **WHEN** the other workflows are read
 - **THEN** only the CI workflow uses `bun-standalone.yaml`
+
+### Requirement: Smaller runtime through source patches
+
+When it compiles, the workflow SHALL patch the checked-out upstream sources before building, using `sed` in a single step and without a fork of Bun. The patches SHALL build with the `MinSizeRel` build type (C++ at `-Oz`, Rust at `opt-level=z`), and SHALL replace `Bun.Image` and `bun:ffi` with throwing stubs so that libjpeg-turbo, libspng, libwebp and TinyCC stay out of the executable. For every file it patches or adds, the step SHALL print the unified diff of the file before and after. When a patch changes nothing, the step SHALL fail. Because the patches live in the workflow file, editing them SHALL change the workflow hash and so start a new compile. The executable check SHALL also verify that `Bun.Image` is undefined and that `bun:ffi` `dlopen` is refused.
+
+#### Scenario: Patches shown
+
+- **WHEN** the workflow compiles
+- **THEN** the log of the patch step holds a unified diff, before and after, for every patched and every added file
+
+#### Scenario: Upstream moved the patched lines
+
+- **WHEN** a sed patch finds nothing to change in the checked-out sources
+- **THEN** the patch step fails naming the file and nothing is compiled
+
+#### Scenario: Patch edited
+
+- **WHEN** a patch in the workflow file is edited
+- **THEN** the workflow file hash differs and each platform compiles again
+
+#### Scenario: Removed features
+
+- **WHEN** the compiled executable is checked
+- **THEN** `Bun.Image` is undefined and `bun:ffi` `dlopen` throws that it is not available
