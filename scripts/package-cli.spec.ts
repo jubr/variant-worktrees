@@ -68,11 +68,13 @@ describe("package-cli compileCli runtime", () => {
 });
 
 // Specification: openspec/specs/meta/dev-bleeds/spec.md (Optional runtime executable for compiled CLI)
-describe("release workflows", () => {
-  test("do not set VARIANT_BUN_RUNTIME, so release executables keep the default runtime", () => {
+describe("workflows", () => {
+  test("leave VARIANT_BUN_RUNTIME to the release workflow", () => {
     const workflows = join(import.meta.dir, "..", ".github", "workflows");
     for (const name of readdirSync(workflows)) {
-      expect(readFileSync(join(workflows, name), "utf8"), name).not.toContain("VARIANT_BUN_RUNTIME");
+      if (name !== "ci-release.yaml") {
+        expect(readFileSync(join(workflows, name), "utf8"), name).not.toContain("VARIANT_BUN_RUNTIME");
+      }
     }
   });
 });

@@ -11,12 +11,22 @@ on:
   push:
     paths:
       - .github/workflows/bun-standalone.yaml
+  # AIDEV-NOTE: the CI workflow calls this; the release restores the binaries under these keys.
+  workflow_call:
+    outputs:
+      sha:
+        description: Head commit of the upstream pull request
+        value: ${{ jobs.resolve.outputs.sha }}
+      workflow:
+        description: Hash of this workflow file
+        value: ${{ jobs.resolve.outputs.workflow }}
 
 permissions:
   contents: read
 
 concurrency:
-  group: bun-standalone-${{ github.ref }}
+  # github.workflow is the caller's name when called, so a release run never queues behind (or replaces) a push run.
+  group: bun-standalone-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -66,6 +76,8 @@ jobs:
         include:
           - target: darwin-arm64
             runner: macos-15
+          - target: darwin-x64
+            runner: macos-15-intel
           - target: linux-x64
             runner: ubuntu-24.04
           - target: linux-arm64
@@ -97,7 +109,7 @@ jobs:
         if: steps.binary.outputs.cache-hit != 'true' && runner.os == 'macOS'
         run: |
           brew install llvm@21 cmake ninja ccache pkg-config automake libtool go ruby
-          echo "/opt/homebrew/opt/llvm@21/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
           echo "SDKROOT=$(xcrun --show-sdk-path)" >> "$GITHUB_ENV"
 
       - name: Install the toolchain (Linux)

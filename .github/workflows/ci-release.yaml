@@ -14,6 +14,11 @@ on:
         description: "Build and upload run artifacts only; do not create a release"
         type: boolean
         default: true
+      bun-standalone:
+        description: "yes: also run the Bun standalone job when started from a branch other than main"
+        type: choice
+        options: ["no", "yes"]
+        default: "no"
 
 permissions:
   contents: read
@@ -25,6 +30,8 @@ concurrency:
 jobs:
   ci:
     uses: ./.github/workflows/ci-branch.yaml
+    with:
+      bun-standalone: ${{ inputs.bun-standalone || 'no' }}
 
   version:
     name: Resolve version
@@ -52,10 +59,9 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "exists=${exists}" >> "$GITHUB_OUTPUT"
 
-  build:
-    name: Build release assets
+  vsix:
+    name: Package extensions
     needs: version
-    # A dry run always builds, so the path can be exercised before the first release.
     if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -63,11 +69,71 @@ jobs:
       - uses: jdx/mise-action@v5
       - run: task install:ci
       - run: task package:vsix
-      - run: task package:cli:all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vsix-assets
+          path: out/*.vsix
+          if-no-files-found: error
+
+  # Specification: openspec/specs/meta/release-artifacts/spec.md (Release executables use the cached slim runtime)
+  # AIDEV-NOTE: one job per platform because VARIANT_BUN_RUNTIME fits a single platform. `slim` names the cached
+  # bun-standalone build of that platform; Windows has none and never restores or sets it.
+  executables:
+    name: Build variant ${{ matrix.target }}
+    needs: [ci, version]
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { target: bun-linux-x64, slim: linux-x64 }
+          - { target: bun-linux-arm64, slim: linux-arm64 }
+          - { target: bun-darwin-x64, slim: darwin-x64 }
+          - { target: bun-darwin-arm64, slim: darwin-arm64 }
+          - { target: bun-windows-x64, slim: "" }
+          - { target: bun-windows-arm64, slim: "" }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - run: task install:ci
+      # A miss is fine: the executable then embeds the default runtime.
+      - name: Restore the cached slim runtime
+        id: slim
+        if: matrix.slim != '' && needs.ci.outputs.bun-standalone-sha != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: build/release-standalone/bun-standalone
+          key: bun-standalone-${{ matrix.slim }}-${{ needs.ci.outputs.bun-standalone-sha }}-${{ needs.ci.outputs.bun-standalone-workflow }}
+          fail-on-cache-miss: false
+      - name: Embed the cached slim runtime
+        if: matrix.slim != '' && steps.slim.outputs.cache-hit == 'true'
+        run: echo "VARIANT_BUN_RUNTIME=${GITHUB_WORKSPACE}/build/release-standalone/bun-standalone" >> "$GITHUB_ENV"
+      - run: task package:cli TARGET=${{ matrix.target }}
       - name: Smoke test Linux x64 executable
+        if: matrix.target == 'bun-linux-x64'
         run: |
           bin=(out/variant-*-linux-x64)
           "${bin[0]}" --help
+      - uses: actions/upload-artifact@v7
+        with:
+          name: variant-${{ matrix.target }}
+          path: out/variant-*
+          if-no-files-found: error
+
+  build:
+    name: Build release assets
+    needs: [vsix, executables]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix-assets
+          path: out
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: variant-bun-*
+          path: out
+          merge-multiple: true
       - name: Checksums
         working-directory: out
         run: sha256sum -- * > SHA256SUMS

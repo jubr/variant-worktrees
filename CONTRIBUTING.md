@@ -154,7 +154,8 @@ binary does the new thing.
 `bleed:cli` and `package:cli` embed the default Bun runtime. To try another, for
 example a locally built slim runtime, set `VARIANT_BUN_RUNTIME` to that
 executable (`VARIANT_BUN_RUNTIME=/path/to/bun-standalone task bleed:cli`). It is
-a local aid for one platform: `package:cli:all` refuses it and CI never sets it.
+a local aid for one platform: `package:cli:all` refuses it. Only `ci-release.yaml` sets it, for the Linux and macOS
+executables and never for Windows, from the cached build of `bun-standalone.yaml`.
 
 ## Continuous integration
 
@@ -167,15 +168,20 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
   files and `variant` single-file executables (`bun build --compile`) for
   linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
   `v<version>`. No release when that tag already exists. Manual dispatch with
-  `dry-run` (default) builds the assets without releasing.
+  `dry-run` (default) builds the assets without releasing. One job per platform runs
+  `task package:cli TARGET=<target>`; Linux and macOS jobs embed the cached slim runtime when the cache has one and use
+  the default runtime otherwise. Dispatch from a branch with `bun-standalone` set to `yes` to run the `Bun standalone`
+  job there.
 - `publish-extensions.yaml` — publishes the `.vsix` files of a release tag to the
   Visual Studio Marketplace and/or Open VSX. Triggered by `workflow_run` after
   `ci-release.yaml` completes, and only when that run created the release; also
   manually dispatchable.
 - `docs.yml` — VitePress to GitHub Pages (main)
-- `bun-standalone.yaml` — builds `bun-standalone` from the head of an upstream Bun pull request on macOS arm64, Linux
-  x64 and Linux arm64, and attaches the zips to its run. A scheduled run compiles only when that head or the workflow
-  file changed since the last build, and restores the cached binary otherwise. Nothing in the gate or the release uses it.
+- `bun-standalone.yaml` — builds `bun-standalone` from the head of an upstream Bun pull request on macOS arm64, macOS
+  x64, Linux x64 and Linux arm64, and attaches the zips to its run. It compiles only when that head or the workflow
+  file changed since the last build, and restores the cached binary otherwise. `ci-branch.yaml` calls it as the job
+  `Bun standalone` on `main` (or when `ci-release.yaml` is dispatched with `bun-standalone: yes`); a schedule and a
+  push to the workflow file also start it.
 
 When adding a gate, expose it as a `task` and call that task from the workflow.
 

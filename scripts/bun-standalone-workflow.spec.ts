@@ -16,6 +16,7 @@ type Step = {
 };
 
 type Job = {
+  "timeout-minutes"?: number;
   needs?: string | string[];
   outputs?: Record<string, string>;
   strategy?: { matrix?: { include?: { target: string; runner: string }[] } };
@@ -23,10 +24,11 @@ type Job = {
 };
 
 type Workflow = {
+  concurrency?: { group?: string };
   on?: {
     schedule?: { cron: string }[];
     workflow_dispatch?: unknown;
-    workflow_call?: unknown;
+    workflow_call?: { outputs?: Record<string, { value: string }> };
     pull_request?: unknown;
     push?: { paths?: string[]; branches?: string[]; "branches-ignore"?: string[] };
   };
@@ -47,20 +49,34 @@ describe("bun-standalone workflow triggers", () => {
     expect(on?.push?.paths).toEqual([`.github/workflows/${name}`]);
   });
 
-  test("does not run for pull requests of this repository and cannot be called by other workflows", () => {
-    const { on } = load();
+  test("does not run for pull requests of this repository", () => {
+    expect(load().on?.pull_request).toBeUndefined();
+  });
 
-    expect(on?.pull_request).toBeUndefined();
-    expect(on?.workflow_call).toBeUndefined();
+  test("can be called, and gives the caller the head sha and the workflow hash", () => {
+    const outputs = load().on?.workflow_call?.outputs;
+
+    expect(outputs?.sha?.value).toContain("jobs.resolve.outputs.sha");
+    expect(outputs?.workflow?.value).toContain("jobs.resolve.outputs.workflow");
+  });
+
+  test("queues per calling workflow, so a call from the release does not replace its own run", () => {
+    expect(load().concurrency?.group).toContain("github.workflow");
+  });
+
+  test("limits every job, so a hung compile fails instead of waiting for hours", () => {
+    for (const [jobName, job] of Object.entries(load().jobs ?? {})) {
+      expect(typeof job["timeout-minutes"], `${jobName} has no timeout-minutes`).toBe("number");
+    }
   });
 
   test("reads the repository and writes nothing", () => {
     expect(load().permissions).toEqual({ contents: "read" });
   });
 
-  test("is not used by any other workflow", () => {
+  test("is used by no workflow other than the CI workflow", () => {
     for (const other of readdirSync(workflows)) {
-      if (other !== name) {
+      if (other !== name && other !== "ci-branch.yaml") {
         expect(readFileSync(join(workflows, other), "utf8"), other).not.toContain(name);
       }
     }
@@ -117,10 +133,11 @@ describe("bun-standalone workflow caches", () => {
 });
 
 describe("bun-standalone workflow output", () => {
-  test("builds macOS arm64, Linux x64 and Linux arm64", () => {
-    const targets = load().jobs?.build?.strategy?.matrix?.include?.map((entry) => entry.target);
+  test("builds macOS arm64, macOS x64, Linux x64 and Linux arm64", () => {
+    const include = load().jobs?.build?.strategy?.matrix?.include;
 
-    expect(targets).toEqual(["darwin-arm64", "linux-x64", "linux-arm64"]);
+    expect(include?.map((entry) => entry.target)).toEqual(["darwin-arm64", "darwin-x64", "linux-x64", "linux-arm64"]);
+    expect(include?.find((entry) => entry.target === "darwin-x64")?.runner).toBe("macos-15-intel");
   });
 
   test("checks a hit and a fresh build alike: version, a script, and a refused build", () => {
@@ -145,5 +162,47 @@ describe("bun-standalone workflow output", () => {
     expect(upload?.with?.["if-no-files-found"]).toBe("error");
     expect(steps.indexOf(upload as Step)).toBeGreaterThan(steps.findIndex((step) => step.id === "smoke"));
     expect(summary?.run).toContain("needs.resolve.outputs.sha");
+  });
+});
+
+type CallingJob = {
+  name?: string;
+  uses?: string;
+  if?: string;
+  needs?: string | string[];
+  with?: Record<string, unknown>;
+  permissions?: Record<string, string>;
+};
+
+type CiWorkflow = {
+  on?: {
+    workflow_call?: {
+      inputs?: Record<string, { type?: string; default?: string }>;
+      outputs?: Record<string, { value: string }>;
+    };
+  };
+  jobs?: Record<string, CallingJob>;
+};
+
+const ci = (): CiWorkflow => parse(readFileSync(join(workflows, "ci-branch.yaml"), "utf8")) as CiWorkflow;
+
+// Specification: openspec/specs/meta/bun-standalone-build/spec.md (Run by CI on main only)
+describe("CI workflow Bun standalone job", () => {
+  test("calls the build workflow, read-only, on main or when asked for", () => {
+    const job = ci().jobs?.["bun-standalone"];
+
+    expect(job?.name).toBe("Bun standalone");
+    expect(job?.uses).toBe("./.github/workflows/bun-standalone.yaml");
+    expect(job?.if).toContain("github.ref == 'refs/heads/main'");
+    expect(job?.if).toContain("inputs.bun-standalone == 'yes'");
+    expect(job?.permissions).toEqual({ contents: "read" });
+  });
+
+  test("takes a yes|no input that defaults to no and returns the head sha and workflow hash", () => {
+    const call = ci().on?.workflow_call;
+
+    expect(call?.inputs?.["bun-standalone"]).toMatchObject({ type: "string", default: "no" });
+    expect(call?.outputs?.["bun-standalone-sha"]?.value).toContain("jobs.bun-standalone.outputs.sha");
+    expect(call?.outputs?.["bun-standalone-workflow"]?.value).toContain("jobs.bun-standalone.outputs.workflow");
   });
 });

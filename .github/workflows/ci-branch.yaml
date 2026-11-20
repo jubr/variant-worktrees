@@ -9,6 +9,18 @@ on:
   push:
     branches-ignore: [main]
   workflow_call:
+    inputs:
+      bun-standalone:
+        description: "yes: run the Bun standalone job off main too, to try it without merging"
+        type: string
+        default: "no"
+    outputs:
+      bun-standalone-sha:
+        description: Upstream pull request head the slim Bun runtime was built from
+        value: ${{ jobs.bun-standalone.outputs.sha }}
+      bun-standalone-workflow:
+        description: Hash of the workflow that built it
+        value: ${{ jobs.bun-standalone.outputs.workflow }}
 
 permissions:
   contents: read
@@ -20,6 +32,16 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Specification: openspec/specs/meta/bun-standalone-build/spec.md (Run by CI on main only)
+  # AIDEV-NOTE: a no-op on a cache hit. Skipped on feature-branch pushes (inputs is empty there); a hand
+  # dispatch of the release workflow with bun-standalone=yes switches it on for any branch.
+  bun-standalone:
+    name: Bun standalone
+    if: github.ref == 'refs/heads/main' || inputs.bun-standalone == 'yes'
+    uses: ./.github/workflows/bun-standalone.yaml
+    permissions:
+      contents: read
+
   gate:
     name: Gate and extension packages
     runs-on: ubuntu-latest
