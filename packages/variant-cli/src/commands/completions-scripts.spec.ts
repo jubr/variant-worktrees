@@ -50,13 +50,21 @@ describe("describeCli", () => {
     return found;
   };
 
-  it("lists every lifecycle command, then ui and completions", () => {
+  it("lists every lifecycle command, then ui, mcp and completions", () => {
     expect(model.map((command) => command.name)).toEqual([
       ...commands.map((command) => String(command.name)),
       "ui",
+      "mcp",
       "completions",
     ]);
     expect(byName("completions").description).not.toBe("");
+  });
+
+  it("describes mcp with its --config flag, which takes a value", () => {
+    expect(byName("mcp").flags.find((flag) => flag.long === "config")).toMatchObject({
+      long: "config",
+      takesValue: true,
+    });
   });
 
   it("describes create with its slug flag and short alias", () => {

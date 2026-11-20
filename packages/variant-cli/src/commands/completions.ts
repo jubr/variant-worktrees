@@ -13,6 +13,7 @@ import { renderHelp } from "../help.js";
 import { LOG_LEVEL_FLAG } from "../ipc-log.js";
 import { GLOBAL_FLAGS } from "../output.js";
 import { flagSpecsFor } from "./flags.js";
+import { MCP_DESCRIPTION, MCP_FLAGS } from "./mcp.js";
 import { UI_DESCRIPTION, UI_FLAGS } from "./ui.js";
 
 export const SHELLS = ["zsh", "bash", "fish"] as const;
@@ -70,6 +71,14 @@ const uiCommandModel: CommandModel = {
   flags: Object.entries(UI_FLAGS).map(([long, flag]) => ({ long, description: flag.description, takesValue: false })),
 };
 
+/** `variant mcp`, which is CLI-only and takes a value for each flag. */
+const mcpCommandModel: CommandModel = {
+  name: "mcp",
+  description: MCP_DESCRIPTION,
+  takesSlug: false,
+  flags: Object.entries(MCP_FLAGS).map(([long, flag]) => ({ long, description: flag.description, takesValue: true })),
+};
+
 /** The output flags every lifecycle command accepts. */
 const outputFlags: FlagModel[] = [
   ...GLOBAL_FLAGS.map(({ name, description }) => ({
@@ -106,6 +115,7 @@ export const describeCli = (): CommandModel[] =>
       }),
     ),
     uiCommandModel,
+    mcpCommandModel,
     completionsCommand,
   ].map(withDirectory);
 

@@ -46,13 +46,18 @@ const takeFormat = (argv: string[]): { args: string[]; format: OutputFormat } =>
 if (process.argv.includes("--internal-watch-relay")) {
   await runWatchRelay();
 } else {
+  let servesMcp = false;
   try {
     const { args: withoutDir } = takeDirectory(process.argv.slice(2));
     const { args: withoutLevel, level } = takeLogLevel(withoutDir);
-    const slug = explicitSlug(withoutLevel);
-    attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
     const { args, format } = takeFormat(withoutLevel);
     const requested = args.find((arg) => !arg.startsWith("-"));
+    // AIDEV-NOTE: `variant mcp` owns standard output and its own log sink, so the CLI's sink and its end line stay off.
+    servesMcp = requested === "mcp" && !args.includes("--help") && !args.includes("-h");
+    if (!servesMcp) {
+      const slug = explicitSlug(withoutLevel);
+      attachLogLevel(level, { directory: process.cwd(), ...(slug === undefined ? {} : { slug }) });
+    }
     const known = (name: string): boolean =>
       commands.some((definition) => definition.name === name) ||
       (CLI_ONLY_COMMANDS as readonly string[]).includes(name);
@@ -99,6 +104,8 @@ if (process.argv.includes("--internal-watch-relay")) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   } finally {
-    await finishCliLog();
+    if (!servesMcp) {
+      await finishCliLog();
+    }
   }
 }
