@@ -10,7 +10,7 @@ Two small items ride along: the repository's own Mise file does not yet list the
 - **BREAKING**: the `variant-mcp` executable is gone: the package no longer has a `bin`, `task bleed:mcp` and `vw-bleeds/variant-mcp` are removed, and `task bleed:all` publishes the extension and the CLI only. MCP client configurations change from `"command": "variant-mcp"` to `"command": "variant", "args": ["mcp"]`.
 - `variant-mcp` stays a workspace package, a library that exports the server start; `variant-cli` bundles it, so `variant mcp` also works from the npm package and from every compiled single-file executable. The extension's bundled `dist/mcp.mjs` keeps working the same way (`--cwd`, same tools) and starts the same code.
 - The executable help drops trailing padding: no help line ends in spaces, so the `Global flags` entries (and the `Flags` entries) have no empty line between them in GNU screen, on narrow and wide terminals.
-- Docs: README CLI section and MCP section, `docs/guide/commands.md` (section `mcp`), `docs/vscode/mcp.md`, `docs/development/building.md`, `packages/variant-vscode/README.md`, `AGENTS.md`, `CHANGELOG.md` (breaking note).
+- Docs: README CLI section and MCP section, `docs/guide/cli.md` (section `MCP server`; `mcp` is not on the Commands page), `docs/vscode/mcp.md`, `docs/development/building.md`, `packages/variant-vscode/README.md`, `AGENTS.md`, `CHANGELOG.md` (breaking note).
 - `mise.toml` gains `"packslip:jubr/variant-worktrees" = "latest"` under `[tools]`. Repository tooling only; no spec changes.
 
 ## Capabilities
@@ -25,7 +25,6 @@ Two small items ride along: the repository's own Mise file does not yet list the
 - `variant-api/output-formats`: help lines carry no trailing padding, so no empty line appears between global flags on terminals that wrap at the last column.
 - `meta/dev-bleeds`: no MCP bleed; `bleed:all` runs two bleeds; load locations are two.
 - `docs/readmes`: the extension README names `variant mcp` instead of `variant-mcp`.
-- `docs/site`: the Commands page lists `mcp` among the other commands.
 
 ## Impact
 
