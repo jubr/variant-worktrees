@@ -13,16 +13,16 @@ Every other name is a custom step, and it has exactly one of `runBefore` or `run
 Setting `VARIANT_STEP_<STEP>=no` skips a step.
 The name in the variable is the step name with letters uppercased and every other character replaced by `_`.
 
+## Installation
+
+Install mise and the `variant` command or the editor extension, and initialize your project with a `variants.yaml`.
+Everything else starts from there. More details at [Installation](./installation).
+
 ## Flow of Steps
 
-The steps flow as follows:
+The builtin steps flow as follows:
 
-Installation *→* `create` *→* `provision` *→* `seed` *→* `watch` *→* `down` *→* `deprovision` *→* `implode`
-
-### Installation
-
-Installs mise and the `variant` command or the editor extension, and initializes your project with a `variants.yaml`.
-Everything else starts from there. More details at [Installation](./installation).
+`create` *→* `provision` *→* `seed` *→* `watch` *→* `down` *→* `deprovision` *→* `implode`
 
 ### create
 

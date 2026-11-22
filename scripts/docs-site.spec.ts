@@ -956,19 +956,21 @@ describe("overview starts with Installation and ends with next steps", () => {
   const overview = () => page("guide/overview.html");
   const keyOf = (link: { path: string; hash: string }) => `${link.path}${link.hash === "" ? "" : `#${link.hash}`}`;
 
-  test("Installation is the first step of the Flow of Steps and links to the Installation page", () => {
+  test("Installation is a second-level section directly before Flow of Steps and links to the Installation page", () => {
     const headings = headingsOf(overview());
-    const flow = headings.findIndex((heading) => heading.id === "flow-of-steps");
-    expect(flow).toBeGreaterThanOrEqual(0);
-    const steps = headings.slice(flow + 1).filter((heading) => heading.level === 3);
-    expect(steps[0]).toMatchObject({ id: "installation", text: "Installation" });
-    expect(steps[1]?.id).toBe("create");
+    const installation = headings.findIndex((heading) => heading.id === "installation");
+    expect(headings[installation]).toMatchObject({ level: 2, text: "Installation" });
+    expect(headings[installation + 1]).toMatchObject({ level: 2, id: "flow-of-steps" });
     expect(linksOf(sectionOf(overview(), "installation"), "guide/overview.html").map(keyOf)).toContain("/guide/installation");
   });
 
-  test("the flow line starts with Installation", () => {
-    const flow = decodeEntities(bodyOf(overview()).replace(/<[^>]+>/g, ""));
-    expect(flow).toMatch(/Installation\s*→\s*create\s*→\s*provision/);
+  test("the Flow of Steps begins with create", () => {
+    const headings = headingsOf(overview());
+    const flow = headings.findIndex((heading) => heading.id === "flow-of-steps");
+    expect(headings.slice(flow + 1).find((heading) => heading.level === 3)?.id).toBe("create");
+    const line = decodeEntities(sectionOf(overview(), "flow-of-steps").replace(/<[^>]+>/g, ""));
+    expect(line).toMatch(/create\s*→\s*provision/);
+    expect(line).not.toMatch(/Installation\s*→/);
   });
 
   test("Next steps is the last second-level section and links onward in sentences", () => {
