@@ -2,7 +2,7 @@
 
 - [ ] 1.1 `docs-site.spec.ts`: sidebar order Overview, Installation, Commands, CLI, Configuration, Runtime, Workspace; verify the test fails before the sidebar change
 - [ ] 1.2 `docs-site.spec.ts`: Configuration second-level sections in the new order; *Custom Steps* and *Custom multi-tenancy steps* hold their YAML, the order sentence, the `custom1` / `runAfter: watch` example and the `db.multi` links; verify red
-- [ ] 1.3 `docs-site.spec.ts`: Overview has Installation as first step linking to `/guide/installation`, no custom-step sections, and ends with *Next steps* with the required links and no link-only list; `db.multi` links to `/guide/configuration#custom-multi-tenancy-steps`; verify red
+- [ ] 1.3 `docs-site.spec.ts`: Overview has an Installation section before Flow of Steps linking to `/guide/installation`, no custom-step sections, and ends with *Next steps* with the required links and no link-only list; `db.multi` links to `/guide/configuration#custom-multi-tenancy-steps`; verify red
 - [ ] 1.4 `docs-site.spec.ts`: Installation headings in order, `mise activate`, extension text, `packslip:` command with example output, link to `/guide/commands#variant-init`, no repeated `.gitignore` or `mise.toml` prose, fenced `variant:` YAML; verify red
 - [ ] 1.5 Replace the old overview-based custom-step assertions in `docs-site.spec.ts` and `docs-coverage.spec.ts` (if any) so the suite expects the new places
 
@@ -14,7 +14,7 @@
 
 ## 3. Overview
 
-- [ ] 3.1 Add *Installation* as the first step of *Flow of Steps* (flow line and section) linking to Installation; keep `VARIANT_STEP_<STEP>=no` in the intro; 1.3 passes for the step
+- [ ] 3.1 Add an *Installation* section before *Flow of Steps* linking to Installation; keep `VARIANT_STEP_<STEP>=no` in the intro; 1.3 passes for the step
 - [ ] 3.2 Add the closing section *Next steps* with natural sentences and deep links to Workspace, Flow of Steps, `variants.yaml` options, the CLI commands, Extension, MCP and Runtime; 1.3 passes
 
 ## 4. Installation
