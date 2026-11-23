@@ -37,9 +37,8 @@ More details at Commands [`variant provision`](./commands#variant-provision).
 
 ### seed
 
-The project supplies the script.
+There is no builtin seed, the project will need to supply the logic.
 The step named `seed` in [`variant.steps`](./configuration#variant-steps) runs once and creates the tables and loads the rows.
-There is no builtin seed.
 With [`db.multi`](./configuration#db-multi) the script handles every schema itself.
 When the step is absent, nothing is seeded.
 
@@ -78,9 +77,8 @@ More details at Commands [`variant implode`](./commands#variant-implode).
 
 ## Next steps
 
-To set up a workspace around your Git project, see how the [Workspace](./workspace) is laid out and why the worktrees sit next to your main checkout.
-How the steps follow one another is in the [Flow of Steps](#flow-of-steps) above: a later step implies the ones before it, so one `watch` can take a variant from nothing to running.
-To configure `variants.yaml`, go through the [Variant options](./configuration#variant-options), and add your own [Custom Steps](./configuration#custom-steps) when the project needs them.
-The commands you can run on the command line are listed on the [CLI](./cli) page, and each one is explained in [Commands](./commands).
-To work from your editor, use the [Extension](/vscode/extension) for VS Code and Cursor, and give your agents the [MCP Server](/vscode/mcp).
-To see how watches start, stay up and stop, read [Runtime](./runtime).
+- Work from your editor, use the [Extension](/vscode/extension) for VS Code and Cursor.
+- Set up a workspace around your Git project, see how a recommended [Workspace](./workspace) is laid out.
+- Configure `variants.yaml` with [Variant options](./configuration#variant-options) and add your own [Custom Steps](./configuration#custom-steps) when needed.
+- Find out how to run the [CLI](./cli) and [Commands](./commands) it exposes.
+- See how watches start, stay up and stop, read [Runtime](./runtime).

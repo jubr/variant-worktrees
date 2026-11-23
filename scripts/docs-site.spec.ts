@@ -973,25 +973,23 @@ describe("overview starts with Installation and ends with next steps", () => {
     expect(line).not.toMatch(/Installation\s*→/);
   });
 
-  test("Next steps is the last second-level section and links onward in sentences", () => {
+  test("Next steps is the last second-level section and is a list of links onward", () => {
     const h2 = headingsOf(overview()).filter((heading) => heading.level === 2);
     expect(h2.at(-1)).toMatchObject({ id: "next-steps", text: "Next steps" });
     const section = sectionOf(overview(), "next-steps");
     const links = linksOf(section, "guide/overview.html").map(keyOf);
     for (const target of [
+      "/vscode/extension",
       "/guide/workspace",
-      "/guide/overview#flow-of-steps",
       "/guide/configuration#variant-options",
       "/guide/cli",
-      "/vscode/extension",
-      "/vscode/mcp",
+      "/guide/commands",
       "/guide/runtime",
     ]) {
       expect(links, target).toContain(target);
     }
-    expect(section, "sentences, not a list of links").not.toMatch(/<(ul|ol)\b/);
-    const sentences = decodeEntities(section.replace(/<[^>]+>/g, " ")).match(/[A-Z][^.]*\./g) ?? [];
-    expect(sentences.length).toBeGreaterThanOrEqual(5);
+    expect(section, "a list").toMatch(/<ul\b/);
+    expect([...section.matchAll(/<li\b/g)].length).toBeGreaterThanOrEqual(5);
   });
 });
 
