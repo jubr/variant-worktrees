@@ -8,6 +8,9 @@
 
 ### Changed
 
+- The docs start from Installation: the Overview lists Installation as the first step of the flow and ends with *Next steps*, and the sidebar puts Installation right after Overview. Installation is three steps (install and activate mise; the extension or `mise x packslip:jubr/variant-worktrees@ -- variant init`; review `variants.yaml`) with example output, and links to [`variant init`](docs/guide/commands.md#variant-init) instead of repeating it.
+- The *Custom Steps* and *Custom multi-tenancy steps* sections moved from the Overview to the Configuration page, before *Templates*. *Custom Steps* says that several steps with the same `runBefore` or `runAfter` run in the order they are written in `variants.yaml`, and shows what `variant watch` runs for a step with `runAfter: watch`.
+- **BREAKING (docs URLs):** `overview#custom-steps` and `overview#custom-multi-tenancy-steps` are now `configuration#custom-steps` and `configuration#custom-multi-tenancy-steps`; the Installation heading anchors changed with the new step headings.
 - `-s`/`--slug` is a global flag: `variant create -s preview-one` and `variant -s preview-one create` are the same, and a command that takes no slug ignores it. **BREAKING:** the positional slug (`variant provision preview-one`) is gone and fails with a hint to use `-s`.
 - `-v`, `-vv` and `-vvv` set the log level to `info`, `debug` and `trace`. **BREAKING:** `-v` is no longer the short form of `--verbose`; use `--verbose`. `--log-level` still takes `warning` as `warn`, but the help and the docs no longer name it.
 - `variant --help` starts with the same extended version text as `variant --version`.
