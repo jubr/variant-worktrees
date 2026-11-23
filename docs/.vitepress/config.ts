@@ -86,6 +86,7 @@ export default defineConfig({
         text: "Development",
         items: [
           { text: "Building", link: "/development/building" },
+          { text: "Bun standalone slim", link: "/development/bun-standalone-slim" },
           { text: "Library", link: "/development/library" },
         ],
       },
