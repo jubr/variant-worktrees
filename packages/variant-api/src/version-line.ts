@@ -104,12 +104,31 @@ const OS_NAMES: Record<string, string> = { darwin: "macos", win32: "windows" };
 
 export const platformToken = (platform: string, arch: string): string => `${OS_NAMES[platform] ?? platform}-${arch}`;
 
+/** The part of `Bun` that tells the builds apart. */
+type BunRuntime = { version: string; Image?: unknown };
+
+/**
+ * The runtime the process runs on: `node`, `bun`, `bun-standalone` (a runtime without the bundler and package manager),
+ * or `bun-standalone-slim` (the same without `Bun.Image`, which the slim build stubs out).
+ */
+export const runtimeToken = (bun: BunRuntime | null = (globalThis as { Bun?: BunRuntime }).Bun ?? null): string => {
+  if (bun === null) {
+    return "node";
+  }
+  // AIDEV-NOTE: the standalone runtime reports a `-standalone` Bun.version; only the slim build leaves Bun.Image undefined.
+  if (!bun.version.endsWith("-standalone")) {
+    return "bun";
+  }
+  return bun.Image === undefined ? "bun-standalone-slim" : "bun-standalone";
+};
+
 const versionToken = (version: string, variant?: string): string => (variant ? `${version}-${variant}` : version);
 
-/** Version and parenthetical, then the script drawing and a blank line when `banner` is set, then platform and URL. */
+/** Version and parenthetical, then the script drawing and a blank line when `banner` is set, then platform, runtime when given, and URL. */
 export const renderVersion = (input: {
   version: string;
   platform: string;
+  runtime?: string;
   date: string;
   variant?: string;
   repository: string;
@@ -118,12 +137,14 @@ export const renderVersion = (input: {
 }): string => {
   const head = `${versionToken(input.version, input.variant)} (${input.date})\n`;
   const drawing = input.banner ? `${renderBanner(input.color)}\n` : "";
-  return `${head}${drawing}${input.platform}, ${input.repository}\n`;
+  const details = [input.platform, ...(input.runtime ? [input.runtime] : []), input.repository].join(", ");
+  return `${head}${drawing}${details}\n`;
 };
 
 export const formatVersionLine = (input: {
   version: string;
   platform: string;
+  runtime?: string;
   date: string;
   variant?: string;
   repository: string;

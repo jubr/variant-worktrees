@@ -11,6 +11,7 @@ import {
   renderVersion,
   repositoryUrl,
   resolveVersionFacts,
+  runtimeToken,
   variantString,
   versionColor,
 } from "./version-line.js";
@@ -91,6 +92,32 @@ describe("version line", () => {
     const commit = "838c6e3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     expect(variantString({ branch: "release/v0.0.8", commitsSinceTag: 150, commit })).toBe("release-v0-0-8-150-838c");
+  });
+
+  it("names the Bun runtime between the platform and the repository URL", () => {
+    expect(
+      renderVersion({
+        version: "1.2.3",
+        platform: "macos-arm64",
+        runtime: "bun-standalone-slim",
+        date: "2001-02-03",
+        color: false,
+        banner: false,
+        repository: "https://github.com/jubr/variant-worktrees",
+      }),
+    ).toBe("1.2.3 (2001-02-03)\nmacos-arm64, bun-standalone-slim, https://github.com/jubr/variant-worktrees\n");
+  });
+
+  it("names the runtime bun, bun-standalone, bun-standalone-slim or node", () => {
+    expect(runtimeToken({ version: "1.4.4", Image: () => undefined })).toBe("bun");
+    expect(runtimeToken({ version: "1.4.0-standalone", Image: () => undefined })).toBe("bun-standalone");
+    expect(runtimeToken({ version: "1.4.0-standalone" })).toBe("bun-standalone-slim");
+    expect(runtimeToken({ version: "1.4.4" })).toBe("bun");
+    expect(runtimeToken(null)).toBe("node");
+  });
+
+  it("reads the running runtime when none is passed", () => {
+    expect(runtimeToken()).toBe(process.versions.bun === undefined ? "node" : "bun");
   });
 
   it("prints the drawing and a blank line when the banner is requested", () => {

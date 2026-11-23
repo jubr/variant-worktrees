@@ -10,6 +10,7 @@
 
 ### Changed
 
+- `variant --version` names the runtime between the platform and the repository URL: `node`, `bun`, `bun-standalone` or `bun-standalone-slim`, as in `macos-arm64, bun-standalone-slim, https://github.com/jubr/variant-worktrees`. The help header carries it too.
 - `-s`/`--slug` is a global flag: `variant create -s preview-one` and `variant -s preview-one create` are the same, and a command that takes no slug ignores it. **BREAKING:** the positional slug (`variant provision preview-one`) is gone and fails with a hint to use `-s`.
 - `-v`, `-vv` and `-vvv` set the log level to `info`, `debug` and `trace`. **BREAKING:** `-v` is no longer the short form of `--verbose`; use `--verbose`. `--log-level` still takes `warning` as `warn`, but the help and the docs no longer name it.
 - `variant --help` starts with the same extended version text as `variant --version`.

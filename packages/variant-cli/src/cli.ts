@@ -9,6 +9,7 @@ import {
   renderVersion,
   repositoryUrl,
   resolveVersionFacts,
+  runtimeToken,
   runWatchRelay,
   versionColor,
 } from "variant-api";
@@ -72,6 +73,7 @@ if (process.argv.includes("--internal-watch-relay")) {
       return renderVersion({
         version,
         platform: platformToken(process.platform, process.arch),
+        runtime: runtimeToken(),
         date: facts.date,
         variant: facts.variant,
         banner: process.stdout.isTTY === true,
