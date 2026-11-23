@@ -45,3 +45,7 @@
 - [x] 6.3 Update `CHANGELOG.md`, `CONTRIBUTING.md` and `design.md` (patches, sizes); verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
 - [x] 6.4 After the push: the workflow compiles on its own push (the file changed); verify each patch diff is in the log, the smoke test passes on all four platforms, and record the sizes in design.md
 
+## 7. Name the runtime in the version output
+
+- [x] 7.1 Red then green: `variant --version` prints `platform, runtime, url` with `node`, `bun`, `bun-standalone` or `bun-standalone-slim`; verify the `version-line` and `runtimes` specs fail first, and check the three Bun names on compiled executables
+- [x] 7.2 Add the docs page "Bun standalone slim" with the savings table, the process and the version output; verify `task docs:build` passes
