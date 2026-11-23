@@ -147,7 +147,7 @@ The pages of the site SHALL live in directories that match the sidebar: `index.m
 
 ### Requirement: Overview starts with Installation and ends with next steps
 
-The Overview SHALL have a second-level section *Installation* directly before *Flow of Steps*, as a short explanation that links to the Installation page (`/guide/installation`). The *Flow of Steps* SHALL begin with `create`. The Overview SHALL NOT contain the sections *Custom Steps* and *Custom multi-tenancy steps*; the Configuration page holds them. The last section of the Overview SHALL be the second-level heading *Next steps*. It SHALL consist of natural sentences, not a bare list of links, and SHALL link to: the Workspace page (`/guide/workspace`) for setting up a workspace around a Git project; the Flow of Steps (`/guide/overview#flow-of-steps`); the options of `variants.yaml` (`/guide/configuration#variant-options`); the commands of the command line (`/guide/cli`); and the Extension (`/vscode/extension`), the MCP server (`/vscode/mcp`) and Runtime (`/guide/runtime`) pages.
+The Overview SHALL have a second-level section *Installation* directly before *Flow of Steps*, as a short explanation that links to the Installation page (`/guide/installation`). The *Flow of Steps* SHALL begin with `create`. The Overview SHALL NOT contain the sections *Custom Steps* and *Custom multi-tenancy steps*; the Configuration page holds them. The last section of the Overview SHALL be the second-level heading *Next steps*. It SHALL be a list whose items each say in a phrase what the reader does or finds there, with a link, and SHALL link to: the Extension (`/vscode/extension`); the Workspace page (`/guide/workspace`) for setting up a workspace around a Git project; the options of `variants.yaml` (`/guide/configuration#variant-options`); the commands of the command line (`/guide/cli` and `/guide/commands`); and Runtime (`/guide/runtime`).
 
 #### Scenario: Installation comes before the flow
 
@@ -165,8 +165,7 @@ The Overview SHALL have a second-level section *Installation* directly before *F
 
 - **WHEN** the built Overview page is read
 - **THEN** its last second-level heading is *Next steps*
-- **AND** that section links to `/guide/workspace`, `/guide/overview#flow-of-steps`, `/guide/configuration#variant-options`, `/guide/cli`, `/vscode/extension`, `/vscode/mcp` and `/guide/runtime`
-- **AND** that section holds no list whose items are only links
+- **AND** that section is a list whose items link to `/vscode/extension`, `/guide/workspace`, `/guide/configuration#variant-options`, `/guide/cli`, `/guide/commands` and `/guide/runtime`
 
 ### Requirement: Custom steps are documented on the Configuration page
 

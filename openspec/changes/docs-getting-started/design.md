@@ -24,7 +24,7 @@ Docs-only change; see proposal.md for motivation. The site is VitePress under `d
 - **Installation page shape.** Four second-level headings: *1. Install mise*, *2a. Extension for VSCode and Cursor*, *2b. Install with `variant init`*, *3. Review `variants.yaml`*. The numbering is in the heading text so the outline shows the alternatives. "Rename → Extension for VSCode and Cursor" is read as the section heading, not the page title: the page stays *Installation*, which the Overview and sidebar link to.
 - **Examples are real.** The `init` output and the `variants.yaml` are captured by running `init` in a scratch project with Postgres settings in its environment, then trimmed only of machine paths. Secrets are `${NAME}` references by design of `init`.
 - **Bare `@`.** The command is `mise x packslip:jubr/variant-worktrees@ -- variant init`, ending in a bare `@` as requested, not `@latest`.
-- **Next steps as prose.** Sentences such as "To set up a workspace around your Git project, read [Workspace](/guide/workspace)." One link or a few per sentence; a test asserts the links and that the section is not a link-only list.
+- **Next steps as a list.** One item per onward path, each a phrase with its link, such as "Set up a workspace around your Git project, see how a recommended [Workspace](/guide/workspace) is laid out." The Flow of Steps is not linked: the reader just read it. A test asserts the list and its links.
 - **Spec placement.** All behavior lands in `docs/site`; `variant-api/multi-schema` only moves the place its guide requirement names for the custom-step headings.
 
 ## Risks / Trade-offs
