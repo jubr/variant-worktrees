@@ -57,3 +57,12 @@
 - [ ] 8.3 Red then green: `task chore:bun:bump` edits `mise.toml`, `@types/bun` and `bun.lock` to the latest bun-slim release (or `VERSION=`) and commits `chore(bun): bump to vX.Y.Z`; verify `scripts/bump-bun.spec.ts` fails first
 - [ ] 8.4 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md`, `proposal.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
 
+## 9. Choose the runtime for each target
+
+- [~] 9.1 Red then green: `runtimeToken` returns `bun-v<version>`, `bun-slim-v<version>[-<build>]` or `bun-standalone-v<version>[-<build>]` (or `node`), the build number comes from the compile stamp `VARIANT_BUILD_RUNTIME`; verify the `version-line` and `runtimes` specs fail first
+- [ ] 9.2 Red then green: `selectRuntime` in `scripts/package-cli.ts` picks, per target, `VARIANT_BUN_RUNTIME`, else the fetched slim runtime (Linux and macOS), else the default runtime (Windows: info, a failed fetch: warning), and prints which; verify `scripts/package-cli.spec.ts` fails first
+- [ ] 9.3 Red then green: `compileCli` stamps the build number; `package:cli` (also `all`) and `bleed:cli` use `selectRuntime`; `fetch-bun-slim.ts` shares the fetch with it; verify `scripts/bleed.spec.ts` and `scripts/package-cli.spec.ts` pass
+- [ ] 9.4 Red then green: the release matrix drops its fetch step and gives `task package:cli` the `GH_TOKEN`; verify `scripts/ci-release-workflow.spec.ts` and `task lint:workflows` pass
+- [ ] 9.5 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+- [ ] 9.6 Show `task bleed:cli` with its printed runtime choice and `variant --version` of the bled binary in chat
+
