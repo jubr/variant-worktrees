@@ -127,6 +127,11 @@ tasks:
     desc: "Print the lockstep release version (fails when package versions differ)"
     cmds: ["bun scripts/release-version.ts"]
 
+  chore:bun:bump:
+    desc: "Move mise.toml, @types/bun and bun.lock to the Bun version of the newest jubr/bun-slim release (VERSION=1.4.6 overrides) and commit chore(bun): bump to vX.Y.Z"
+    # AIDEV-NOTE: Task exposes a VERSION given on the command line to the command as an environment variable.
+    cmds: ["bun scripts/bump-bun.ts"]
+
   version:incr:patch:
     desc: "Bump the patch version in the root and every packages/*/package.json, and in bun.lock"
     cmds: ["bun scripts/version-incr.ts"]
