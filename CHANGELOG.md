@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- `publish-extensions.yaml` publishes to the Visual Studio Marketplace through trusted publishing (`vsce publish --oidc`) instead of the `VSCE_PAT` secret, which is no longer used. The Marketplace needs a Trusted Publishing policy for the workflow `publish-extensions.yaml` and the environment `marketplace`.
+
 ## [0.0.13] - 2026-11-25
 
 ### Added
