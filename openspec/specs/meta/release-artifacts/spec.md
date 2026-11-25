@@ -129,7 +129,7 @@ The release workflow SHALL NOT create or modify a release when the tag `v<versio
 
 ### Requirement: Manual registry publication
 
-A separate workflow SHALL publish the `.vsix` files of one chosen release to the Visual Studio Marketplace and to Open VSX. It SHALL start only by manual dispatch naming a release tag, or as the last job of the release workflow when that run created the release, SHALL run in the `marketplace` environment that holds the registry credentials, and SHALL publish the exact `.vsix` files attached to that release without rebuilding them. The workflow SHALL authenticate to Open VSX through trusted publishing, without a stored token, and to the Visual Studio Marketplace with the repository secret `VSCE_PAT` until the Marketplace supports trusted publishing. The OIDC token permission SHALL be granted to the publishing job only.
+A separate workflow SHALL publish the `.vsix` files of one chosen release to the Visual Studio Marketplace and to Open VSX. It SHALL start only by manual dispatch naming a release tag, or as the last job of the release workflow when that run created the release, SHALL run in the `marketplace` environment that the registry trusted publishing policies name, and SHALL publish the exact `.vsix` files attached to that release without rebuilding them. The workflow SHALL authenticate to both registries through trusted publishing, without a stored token: no `VSCE_PAT` and no `OVSX_PAT` secret. The OIDC token permission SHALL be granted to the publishing job only.
 
 #### Scenario: Not triggered by itself
 
@@ -171,6 +171,16 @@ A separate workflow SHALL publish the `.vsix` files of one chosen release to the
 
 - **WHEN** the workflow file is read
 - **THEN** it references no `OVSX_PAT` secret, and only the publishing job has `id-token: write`
+
+#### Scenario: No stored Marketplace token
+
+- **WHEN** the workflow file is read
+- **THEN** it references no `VSCE_PAT` secret
+
+#### Scenario: Marketplace publication through trusted publishing
+
+- **WHEN** the publishing job runs for the Visual Studio Marketplace
+- **THEN** it publishes the `.vsix` file with an OIDC credential that the Marketplace exchanges for the workflow, environment and repository named in its trusted publishing policy
 
 ### Requirement: Release preparation task
 
