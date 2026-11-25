@@ -205,15 +205,14 @@ runnable alone to resume after a failure:
 It never tags or merges. A human reviews and merges the pull request; a green build then tags and releases
 that version and runs `publish-extensions.yaml` for it. To publish an older tag
 by hand, dispatch `publish-extensions.yaml` with the tag. One-time setup: environment
-`marketplace` holding the secret `VSCE_PAT` (Visual Studio Marketplace; its trusted publishing is not supported
-yet, see [vsmarketplace#1422](https://github.com/microsoft/vsmarketplace/issues/1422)).
-Open VSX needs no token: register a trusted publisher per extension on open-vsx.org
-(workflow `publish-extensions.yaml`, environment `marketplace`; it runs as its own
-workflow both after a release and on manual dispatch). The first Open VSX
+`marketplace`, with no secret. Both registries use trusted publishing (OIDC), each with a
+policy naming the workflow `publish-extensions.yaml` and the environment `marketplace`;
+the workflow runs as its own workflow both after a release and on manual dispatch.
+Visual Studio Marketplace: create a Trusted Publishing policy on the publisher
+(repository owner, repository, workflow, environment); the workflow runs `vsce publish --oidc`.
+Open VSX: register a trusted publisher per extension on open-vsx.org. The first Open VSX
 version of an extension must be published once with a token, since a trusted
-publisher needs an existing extension. The workflow keeps the Marketplace Entra
-variant as commented-out lines; it needs `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
-`AZURE_SUBSCRIPTION_ID` as variables on `marketplace`.
+publisher needs an existing extension.
 
 The release workflow calls `packslip.yaml` after it creates the release. The signing job has `contents: read`.
 A failed sign is retried by dispatching `packslip.yaml` from `main` with the tag, then `publish-extensions.yaml`
