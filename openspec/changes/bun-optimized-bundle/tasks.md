@@ -49,3 +49,11 @@
 
 - [x] 7.1 Red then green: `variant --version` prints `platform, runtime, url` with `node`, `bun`, `bun-standalone` or `bun-standalone-slim`; verify the `version-line` and `runtimes` specs fail first, and check the three Bun names on compiled executables
 - [x] 7.2 Add the docs page "Bun standalone slim" with the savings table, the process and the version output; verify `task docs:build` passes
+
+## 8. Fetch the published slim runtime
+
+- [ ] 8.1 Red then green: `scripts/bun-slim.ts` reads the exact Bun version from `mise.toml`, picks the highest build of it among the `bun-slim-vX.Y.Z-N` tags, downloads `bun-slim-<os>-<arch>-v*.zip`, checks `SHA256SUMS` and returns the `bun-slim` executable; `scripts/fetch-bun-slim.ts` warns and exits 0 on any failure; verify `scripts/bun-slim.spec.ts` fails first
+- [ ] 8.2 Red then green: remove `bun-standalone.yaml` and the `Bun standalone` CI job and input; the release matrix fetches the slim runtime after mise and install and before the compile, for Linux and macOS only; verify `scripts/ci-release-workflow.spec.ts` and `task lint:workflows` pass
+- [ ] 8.3 Red then green: `task chore:bun:bump` edits `mise.toml`, `@types/bun` and `bun.lock` to the latest bun-slim release (or `VERSION=`) and commits `chore(bun): bump to vX.Y.Z`; verify `scripts/bump-bun.spec.ts` fails first
+- [ ] 8.4 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md`, `proposal.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+

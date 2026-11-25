@@ -13,10 +13,10 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 - Keep the hook small, opt-in, and invisible when unused.
 
 **Non-Goals:**
-- No download or pin of a standalone runtime by `variant` builds; the new workflow only builds and caches it.
-- No change to release executables, the CI gate or release workflow, or the `--version` output.
-- No change to the full-Bun toolchain that `mise` pins.
-- No fix for Bun itself; a gap found in the PR is reported, not patched here.
+- No Windows slim runtime, and no build of Bun in this repository: the release fetches a runtime that `jubr/bun-slim` built (see "Moved to jubr/bun-slim").
+- No change to the CI gate. The release workflow changes only in how it compiles the executables; the only change to `variant --version` is the runtime name.
+- No change to the full-Bun toolchain that `mise` pins, except by `task chore:bun:bump`.
+- No fix for Bun itself; a gap found in the runtime is reported to `jubr/bun-slim`, not patched here.
 
 ## Decisions
 
@@ -26,15 +26,15 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 - **Build the PR with its own scripts.** `bun run build:standalone` in the clone (release profile, `--standalone=on`) produces `build/release-standalone/bun-standalone`. The clone is a shallow fetch of the PR head, pinned by commit in these notes. Alternative: cherry-pick into a fork. Rejected: no reason to carry patches.
 - **Measure, then decide.** Compare byte size of the stripped output against the current 65.3 MB bled binary, and run `variant --version`, `variant list`, `variant ui --detach` (page served), and `variant mcp` (initialize handshake) with the bled binary.
 
-- **Workflow `bun-standalone.yaml`: schedule plus path-filtered push, build only on a cache miss.** The pull request is upstream, so no push event announces a new head. A scheduled run (the default branch only) resolves the head with the GitHub API; the binary cache key is `<platform>-<head sha>-<hashFiles of the workflow>`, so a moved head or an edited workflow is a miss and everything else restores. A push that changes the workflow file runs it on any branch, so an edit is verified where it is made. Alternative: poll with a separate trigger service. Rejected: more moving parts than a cron.
-- **Resolve once, in a short job.** A `resolve` job reads the head sha and hands it and the key suffix to a matrix job, so every platform builds the same commit even if the pull request moves mid-run. The matrix jobs still start on a hit and skip every step after the cache restore; a restore costs seconds, which is accepted over a cross-platform cache lookup that depends on cache versioning.
-- **Dependency and compiler cache restored by prefix, binary cache by exact key.** A stale dependency cache only costs time; a stale binary would be a wrong result.
-- **Same build recipe as the local build.** LLVM 21.1.x, CMake, the pinned Rust nightly from the checked-out repository, Bun for the scripts, and `SDKROOT` on macOS. Alternative: reuse the upstream Buildkite pipeline. Rejected: it needs their agents and secrets.
-- **Artifacts and caches.** The output is a run artifact per platform and the cached binary. The release restores the cache; nothing downloads artifacts.
-- **Release compiles one platform per job.** `VARIANT_BUN_RUNTIME` fits one platform and `package:cli:all` refuses it, so the release `build` job becomes a matrix of six jobs running `task package:cli TARGET=<target>`, plus a job for the `.vsix` files and one that gathers everything into the unchanged `release-assets` artifact and checksum file. All stay on `ubuntu-latest`: Bun compiles for any target from there, and a Windows job does not restore a runtime at all.
-- **How a release job finds the cache.** The `Bun standalone` job returns the head sha and the workflow hash; the release `ci` call passes them on; each job restores `bun-standalone-<platform>-<sha>-<hash>` with `fail-on-cache-miss` off. A hit sets `VARIANT_BUN_RUNTIME` through `GITHUB_ENV`; a miss sets nothing. Caches made on `main` are what a `main` release sees, which is why the compile job runs there first.
-- **A runtime built for another platform than the runner.** The runtime is only copied into the output, so a Linux runner can embed a macOS binary; the first run on a branch shows whether that holds. If it does not, the macOS jobs move to macOS runners and nothing else changes.
-- **Switch for trying it without merging.** The release workflow gets a `bun-standalone` input (`yes|no`, default `no`) that it hands to the CI call; the job runs when the ref is `main` or the input is `yes`. A dispatch from a branch is already a dry run, so it builds everything and releases nothing. Alternative: a branch name written into the workflow. Rejected: it would have to be removed before merge. The workflow also runs on its own for a push that edits it, so a branch push alone shows the compile.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **Workflow `bun-standalone.yaml`: schedule plus path-filtered push, build only on a cache miss.** The pull request is upstream, so no push event announces a new head. A scheduled run (the default branch only) resolves the head with the GitHub API; the binary cache key is `<platform>-<head sha>-<hashFiles of the workflow>`, so a moved head or an edited workflow is a miss and everything else restores. A push that changes the workflow file runs it on any branch, so an edit is verified where it is made. Alternative: poll with a separate trigger service. Rejected: more moving parts than a cron.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **Resolve once, in a short job.** A `resolve` job reads the head sha and hands it and the key suffix to a matrix job, so every platform builds the same commit even if the pull request moves mid-run. The matrix jobs still start on a hit and skip every step after the cache restore; a restore costs seconds, which is accepted over a cross-platform cache lookup that depends on cache versioning.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **Dependency and compiler cache restored by prefix, binary cache by exact key.** A stale dependency cache only costs time; a stale binary would be a wrong result.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **Same build recipe as the local build.** LLVM 21.1.x, CMake, the pinned Rust nightly from the checked-out repository, Bun for the scripts, and `SDKROOT` on macOS. Alternative: reuse the upstream Buildkite pipeline. Rejected: it needs their agents and secrets.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **Artifacts and caches.** The output is a run artifact per platform and the cached binary. The release restores the cache; nothing downloads artifacts.
+- **Release compiles one platform per job.** (Still in force; the runtime now comes from `jubr/bun-slim`, not from a cache.) `VARIANT_BUN_RUNTIME` fits one platform and `package:cli:all` refuses it, so the release `build` job becomes a matrix of six jobs running `task package:cli TARGET=<target>`, plus a job for the `.vsix` files and one that gathers everything into the unchanged `release-assets` artifact and checksum file. All stay on `ubuntu-latest`: Bun compiles for any target from there, and a Windows job does not restore a runtime at all.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **How a release job finds the cache.** The `Bun standalone` job returns the head sha and the workflow hash; the release `ci` call passes them on; each job restores `bun-standalone-<platform>-<sha>-<hash>` with `fail-on-cache-miss` off. A hit sets `VARIANT_BUN_RUNTIME` through `GITHUB_ENV`; a miss sets nothing. Caches made on `main` are what a `main` release sees, which is why the compile job runs there first.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **A runtime built for another platform than the runner.** The runtime is only copied into the output, so a Linux runner can embed a macOS binary; the first run on a branch shows whether that holds. If it does not, the macOS jobs move to macOS runners and nothing else changes.
+- *(Superseded, see "Moved to jubr/bun-slim".)* **Switch for trying it without merging.** The release workflow gets a `bun-standalone` input (`yes|no`, default `no`) that it hands to the CI call; the job runs when the ref is `main` or the input is `yes`. A dispatch from a branch is already a dry run, so it builds everything and releases nothing. Alternative: a branch name written into the workflow. Rejected: it would have to be removed before merge. The workflow also runs on its own for a push that edits it, so a branch push alone shows the compile.
 
 ## Risks / Trade-offs
 
@@ -46,7 +46,7 @@ The PR publishes `bun-standalone` as a release asset and an npm package only aft
 
 ## Migration Plan
 
-None for users; the option is off by default. Rollback is deleting the env var. If the PR lands upstream, a follow-up change can pin a released standalone runtime, fetch it, and apply it to release builds.
+None for users; the variable is off by default and the release falls back to the default runtime. Rollback is deleting the fetch step from the release matrix. If upstream ships a standalone runtime, the fetch can point at it instead of `jubr/bun-slim`.
 
 ## Build notes
 
@@ -97,3 +97,15 @@ Bun has no Cargo feature left to switch off; the only gate is `cfg(bun_standalon
 - A spec runs the step on fixtures of the upstream lines; the same step applied to a clean checkout of the pull request head matches the local experiment apart from comments.
 
 CI run [44807627357](https://github.com/jubr/variant-worktrees/actions/runs/44807627357), started by the push that edited the workflow (new hash, so every platform compiled): the patch step printed a `diff -u` for the eight patched and the two added files on all four platforms, and the smoke test, including the `Bun.Image` and `dlopen` checks, passed. Archive sizes (zip): darwin-arm64 14.9 MB (was 18.0), darwin-x64 16.2 MB (was 19.9), linux-x64 24.4 MB (was 28.3), linux-arm64 24.0 MB (was 27.9).
+
+## Moved to jubr/bun-slim
+
+The two sections above describe an earlier iteration: this repository built `bun-standalone` itself in `bun-standalone.yaml`, patched Bun with `sed` and cached the binaries. That workflow, its spec and the `Bun standalone` job of the CI workflow are removed.
+
+- The build, the patches and the size table now live in [`jubr/bun-slim`](https://github.com/jubr/bun-slim), a patch repository on top of each Bun release. It publishes `bun-slim-vX.Y.Z-N` releases with `bun-alone-*` and `bun-slim-*` zips per platform and a `SHA256SUMS`. `N` counts the builds of one Bun version.
+- This repository only fetches. `scripts/bun-slim.ts` picks the highest `N` of the Bun version `mise.toml` pins, downloads `bun-slim-<os>-<arch>-v*.zip` with `gh`, and checks it against `SHA256SUMS`. `scripts/fetch-bun-slim.ts` runs it in the release matrix and writes `VARIANT_BUN_RUNTIME` to `$GITHUB_ENV`. Any failure is a warning and the job compiles with the runtime that ships with Bun.
+- Matching the Bun version exactly keeps the slim runtime and the Bun that compiles on one release. `mise.toml` must therefore pin an exact version; `task chore:bun:bump` keeps it, `@types/bun` and `bun.lock` on the latest released one.
+- `bun-slim` is used, not `bun-alone`: it is the smaller of the two and its extra cuts (`Bun.Image`, `bun:ffi`) are not used by `variant`. The runtime name in `variant --version` tells which one an executable embeds.
+- **The runtime name comes from the running runtime, not from the build.** `runtimeToken` reads `Bun.version` (the standalone runtimes end it in `-standalone`) and `Bun.Image` (only `bun-slim` stubs it out), so an executable reports what it embeds even when a build silently fell back. Node reports `node`. The two other options, a baked build constant or a file next to the executable, would say what the build asked for.
+- **`task chore:bun:bump` commits only its own files.** It stages `mise.toml`, the `package.json` files it changed and `bun.lock`, and commits with a pathspec, so unrelated staged work stays out of `chore(bun): bump to vX.Y.Z`. It regenerates the lockfile with `mise x bun@<version>`, so the new Bun writes it.
+
