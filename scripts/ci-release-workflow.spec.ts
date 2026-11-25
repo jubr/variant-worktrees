@@ -82,6 +82,18 @@ describe("release workflow slim runtime", () => {
     expect(compile).toBeGreaterThan(all.findIndex((step) => step.run === "task install:ci"));
   });
 
+  test("writes the size table of each executable to the step summary after the compile, without failing the job", () => {
+    const all = steps();
+    const compile = all.findIndex((step) => step.run?.startsWith("task package:cli"));
+    const table = all.find((step) => step.run?.includes("bun scripts/runtime-sizes.ts"));
+
+    expect(all.indexOf(table as Step)).toBeGreaterThan(compile);
+    expect(table?.run).toContain("${{ matrix.target }}");
+    expect(table?.run).toContain('>> "$GITHUB_STEP_SUMMARY"');
+    expect(table?.env?.GH_TOKEN).toBe("${{ github.token }}");
+    expect(table?.["continue-on-error"]).toBe(true);
+  });
+
   test("has no fetch step and sets no runtime variable of its own", () => {
     expect(steps().some((step) => step.run?.includes("fetch-bun-slim"))).toBe(false);
     expect(JSON.stringify(release())).not.toContain("VARIANT_BUN_RUNTIME");

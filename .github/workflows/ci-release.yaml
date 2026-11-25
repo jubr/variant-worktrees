@@ -69,8 +69,8 @@ jobs:
           if-no-files-found: error
 
   # Specification: openspec/specs/meta/release-artifacts/spec.md (Release executables use the published slim runtime)
-  # AIDEV-NOTE: one job per platform because VARIANT_BUN_RUNTIME fits a single platform. `slim` names the platform in
-  # the jubr/bun-slim release zips; Windows has none and never fetches or sets it.
+  # AIDEV-NOTE: one job per platform so each executable has its own runtime choice (`package:cli` fetches the slim runtime for
+  # Linux and macOS, falls back to the default one, and prints which) and its own size table in the step summary.
   executables:
     name: Build variant ${{ matrix.target }}
     needs: [ci, version]
@@ -90,10 +90,16 @@ jobs:
       # The Bun that compiles is exactly the one mise.toml pins, and the slim runtime is that version's too.
       - uses: jdx/mise-action@v5
       - run: task install:ci
-      # AIDEV-NOTE: package:cli fetches the slim runtime itself (Linux and macOS) and needs the token for `gh`; a failed fetch is a warning and the executable embeds the default runtime. No `slim` matrix key and no fetch step.
       - run: task package:cli TARGET=${{ matrix.target }}
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Size table
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bin=(out/variant-*)
+          bun scripts/runtime-sizes.ts ${{ matrix.target }} "${bin[0]}" >> "$GITHUB_STEP_SUMMARY"
       - name: Smoke test Linux x64 executable
         if: matrix.target == 'bun-linux-x64'
         run: |
