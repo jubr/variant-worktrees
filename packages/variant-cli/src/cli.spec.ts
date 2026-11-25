@@ -27,7 +27,7 @@ const versionToken = (version: string): string => {
 const sameClock = (text: string): string => text.replace(/\(\d{4}-\d{2}-\d{2}[^)]*\)/, "(date)");
 
 /** The CLI under test runs on the default Bun runtime. */
-const detailsLine = `${platformToken(process.platform, process.arch)}, bun, https://github.com/jubr/variant-worktrees`;
+const detailsLine = `${platformToken(process.platform, process.arch)}, bun-v${Bun.version}, https://github.com/jubr/variant-worktrees`;
 
 /** Empty variant (`main`, or no commit) is a UTC date. Any other variant is a UTC date and time. */
 const parenthetical = (token: string, version: string): string =>
