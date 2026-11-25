@@ -11,7 +11,7 @@
 - [x] 2.2 Green: implement the option in `compileCli` and the `all` path of `scripts/package-cli.ts`; verify the new tests pass
 - [x] 2.3 Add a `scripts/bleed.spec.ts` case showing a missing runtime leaves `vw-bleeds/variant-cli/bin` unchanged; verify it passes
 - [x] 2.4 Update the `bleed:cli` and `package:cli` descriptions in `Taskfile.yaml`, the bleed note in `CONTRIBUTING.md`, and `CHANGELOG.md` under Unreleased; verify `scripts/docs-coverage.spec.ts` and `scripts/bleed-tasks.spec.ts` pass
-- [ ] 2.5 Commit the task group (code, tests, docs) as one Conventional Commit
+- [x] 2.5 Commit the task group (code, tests, docs) as one Conventional Commit
 
 ## 3. Try it on the CLI
 
@@ -52,23 +52,23 @@
 
 ## 8. Fetch the published slim runtime
 
-- [ ] 8.1 Red then green: `scripts/bun-slim.ts` reads the exact Bun version from `mise.toml`, picks the highest build of it among the `bun-slim-vX.Y.Z-N` tags, downloads `bun-slim-<os>-<arch>-v*.zip`, checks `SHA256SUMS` and returns the `bun-slim` executable; `scripts/fetch-bun-slim.ts` warns and exits 0 on any failure; verify `scripts/bun-slim.spec.ts` fails first
-- [ ] 8.2 Red then green: remove `bun-standalone.yaml` and the `Bun standalone` CI job and input; the release matrix fetches the slim runtime after mise and install and before the compile, for Linux and macOS only; verify `scripts/ci-release-workflow.spec.ts` and `task lint:workflows` pass
-- [ ] 8.3 Red then green: `task chore:bun:bump` edits `mise.toml`, `@types/bun` and `bun.lock` to the latest bun-slim release (or `VERSION=`) and commits `chore(bun): bump to vX.Y.Z`; verify `scripts/bump-bun.spec.ts` fails first
-- [ ] 8.4 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md`, `proposal.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+- [x] 8.1 Red then green: `scripts/bun-slim.ts` reads the exact Bun version from `mise.toml`, picks the highest build of it among the `bun-slim-vX.Y.Z-N` tags, downloads `bun-slim-<os>-<arch>-v*.zip`, checks `SHA256SUMS` and returns the `bun-slim` executable; `scripts/fetch-bun-slim.ts` warns and exits 0 on any failure; verify `scripts/bun-slim.spec.ts` fails first
+- [x] 8.2 Red then green: remove `bun-standalone.yaml` and the `Bun standalone` CI job and input; the release matrix fetches the slim runtime after mise and install and before the compile, for Linux and macOS only; verify `scripts/ci-release-workflow.spec.ts` and `task lint:workflows` pass
+- [x] 8.3 Red then green: `task chore:bun:bump` edits `mise.toml`, `@types/bun` and `bun.lock` to the latest bun-slim release (or `VERSION=`) and commits `chore(bun): bump to vX.Y.Z`; verify `scripts/bump-bun.spec.ts` fails first
+- [x] 8.4 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md`, `proposal.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
 
 ## 9. Choose the runtime for each target
 
-- [~] 9.1 Red then green: `runtimeToken` returns `bun-v<version>`, `bun-slim-v<version>[-<build>]` or `bun-standalone-v<version>[-<build>]` (or `node`), the build number comes from the compile stamp `VARIANT_BUILD_RUNTIME`; verify the `version-line` and `runtimes` specs fail first
-- [ ] 9.2 Red then green: `selectRuntime` in `scripts/package-cli.ts` picks, per target, `VARIANT_BUN_RUNTIME`, else the fetched slim runtime (Linux and macOS), else the default runtime (Windows: info, a failed fetch: warning), and prints which; verify `scripts/package-cli.spec.ts` fails first
-- [ ] 9.3 Red then green: `compileCli` stamps the build number; `package:cli` (also `all`) and `bleed:cli` use `selectRuntime`; `fetch-bun-slim.ts` shares the fetch with it; verify `scripts/bleed.spec.ts` and `scripts/package-cli.spec.ts` pass
-- [ ] 9.4 Red then green: the release matrix drops its fetch step and gives `task package:cli` the `GH_TOKEN`; verify `scripts/ci-release-workflow.spec.ts` and `task lint:workflows` pass
-- [ ] 9.5 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
-- [ ] 9.6 Show `task bleed:cli` with its printed runtime choice and `variant --version` of the bled binary in chat
+- [x] 9.1 Red then green: `runtimeToken` returns `bun-v<version>`, `bun-slim-v<version>[-<build>]` or `bun-standalone-v<version>[-<build>]` (or `node`), the build number comes from the compile stamp `VARIANT_BUILD_RUNTIME`; verify the `version-line` and `runtimes` specs fail first
+- [x] 9.2 Red then green: `selectRuntime` in `scripts/package-cli.ts` picks, per target, `VARIANT_BUN_RUNTIME`, else the fetched slim runtime (Linux and macOS), else the default runtime (Windows: info, a failed fetch: warning), and prints which; verify `scripts/package-cli.spec.ts` fails first
+- [x] 9.3 Red then green: `compileCli` stamps the build number; `package:cli` (also `all`) and `bleed:cli` use `selectRuntime`; `fetch-bun-slim.ts` shares the fetch with it; verify `scripts/bleed.spec.ts` and `scripts/package-cli.spec.ts` pass
+- [x] 9.4 Red then green: the release matrix drops its fetch step and gives `task package:cli` the `GH_TOKEN`; verify `scripts/ci-release-workflow.spec.ts` and `task lint:workflows` pass
+- [x] 9.5 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+- [x] 9.6 Show `task bleed:cli` with its printed runtime choice and `variant --version` of the bled binary in chat
 
 ## 10. Size table, early slim check
 
-- [ ] 10.1 Red then green: `scripts/runtime-sizes.ts` prints the KB table of one target and `ci-release.yaml` appends it to the step summary after the compile without failing the job; verify `scripts/runtime-sizes.spec.ts` and `scripts/ci-release-workflow.spec.ts` fail first
-- [ ] 10.2 Red then green: `expectSlimRuntime` and `scripts/smoke-slim.ts`; the Library and CLI job of `ci-branch.yaml` compiles `bun-linux-x64` and smokes `--version`; verify `scripts/bun-slim.spec.ts` and `scripts/ci-feature-builds.spec.ts` fail first
-- [ ] 10.3 Update the `AIDEV-NOTE` above the `executables` job, `CHANGELOG.md`, `CONTRIBUTING.md` and the docs page; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+- [x] 10.1 Red then green: `scripts/runtime-sizes.ts` prints the KB table of one target and `ci-release.yaml` appends it to the step summary after the compile without failing the job; verify `scripts/runtime-sizes.spec.ts` and `scripts/ci-release-workflow.spec.ts` fail first
+- [x] 10.2 Red then green: `expectSlimRuntime` and `scripts/smoke-slim.ts`; the Library and CLI job of `ci-branch.yaml` compiles `bun-linux-x64` and smokes `--version`; verify `scripts/bun-slim.spec.ts` and `scripts/ci-feature-builds.spec.ts` fail first
+- [x] 10.3 Update the `AIDEV-NOTE` above the `executables` job, `CHANGELOG.md`, `CONTRIBUTING.md` and the docs page; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
 
