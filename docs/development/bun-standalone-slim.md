@@ -1,37 +1,38 @@
 # Bun standalone slim
 
 The `variant` executable is compiled with Bun, so it carries a Bun runtime.
-The default runtime ships a bundler, a package manager, a test runner, `Bun.Image`, `bun:ffi` and more, none of which `variant` uses.
-The release can instead embed a slim runtime: the upstream `bun-standalone` runtime, patched smaller by the build workflow.
+The runtime that ships with Bun has a bundler, a package manager, a test runner, `Bun.Image`, `bun:ffi` and more, and `variant` uses none of them.
+The release can embed a slimmer runtime instead.
+It comes from [`jubr/bun-slim`](https://github.com/jubr/bun-slim), a patch repository that builds two smaller runtimes from every Bun release.
+
+More about the runtimes, in the `bun-slim` repository:
+
+- [`jubr/bun-slim`](https://github.com/jubr/bun-slim): the repository and its releases.
+- [`compiler.md`](https://github.com/jubr/bun-slim/blob/slim/docs/slim/compiler.md): the compiler options of the build.
+- [`bun-standalone.md`](https://github.com/jubr/bun-slim/blob/slim/docs/slim/bun-standalone.md): `bun-alone`, Bun's own standalone runtime ([oven-sh/bun#32262](https://github.com/oven-sh/bun/pull/32262)).
+- [`bun-slim.md`](https://github.com/jubr/bun-slim/blob/slim/docs/slim/bun-slim.md): `bun-slim`, which trims more.
 
 ## Space savings
 
-Measured on macOS arm64 (Bun 1.4.4 for the default runtime), 1 KB = 1024 bytes.
-Savings are against the default Bun runtime, taken on the compiled `variant`, because the default runtime is not a file the build produces.
+The last build of `bun-slim`, copied verbatim from its README:
 
-| Build | `bun-standalone` runtime | Saved vs. standalone | compiled `variant` | Saved vs. default Bun |
-|---|---:|---:|---:|---:|
-| Original Bun (default runtime) | – | – | 64,364 KB | – |
-| [Bun standalone](https://github.com/oven-sh/bun/pull/32262), as the pull request builds it | 46,187 KB | – | 49,783 KB | 22.7% |
-| Standalone, `MinSizeRel`, C++ `-Os`, Rust `opt-level=z` | 40,022 KB | 13.3% | 43,634 KB | 32.2% |
-| Same with C++ `-Oz` | 37,965 KB¹ | 17.8% | 41,577 KB | 35.4% |
-| **Bun standalone slim** (also `Bun.Image` and `bun:ffi` stubbed) | **37,185 KB** | **19.5%** | **40,797 KB** | **36.6%** |
+**Latest build: [bun-slim-v1.4.5-0](https://github.com/jubr/bun-slim/releases/tag/bun-slim-v1.4.5-0)** (size of the stripped executable)
 
-¹ Derived: the runtime file was not kept for this step. It is the `variant` size minus the 3,698,674 bytes that `variant` adds on top of the final runtime.
-The final runtime is measured: 38,077,344 bytes.
+| Target | Upstream Bun | `bun-alone` | vs. upstream | `bun-slim` | vs. upstream |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| linux-x64 | 102.7 MiB | 75.1 MiB | -26.9% | 65.2 MiB | -36.5% |
+| linux-arm64 | 102.7 MiB | 73.2 MiB | -28.7% | 62.0 MiB | -39.6% |
+| darwin-x64 | 93.3 MiB | 64.9 MiB | -30.4% | 54.4 MiB | -41.7% |
+| darwin-arm64 | 85.2 MiB | 55.7 MiB | -34.7% | 47.0 MiB | -44.9% |
 
-The same comparison on the release executables, from the [release v0.0.12](https://github.com/jubr/variant-worktrees/releases/tag/v0.0.12) (default runtime) and the CI run [45059324331](https://github.com/jubr/variant-worktrees/actions/runs/45059324331) (slim runtime):
+The compiled `variant` is the runtime plus about 4 MB of program.
+Measured on macOS arm64 with Bun 1.4.5 and `bun-slim-v1.4.5-0`, 1 KB = 1024 bytes:
 
-| Platform | Default Bun | Bun standalone slim | Saved |
-|---|---:|---:|---:|
-| darwin-arm64 | 63,784 KB | 40,797 KB | 36.0% |
-| darwin-x64 | 70,700 KB | 44,392 KB | 37.2% |
-| linux-arm64 | 82,354 KB | 54,635 KB | 33.7% |
-| linux-x64 | 82,405 KB | 55,278 KB | 32.9% |
-
-The darwin-arm64 row differs from the first table because the release executable (v0.0.12) and the local default build are different builds of `variant`.
-
-Windows executables keep the default runtime.
+| Runtime inside `variant` | `variant` | Saved vs. default Bun |
+| --- | ---: | ---: |
+| Default Bun (`bun`) | 90,682 KB | – |
+| `bun-alone` (`bun-standalone`) | 60,610 KB | 33.2% |
+| `bun-slim` (`bun-standalone-slim`) | 51,734 KB | 42.9% |
 
 ## Which runtime is inside
 
@@ -43,84 +44,73 @@ macos-arm64, bun-standalone, https://github.com/jubr/variant-worktrees
 macos-arm64, bun, https://github.com/jubr/variant-worktrees
 ```
 
-- `bun-standalone-slim`: the patched runtime from this page.
-- `bun-standalone`: the upstream standalone runtime, without the patches.
-- `bun`: the default Bun runtime. A Linux or macOS release shows this when the slim runtime was not in the cache, and Windows always does.
+- `bun-standalone-slim`: the `bun-slim` runtime.
+- `bun-standalone`: the `bun-alone` runtime, Bun's standalone build without the extra trimming.
+- `bun`: the runtime that ships with Bun.
+  A Linux or macOS release shows this when no slim runtime could be fetched, and Windows always does.
 
 Run from source under Node, the same line says `node`.
 The token comes from the runtime itself, so it shows what the executable embeds, not what the build asked for.
-[`runtimeToken`](https://github.com/jubr/variant-worktrees/blob/main/packages/variant-api/src/version-line.ts) reads `Bun.version` (the standalone runtime ends it in `-standalone`) and `Bun.Image` (only the slim runtime lacks it).
+[`runtimeToken`](https://github.com/jubr/variant-worktrees/blob/main/packages/variant-api/src/version-line.ts) reads `Bun.version` (the standalone runtimes end it in `-standalone`) and `Bun.Image` (only `bun-slim` lacks it).
 
 ## The process
 
 ```text
-upstream PR head ──► bun-standalone.yaml ──► cached runtime per platform ──► ci-release.yaml ──► variant executable
- (pull/32262)         patch, build, smoke       (key: head + workflow hash)     embeds it           VARIANT_BUN_RUNTIME
+jubr/bun-slim release ──► release matrix job ──► VARIANT_BUN_RUNTIME ──► variant executable
+ bun-slim-vX.Y.Z-N        fetch, check zip        package:cli             embeds bun-slim
 ```
 
-### 1. Upstream: `bun-standalone`
+This repository builds no Bun. It fetches a finished runtime when it compiles the release.
 
-Bun [pull request 32262](https://github.com/oven-sh/bun/pull/32262) adds a `--standalone=on` build.
-It gates the bundler, package manager, test runner and other tooling behind `cfg(bun_standalone)` and leaves a runtime that only runs a compiled program.
-JavaScriptCore is a prebuilt 23 MB library and sets the size floor.
+### 1. A Bun version, exactly
 
-### 2. Build it in CI: `bun-standalone.yaml`
+[`mise.toml`](https://github.com/jubr/variant-worktrees/blob/main/mise.toml) pins an exact Bun version.
+The release job installs it with mise, so the Bun that compiles `variant` is that version and no other.
+The slim runtime is picked by the same version.
 
-[`bun-standalone.yaml`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml) builds the pull request head for darwin-arm64, darwin-x64, linux-x64 and linux-arm64.
-There is no Bun fork.
+### 2. The release: `bun-slim-vX.Y.Z-N`
 
-- **When it runs:** a [six-hour schedule on the default branch, a manual dispatch, an edit to the workflow, and a call from the CI workflow](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L5-L13).
-- **What it builds:** the [head commit of the upstream pull request](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L37-L63), not this repository.
-- **When it compiles:** the [binary cache key](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L87-L92) holds the upstream head and the [hash of the workflow file](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L50-L52).
-  A moved head or an edit to the workflow (including the patches) compiles; anything else restores the cached binary.
-- **Toolchain:** [macOS](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L108-L113) installs `gnu-sed` next to LLVM 21; [Linux](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L115-L123) uses apt; both use the [pinned Rust nightly](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L124-L131).
-- **Compile:** [`bun scripts/build.ts --profile=release --standalone=on --build-type=MinSizeRel`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L282-L286). `MinSizeRel` is Bun's `smol` mode.
-- **Smoke test:** [runs for a restored binary too](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L288-L301), so a bad cache entry cannot ship. It checks that `bun build` is gone, `Bun.Image` is undefined and `bun:ffi` throws "not available".
+`jubr/bun-slim` publishes one release for each build of a Bun version, such as [`bun-slim-v1.4.5-0`](https://github.com/jubr/bun-slim/releases/tag/bun-slim-v1.4.5-0).
+`X.Y.Z` is the Bun version and `N` counts the builds of it.
+The release holds a zip per platform for each runtime (`bun-alone-<os>-<arch>-v*.zip`, `bun-slim-<os>-<arch>-v*.zip`) and a `SHA256SUMS`.
 
-### 3. Patches: the [patch step](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/bun-standalone.yaml#L149-L281)
+### 3. Fetch it in the matrix build jobs
 
-Bun has no Cargo feature left to switch off; the only gate is `cfg(bun_standalone)`.
-The step edits the upstream checkout with GNU `sed`, prints a `diff -u` for every file, and fails when a patch changes nothing.
-An upstream rewrite of those lines therefore shows up as a red run, not as a silently larger binary.
-The macOS jobs install `gnu-sed` for this reason, and a spec runs the step on fixtures of the upstream lines.
+[`ci-release.yaml`](https://github.com/jubr/variant-worktrees/blob/main/.github/workflows/ci-release.yaml) compiles every `variant` executable in a job of its own.
+Each job of a Linux or macOS platform runs [`scripts/fetch-bun-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/fetch-bun-slim.ts) after mise and the install, and before the compile.
+[`scripts/bun-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/bun-slim.ts) does the work:
 
-| Patch | Upstream file (at the pull request head) | Effect |
-|---|---|---|
-| C++ `-Os` to `-Oz` | [`scripts/build/flags.ts`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/scripts/build/flags.ts#L262) | Smaller C++ code in `smol` mode. Only the first `-Os`; the LTO entry stays. |
-| Rust `opt-level=z` | [`scripts/build/rust.ts`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/scripts/build/rust.ts#L729) | Sets `CARGO_PROFILE_RELEASE_OPT_LEVEL=z` when `smol` is on. |
-| `Bun.Image` stub | [`src/runtime/lib.rs`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/src/runtime/lib.rs#L63), [`api/BunObject.rs`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/src/runtime/api/BunObject.rs#L1906), [`webcore/Body.rs`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/src/runtime/webcore/Body.rs#L993), [`image/Image.classes.ts`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/src/runtime/image/Image.classes.ts#L5), new `image_standalone_stub.rs` | libjpeg-turbo, libspng and libwebp drop out of the link. |
-| `bun:ffi` stub | [`src/runtime/ffi/mod.rs`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/src/runtime/ffi/mod.rs#L22), [`ffi/ffi.classes.ts`](https://github.com/oven-sh/bun/blob/f1a99252afa733e83fdb20335d58b69991daa2da/src/runtime/ffi/ffi.classes.ts#L5), new `ffi_standalone_stub.rs` | TinyCC drops out of the link. `--tinycc=off` alone does not link, because the Rust `ffi` code still references TinyCC. |
+1. It reads the Bun version from `mise.toml`.
+2. It lists the releases of `jubr/bun-slim` and takes the highest `N` of `bun-slim-v<version>-N`.
+3. It downloads `bun-slim-<os>-<arch>-v*.zip` and `SHA256SUMS` with `gh`, and checks the zip against the sum.
+4. It unpacks the zip and writes `VARIANT_BUN_RUNTIME=<path to bun-slim>` to `$GITHUB_ENV`.
 
-The two stubs use the codegen `standaloneStub` flag, which emits zero-sized types and throwing thunks, so the C++ `extern` symbols still link.
+[`scripts/package-cli.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/package-cli.ts) passes that variable to `Bun.build` as `compile.executablePath`, so the runtime becomes the one inside `variant`.
+The matrix gives no slim runtime to the Windows jobs.
 
-### 4. Embed it: `ci-release.yaml`
+### 4. The fallback
 
-[`ci-release.yaml`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/ci-release.yaml) builds one executable per target.
-For Linux and macOS it [restores the cached runtime](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/ci-release.yaml#L99-L107) and [sets `VARIANT_BUN_RUNTIME`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/ci-release.yaml#L108-L110) before `task package:cli`.
-A cache miss is not an error: the executable then embeds the default runtime.
-Windows never restores or sets it.
-A Linux runner can embed a macOS runtime, because the runtime is only a file to append the program to.
+When there is no release for the pinned Bun version, the download fails, or the checksum is wrong, the script prints a `::warning::` and sets nothing.
+The job then compiles with the runtime that ships with Bun, and `variant --version` says `bun`.
+A release never fails because the slim runtime is missing.
 
-A manual dispatch of the release workflow takes a [`bun-standalone` input](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/.github/workflows/ci-release.yaml#L17) (`yes` or `no`) to try the slim runtime without merging.
+### 5. Bump the version
 
-[`scripts/package-cli.ts`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/scripts/package-cli.ts#L52-L58) reads the variable and passes it to `Bun.build` as [`compile.executablePath`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/scripts/package-cli.ts#L80-L94).
-It fails before compiling when the path is not an executable file, and `task package:cli:all` refuses the variable because one runtime fits one platform.
+```bash
+mise x -- task chore:bun:bump
+mise x -- task chore:bun:bump VERSION=1.4.6
+```
+
+[`scripts/bump-bun.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/bump-bun.ts) moves `mise.toml`, the `@types/bun` ranges of the `package.json` files and `bun.lock` to the version of the newest `jubr/bun-slim` release, or to `VERSION`.
+It ends with the commit `chore(bun): bump to vX.Y.Z`.
+A version without a `bun-slim` release still bumps, and the release falls back to the default runtime until `jubr/bun-slim` publishes one.
 
 ## Use it locally
 
-Build the runtime from a Bun checkout at the pull request head with the patches applied, then:
-
 ```bash
-VARIANT_BUN_RUNTIME=/path/to/bun-standalone mise x -- task bleed:cli
+bun scripts/fetch-bun-slim.ts darwin-arm64
+VARIANT_BUN_RUNTIME=<the path it prints> mise x -- task bleed:cli
 ```
 
-This publishes the slim `variant` into `../vw-bleeds/variant-cli/bin`.
+`task bleed:cli` and `task package:cli` embed the runtime named by `VARIANT_BUN_RUNTIME`, for one platform.
 The compiled `variant` keeps the same commands, flags, output and exit codes whichever runtime it embeds.
-
-## Not done
-
-- The HTTP/2 and HTTP/3 fetch client (lshpack, lsquic, lsqpack) is about 1.3 MB with roughly 70 call sites in `bun_http`.
-- Shell, `Bun.sql`, Redis, `HTMLRewriter`, markdown and archive are about 0.1 to 0.2 MB each.
-- Turning off crash-report upload did not change the size.
-
-The design notes and measurements are in [`openspec/changes/bun-optimized-bundle/design.md`](https://github.com/jubr/variant-worktrees/blob/79da4c8db1ffe7ded7227055e380be96bd098ad4/openspec/changes/bun-optimized-bundle/design.md#smaller-runtime-through-sed-patches).
