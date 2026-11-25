@@ -66,3 +66,9 @@
 - [ ] 9.5 Update the docs page, `CONTRIBUTING.md`, `CHANGELOG.md` and `design.md`; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
 - [ ] 9.6 Show `task bleed:cli` with its printed runtime choice and `variant --version` of the bled binary in chat
 
+## 10. Size table, early slim check
+
+- [ ] 10.1 Red then green: `scripts/runtime-sizes.ts` prints the KB table of one target and `ci-release.yaml` appends it to the step summary after the compile without failing the job; verify `scripts/runtime-sizes.spec.ts` and `scripts/ci-release-workflow.spec.ts` fail first
+- [ ] 10.2 Red then green: `expectSlimRuntime` and `scripts/smoke-slim.ts`; the Library and CLI job of `ci-branch.yaml` compiles `bun-linux-x64` and smokes `--version`; verify `scripts/bun-slim.spec.ts` and `scripts/ci-feature-builds.spec.ts` fail first
+- [ ] 10.3 Update the `AIDEV-NOTE` above the `executables` job, `CHANGELOG.md`, `CONTRIBUTING.md` and the docs page; verify `task check:full` and `openspec validate --all --strict --no-interactive` pass
+

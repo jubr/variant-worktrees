@@ -28,3 +28,23 @@ The release workflow SHALL compile the `variant` executables with one job per su
 
 - **WHEN** every platform job succeeds
 - **THEN** the release assets are the two `.vsix` files, six `variant` executables named `variant-<version>-<os>-<arch>[.exe]`, and `SHA256SUMS`
+
+### Requirement: Release executables report their sizes
+
+Each job of the release workflow that compiles a `variant` executable SHALL write a Markdown table for its platform to the job's step summary. The table SHALL give, in KB (1 KB = 1024 bytes), the size of the default runtime that ships with Bun (`bun-dist`), of the slim runtime and the percentage it is smaller, the code bundle the compile added (the executable minus the runtime inside it), `bun-dist` plus that bundle, the compiled `variant`, and the percentage it is smaller than that sum. A size that cannot be determined, and the slim columns of a Windows job, SHALL show a dash. The step SHALL NOT fail the job.
+
+#### Scenario: Linux or macOS job
+
+- **WHEN** a Linux or macOS job compiled with the slim runtime
+- **THEN** its step summary has the table with every column filled
+
+#### Scenario: Windows job
+
+- **WHEN** a Windows job ran
+- **THEN** its table shows dashes for the slim runtime and its saving, and `0.0%` for the saving of the executable
+
+#### Scenario: Size source unavailable
+
+- **WHEN** the size of `bun-dist` cannot be fetched
+- **THEN** the step prints a warning, the table shows dashes for what depends on it, and the job succeeds
+
