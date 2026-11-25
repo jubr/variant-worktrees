@@ -82,9 +82,13 @@ afterAll(() => {
   rmSync(compiledDirectory, { recursive: true, force: true });
 });
 
+// AIDEV-NOTE: `bun run` can put a `node` alias for Bun first on PATH (task test:node runs through it), so ask the `node` command
+// what it is, with a check that is not the CLI's own.
+const nodeRuntime = execFileSync("node", ["-p", "process.versions.bun ? 'bun' : 'node'"], { encoding: "utf8" }).trim();
+
 /** Each way to run the CLI; the command is a function because the executable exists only after `beforeAll`. */
 const runners: [name: string, command: () => string[], runtime: string][] = [
-  ["node", () => ["node", dist], "node"],
+  ["node", () => ["node", dist], nodeRuntime],
   ["bun", () => ["bun", dist], "bun"],
   // The test compiles with the default runtime: VARIANT_BUN_RUNTIME is a release-workflow variable.
   ["the compiled executable", () => [compiled], "bun"],
@@ -166,7 +170,10 @@ describe("variant on Node, Bun and as a compiled executable", () => {
   }
 
   it("prints the same version under node and bun, apart from the runtime", () => {
-    expect(versionOut.bun?.replace(", bun, ", ", node, ")).toBe(versionOut.node);
+    const withoutRuntime = (text: string | undefined): string | undefined =>
+      text?.replace(/, (node|bun), /, ", <runtime>, ");
+
+    expect(withoutRuntime(versionOut.bun)).toBe(withoutRuntime(versionOut.node));
   });
 });
 
