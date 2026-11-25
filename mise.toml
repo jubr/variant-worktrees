@@ -2,7 +2,7 @@
 
 [tools]
 actionlint = "1.7.12"
-bun = "1.4.2"
+bun = "1.4.5"
 hk = "2.8.0"
 jq = "1.8.1"
 "packslip:jubr/variant-worktrees" = "latest"
