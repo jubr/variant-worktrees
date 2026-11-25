@@ -99,7 +99,7 @@ tasks:
       - bun scripts/package-vsix-unpacked.ts
 
   bleed:cli:
-    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4>"
+    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4> (embeds VARIANT_BUN_RUNTIME=<executable> when set, else the slim Bun runtime fetched from jubr/bun-slim, else the default one)"
     cmds:
       - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
       - task: build
@@ -112,7 +112,7 @@ tasks:
       - task: bleed:cli
 
   package:cli:
-    desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host)"
+    desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host; VARIANT_BUN_RUNTIME=<executable> embeds that Bun runtime, else each target fetches the slim one from jubr/bun-slim, else the default)"
     cmds:
       - task: build
       - bun scripts/package-cli.ts {{.TARGET}}
@@ -126,6 +126,11 @@ tasks:
   release:version:
     desc: "Print the lockstep release version (fails when package versions differ)"
     cmds: ["bun scripts/release-version.ts"]
+
+  chore:bun:bump:
+    desc: "Move mise.toml, @types/bun and bun.lock to the Bun version of the newest jubr/bun-slim release (VERSION=1.4.6 overrides) and commit chore(bun): bump to vX.Y.Z"
+    # AIDEV-NOTE: Task exposes a VERSION given on the command line to the command as an environment variable.
+    cmds: ["bun scripts/bump-bun.ts"]
 
   version:incr:patch:
     desc: "Bump the patch version in the root and every packages/*/package.json, and in bun.lock"

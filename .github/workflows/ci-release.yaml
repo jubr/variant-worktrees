@@ -52,10 +52,9 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "exists=${exists}" >> "$GITHUB_OUTPUT"
 
-  build:
-    name: Build release assets
+  vsix:
+    name: Package extensions
     needs: version
-    # A dry run always builds, so the path can be exercised before the first release.
     if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -63,11 +62,69 @@ jobs:
       - uses: jdx/mise-action@v5
       - run: task install:ci
       - run: task package:vsix
-      - run: task package:cli:all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vsix-assets
+          path: out/*.vsix
+          if-no-files-found: error
+
+  # Specification: openspec/specs/meta/release-artifacts/spec.md (Release executables use the published slim runtime)
+  # AIDEV-NOTE: one job per platform so each executable has its own runtime choice (`package:cli` fetches the slim runtime for
+  # Linux and macOS, falls back to the default one, and prints which) and its own size table in the step summary.
+  executables:
+    name: Build variant ${{ matrix.target }}
+    needs: [ci, version]
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { target: bun-linux-x64 }
+          - { target: bun-linux-arm64 }
+          - { target: bun-darwin-x64 }
+          - { target: bun-darwin-arm64 }
+          - { target: bun-windows-x64 }
+          - { target: bun-windows-arm64 }
+    steps:
+      - uses: actions/checkout@v7
+      # The Bun that compiles is exactly the one mise.toml pins, and the slim runtime is that version's too.
+      - uses: jdx/mise-action@v5
+      - run: task install:ci
+      - run: task package:cli TARGET=${{ matrix.target }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Size table
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bin=(out/variant-*)
+          bun scripts/runtime-sizes.ts ${{ matrix.target }} "${bin[0]}" >> "$GITHUB_STEP_SUMMARY"
       - name: Smoke test Linux x64 executable
+        if: matrix.target == 'bun-linux-x64'
         run: |
           bin=(out/variant-*-linux-x64)
           "${bin[0]}" --help
+      - uses: actions/upload-artifact@v7
+        with:
+          name: variant-${{ matrix.target }}
+          path: out/variant-*
+          if-no-files-found: error
+
+  build:
+    name: Build release assets
+    needs: [vsix, executables]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix-assets
+          path: out
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: variant-bun-*
+          path: out
+          merge-multiple: true
       - name: Checksums
         working-directory: out
         run: sha256sum -- * > SHA256SUMS

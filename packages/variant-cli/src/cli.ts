@@ -9,6 +9,7 @@ import {
   renderVersion,
   repositoryUrl,
   resolveVersionFacts,
+  runtimeToken,
   runWatchRelay,
   versionColor,
 } from "variant-api";
@@ -25,12 +26,17 @@ import { takeSlug } from "./slug-flag.js";
 
 declare const VARIANT_BUILD_DATE: string | undefined;
 declare const VARIANT_BUILD_VARIANT: string | undefined;
+declare const VARIANT_BUILD_RUNTIME: string | undefined;
 
 /** Stamp captured when this file was bundled. Empty when the CLI runs from source. */
 const bakedVersion = (): { date?: string; variant?: string } => ({
   ...(typeof VARIANT_BUILD_DATE === "string" ? { date: VARIANT_BUILD_DATE } : {}),
   ...(typeof VARIANT_BUILD_VARIANT === "string" ? { variant: VARIANT_BUILD_VARIANT } : {}),
 });
+
+/** The jubr/bun-slim build number a compile stamped for the runtime it embedded; `undefined` when it named none. */
+const bakedRuntimeBuild = (): string | undefined =>
+  typeof VARIANT_BUILD_RUNTIME === "string" ? VARIANT_BUILD_RUNTIME : undefined;
 
 const { version } = pkg;
 
@@ -72,6 +78,7 @@ if (process.argv.includes("--internal-watch-relay")) {
       return renderVersion({
         version,
         platform: platformToken(process.platform, process.arch),
+        runtime: runtimeToken(undefined, bakedRuntimeBuild()),
         date: facts.date,
         variant: facts.variant,
         banner: process.stdout.isTTY === true,

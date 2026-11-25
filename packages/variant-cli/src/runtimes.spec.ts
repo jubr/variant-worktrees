@@ -33,20 +33,21 @@ const bakedToken = (): string => {
   return variant ? `${version}-${variant}` : version;
 };
 
-const detailsLine = `${platformToken(process.platform, process.arch)}, https://github.com/jubr/variant-worktrees`;
+const detailsLine = (runtime: string): string =>
+  `${platformToken(process.platform, process.arch)}, ${runtime}, https://github.com/jubr/variant-worktrees`;
 
 /** Empty variant (`main`, or no commit) is a UTC date. Any other variant is a UTC date and time. */
 const parenthetical = (token: string): string =>
   token === version ? String.raw`\d{4}-\d{2}-\d{2}` : String.raw`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`;
 
-const expectBakedVersion = (stdout: string): void => {
+const expectBakedVersion = (stdout: string, runtime: string): void => {
   const lines = stdout.trimEnd().split("\n");
   const token = bakedToken();
   expect(lines[0]).toMatch(
     new RegExp(`^${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(${parenthetical(token)}\\)$`),
   );
   expect(lines).toHaveLength(2);
-  expect(lines[1]).toBe(detailsLine);
+  expect(lines[1]).toBe(detailsLine(runtime));
   expect(stdout).not.toContain(VERSION_BANNER);
 };
 
@@ -81,22 +82,29 @@ afterAll(() => {
   rmSync(compiledDirectory, { recursive: true, force: true });
 });
 
+// AIDEV-NOTE: `bun run` can put a `node` alias for Bun first on PATH (task test:node runs through it), so ask the `node` command
+// what it is, with a check that is not the CLI's own.
+const nodeRuntime = execFileSync("node", ["-p", "process.versions.bun ? 'bun-v' + process.versions.bun : 'node'"], {
+  encoding: "utf8",
+}).trim();
+
 /** Each way to run the CLI; the command is a function because the executable exists only after `beforeAll`. */
-const runners: [name: string, command: () => string[]][] = [
-  ["node", () => ["node", dist]],
-  ["bun", () => ["bun", dist]],
-  ["the compiled executable", () => [compiled]],
+const runners: [name: string, command: () => string[], runtime: string][] = [
+  ["node", () => ["node", dist], nodeRuntime],
+  ["bun", () => ["bun", dist], `bun-v${Bun.version}`],
+  // The test compiles with the default runtime of the Bun that runs it: compileCli does not fetch a slim one.
+  ["the compiled executable", () => [compiled], `bun-v${Bun.version}`],
 ];
 
 describe("variant on Node, Bun and as a compiled executable", () => {
   const versionOut: Record<string, string> = {};
 
-  for (const [name, command] of runners) {
+  for (const [name, command, runtime] of runners) {
     it(`prints the baked version line with --version under ${name}`, async () => {
       const result = await runCommand(command(), ["--version"], {}, compiledDirectory);
 
       expect(result.exitCode).toBe(0);
-      expectBakedVersion(result.stdout);
+      expectBakedVersion(result.stdout, runtime);
       versionOut[name] = result.stdout;
     });
 
@@ -163,8 +171,11 @@ describe("variant on Node, Bun and as a compiled executable", () => {
     );
   }
 
-  it("prints the same version under node and bun", () => {
-    expect(versionOut.bun).toBe(versionOut.node);
+  it("prints the same version under node and bun, apart from the runtime", () => {
+    const withoutRuntime = (text: string | undefined): string | undefined =>
+      text?.replace(/, (node|bun-v[^,]+), /, ", <runtime>, ");
+
+    expect(withoutRuntime(versionOut.bun)).toBe(withoutRuntime(versionOut.node));
   });
 });
 

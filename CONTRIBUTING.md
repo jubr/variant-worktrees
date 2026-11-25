@@ -152,18 +152,32 @@ publishes the host executable to `vw-bleeds/variant-cli/bin/`. The last step is
 a minimal command in chat, with the command and its output, proving the bled
 binary does the new thing.
 
+`bleed:cli` and `package:cli` choose the Bun runtime of each target and print which. In order: the executable
+`VARIANT_BUN_RUNTIME` names (one platform: `package:cli:all` refuses it, a missing file fails before compiling), else the
+slim runtime of [jubr/bun-slim](https://github.com/jubr/bun-slim) for a Linux or macOS target, fetched as
+`bun scripts/fetch-bun-slim.ts <platform>` does it for the Bun version in `mise.toml`, else the default runtime `bun-dist`
+(information for Windows, which has no slim runtime; a warning, never a failure, when a fetch failed). The fetch needs `gh`.
+`variant --version` names the runtime that was embedded, as in `bun-slim-v1.4.5-0`.
+The release workflow does the same for its executables; it sets no variable and has no fetch step.
+
+`task chore:bun:bump` moves the Bun version in `mise.toml`, the `@types/bun` ranges and `bun.lock` to the
+version of the newest `jubr/bun-slim` release (`VERSION=1.4.6` picks another) and commits
+`chore(bun): bump to vX.Y.Z`. Keep the `mise.toml` pin exact: the release picks the slim runtime by it.
+
 ## Continuous integration
 
 GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 
 - `ci-branch.yaml` — every push to a branch other than `main`: `task check:full`
   (install, lint, build, test, commitlint, workflow lint, docs build, all as hk steps), then
-  `task package:vsix` (both `.vsix` packages) and the upload of `out/*.vsix`. Also called by the release workflow.
+  `task package:vsix` (both `.vsix` packages) and the upload of `out/*.vsix`. The library and CLI job also compiles `variant` for linux-x64 and fails unless `--version` names the slim runtime of the pinned Bun (`bun scripts/smoke-slim.ts`): that is how a branch learns that `jubr/bun-slim` has no build of it. Also called by the release workflow.
 - `ci-release.yaml` — push to `main`: runs `ci-branch.yaml`, then builds both `.vsix`
   files and `variant` single-file executables (`bun build --compile`) for
   linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
   `v<version>`. No release when that tag already exists. Manual dispatch with
-  `dry-run` (default) builds the assets without releasing.
+  `dry-run` (default) builds the assets without releasing. One job per platform runs
+  `task package:cli TARGET=<target>`, which fetches the slim Bun runtime of the pinned Bun version from `jubr/bun-slim`
+  for Linux and macOS and embeds it, and uses the default runtime when the fetch fails. Each job writes a KB size table (`scripts/runtime-sizes.ts`) to its step summary.
 - `publish-extensions.yaml` — publishes the `.vsix` files of a release tag to the
   Visual Studio Marketplace and/or Open VSX. Triggered by `workflow_run` after
   `ci-release.yaml` completes, and only when that run created the release; also

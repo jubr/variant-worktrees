@@ -59,6 +59,7 @@ export {
   renderVersion,
   repositoryUrl,
   resolveVersionFacts,
+  runtimeToken,
   utcDate,
   VERSION_BANNER,
   variantString,

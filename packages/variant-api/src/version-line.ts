@@ -104,12 +104,37 @@ const OS_NAMES: Record<string, string> = { darwin: "macos", win32: "windows" };
 
 export const platformToken = (platform: string, arch: string): string => `${OS_NAMES[platform] ?? platform}-${arch}`;
 
+/** The part of `Bun` that tells the builds apart. */
+type BunRuntime = { version: string; Image?: unknown };
+
+/**
+ * The runtime the process runs on: `node`, `bun-v<version>`, `bun-standalone-v<version>` (a runtime without the bundler and
+ * package manager) or `bun-slim-v<version>` (the same without `Bun.Image`, which the slim build stubs out). `build` is the
+ * number of the jubr/bun-slim build the compile stamped; it ends the two standalone names, as in `bun-slim-v1.4.5-0`.
+ */
+export const runtimeToken = (
+  bun: BunRuntime | null = (globalThis as { Bun?: BunRuntime }).Bun ?? null,
+  build?: string,
+): string => {
+  if (bun === null) {
+    return "node";
+  }
+  // AIDEV-NOTE: the standalone runtime reports a `-standalone` Bun.version; only the slim build leaves Bun.Image undefined.
+  if (!bun.version.endsWith("-standalone")) {
+    return `bun-v${bun.version}`;
+  }
+  const version = bun.version.slice(0, -"-standalone".length);
+  const kind = bun.Image === undefined ? "bun-slim" : "bun-standalone";
+  return build ? `${kind}-v${version}-${build}` : `${kind}-v${version}`;
+};
+
 const versionToken = (version: string, variant?: string): string => (variant ? `${version}-${variant}` : version);
 
-/** Version and parenthetical, then the script drawing and a blank line when `banner` is set, then platform and URL. */
+/** Version and parenthetical, then the script drawing and a blank line when `banner` is set, then platform, runtime when given, and URL. */
 export const renderVersion = (input: {
   version: string;
   platform: string;
+  runtime?: string;
   date: string;
   variant?: string;
   repository: string;
@@ -118,12 +143,14 @@ export const renderVersion = (input: {
 }): string => {
   const head = `${versionToken(input.version, input.variant)} (${input.date})\n`;
   const drawing = input.banner ? `${renderBanner(input.color)}\n` : "";
-  return `${head}${drawing}${input.platform}, ${input.repository}\n`;
+  const details = [input.platform, ...(input.runtime ? [input.runtime] : []), input.repository].join(", ");
+  return `${head}${drawing}${details}\n`;
 };
 
 export const formatVersionLine = (input: {
   version: string;
   platform: string;
+  runtime?: string;
   date: string;
   variant?: string;
   repository: string;
