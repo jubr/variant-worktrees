@@ -1,11 +1,11 @@
 /**
- * Specification: openspec/specs/meta/release-artifacts/spec.md (Release executables use the cached slim runtime)
- * Specification: openspec/specs/meta/bun-standalone-build/spec.md (Run by CI on main only)
+ * Specification: openspec/specs/meta/release-artifacts/spec.md (Release executables use the published slim runtime)
  */
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
+import { miseBunVersion } from "./bun-slim.ts";
 
 type Step = {
   id?: string;
@@ -15,6 +15,7 @@ type Step = {
   run?: string;
   with?: Record<string, unknown>;
   env?: Record<string, string>;
+  "continue-on-error"?: boolean;
 };
 
 type Job = {
@@ -28,7 +29,6 @@ type Job = {
 };
 
 type Release = {
-  on?: { workflow_dispatch?: { inputs?: Record<string, { type?: string; default?: string }> } };
   jobs?: Record<string, Job>;
 };
 
@@ -38,15 +38,6 @@ const executables = (): Job | undefined => release().jobs?.executables;
 const steps = (): Step[] => executables()?.steps ?? [];
 const needsOf = (job: Job | undefined): string[] =>
   Array.isArray(job?.needs) ? job.needs : job?.needs ? [job.needs] : [];
-
-describe("release workflow slim runtime switch", () => {
-  test("offers a bun-standalone yes|no input, off by default, and hands it to the CI call", () => {
-    const input = release().on?.workflow_dispatch?.inputs?.["bun-standalone"];
-
-    expect(input).toMatchObject({ default: "no" });
-    expect(String(release().jobs?.ci?.with?.["bun-standalone"])).toContain("inputs.bun-standalone");
-  });
-});
 
 describe("release workflow executables", () => {
   test("compiles one platform per job, all six, after the CI call and the version check", () => {
@@ -79,46 +70,48 @@ describe("release workflow executables", () => {
   });
 });
 
-const standaloneTargets = (): string[] =>
-  (
-    parse(readFileSync(join(import.meta.dir, "..", ".github", "workflows", "bun-standalone.yaml"), "utf8")) as {
-      jobs: { build: { strategy: { matrix: { include: { target: string }[] } } } };
-    }
-  ).jobs.build.strategy.matrix.include.map((entry) => entry.target);
-
 describe("release workflow slim runtime", () => {
-  test("restores the cached binary of the platform under the key the build workflow saves, and does not fail on a miss", () => {
-    const restore = steps().find((step) => step.id === "slim");
+  const workflowsDirectory = join(import.meta.dir, "..", ".github", "workflows");
 
-    expect(restore?.uses).toMatch(/^actions\/cache\/restore@v\d+$/);
-    expect(restore?.if).toContain("matrix.slim != ''");
-    expect(restore?.with?.path).toBe("build/release-standalone/bun-standalone");
-    expect(restore?.with?.key).toBe(
-      "bun-standalone-${{ matrix.slim }}-${{ needs.ci.outputs.bun-standalone-sha }}-${{ needs.ci.outputs.bun-standalone-workflow }}",
-    );
-    expect(restore?.with?.["fail-on-cache-miss"]).not.toBe(true);
-  });
-
-  test("sets VARIANT_BUN_RUNTIME only after a hit, before the compile", () => {
+  test("fetches the slim runtime of the platform from jubr/bun-slim, after mise and the install and before the compile", () => {
     const all = steps();
-    const embed = all.findIndex((step) => step.run?.includes("VARIANT_BUN_RUNTIME"));
+    const fetch = all.findIndex((step) => step.run?.startsWith("bun scripts/fetch-bun-slim.ts"));
     const compile = all.findIndex((step) => step.run?.startsWith("task package:cli"));
 
-    expect(embed).toBeGreaterThan(all.findIndex((step) => step.id === "slim"));
-    expect(embed).toBeLessThan(compile);
-    expect(all[embed]?.if).toContain("steps.slim.outputs.cache-hit == 'true'");
-    expect(all[embed]?.if).toContain("matrix.slim != ''");
-    expect(all.filter((step) => step.run?.includes("VARIANT_BUN_RUNTIME"))).toHaveLength(1);
+    expect(all[fetch]?.run).toBe("bun scripts/fetch-bun-slim.ts ${{ matrix.slim }}");
+    expect(all[fetch]?.if).toBe("matrix.slim != ''");
+    expect(all[fetch]?.env?.GH_TOKEN).toBe("${{ github.token }}");
+    expect(fetch).toBeGreaterThan(all.findIndex((step) => step.uses?.startsWith("jdx/mise-action")));
+    expect(fetch).toBeGreaterThan(all.findIndex((step) => step.run === "task install:ci"));
+    expect(fetch).toBeLessThan(compile);
   });
 
-  test("gives a slim runtime to Linux and macOS platforms the build workflow compiles, and none to Windows", () => {
+  test("compiles with the Bun that mise.toml pins exactly, the version the slim runtime is picked by", () => {
+    expect(miseBunVersion(readFileSync(join(import.meta.dir, "..", "mise.toml"), "utf8"))).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(steps().some((step) => step.uses?.startsWith("jdx/mise-action"))).toBe(true);
+    expect(steps().some((step) => step.uses?.startsWith("oven-sh/setup-bun"))).toBe(false);
+  });
+
+  test("does not fail the job when the fetch fails: the script warns and leaves the variable unset", () => {
+    const script = readFileSync(join(import.meta.dir, "fetch-bun-slim.ts"), "utf8");
+
+    expect(script).toContain("::warning::");
+    expect(script).toContain("GITHUB_ENV");
+    expect(steps().find((step) => step.run?.startsWith("bun scripts/fetch-bun-slim.ts"))?.["continue-on-error"]).toBeUndefined();
+  });
+
+  test("gives a slim runtime to Linux and macOS platforms and none to Windows", () => {
     const include = executables()?.strategy?.matrix?.include ?? [];
-    const slim = include.filter((entry) => entry.slim !== "");
 
     expect(include.filter((entry) => entry.target.startsWith("bun-windows")).map((entry) => entry.slim)).toEqual(["", ""]);
-    expect(slim.map((entry) => entry.slim).sort()).toEqual(standaloneTargets().sort());
-    for (const entry of slim) {
+    for (const entry of include.filter((candidate) => candidate.slim !== "")) {
       expect(entry.target).toBe(`bun-${entry.slim}`);
     }
+  });
+
+  test("does not build Bun itself or cache a runtime", () => {
+    expect(readdirSync(workflowsDirectory)).not.toContain("bun-standalone.yaml");
+    expect(JSON.stringify(release())).not.toContain("actions/cache");
+    expect(JSON.stringify(release())).not.toContain("bun-standalone");
   });
 });
