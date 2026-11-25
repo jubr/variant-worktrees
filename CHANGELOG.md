@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.13] - 2026-11-25
 
 ### Added
 
@@ -30,6 +30,17 @@
 ### Fixed
 
 - A `watch` whose worktree directory disappears (`variant implode`, or a directory removed by hand) now cleans up, attached and detached: it stops its processes and implodes the variant, keeping the local branch, and writes nothing below the removed path, so `.cache/variant/` is not recreated. A detached watch checks every `variant.supervise.checkoutPollSeconds` as an attached one does. One `warn` event with step `watch-cleanup` says the worktree is gone, and a `debug` event names each step before it runs, each removed path included; under a temporary directory all are `trace`. See [Worktree removed](docs/guide/runtime.md#worktree-removed).
+
+### Release notes
+
+- test: stop leaking watch processes and bound hung test runs by @jubr in https://github.com/jubr/variant-worktrees/pull/81
+- feat(variant-api): watch cleans up when its worktree disappears by @jubr in https://github.com/jubr/variant-worktrees/pull/82
+- feat: start the MCP server with variant mcp by @jubr in https://github.com/jubr/variant-worktrees/pull/83
+- docs: group commands, global -s/--slug and -v, extended --help by @jubr in https://github.com/jubr/variant-worktrees/pull/84
+- docs: getting started, Installation first, custom steps in Configuration by @jubr in https://github.com/jubr/variant-worktrees/pull/86
+- feat: slim Bun runtime for compiled variant executables by @jubr in https://github.com/jubr/variant-worktrees/pull/85
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.12...v0.0.13
 
 ## [0.0.12] - 2026-11-19
 

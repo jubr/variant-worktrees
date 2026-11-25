@@ -1,6 +1,6 @@
 {
   "name": "variant-mcp",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Database variants as an MCP server for AI clients",
   "type": "module",
   "main": "dist/server.js",

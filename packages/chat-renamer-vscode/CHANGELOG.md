@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.13] - 2026-11-25
+
+### Release notes
+
+- test: stop leaking watch processes and bound hung test runs by @jubr in https://github.com/jubr/variant-worktrees/pull/81
+- feat(variant-api): watch cleans up when its worktree disappears by @jubr in https://github.com/jubr/variant-worktrees/pull/82
+- feat: start the MCP server with variant mcp by @jubr in https://github.com/jubr/variant-worktrees/pull/83
+- docs: group commands, global -s/--slug and -v, extended --help by @jubr in https://github.com/jubr/variant-worktrees/pull/84
+- docs: getting started, Installation first, custom steps in Configuration by @jubr in https://github.com/jubr/variant-worktrees/pull/86
+- feat: slim Bun runtime for compiled variant executables by @jubr in https://github.com/jubr/variant-worktrees/pull/85
+
+**Full Changelog**: https://github.com/jubr/variant-worktrees/compare/v0.0.12...v0.0.13
+
 ## [0.0.12] - 2026-11-19
 
 ### Release notes
