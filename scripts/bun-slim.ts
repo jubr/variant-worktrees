@@ -149,3 +149,12 @@ export const fetchSlimRuntimeFor = (root: string, platform: string): string =>
     gh: ghCli,
     unzip: unzipCli,
   });
+
+/** Throws unless the `--version` output names the slim runtime of Bun `bunVersion` (`bun-slim-v<bunVersion>-<build>`). */
+export const expectSlimRuntime = (versionOutput: string, bunVersion: string): void => {
+  const escaped = bunVersion.replaceAll(".", "\\.");
+  if (!new RegExp(`, bun-slim-v${escaped}-\\d+, `).test(versionOutput)) {
+    const found = versionOutput.trimEnd().split("\n").at(-1);
+    throw new Error(`expected the slim runtime bun-slim-v${bunVersion}-<build> in the version line, found: ${found}`);
+  }
+};

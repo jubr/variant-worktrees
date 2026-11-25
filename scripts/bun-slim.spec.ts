@@ -7,6 +7,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writ
 import { join } from "node:path";
 import {
   fetchSlimRuntime,
+  expectSlimRuntime,
   type Gh,
   latestSlimRelease,
   miseBunVersion,
@@ -211,5 +212,27 @@ describe("fetch-bun-slim script", () => {
     expect(result.stdout).toContain("::warning::");
     expect(result.stdout).toContain("default");
     expect(result.githubEnv).toBe("");
+  });
+});
+
+describe("expectSlimRuntime", () => {
+  const details = (runtime: string): string =>
+    `1.2.3 (2001-02-03)\nlinux-x64, ${runtime}, https://github.com/jubr/variant-worktrees`;
+
+  test("accepts the version line of an executable with the slim runtime of the pinned Bun version", () => {
+    expect(() => expectSlimRuntime(details("bun-slim-v1.4.5-0"), "1.4.5")).not.toThrow();
+    expect(() => expectSlimRuntime(details("bun-slim-v1.4.5-12"), "1.4.5")).not.toThrow();
+  });
+
+  test("fails naming the runtime found when the executable embeds the default runtime", () => {
+    expect(() => expectSlimRuntime(details("bun-v1.4.5"), "1.4.5")).toThrow("bun-v1.4.5");
+  });
+
+  test("fails when the slim runtime is of another Bun version than the pinned one", () => {
+    expect(() => expectSlimRuntime(details("bun-slim-v1.4.4-0"), "1.4.5")).toThrow("1.4.5");
+  });
+
+  test("fails on a version line without a runtime", () => {
+    expect(() => expectSlimRuntime("1.2.3 (2001-02-03)", "1.4.5")).toThrow("1.4.5");
   });
 });

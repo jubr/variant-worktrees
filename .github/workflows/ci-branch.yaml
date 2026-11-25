@@ -49,3 +49,9 @@ jobs:
       - uses: jdx/mise-action@v5
       - run: task install:ci
       - run: task test:node
+      # Fails early when jubr/bun-slim has no build of the Bun version mise.toml pins: the compile would then fall
+      # back to the default runtime, and the smoke test insists on the slim one. Nothing is attached or kept.
+      - run: task package:cli TARGET=bun-linux-x64
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: bun scripts/smoke-slim.ts out/variant-*-linux-x64
