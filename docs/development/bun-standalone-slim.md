@@ -30,37 +30,40 @@ Measured on macOS arm64 with Bun 1.4.5 and `bun-slim-v1.4.5-0`, 1 KB = 1024 byte
 
 | Runtime inside `variant` | `variant` | Saved vs. default Bun |
 | --- | ---: | ---: |
-| Default Bun (`bun`) | 90,682 KB | – |
-| `bun-alone` (`bun-standalone`) | 60,610 KB | 33.2% |
-| `bun-slim` (`bun-standalone-slim`) | 51,734 KB | 42.9% |
+| Default Bun (`bun-v1.4.5`) | 90,682 KB | – |
+| `bun-alone` (`bun-standalone-v1.4.5-0`) | 60,610 KB | 33.2% |
+| `bun-slim` (`bun-slim-v1.4.5-0`) | 51,734 KB | 42.9% |
 
 ## Which runtime is inside
 
-`variant --version` names the runtime in its last line, between the platform and the repository URL:
+`variant --version` names the runtime and its version in its last line, between the platform and the repository URL:
 
 ```text
-macos-arm64, bun-standalone-slim, https://github.com/jubr/variant-worktrees
-macos-arm64, bun-standalone, https://github.com/jubr/variant-worktrees
-macos-arm64, bun, https://github.com/jubr/variant-worktrees
+macos-arm64, bun-slim-v1.4.5-0, https://github.com/jubr/variant-worktrees
+macos-arm64, bun-standalone-v1.4.5-0, https://github.com/jubr/variant-worktrees
+macos-arm64, bun-v1.4.5, https://github.com/jubr/variant-worktrees
 ```
 
-- `bun-standalone-slim`: the `bun-slim` runtime.
-- `bun-standalone`: the `bun-alone` runtime, Bun's standalone build without the extra trimming.
-- `bun`: the runtime that ships with Bun.
+- `bun-slim-v1.4.5-0`: the `bun-slim` runtime, Bun 1.4.5, build 0 of `jubr/bun-slim`.
+- `bun-standalone-v1.4.5-0`: the `bun-alone` runtime, Bun's standalone build without the extra trimming.
+- `bun-v1.4.5`: the runtime that ships with Bun, `bun-dist` below.
   A Linux or macOS release shows this when no slim runtime could be fetched, and Windows always does.
 
 Run from source under Node, the same line says `node`.
-The token comes from the runtime itself, so it shows what the executable embeds, not what the build asked for.
+The kind and the version come from the runtime itself, so they show what the executable embeds, not what the build asked for.
 [`runtimeToken`](https://github.com/jubr/variant-worktrees/blob/main/packages/variant-api/src/version-line.ts) reads `Bun.version` (the standalone runtimes end it in `-standalone`) and `Bun.Image` (only `bun-slim` lacks it).
+The build number is the one thing a runtime does not know: the compile stamps it as `VARIANT_BUILD_RUNTIME` from the release directory the runtime came from, and an executable compiled without it leaves the number off (`bun-slim-v1.4.5`).
 
 ## The process
 
 ```text
-jubr/bun-slim release ──► release matrix job ──► VARIANT_BUN_RUNTIME ──► variant executable
- bun-slim-vX.Y.Z-N        fetch, check zip        package:cli             embeds bun-slim
+jubr/bun-slim release ──► package:cli (each target) ──► variant executable
+ bun-slim-vX.Y.Z-N         VARIANT_BUN_RUNTIME, else     embeds bun-slim,
+                           fetch + check zip, else       or bun-dist
+                           bun-dist
 ```
 
-This repository builds no Bun. It fetches a finished runtime when it compiles the release.
+This repository builds no Bun. It fetches a finished runtime when it compiles.
 
 ### 1. A Bun version, exactly
 
@@ -74,24 +77,26 @@ The slim runtime is picked by the same version.
 `X.Y.Z` is the Bun version and `N` counts the builds of it.
 The release holds a zip per platform for each runtime (`bun-alone-<os>-<arch>-v*.zip`, `bun-slim-<os>-<arch>-v*.zip`) and a `SHA256SUMS`.
 
-### 3. Fetch it in the matrix build jobs
+### 3. Choose the runtime of each target
 
-[`ci-release.yaml`](https://github.com/jubr/variant-worktrees/blob/main/.github/workflows/ci-release.yaml) compiles every `variant` executable in a job of its own.
-Each job of a Linux or macOS platform runs [`scripts/fetch-bun-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/fetch-bun-slim.ts) after mise and the install, and before the compile.
-[`scripts/bun-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/bun-slim.ts) does the work:
+[`scripts/package-cli.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/package-cli.ts) chooses the runtime for every target it compiles, in `task package:cli`, `task package:cli:all`, `task bleed:cli` and the release jobs, and prints which one it took:
 
-1. It reads the Bun version from `mise.toml`.
-2. It lists the releases of `jubr/bun-slim` and takes the highest `N` of `bun-slim-v<version>-N`.
-3. It downloads `bun-slim-<os>-<arch>-v*.zip` and `SHA256SUMS` with `gh`, and checks the zip against the sum.
-4. It unpacks the zip and writes `VARIANT_BUN_RUNTIME=<path to bun-slim>` to `$GITHUB_ENV`.
+1. **`VARIANT_BUN_RUNTIME`**, when set to an executable.
+   It fits one target, so `package:cli:all` refuses it, and a file that is missing or not executable fails before anything is compiled.
+2. **The fetched slim runtime**, for a Linux or macOS target.
+   [`scripts/bun-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/bun-slim.ts) reads the Bun version from `mise.toml`, takes the highest `N` of `bun-slim-v<version>-N` among the releases of `jubr/bun-slim`, downloads `bun-slim-<os>-<arch>-v*.zip` and `SHA256SUMS` with `gh` (it needs `GH_TOKEN` or a `gh` login), checks the zip against the sum and unpacks it.
+   [`scripts/fetch-bun-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/fetch-bun-slim.ts) does the same by hand and prints the path.
+3. **`bun-dist`**, the runtime that ships with Bun.
+   Windows has no slim runtime, so it is printed as information.
+   Any other target prints a warning with the reason (see below).
 
-[`scripts/package-cli.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/package-cli.ts) passes that variable to `Bun.build` as `compile.executablePath`, so the runtime becomes the one inside `variant`.
-The matrix gives no slim runtime to the Windows jobs.
+The chosen executable goes to `Bun.build` as `compile.executablePath`, so it becomes the runtime inside `variant`.
+[`ci-release.yaml`](https://github.com/jubr/variant-worktrees/blob/main/.github/workflows/ci-release.yaml) compiles every `variant` executable in a job of its own with `task package:cli TARGET=<target>` and hands it the token, so it needs no fetch step.
 
 ### 4. The fallback
 
-When there is no release for the pinned Bun version, the download fails, or the checksum is wrong, the script prints a `::warning::` and sets nothing.
-The job then compiles with the runtime that ships with Bun, and `variant --version` says `bun`.
+When there is no release for the pinned Bun version, the download fails, or the checksum is wrong, the compile prints a warning (a `::warning::` annotation in GitHub Actions) and embeds `bun-dist`.
+`variant --version` then says `bun-v1.4.5`.
 A release never fails because the slim runtime is missing.
 
 ### 5. Bump the version
@@ -108,9 +113,15 @@ A version without a `bun-slim` release still bumps, and the release falls back t
 ## Use it locally
 
 ```bash
+mise x -- task bleed:cli
+```
+
+On Linux and macOS this fetches the slim runtime of the Bun version `mise.toml` pins and prints which runtime it chose.
+To embed another runtime, for one platform:
+
+```bash
 bun scripts/fetch-bun-slim.ts darwin-arm64
 VARIANT_BUN_RUNTIME=<the path it prints> mise x -- task bleed:cli
 ```
 
-`task bleed:cli` and `task package:cli` embed the runtime named by `VARIANT_BUN_RUNTIME`, for one platform.
 The compiled `variant` keeps the same commands, flags, output and exit codes whichever runtime it embeds.

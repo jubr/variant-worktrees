@@ -99,7 +99,7 @@ tasks:
       - bun scripts/package-vsix-unpacked.ts
 
   bleed:cli:
-    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4> (VARIANT_BUN_RUNTIME=<executable> embeds that Bun runtime)"
+    desc: "Build the host variant executable and publish it to ../vw-bleeds/variant-cli/bin/variant-<version>-<slug>-<n>-<hash4> (embeds VARIANT_BUN_RUNTIME=<executable> when set, else the slim Bun runtime fetched from jubr/bun-slim, else the default one)"
     cmds:
       - mkdir -p {{.ROOT_DIR}}/../vw-bleeds
       - task: build
@@ -112,7 +112,7 @@ tasks:
       - task: bleed:cli
 
   package:cli:
-    desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host; VARIANT_BUN_RUNTIME=<executable> embeds that Bun runtime)"
+    desc: "Compile the variant CLI to out/variant-<version>-<os>-<arch>[.exe] (TARGET=bun-darwin-arm64, default host; VARIANT_BUN_RUNTIME=<executable> embeds that Bun runtime, else each target fetches the slim one from jubr/bun-slim, else the default)"
     cmds:
       - task: build
       - bun scripts/package-cli.ts {{.TARGET}}
