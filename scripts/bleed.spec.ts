@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { hostTarget } from "./package-cli.ts";
 import { bleedCli, publishCli } from "./bleed.ts";
 
 const roots: string[] = [];
@@ -168,9 +169,25 @@ describe("bleedCli", () => {
     writeFileSync(bin, "previous-bytes");
     mkdirSync(repo);
 
-    await expect(bleedCli(repo)).rejects.toThrow("the variants app is not built");
+    await expect(bleedCli(repo, {}, () => ({ source: "default" }))).rejects.toThrow("the variants app is not built");
 
     expect(readFileSync(bin, "utf8")).toBe("previous-bytes");
+  });
+
+  test("chooses the runtime for the host platform before it compiles", async () => {
+    const directory = temp();
+    const repo = join(directory, "checkout");
+    mkdirSync(repo);
+    const targets: string[] = [];
+
+    await expect(
+      bleedCli(repo, {}, (target) => {
+        targets.push(target);
+        return { source: "default" };
+      }),
+    ).rejects.toThrow("the variants app is not built");
+
+    expect(targets).toEqual([hostTarget()]);
   });
 
   test("leaves the previous executable when VARIANT_BUN_RUNTIME names a missing file", async () => {

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Fetch the slim Bun runtime of one platform for `VARIANT_BUN_RUNTIME`.
+ * Fetch the slim Bun runtime of one platform for `VARIANT_BUN_RUNTIME`, to try it by hand. `task package:cli` and
+ * `task bleed:cli` fetch it themselves when the variable is unset (`selectRuntime` in `package-cli.ts`).
  *
  * Reads the Bun version from `mise.toml`, downloads the zip of the newest bun-slim build of exactly that version
  * (github.com/jubr/bun-slim) and, in a GitHub Actions run, appends `VARIANT_BUN_RUNTIME=<executable>` to `$GITHUB_ENV`.
@@ -10,17 +11,11 @@
  *
  * Usage: bun scripts/fetch-bun-slim.ts <platform>   (linux-x64, linux-arm64, darwin-x64, darwin-arm64)
  */
-import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fetchSlimRuntime, miseBunVersion } from "./bun-slim.ts";
+import { fetchSlimRuntimeFor, miseBunVersion } from "./bun-slim.ts";
 
 const root = join(import.meta.dir, "..");
-
-const gh = (args: string[]): string => execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-const unzip = (zip: string, directory: string): void => {
-  execFileSync("unzip", ["-q", "-o", zip, "-d", directory], { stdio: ["ignore", "pipe", "pipe"] });
-};
 
 const platform = process.argv[2];
 if (platform === undefined) {
@@ -30,13 +25,7 @@ if (platform === undefined) {
 
 try {
   const version = miseBunVersion(readFileSync(join(root, "mise.toml"), "utf8"));
-  const runtime = fetchSlimRuntime({
-    platform,
-    version,
-    outDirectory: join(root, ".cache", "bun-slim", platform),
-    gh,
-    unzip,
-  });
+  const runtime = fetchSlimRuntimeFor(root, platform);
   console.log(`slim runtime for Bun ${version} on ${platform}: ${runtime}`);
   if (process.env.GITHUB_ENV) {
     appendFileSync(process.env.GITHUB_ENV, `VARIANT_BUN_RUNTIME=${runtime}\n`);

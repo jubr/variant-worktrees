@@ -5,7 +5,16 @@
 import { describe, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { RELEASE_TARGETS, assetName, compileCli, compileTargets, embeddedAppModule, runtimeExecutable } from "./package-cli.ts";
+import {
+  RELEASE_TARGETS,
+  assetName,
+  compileCli,
+  compileTargets,
+  embeddedAppModule,
+  runtimeDefines,
+  runtimeExecutable,
+  selectRuntime,
+} from "./package-cli.ts";
 
 describe("package-cli assetName", () => {
   test("names a unix executable with version, os and arch", () => {
@@ -129,5 +138,131 @@ describe("package-cli runtimeExecutable", () => {
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+});
+
+// Specification: openspec/specs/meta/dev-bleeds/spec.md (Optional runtime executable for compiled CLI)
+describe("package-cli selectRuntime", () => {
+  const said: string[] = [];
+  const say = (level: "info" | "warn", message: string): void => {
+    said.push(`${level}: ${message}`);
+  };
+  const neverFetch = (): string => {
+    throw new Error("must not fetch");
+  };
+
+  const executable = (directory: string, ...path: string[]): string => {
+    const file = join(directory, ...path);
+    mkdirSync(join(file, ".."), { recursive: true });
+    writeFileSync(file, "#!/bin/sh\n");
+    chmodSync(file, 0o755);
+    return file;
+  };
+
+  test("takes the runtime VARIANT_BUN_RUNTIME names, without fetching, and says so", () => {
+    const directory = mkdtempSync(join("/tmp", "variant-runtime-"));
+    try {
+      said.length = 0;
+      const runtime = executable(directory, "bun-standalone");
+
+      const choice = selectRuntime("bun-darwin-arm64", { env: { VARIANT_BUN_RUNTIME: runtime }, fetchSlim: neverFetch, say });
+
+      expect(choice).toEqual({ executablePath: runtime, source: "external" });
+      expect(said).toEqual([`info: bun-darwin-arm64: runtime from VARIANT_BUN_RUNTIME: ${runtime}`]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("names the build of a bun-slim release directory in the external runtime", () => {
+    const directory = mkdtempSync(join("/tmp", "variant-runtime-"));
+    try {
+      const runtime = executable(directory, "bun-slim-darwin-arm64-v1.4.5-0", "bun-slim");
+
+      expect(
+        selectRuntime("bun-darwin-arm64", { env: { VARIANT_BUN_RUNTIME: runtime }, fetchSlim: neverFetch, say: () => {} }),
+      ).toEqual({ executablePath: runtime, source: "external", build: "0" });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("fails naming the path when VARIANT_BUN_RUNTIME names no executable, without fetching", () => {
+    expect(() =>
+      selectRuntime("bun-darwin-arm64", { env: { VARIANT_BUN_RUNTIME: "/tmp/variant-missing/bun" }, fetchSlim: neverFetch, say }),
+    ).toThrow("/tmp/variant-missing/bun");
+  });
+
+  test("fetches the slim runtime of the platform for a Linux or macOS target, and says which build", () => {
+    const directory = mkdtempSync(join("/tmp", "variant-runtime-"));
+    try {
+      said.length = 0;
+      const runtime = executable(directory, "bun-slim-linux-arm64-v1.4.5-3", "bun-slim");
+      const platforms: string[] = [];
+
+      const choice = selectRuntime("bun-linux-arm64", {
+        env: {},
+        fetchSlim: (platform) => {
+          platforms.push(platform);
+          return runtime;
+        },
+        say,
+      });
+
+      expect(platforms).toEqual(["linux-arm64"]);
+      expect(choice).toEqual({ executablePath: runtime, source: "slim", build: "3" });
+      expect(said).toEqual([`info: bun-linux-arm64: runtime bun-slim-v1.4.5-3 fetched from jubr/bun-slim: ${runtime}`]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("treats an empty VARIANT_BUN_RUNTIME as unset", () => {
+    const choice = selectRuntime("bun-darwin-x64", { env: { VARIANT_BUN_RUNTIME: "" }, fetchSlim: () => "/tmp/slim/bun-slim", say: () => {} });
+
+    expect(choice.source).toBe("slim");
+  });
+
+  test("warns with the reason and takes the default runtime when the fetch fails", () => {
+    said.length = 0;
+
+    const choice = selectRuntime("bun-linux-x64", {
+      env: {},
+      fetchSlim: () => {
+        throw new Error("jubr/bun-slim has no release for Bun 9.9.9\nsecond line");
+      },
+      say,
+    });
+
+    expect(choice).toEqual({ source: "default" });
+    expect(said).toEqual([
+      "warn: bun-linux-x64: no slim runtime (jubr/bun-slim has no release for Bun 9.9.9); runtime bun-dist, the default Bun runtime",
+    ]);
+  });
+
+  test("takes the default runtime for Windows without fetching, and says that Windows has no slim runtime", () => {
+    said.length = 0;
+
+    for (const target of ["bun-windows-x64", "bun-windows-arm64"]) {
+      expect(selectRuntime(target, { env: {}, fetchSlim: neverFetch, say })).toEqual({ source: "default" });
+    }
+
+    expect(said).toEqual([
+      "info: bun-windows-x64: runtime bun-dist, the default Bun runtime (Windows has no slim runtime)",
+      "info: bun-windows-arm64: runtime bun-dist, the default Bun runtime (Windows has no slim runtime)",
+    ]);
+  });
+});
+
+describe("package-cli runtimeDefines", () => {
+  test("stamps the build number of the embedded runtime for the version line", () => {
+    expect(runtimeDefines({ executablePath: "/runtime/bun-slim", source: "slim", build: "3" })).toEqual({
+      VARIANT_BUILD_RUNTIME: '"3"',
+    });
+  });
+
+  test("stamps nothing for a runtime without a build number", () => {
+    expect(runtimeDefines({ source: "default" })).toEqual({});
+    expect(runtimeDefines({ executablePath: "/runtime/bun", source: "external" })).toEqual({});
   });
 });

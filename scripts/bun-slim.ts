@@ -4,9 +4,10 @@
  * Specification: openspec/specs/meta/release-artifacts/spec.md (Release executables use the published slim runtime)
  * Specification: openspec/specs/meta/bun-bump/spec.md (Bun version bump)
  */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 export const SLIM_REPOSITORY = "jubr/bun-slim";
 
@@ -126,3 +127,25 @@ export const fetchSlimRuntime = (input: {
   chmodSync(runtime, 0o755);
   return runtime;
 };
+
+/** The Bun version and build number of a runtime unpacked from a bun-slim release zip, read from its directory (`bun-slim-darwin-arm64-v1.4.5-0/bun-slim`). */
+export const slimRuntimeRelease = (executable: string): { version: string; build: string } | undefined => {
+  const match = /^bun-(?:slim|alone)-[a-z0-9]+-[a-z0-9]+-v(\d+\.\d+\.\d+)-(\d+)$/.exec(basename(dirname(executable)));
+  return match === null ? undefined : { version: match[1] as string, build: match[2] as string };
+};
+
+const ghCli: Gh = (args) => execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+
+const unzipCli = (zip: string, directory: string): void => {
+  execFileSync("unzip", ["-q", "-o", zip, "-d", directory], { stdio: ["ignore", "pipe", "pipe"] });
+};
+
+/** Fetch the slim runtime of `platform` for the Bun version `root/mise.toml` pins, into `root/.cache/bun-slim/<platform>`. */
+export const fetchSlimRuntimeFor = (root: string, platform: string): string =>
+  fetchSlimRuntime({
+    platform,
+    version: miseBunVersion(readFileSync(join(root, "mise.toml"), "utf8")),
+    outDirectory: join(root, ".cache", "bun-slim", platform),
+    gh: ghCli,
+    unzip: unzipCli,
+  });

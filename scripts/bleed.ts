@@ -7,7 +7,7 @@ import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readF
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { readVariant } from "variant-api";
-import { compileCli } from "./package-cli.ts";
+import { compileCli, hostTarget, selectRuntime } from "./package-cli.ts";
 import { bleedDirectory } from "./package-vsix-unpacked.ts";
 
 /** `variant-<version>` on main, otherwise `variant-<version>-<slug>-<n>-<hash4>`. */
@@ -81,9 +81,13 @@ export const publishCli = async (cwd: string, compile: (outfile: string) => Prom
 };
 
 /** Compile the host `variant` executable and publish it beside the checkout. */
-export const bleedCli = (cwd: string, env: NodeJS.ProcessEnv = process.env): Promise<string> =>
+export const bleedCli = (
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+  select: typeof selectRuntime = selectRuntime,
+): Promise<string> =>
   publishCli(cwd, async (outfile) => {
-    await compileCli(cwd, outfile, undefined, env);
+    await compileCli(cwd, outfile, undefined, env, select(hostTarget(), { env }));
   });
 
 if (import.meta.main) {
