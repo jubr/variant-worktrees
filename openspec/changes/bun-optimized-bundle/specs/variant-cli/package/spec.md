@@ -12,7 +12,7 @@
 #### Scenario: Version under Bun
 
 - **WHEN** `variant --version` runs under Bun from the same `dist/` with the same kind of standard output
-- **THEN** it prints the same output as under Node, with `bun` in place of `node` in the last line
+- **THEN** it prints the same output as under Node, with `bun-v<version>` (its `Bun.version`) in place of `node` in the last line
 
 #### Scenario: Executable names
 
