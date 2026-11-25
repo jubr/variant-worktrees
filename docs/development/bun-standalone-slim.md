@@ -93,11 +93,14 @@ The release holds a zip per platform for each runtime (`bun-alone-<os>-<arch>-v*
 The chosen executable goes to `Bun.build` as `compile.executablePath`, so it becomes the runtime inside `variant`.
 [`ci-release.yaml`](https://github.com/jubr/variant-worktrees/blob/main/.github/workflows/ci-release.yaml) compiles every `variant` executable in a job of its own with `task package:cli TARGET=<target>` and hands it the token, so it needs no fetch step.
 
+Each release job also writes a table of KB sizes to its step summary ([`scripts/runtime-sizes.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/runtime-sizes.ts)): `bun-dist`, `bun-slim` and its saving, the code bundle the compile added, `bun-dist` plus that bundle, `variant-cli`, and its saving.
+
 ### 4. The fallback
 
 When there is no release for the pinned Bun version, the download fails, or the checksum is wrong, the compile prints a warning (a `::warning::` annotation in GitHub Actions) and embeds `bun-dist`.
 `variant --version` then says `bun-v1.4.5`.
 A release never fails because the slim runtime is missing.
+The CI of every branch checks for it early: the library and CLI job compiles `variant` for linux-x64 and runs [`scripts/smoke-slim.ts`](https://github.com/jubr/variant-worktrees/blob/main/scripts/smoke-slim.ts), which fails unless `--version` names `bun-slim-v<pinned version>-<N>`.
 
 ### 5. Bump the version
 
