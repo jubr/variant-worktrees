@@ -59,10 +59,10 @@ export default defineConfig({
         text: "Variant Worktrees",
         items: [
           { text: "Overview", link: "/guide/overview" },
+          { text: "Installation", link: "/guide/installation" },
           { text: "Commands", link: "/guide/commands" },
           { text: "CLI", link: "/guide/cli" },
           { text: "Configuration", link: "/guide/configuration" },
-          { text: "Installation", link: "/guide/installation" },
           { text: "Runtime", link: "/guide/runtime" },
           { text: "Workspace", link: "/guide/workspace" },
         ],

@@ -2,7 +2,7 @@
 
 The **Variant Worktrees** extension brings variants into VS Code and Cursor: a view of every variant, onboarding for a project that has none yet, the MCP server for your agents, and the chat renamer.
 It is tested with Cursor and needs VS Code 1.101 or a host with Node.js 22.13 or newer.
-How to install it is in [Installation](/guide/installation#vs-code-and-cursor-extension).
+How to install it is in [Installation](/guide/installation#_2a-extension-for-vscode-and-cursor).
 
 The extension runs the lifecycle in-process, the same code as the CLI.
 

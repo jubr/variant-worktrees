@@ -134,10 +134,11 @@ describe("dark document shell and top navigation", () => {
     const at = (needle: string) => sidebar.indexOf(needle);
     expect(at("Getting Started")).toBeGreaterThan(-1);
     expect(at("Getting Started")).toBeLessThan(at("Variant Worktrees"));
+    expect(at("/guide/overview")).toBeLessThan(at("/guide/installation"));
+    expect(at("/guide/installation")).toBeLessThan(at("/guide/commands"));
     expect(at("/guide/commands")).toBeLessThan(at("/guide/cli"));
     expect(at("/guide/cli")).toBeLessThan(at("/guide/configuration"));
-    expect(at("/guide/configuration")).toBeLessThan(at("/guide/installation"));
-    expect(at("/guide/installation")).toBeLessThan(at("/guide/runtime"));
+    expect(at("/guide/configuration")).toBeLessThan(at("/guide/runtime"));
     expect(at("/guide/runtime")).toBeLessThan(at("VSCode / Cursor"));
     expect(at("VSCode / Cursor")).toBeLessThan(at("/vscode/extension"));
     expect(at("/vscode/extension")).toBeLessThan(at("/vscode/mcp"));
@@ -211,18 +212,60 @@ const trackedDocs = (): string[] => {
 };
 
 describe("installation into an existing project", () => {
-  test("shows the extension flavor first, then the mise flavor", () => {
+  const plainOf = (html: string): string => decodeEntities(html.replace(/<[^>]+>/g, ""));
+  const installationSections = () => {
     const html = page("guide/installation.html");
-    const text = textOf(html);
-    expect(text).toContain("mise x github:jubr/variant-worktrees@latest -- variant init");
+    const sections = headingsOf(html).filter((heading) => heading.level === 2);
+    return sections.map((heading) => ({ ...heading, html: sectionOf(html, heading.id) }));
+  };
+
+  test("is three steps: mise, the extension or variant init, and a review of variants.yaml", () => {
+    expect(installationSections().map((section) => section.text)).toEqual([
+      "1. Install mise",
+      "2a. Extension for VSCode and Cursor",
+      "2b. Install with variant init",
+      "3. Review variants.yaml",
+    ]);
+  });
+
+  test("step 1 names Homebrew, mise.run and mise activate", () => {
+    const text = plainOf(installationSections()[0]?.html ?? "");
     expect(text).toContain("brew install mise");
     expect(text).toContain("mise.run");
+    expect(text).toContain("mise activate");
+  });
+
+  test("step 2a names the extension, Cursor, the stores, Onboarding and the init logic", () => {
+    const section = installationSections()[1]?.html ?? "";
+    const text = plainOf(section);
     expect(text).toContain("Variant Worktrees");
     expect(text).toContain("Cursor");
     expect(text).toContain("Onboarding");
-    expect(text.indexOf("Onboarding")).toBeLessThan(text.indexOf("variant init"));
-    expect(html).toContain("marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees");
-    expect(html).toContain("open-vsx.org/extension/jubr/variant-worktrees");
+    expect(text).toMatch(/can run the init logic/);
+    expect(section).toContain("marketplace.visualstudio.com/items?itemName=jubr.variant-worktrees");
+    expect(section).toContain("open-vsx.org/extension/jubr/variant-worktrees");
+  });
+
+  test("step 2b shows the packslip command and its output, and links to variant init instead of repeating it", () => {
+    const section = installationSections()[2]?.html ?? "";
+    expect(section).toContain("language-");
+    expect(plainOf(section)).toContain("my-project/ $ mise x packslip:jubr/variant-worktrees@ -- variant init");
+    expect(plainOf(section)).toContain("variants.yaml:");
+    expect(linksOf(section, "guide/installation.html")).toContainEqual({ path: "/guide/commands", hash: "variant-init" });
+    const prose = plainOf(section.replace(/<pre[\s\S]*?<\/pre>/g, ""));
+    expect(prose).not.toMatch(/\.gitignore|mise\.toml/);
+  });
+
+  test("step 3 shows a variants.yaml and links to the Configuration options", () => {
+    const section = installationSections()[3]?.html ?? "";
+    expect(section).toContain("language-yaml");
+    expect(plainOf(section)).toMatch(/variant\s*:/);
+    expect(linksOf(section, "guide/installation.html").map((link) => link.path)).toContain("/guide/configuration");
+  });
+
+  test("the extension way comes before the variant init way", () => {
+    const text = textOf(page("guide/installation.html"));
+    expect(text.indexOf("Onboarding")).toBeLessThan(text.indexOf("my-project/ $"));
   });
 
   test("tracked docs have no npm install, npx or bun add", () => {
@@ -536,7 +579,7 @@ describe("configuration page, sub-keys and templates", () => {
     }
   });
 
-  test("the sections are the variant, chat renamer and database options, templates, and unknown keys", () => {
+  test("the sections are the variant, chat renamer and database options, the custom steps, templates, and unknown keys", () => {
     const sections = headings()
       .filter((heading) => heading.level === 2)
       .map((heading) => heading.text);
@@ -544,6 +587,8 @@ describe("configuration page, sub-keys and templates", () => {
       "Variant options",
       "Chat Renamer options",
       "Database options",
+      "Custom Steps",
+      "Custom multi-tenancy steps",
       "Templates",
       "Unknown keys and migration",
     ]);
@@ -896,15 +941,6 @@ describe("overview steps are short and link to commands", () => {
     expect(links).toContain("/guide/configuration#variant-steps");
   });
 
-  test("Custom Steps and Custom multi-tenancy steps keep their examples; the second links db.multi", () => {
-    expect(sectionOf(overview(), "custom-steps")).toContain("language-yaml");
-    const multi = sectionOf(overview(), "custom-multi-tenancy-steps");
-    expect(multi).toContain("language-yaml");
-    const links = linksOf(multi, "guide/overview.html").map((link) => `${link.path}#${link.hash}`);
-    expect(links).toContain("/guide/configuration#db-multi");
-    expect(links).toContain("/guide/configuration#db-multi-schemaprefix");
-  });
-
   test("Commands carries what the Overview dropped", () => {
     const core = page("guide/commands.html");
     for (const command of ["provision", "deprovision"]) {
@@ -913,6 +949,92 @@ describe("overview steps are short and link to commands", () => {
       expect(links, command).toContain("/guide/configuration#db-multi");
     }
     expect(decodeEntities(sectionOf(core, "variant-watch").replace(/<[^>]+>/g, ""))).toContain("--reprovision");
+  });
+});
+
+describe("overview starts with Installation and ends with next steps", () => {
+  const overview = () => page("guide/overview.html");
+  const keyOf = (link: { path: string; hash: string }) => `${link.path}${link.hash === "" ? "" : `#${link.hash}`}`;
+
+  test("Installation is a second-level section directly before Flow of Steps and links to the Installation page", () => {
+    const headings = headingsOf(overview());
+    const installation = headings.findIndex((heading) => heading.id === "installation");
+    expect(headings[installation]).toMatchObject({ level: 2, text: "Installation" });
+    expect(headings[installation + 1]).toMatchObject({ level: 2, id: "flow-of-steps" });
+    expect(linksOf(sectionOf(overview(), "installation"), "guide/overview.html").map(keyOf)).toContain("/guide/installation");
+  });
+
+  test("the Flow of Steps begins with create", () => {
+    const headings = headingsOf(overview());
+    const flow = headings.findIndex((heading) => heading.id === "flow-of-steps");
+    expect(headings.slice(flow + 1).find((heading) => heading.level === 3)?.id).toBe("create");
+    const line = decodeEntities(sectionOf(overview(), "flow-of-steps").replace(/<[^>]+>/g, ""));
+    expect(line).toMatch(/create\s*→\s*provision/);
+    expect(line).not.toMatch(/Installation\s*→/);
+  });
+
+  test("Next steps is the last second-level section and is a list of links onward", () => {
+    const h2 = headingsOf(overview()).filter((heading) => heading.level === 2);
+    expect(h2.at(-1)).toMatchObject({ id: "next-steps", text: "Next steps" });
+    const section = sectionOf(overview(), "next-steps");
+    const links = linksOf(section, "guide/overview.html").map(keyOf);
+    for (const target of [
+      "/vscode/extension",
+      "/guide/workspace",
+      "/guide/configuration#variant-options",
+      "/guide/cli",
+      "/guide/commands",
+      "/guide/runtime",
+    ]) {
+      expect(links, target).toContain(target);
+    }
+    expect(section, "a list").toMatch(/<ul\b/);
+    expect([...section.matchAll(/<li\b/g)].length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("custom steps on the Configuration page", () => {
+  const configuration = () => page("guide/configuration.html");
+  const text = (html: string) => decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ");
+
+  test("Custom Steps shows the migrations example and links the keys it names", () => {
+    const section = sectionOf(configuration(), "custom-steps");
+    expect(section).toContain("language-yaml");
+    expect(text(section)).toMatch(/runAfter\s*:\s*seed/);
+    const links = linksOf(section, "guide/configuration.html").map((link) => `${link.path}#${link.hash}`);
+    expect(links).toContain("/guide/configuration#variant-steps-name-runbefore");
+    expect(links).toContain("/guide/configuration#variant-steps-name-runafter");
+  });
+
+  test("Custom Steps says that steps around one anchor run in the order they are defined", () => {
+    const section = text(sectionOf(configuration(), "custom-steps"));
+    expect(section).toMatch(/several steps with the same .*run in the order .*written in .*variants\.yaml/i);
+  });
+
+  test("Custom Steps shows custom1 with runAfter: watch and what variant watch runs", () => {
+    const section = sectionOf(configuration(), "custom-steps");
+    expect(text(section)).toMatch(/custom1\s*:/);
+    expect(text(section)).toMatch(/runAfter\s*:\s*watch/);
+    expect(text(section)).toMatch(/create, provision, seed, watch, custom1/);
+  });
+
+  test("Custom multi-tenancy steps keep their example and link db.multi", () => {
+    const section = sectionOf(configuration(), "custom-multi-tenancy-steps");
+    expect(section).toContain("language-yaml");
+    const links = linksOf(section, "guide/configuration.html").map((link) => `${link.path}#${link.hash}`);
+    expect(links).toContain("/guide/configuration#db-multi");
+    expect(links).toContain("/guide/configuration#db-multi-schemaprefix");
+  });
+
+  test("db.multi links to the Custom multi-tenancy steps of the same page", () => {
+    const links = linksOf(sectionOf(configuration(), "db-multi"), "guide/configuration.html");
+    expect(links).toContainEqual({ path: "/guide/configuration", hash: "custom-multi-tenancy-steps" });
+  });
+
+  test("the Overview no longer has the custom step sections", () => {
+    const ids = headingsOf(page("guide/overview.html")).map((heading) => heading.id);
+    expect(ids).not.toContain("custom-steps");
+    expect(ids).not.toContain("custom-multi-tenancy-steps");
   });
 });
 
