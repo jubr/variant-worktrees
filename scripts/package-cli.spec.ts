@@ -5,6 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parse } from "yaml";
 import {
   RELEASE_TARGETS,
   assetName,
@@ -78,12 +79,11 @@ describe("package-cli compileCli runtime", () => {
 
 // Specification: openspec/specs/meta/dev-bleeds/spec.md (Optional runtime executable for compiled CLI)
 describe("workflows", () => {
-  test("leave VARIANT_BUN_RUNTIME to the release workflow", () => {
+  test("do not set VARIANT_BUN_RUNTIME: package:cli chooses the runtime itself", () => {
     const workflows = join(import.meta.dir, "..", ".github", "workflows");
     for (const name of readdirSync(workflows)) {
-      if (name !== "ci-release.yaml") {
-        expect(readFileSync(join(workflows, name), "utf8"), name).not.toContain("VARIANT_BUN_RUNTIME");
-      }
+      // The parsed file: a comment may still name the variable.
+      expect(JSON.stringify(parse(readFileSync(join(workflows, name), "utf8"))), name).not.toContain("VARIANT_BUN_RUNTIME");
     }
   });
 });

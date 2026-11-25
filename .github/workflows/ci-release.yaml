@@ -79,24 +79,21 @@ jobs:
     strategy:
       matrix:
         include:
-          - { target: bun-linux-x64, slim: linux-x64 }
-          - { target: bun-linux-arm64, slim: linux-arm64 }
-          - { target: bun-darwin-x64, slim: darwin-x64 }
-          - { target: bun-darwin-arm64, slim: darwin-arm64 }
-          - { target: bun-windows-x64, slim: "" }
-          - { target: bun-windows-arm64, slim: "" }
+          - { target: bun-linux-x64 }
+          - { target: bun-linux-arm64 }
+          - { target: bun-darwin-x64 }
+          - { target: bun-darwin-arm64 }
+          - { target: bun-windows-x64 }
+          - { target: bun-windows-arm64 }
     steps:
       - uses: actions/checkout@v7
       # The Bun that compiles is exactly the one mise.toml pins, and the slim runtime is that version's too.
       - uses: jdx/mise-action@v5
       - run: task install:ci
-      # A failed fetch is a warning: the executable then embeds the runtime that ships with Bun.
-      - name: Fetch the slim runtime
-        if: matrix.slim != ''
+      # AIDEV-NOTE: package:cli fetches the slim runtime itself (Linux and macOS) and needs the token for `gh`; a failed fetch is a warning and the executable embeds the default runtime. No `slim` matrix key and no fetch step.
+      - run: task package:cli TARGET=${{ matrix.target }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bun scripts/fetch-bun-slim.ts ${{ matrix.slim }}
-      - run: task package:cli TARGET=${{ matrix.target }}
       - name: Smoke test Linux x64 executable
         if: matrix.target == 'bun-linux-x64'
         run: |

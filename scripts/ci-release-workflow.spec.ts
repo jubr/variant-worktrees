@@ -24,7 +24,7 @@ type Job = {
   "runs-on"?: string;
   uses?: string;
   with?: Record<string, unknown>;
-  strategy?: { matrix?: { include?: { target: string; slim: string }[] } };
+  strategy?: { matrix?: { include?: { target: string }[] } };
   steps?: Step[];
 };
 
@@ -73,40 +73,25 @@ describe("release workflow executables", () => {
 describe("release workflow slim runtime", () => {
   const workflowsDirectory = join(import.meta.dir, "..", ".github", "workflows");
 
-  test("fetches the slim runtime of the platform from jubr/bun-slim, after mise and the install and before the compile", () => {
+  test("lets task package:cli fetch the slim runtime: it gets the token, after mise and the install", () => {
     const all = steps();
-    const fetch = all.findIndex((step) => step.run?.startsWith("bun scripts/fetch-bun-slim.ts"));
     const compile = all.findIndex((step) => step.run?.startsWith("task package:cli"));
 
-    expect(all[fetch]?.run).toBe("bun scripts/fetch-bun-slim.ts ${{ matrix.slim }}");
-    expect(all[fetch]?.if).toBe("matrix.slim != ''");
-    expect(all[fetch]?.env?.GH_TOKEN).toBe("${{ github.token }}");
-    expect(fetch).toBeGreaterThan(all.findIndex((step) => step.uses?.startsWith("jdx/mise-action")));
-    expect(fetch).toBeGreaterThan(all.findIndex((step) => step.run === "task install:ci"));
-    expect(fetch).toBeLessThan(compile);
+    expect(all[compile]?.env?.GH_TOKEN).toBe("${{ github.token }}");
+    expect(compile).toBeGreaterThan(all.findIndex((step) => step.uses?.startsWith("jdx/mise-action")));
+    expect(compile).toBeGreaterThan(all.findIndex((step) => step.run === "task install:ci"));
+  });
+
+  test("has no fetch step and sets no runtime variable of its own", () => {
+    expect(steps().some((step) => step.run?.includes("fetch-bun-slim"))).toBe(false);
+    expect(JSON.stringify(release())).not.toContain("VARIANT_BUN_RUNTIME");
+    expect(executables()?.strategy?.matrix?.include?.every((entry) => Object.keys(entry).join() === "target")).toBe(true);
   });
 
   test("compiles with the Bun that mise.toml pins exactly, the version the slim runtime is picked by", () => {
     expect(miseBunVersion(readFileSync(join(import.meta.dir, "..", "mise.toml"), "utf8"))).toMatch(/^\d+\.\d+\.\d+$/);
     expect(steps().some((step) => step.uses?.startsWith("jdx/mise-action"))).toBe(true);
     expect(steps().some((step) => step.uses?.startsWith("oven-sh/setup-bun"))).toBe(false);
-  });
-
-  test("does not fail the job when the fetch fails: the script warns and leaves the variable unset", () => {
-    const script = readFileSync(join(import.meta.dir, "fetch-bun-slim.ts"), "utf8");
-
-    expect(script).toContain("::warning::");
-    expect(script).toContain("GITHUB_ENV");
-    expect(steps().find((step) => step.run?.startsWith("bun scripts/fetch-bun-slim.ts"))?.["continue-on-error"]).toBeUndefined();
-  });
-
-  test("gives a slim runtime to Linux and macOS platforms and none to Windows", () => {
-    const include = executables()?.strategy?.matrix?.include ?? [];
-
-    expect(include.filter((entry) => entry.target.startsWith("bun-windows")).map((entry) => entry.slim)).toEqual(["", ""]);
-    for (const entry of include.filter((candidate) => candidate.slim !== "")) {
-      expect(entry.target).toBe(`bun-${entry.slim}`);
-    }
   });
 
   test("does not build Bun itself or cache a runtime", () => {
