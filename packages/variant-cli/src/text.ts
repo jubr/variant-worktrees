@@ -190,9 +190,9 @@ const outputOf = (output: string): string[] => (output.trim() === "" ? [] : ["",
 /** The facts of one variant: the layout of `create`, and the base of the other record layouts. */
 const recordPairs = (record: VariantRecord): string[] => [
   ...pairs([
-    ["target", record.target],
-    ["dialect", record.dialect],
     ["worktree", record.worktree],
+    ["database", record.database],
+    ["schema", record.dialect === "sqlite" ? undefined : record.target],
     ["mode", record.mode],
     ["uptime", record.uptimeSeconds === undefined ? undefined : formatDuration(record.uptimeSeconds)],
     ["url", record.url],

@@ -2,11 +2,11 @@ import { relative } from "node:path";
 import type { VariantRecord } from "variant-api";
 import { formatDuration } from "./duration.js";
 
-const COLUMNS = ["slug", "mode", "uptime", "url", "log", "dir"] as const;
+const COLUMNS = ["slug", "mode", "uptime", "url", "log", "dir", "database"] as const;
 
 /**
  * One row per variant, sorted by slug: slug, mode, uptime, the full URL, the log file of its detached watch (absolute) and
- * its directory (relative to the variant root). `-` stands for what a variant does not have.
+ * its directory (relative to the variant root) and its database. `-` stands for what a variant does not have.
  */
 export const formatTable = (records: readonly VariantRecord[], variantRoot: string): string => {
   const rows = [...records]
@@ -18,6 +18,7 @@ export const formatTable = (records: readonly VariantRecord[], variantRoot: stri
       record.url ?? "-",
       record.log ?? "-",
       record.worktree ? relative(variantRoot, record.worktree) || "." : "-",
+      record.database || "-",
     ]);
   const table = [[...COLUMNS], ...rows];
   const widths = COLUMNS.map((_, column) => Math.max(...table.map((row) => (row[column] as string).length)));

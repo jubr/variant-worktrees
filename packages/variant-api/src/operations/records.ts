@@ -15,6 +15,7 @@ import {
   UI_WATCH_KEY,
 } from "variant-config";
 import { DatabaseContactError } from "../db/failure.js";
+import { describeDatabase } from "../describe-database.js";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
@@ -301,6 +302,7 @@ export const collectRecords = async (
       slug,
       target: recordTarget(context, slug, state?.target ?? runtimeTarget, knownTarget),
       dialect: state?.dialect ?? context.adapter.dialect,
+      database: describeDatabase(context.config.db, slug),
       statePath: state?.statePath ?? "",
       worktree,
       createdAt: state?.createdAt ?? "",

@@ -158,15 +158,23 @@ describe("output formats", () => {
         .split("\n")
         .map((line) => line.trim().split(/\s{2,}/));
 
-    it("has the columns slug, mode, uptime, url, log and dir, with - for missing values", () =>
+    it("has the columns slug, mode, uptime, url, log, dir and database, with - for missing values", () =>
       withVariants(async (environment) => {
         const result = await runCli(["list"], environment);
         const rows = rowsOf(result.stdout);
 
         expect(result.exitCode).toBe(0);
-        expect(rows[0]).toEqual(["slug", "mode", "uptime", "url", "log", "dir"]);
-        expect(rows[1]).toEqual(["alpha", "watch", "-", "http://alpha.vw.localhost:62060/", "-", "_v-alpha"]);
-        expect(rows[2]).toEqual(["beta", "-", "-", "-", "-", "-"]);
+        expect(rows[0]).toEqual(["slug", "mode", "uptime", "url", "log", "dir", "database"]);
+        expect(rows[1]).toEqual([
+          "alpha",
+          "watch",
+          "-",
+          "http://alpha.vw.localhost:62060/",
+          "-",
+          "_v-alpha",
+          ".cache/variants/alpha.sqlite",
+        ]);
+        expect(rows[2]).toEqual(["beta", "-", "-", "-", "-", "-", ".cache/variants/beta.sqlite"]);
         expect(rows).toHaveLength(3);
       }));
 
@@ -221,7 +229,7 @@ describe("output formats", () => {
 
         expect(table.stdout).not.toContain("schema");
         expect(json[0]).toMatchObject({ slug: "alpha", mode: "watch", url: "http://alpha.vw.localhost:62060/" });
-        expect(json[0].target).toEndWith("alpha.db");
+        expect(json[0].target).toEndWith("alpha.sqlite");
         expect(json[0].runtime).toBeUndefined();
       }));
 
