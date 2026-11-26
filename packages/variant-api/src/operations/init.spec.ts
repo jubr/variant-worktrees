@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { migrateFile } from "variant-config";
 import { parse as parseYaml } from "yaml";
 import { createVariantClient } from "../index.js";
 import { fakeMise } from "../test/mise-mock.js";
@@ -74,6 +75,17 @@ describe("init", () => {
     expect(result.gitignore).toMatchObject({ status: "created", changed: true });
     expect(result.mise).toMatchObject({ status: "created", changed: true, file: join(root, "mise.toml") });
     expect(result.detected).toMatchObject({ dialect: "postgres", prefix: "_v-" });
+  });
+
+  it("writes a final file when no database is detected: no db key, nothing left to migrate", async () => {
+    const { client } = setup();
+
+    await client.init();
+
+    expect(parseYaml(read("variants.yaml"))).not.toHaveProperty("db");
+    expect(read("variants.yaml").split("\n")[0]).toStartWith("# yaml-language-server: $schema=");
+    expect(migrateFile(join(root, "variants.yaml"), {})).toBeUndefined();
+    expect(files()).not.toContain("variants.yaml~");
   });
 
   it("writes a custom prefix to the file and .gitignore", async () => {
@@ -204,7 +216,7 @@ describe("init", () => {
       expect(result.mise.status).toBe("failed");
       expect(result.mise.message).toContain("not valid TOML");
       expect(result.mise.changed).toBe(false);
-      expect(read("variants.yaml")).toContain("dialect");
+      expect(parseYaml(read("variants.yaml")).variant.prefix).toBe("_v-");
       expect(read(".gitignore")).toBe("_v-*\n");
     });
   });
