@@ -5,7 +5,7 @@
 ## What Changes
 
 - `mise.toml` sets `min_version = "2026.11.12"` (comment: for packslip), the Mise release the repository is developed with. The `packslip:` backend first shipped in 2026.9.2, which is the lowest value the spec allows. Mise older than `min_version` fails up front with a message that names the required version.
-- `mise.toml` tidies its tool list: the `node` pin stays (the npm shims and the `variant-api` node-runtime tests need a Mise-provided `node`; a try without it failed `mise which node`), `npm:@fission-ai/openspec` becomes a plain pin (the table with its commented `postinstall` goes), the `github:jdx/aube` entry and the opt-in comment are removed, the `packslip:jubr/variant-worktrees` entry moves below the other tools under the comment "lets use the latest version of ourselves", a comment says `aube` runs the npm tools under `bun`, and two stale comments under `[settings.npm]` go. `package_manager = "aube"` stays.
+- `mise.toml` tidies its tool list: the `node` pin and its note are removed (`aube` runs the npm tools under `bun`; the `variant-api` node-runtime spec looks for a real Node on `PATH` instead of asking `mise which node`), `npm:@fission-ai/openspec` becomes a plain pin (the table with its commented `postinstall` goes), the `github:jdx/aube` entry and the opt-in comment are removed, the `packslip:jubr/variant-worktrees` entry moves below the other tools under the comment "lets use the latest version of ourselves", a comment says `aube` runs the npm tools under `bun`, and two stale comments under `[settings.npm]` go. `package_manager = "aube"` stays.
 - `CONTRIBUTING.md` (Tool execution) splits the `mise hook-env` sentence for readability and adds a **Cursor** paragraph: prefer `StrReplace` and `Write` for simple edits, keep scripts for bulk or mechanical rewrites, and note that `sed` under Mise is GNU sed.
 - `.agents/skills/vw-spec-iterate/SKILL.md` front matter is fixed: `name:` and `description:` sit inside one `---` block.
 - Non-goals: no change to the `packslip:` tool entries that are in use, to the pinned versions, to the Mise `variant init` writes into user projects, or to any product code.
@@ -22,6 +22,7 @@ None.
 
 ## Impact
 
-- `mise.toml`: one new top-level key and the tool-list tidy-up above. Active tools and versions are unchanged except `aube` (no longer listed).
+- `mise.toml`: one new top-level key and the tool-list tidy-up above. Active tools and versions are unchanged except `node` and `aube` (no longer listed).
+- `packages/variant-api/src/node-runtime.spec.ts`: finds Node on `PATH`; test code only.
 - `CONTRIBUTING.md` and `.agents/skills/vw-spec-iterate/SKILL.md`: prose and front matter only.
 - Contributors and CI with Mise older than `min_version` now get Mise's own minimum-version error; current Mise is unaffected.
