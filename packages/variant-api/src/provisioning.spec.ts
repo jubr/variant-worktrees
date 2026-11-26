@@ -104,7 +104,7 @@ describe("step log", () => {
             level: "trace",
             step: "provision",
             slug: "demo",
-            message: `create schema ${_directory}/.cache/variants/demo.db`,
+            message: `create schema ${_directory}/.cache/variants/demo.sqlite`,
           },
           { level: "trace", step: "one", slug: "demo", message: `+"echo one >> ${_directory}/order.log"` },
           { level: "trace", step: "two", slug: "demo", message: `+"echo two >> ${_directory}/order.log"` },
@@ -129,7 +129,7 @@ describe("step log", () => {
           level: "trace",
           step: "provision",
           slug: "demo",
-          message: `create schema ${directory}/.cache/variants/demo.db`,
+          message: `create schema ${directory}/.cache/variants/demo.sqlite`,
         });
         expect(events.some((event) => event.level === "info" && event.step === "provision")).toBe(false);
       },
@@ -155,7 +155,7 @@ describe("step log", () => {
             level: "debug",
             step: "provision",
             slug: "demo",
-            message: `create schema ${directory}/.cache/variants/demo.db`,
+            message: `create schema ${directory}/.cache/variants/demo.sqlite`,
           });
         },
         {},
@@ -428,7 +428,7 @@ describe("command environment", () => {
         await provision();
 
         expect(parseEnv(read(directory, "env.out")).SQLITE_DATABASE).toBe(
-          join(directory, ".cache", "variants", "demo.db"),
+          join(directory, ".cache", "variants", "demo.sqlite"),
         );
       },
     ));

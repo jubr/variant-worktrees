@@ -61,7 +61,7 @@ describe("implode teardown", () => {
         await sleep(50);
       }
       expect(isProcessAlive(watcher.pid as number)).toBe(false);
-      expect(existsSync(join(directory, ".cache", "variants", "demo.db"))).toBe(false);
+      expect(existsSync(join(directory, ".cache", "variants", "demo.sqlite"))).toBe(false);
       expect(existsSync(join(directory, ".cache", "variants", "demo.yaml"))).toBe(false);
       expect(existsSync(join(directory, ".storage"))).toBe(false);
       expect(existsSync(join(directory, ".cache", "variant", "state.yaml"))).toBe(false);

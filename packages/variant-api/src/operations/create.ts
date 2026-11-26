@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { formatLocalStamp, type Runtime, readRuntime, STATE_FILE, writeRuntime } from "variant-config";
+import { databaseTarget } from "../database-target.js";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { miseBinaryFor } from "../mise.js";
 import { installMiseInWorktree, parseMiseInstall } from "../mise-install.js";
@@ -26,15 +27,19 @@ const rememberCreated = (context: OperationContext, directory: string, slug: str
   } catch {
     existing = undefined;
   }
+  const dialect = recordedDialect(context.adapter.dialect);
   if (existing?.createdAt) {
+    // AIDEV-NOTE: an earlier version recorded the PostgreSQL target `public` for the SQLite file of main; the stamp stays, the target heals
+    if (dialect === "sqlite" && existing.db?.database !== target) {
+      writeRuntime(directory, { ...existing, db: { ...existing.db, dialect, database: target } });
+    }
     return;
   }
-  const dialect = recordedDialect(context.adapter.dialect);
   writeRuntime(directory, {
     ...existing,
     slug: existing?.slug ?? slug,
     dir: existing?.dir ?? directory,
-    db: existing?.db ?? (dialect === "sqlite" ? { dialect, filename: target } : { dialect, schema: target }),
+    db: existing?.db ?? (dialect === "sqlite" ? { dialect, database: target } : { dialect, schema: target }),
     createdAt: formatLocalStamp(context.now?.() ?? new Date()),
   });
 };
@@ -81,7 +86,7 @@ export const createVariant = async (
           },
         )
       : undefined;
-  const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
+  const target = databaseTarget(context, slug);
   // AIDEV-NOTE: the schema or database file appears at provision, which watch and up imply. create only records the target.
   const variantDirectory =
     slug === "main"

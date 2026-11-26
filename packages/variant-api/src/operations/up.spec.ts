@@ -443,7 +443,7 @@ describe("up mode switch and runtime state", () => {
           slug: "demo",
           mode: "up",
           dir: directory,
-          db: { dialect: "sqlite", filename: "v_demo" },
+          db: { dialect: "sqlite", database: "v_demo" },
           watches: {
             be: { port: expect.any(Number), startedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/) },
             fe: {

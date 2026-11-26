@@ -30,6 +30,26 @@ const slugFromTarget = (target: string, dialect: string): string => {
   return target.replace(/^v_/, "").replaceAll("_", "-");
 };
 
+/** The target a record shows. SQLite: the file the configuration names for the slug, which no stale state can change. */
+const recordTarget = (
+  context: OperationContext,
+  slug: string,
+  recorded: string | undefined,
+  known: boolean,
+): string => {
+  const resolved = (): string | undefined => {
+    try {
+      return context.adapter.target(slug);
+    } catch {
+      return undefined;
+    }
+  };
+  if (context.adapter.dialect === "sqlite") {
+    return resolved() ?? recorded ?? "";
+  }
+  return recorded ?? (known ? (resolved() ?? "") : "");
+};
+
 /** The directories whose `variants.local.yaml` makes up the runtime state: the variant worktrees and the main checkout. */
 export const runtimeDirectories = (config: ResolvedConfig): { root: string; prefix: string; directories: string[] } => {
   const { prefix, root, main } = config.variant;
@@ -269,7 +289,8 @@ export const collectRecords = async (
     const watches = found ? watchFacts(found.runtime) : undefined;
     const url = ownWatches(watches ?? {}).find((watch) => watch.url !== undefined)?.url;
     const uptimeSeconds = watches ? longestUptime(watches) : undefined;
-    const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
+    const runtimeDb = found?.runtime.db;
+    const runtimeTarget = runtimeDb?.schema ?? (runtimeDb?.dialect === "sqlite" ? runtimeDb.database : undefined);
     const prefixed = join(context.config.variant.root, `${context.config.variant.prefix}${slug}`);
     const located = existsSync(prefixed) ? prefixed : undefined;
     const directory = [state?.worktree, found?.dir, located].find((path) => path !== undefined && existsSync(path));
@@ -278,7 +299,7 @@ export const collectRecords = async (
     const knownTarget = multi !== undefined || databaseSlugs.has(slug);
     return {
       slug,
-      target: state?.target ?? runtimeTarget ?? (knownTarget ? context.adapter.target(slug) : ""),
+      target: recordTarget(context, slug, state?.target ?? runtimeTarget, knownTarget),
       dialect: state?.dialect ?? context.adapter.dialect,
       statePath: state?.statePath ?? "",
       worktree,
