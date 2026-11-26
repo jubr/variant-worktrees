@@ -49,7 +49,7 @@ Initialized /path/to/my-project
 variants.yaml:  written to /path/to/my-project/variants.yaml
 .gitignore:     created .gitignore with _v-*
 mise:           created mise.toml with packslip:jubr/variant-worktrees
-detected:       database postgres; abbr mp; watches none
+detected:       database postgres; abbr mp; branch main; watches none
 bun:            bun 1.4.4 on PATH is the version Mise pins
 ```
 
@@ -77,6 +77,7 @@ db:
 variant:
   abbr: mp # lowercase letters and digits, single hyphens between
   prefix: _v- # starts every name derived from a slug; keep the connector
+  baseBranch: main # from origin/HEAD
 ```
 
 Every key is explained in [Configuration](./configuration#variant-options).

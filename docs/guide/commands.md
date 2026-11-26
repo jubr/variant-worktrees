@@ -11,12 +11,15 @@ The CLI-only commands (`ui`, `mcp`, `completions`) are on the [CLI](./cli) page.
 
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
-- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), the default git branch as [`variant.baseBranch`](./configuration#variant-basebranch), and one watch per Vite or NestJS app and per package with a `watch` script.
   The file starts with the `yaml-language-server` schema header, so editors offer completion and the next command has nothing to migrate.
   When no database is detected there is no `db` key: autodetection resolves SQLite on its own.
   Other accepted values of a setting follow `#` on the same line.
   Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
   For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
+  The branch is the one `origin/HEAD` points at, else `init.defaultBranch` when that branch exists, else a local `main` or `master`, else the branch that is checked out; its comment names which (`# from origin/HEAD`).
+  Nothing is fetched. No branch is written outside a git repository.
+  `git remote set-head origin -a` repairs a stale `origin/HEAD`.
   [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
 - `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
 - `mise`: add `packslip:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
@@ -57,7 +60,7 @@ The file path is relative to the working directory and uses `/`: `./variants.yam
   A `${NAME:-fallback}` whose variable is unset stays the file, because the fallback is written there
 - `# autodetect <reason>` — the value was discovered.
   `<reason>` is one word: `watch`, `config`, or `connection`
-- `# autodetect from <source>` — the discovery names a source the key does not.
+- `# autodetect from <source>` — the discovery names a source the key does not, such as `# autodetect from origin/HEAD` for a detected [`variant.baseBranch`](./configuration#variant-basebranch).
   `abbr` quotes the main directory's base name.
   `main` names `AGENTS.md` or ``git rev-parse --git-common-dir``.
   `root` names `AGENTS.md` only when it is not the same path as `main`
