@@ -1,4 +1,6 @@
+import { statSync } from "node:fs";
 import type { VariantClient, VariantRecord } from "variant-api";
+import { findConfigFile } from "variant-config";
 
 /** What the view, the panel and the onboarding dialog need of the library: the state subscription, the three actions and `init`. */
 export type ViewClient = Pick<VariantClient, "subscribe" | "watch" | "down" | "implode" | "init" | "create">;
@@ -9,12 +11,30 @@ export type LoadClient = (cwd?: string) => Promise<ViewClient>;
 /** The message of anything thrown, for a notification or a row. */
 export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+/** What identifies the configuration file of `cwd` as it is now: its path, modification time and size, or `none`. */
+const configSignature = (cwd: string): string => {
+  try {
+    const file = findConfigFile(cwd);
+    if (file === undefined) {
+      return "none";
+    }
+    const { mtimeMs, size } = statSync(file);
+    return `${file}:${mtimeMs}:${size}`;
+  } catch {
+    return "none";
+  }
+};
+
 /**
  * The library for the project at `cwd`, loaded on first use.
  *
  * AIDEV-NOTE: variant-api is imported lazily. Where its sqlite module is missing (an editor host older than the one
  * `engines.vscode` asks for, or a remote host), the import fails here and the view shows why, instead of the whole
  * extension failing to activate. A failed load is not remembered, so the next use tries again.
+ *
+ * AIDEV-NOTE: a client reads `variants.yaml` once, when it is made. The key therefore carries the file's signature, so an
+ * edit (by `init`, the migration or by hand) makes the next call load a client that reads the file again. A client made
+ * for an older signature stays alive for whoever holds it, such as a subscription, and leaves the map.
  */
 export const loadVariantClient = (
   fallback: string,
@@ -24,7 +44,13 @@ export const loadVariantClient = (
   return (cwd = fallback) => {
     // The setting `variant.mise.binPath` applies to the next call: a client made with another value is made anew.
     const configured = miseBinPath();
-    const key = `${cwd}\0${configured ?? ""}`;
+    const prefix = `${cwd}\0${configured ?? ""}\0`;
+    const key = `${prefix}${configSignature(cwd)}`;
+    for (const stale of [...clients.keys()]) {
+      if (stale.startsWith(prefix) && stale !== key) {
+        clients.delete(stale);
+      }
+    }
     const cached = clients.get(key);
     if (cached) {
       return cached;
