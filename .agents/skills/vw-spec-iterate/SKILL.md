@@ -1,10 +1,10 @@
 ---
-
-## name: vw-spec-iterate
+name: vw-spec-iterate
 description: >
   Implement an OpenSpec change with TDD until local lint/build/tests pass.
   Create logical Conventional Commits while implementing. Use during
   feature development, /vw-spec-iterate, or after /vw-spec-start.
+---
 
 # vw-spec-iterate
 

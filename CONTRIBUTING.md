@@ -74,7 +74,12 @@ its command or section is described. Record the change in `CHANGELOG.md`.
 **All commands** and project tools (`openspec`, `task`, `bun`, `hk`, `commitlint`, etc)
 should use mise-managed versions.
 **AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash; set -x)";` at start of each shell series.
-This will set all relevant env vars, including $PATH. Then `-x` echos, so no need for `echo '---what---'`. The `mise x --` prefix is a shorthand for this.
+This will set all relevant env vars, including $PATH. The `mise x --` prefix is a shorthand for this.
+Then `-x` echos, so no need for `echo '---what---'`.
+
+**Cursor:** for simple edits prefer the `StrReplace` and `Write` tools over scripting (`sed`, `python`, heredocs).
+They need no shell quoting, fail loudly when the text is not found, and show the change as a reviewable diff.
+Keep scripts for bulk or mechanical rewrites. Note that `sed` is GNU sed under mise and differs from the macOS one.
 
 Local lint, format and tests use [hk](https://hk.jdx.dev/) (2.x, pinned in `mise.toml`) wrapping
 Biome and `bun test`. Git `pre-commit` and `commit-msg` live under `.githooks/` and call hk /
