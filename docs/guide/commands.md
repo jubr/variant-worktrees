@@ -220,6 +220,7 @@ Attached, stdout stays on stdout and stderr stays on stderr, with the same prefi
 Otherwise the watch runs with pipes and a warning.
 A line that contains an ANSI escape gets a reset before the newline, and the log starts with `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`.
 `no-tty` keeps the pipes.
+Clear-screen sequences (erase display, cursor home, terminal reset) are removed from every line, in every mode, so a pager or `tail -f` of the log is not wiped; color and other sequences stay.
 Omit `output.mode` and the editor uses `tty` when an enabled extension's description contains both `log` and `ansi`, otherwise `no-tty`.
 The CLI does not see extensions, so an omitted mode stays `no-tty`.
 The file grows while the processes run, so `tail -f` follows it. `list` and `status` show its path.

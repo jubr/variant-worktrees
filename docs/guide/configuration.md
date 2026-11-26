@@ -351,6 +351,7 @@ Otherwise the watch runs with pipes and a warning.
 A line that contains an ANSI escape gets a reset before the newline.
 The log starts with one line `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`.
 `no-tty` keeps pipes, and stdout and stderr stay separate.
+Clear-screen sequences (erase display, cursor home, terminal reset) are removed from every line, in every mode, so a pager or `tail -f` of the log is not wiped; color and other sequences stay.
 Absent: the editor uses `tty` when an enabled extension's description contains both `log` and `ansi`, and `no-tty` otherwise.
 The CLI does not see extensions, so an omitted mode stays `no-tty` there.
 

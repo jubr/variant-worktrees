@@ -12,9 +12,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import { loadConfig } from "variant-config";
 import { isProcessAlive } from "./runtime-state.js";
-import { type RelayPlan, relayModulePath, relayStderrMode } from "./watch-relay.js";
+import {
+  launchWatches,
+  type RelayPlan,
+  relayModulePath,
+  relayStderrMode,
+  type WatchOutputMode,
+} from "./watch-relay.js";
 
 setDefaultTimeout(30000);
 const cleanups: (() => void)[] = [];
@@ -253,5 +260,97 @@ describe("the standard error of a detached relay", () => {
   it("is closed when the caller's is a pipe or unknown, so a reader of that pipe is not held", () => {
     expect(relayStderrMode(kind(false, false))).toBe("ignore");
     expect(relayStderrMode(undefined)).toBe("ignore");
+  });
+});
+
+/** Runs `command` as watch `fe` and returns what the console and the log received. */
+const relayed = async (
+  command: string,
+  outputMode: WatchOutputMode = "no-tty",
+): Promise<{ out: string; log: string }> => {
+  const directory = mkdtempSync(join("/tmp", "variant-clear-"));
+  cleanups.push(() => rmSync(directory, { recursive: true, force: true }));
+  const chunks: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, done) {
+      chunks.push(chunk.toString());
+      done();
+    },
+  });
+  const logPath = join(directory, "watch.log");
+  const launched = await launchWatches({
+    launches: [{ key: "fe", command, cwd: directory, env: process.env, outputMode }],
+    startDelayMs: 0,
+    stdout,
+    stderr: stdout,
+    logPath,
+  });
+  await Promise.all(
+    launched.processes.map(
+      ({ child }) =>
+        new Promise<void>((resolve) => {
+          if (child.exitCode !== null) resolve();
+          else child.once("exit", () => resolve());
+        }),
+    ),
+  );
+  await launched.close();
+  return { out: chunks.join(""), log: readFileSync(logPath, "utf8") };
+};
+
+describe("watch output has no clear-screen sequences", () => {
+  const ESC = "\u001b";
+
+  it.each([
+    ["erase display", "\\033[2J"],
+    ["erase scrollback", "\\033[3J"],
+    ["erase to end", "\\033[J"],
+    ["erase to start", "\\033[1J"],
+    ["cursor home", "\\033[H"],
+    ["cursor home with a semicolon", "\\033[;H"],
+    ["cursor home with a position", "\\033[1;1H"],
+    ["terminal reset", "\\033c"],
+    ["all of the vite sequences", "\\033[2J\\033[3J\\033[H"],
+  ])("removes %s before a message and keeps the message", async (_name, sequence) => {
+    const { out, log } = await relayed(`printf '${sequence}rebuilt\\n'`);
+
+    expect(out).toBe("[fe] rebuilt\n");
+    expect(log).toContain("[fe] rebuilt\n");
+    expect(log).not.toContain(ESC);
+  });
+
+  it("skips a line that only held clear sequences and keeps a line the process wrote empty", async () => {
+    const { out, log } = await relayed(`printf 'a\\n\\n\\033[H\\033[2J\\nb\\n'`);
+
+    expect(out).toBe("[fe] a\n[fe] \n[fe] b\n");
+    expect(log).toContain("[fe] a\n[fe] \n[fe] b\n");
+  });
+
+  it("keeps other escape sequences", async () => {
+    const { out } = await relayed(`printf '\\033[2Kline\\n'`);
+
+    expect(out).toBe(`[fe] ${ESC}[2Kline\n`);
+  });
+
+  it("removes a sequence that arrives in two chunks", async () => {
+    const { out } = await relayed(`printf '\\033[2'; sleep 0.3; printf 'Jtext\\n'`);
+
+    expect(out).toBe("[fe] text\n");
+  });
+
+  it("keeps color and its reset on a terminal while removing the clear", async () => {
+    const { out, log } = await relayed(`printf '\\033[2J\\033[32mready\\033[0m\\n'`, "tty");
+
+    expect(out).toBe(`[fe] ${ESC}[32mready${ESC}[0m${ESC}[0m\n`);
+    expect(log).toContain(`[fe] ${ESC}[32mready${ESC}[0m${ESC}[0m\n`);
+    expect(log).not.toContain(`${ESC}[2J`);
+  });
+
+  it("appends no reset to a terminal line whose only escapes were removed", async () => {
+    const { out, log } = await relayed(`printf '\\033[2J\\033[Hrebuilt\\n'`, "tty");
+
+    expect(out).toBe("[fe] rebuilt\n");
+    expect(log).toContain("[fe] rebuilt\n");
+    expect(log).not.toContain(ESC);
   });
 });

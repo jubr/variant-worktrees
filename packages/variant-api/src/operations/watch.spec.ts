@@ -80,6 +80,7 @@ if (process.env.TTY_PROBE) {
   const terminal = process.stdout.isTTY === true;
   console.log(terminal ? "tty" : "pipe");
   console.log(terminal ? "\u001b[32mgreen\u001b[0m" : "plain");
+  process.stdout.write("\u001b[2J\u001b[3J\u001b[Hcleared\\n");
   // AIDEV-NOTE: console.error colors stderr on a Linux terminal. Write the plain oops the spec names.
   process.stderr.write("oops\\n");
   console.log("cols " + String(process.stdout.columns ?? 0));
@@ -1701,6 +1702,58 @@ describe("watch output terminal", () => {
       } finally {
         stdout.stop();
       }
+    }, probe("tty")));
+
+  it("removes clear-screen sequences from attached terminal output and the log", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] held"), 2000).catch(() => {});
+        const logged = readFileSync(log, "utf8");
+        expect(stdout.text()).toContain("[fe] cleared\n");
+        expect(logged).toContain("[fe] cleared\n");
+        for (const text of [stdout.text(), logged]) {
+          expect(text).not.toContain("\u001b[2J");
+          expect(text).not.toContain("\u001b[3J");
+          expect(text).not.toContain("\u001b[H");
+        }
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("tty")));
+
+  it("removes clear-screen sequences from a pipe watch", () =>
+    withProject(async ({ attach, directory, started }) => {
+      const stdout = captureWrite(process.stdout);
+      const { done, stop } = attach();
+      try {
+        await started("fe");
+        const log = logIn(directory);
+        await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] cleared"), 2000).catch(() => {});
+        expect(stdout.text()).toContain("[fe] cleared\n");
+        expect(readFileSync(log, "utf8")).toContain("[fe] cleared\n");
+        expect(readFileSync(log, "utf8")).not.toContain("\u001b[2J");
+      } finally {
+        stdout.stop();
+        stop();
+        await done;
+      }
+    }, probe("no-tty")));
+
+  it("removes clear-screen sequences from a detached terminal watch log", () =>
+    withProject(async ({ watch, directory }) => {
+      await watch({ detach: true });
+      const log = logIn(directory);
+      await until(() => existsSync(log) && readFileSync(log, "utf8").includes("[fe] cleared"), 2000).catch(() => {});
+      const logged = readFileSync(log, "utf8");
+      expect(logged).toContain("[fe] cleared\n");
+      expect(logged).not.toContain("\u001b[2J");
+      expect(logged).not.toContain("\u001b[H");
     }, probe("tty")));
 
   it("allocates the terminal in process when the host is Bun", () =>
