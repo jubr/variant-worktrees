@@ -1,0 +1,27 @@
+## Context
+
+`mise.toml` pins the repository's tools. One of them, `packslip:jubr/variant-worktrees`, uses the `packslip:` backend, which mise first shipped in 2026.9.2 (see the compatibility page of packslip). The `min_version` key is mise's own mechanism for that: it is read before tools are resolved and stops older versions with a clear message.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- A contributor with an old Mise learns to update instead of seeing an unknown-backend error.
+- Keep the guide and the skills loadable and accurate.
+
+**Non-Goals:**
+
+- Pinning Mise exactly, or installing Mise for the contributor.
+- Changing what `variant init` writes into user projects.
+
+## Decisions
+
+- **Floor, not pin.** `min_version = "2026.9.2"`, the release that introduced the backend. Later mise releases only add features (age rules, man pages, pins) that the repository does not depend on. Alternative: the latest release the maintainer uses. Rejected: it would reject Mise versions that work.
+- **Top-level key in `mise.toml`**, above `[tools]`, with an `AIDEV-NOTE` that names the reason, so a later edit does not lower it without seeing why.
+- **No code or workflow change.** CI installs the latest Mise, which is above the floor.
+- **Skill front matter and the guide's Cursor paragraph** are prose fixes with no behavior; they ship in the same change since they were already written, and need no spec.
+
+## Risks / Trade-offs
+
+- [A tool added later needs a newer Mise] → raise `min_version` in the same change that adds it; the requirement says it covers every backend in use.
+- [`min_version` blocks a contributor whose Mise is slightly old] → intended; the error names the version to install.
