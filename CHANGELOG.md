@@ -6,6 +6,7 @@
 
 - `variant init` writes no `db` key when it detects no database (autodetection resolves SQLite on its own), and the file it writes starts with the `yaml-language-server` schema header, so the next `variant` command or editor load no longer rewrites it and leaves a `variants.yaml~` behind.
 - The mise step of `variant init` adds `"packslip:jubr/variant-worktrees" = "latest"`. A Mise configuration that already lists `github:jubr/variant-worktrees` counts as listing the tool and is not given a second entry.
+- `variant watch` removes clear-screen ANSI sequences (erase display `ESC[J`, cursor home `ESC[H`, terminal reset `ESC c`) from the lines it writes to `.cache/variant/watch.log` and to standard output, in every output mode. A line that held only those sequences is not written. Color and other sequences are kept.
 - `publish-extensions.yaml` publishes to the Visual Studio Marketplace through trusted publishing (`vsce publish --oidc`) instead of the `VSCE_PAT` secret, which is no longer used. The Marketplace needs a Trusted Publishing policy for the workflow `publish-extensions.yaml` and the environment `marketplace`.
 
 ### Fixed
