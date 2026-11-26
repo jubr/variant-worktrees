@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "./index.js";
 import { parseConfig } from "./parse.js";
@@ -46,12 +47,61 @@ const loaded = (yaml: string, env: NodeJS.ProcessEnv = {}) => {
   return result as ReturnType<typeof loadConfig>;
 };
 
+/** Loads `yaml` in a repository whose first branch is `branch`, after `prepare` changed it. */
+const loadedInRepo = (
+  branch: string,
+  yaml: string,
+  prepare: (git: (...args: string[]) => void) => void = () => {},
+): ReturnType<typeof loadConfig> => {
+  const directory = realpathSync(mkdtempSync(join("/tmp", "variant-base-branch-")));
+  try {
+    const git = (...args: string[]): void => {
+      execFileSync("git", ["-C", directory, ...args], { stdio: "ignore" });
+    };
+    execFileSync("git", ["init", "-q", "-b", branch, directory]);
+    git("config", "user.email", "variant@example.test");
+    git("config", "user.name", "Variant Tests");
+    // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide a case.
+    git("config", "init.defaultBranch", "no-such-branch");
+    git("commit", "-q", "--allow-empty", "-m", "initial");
+    prepare(git);
+    writeFileSync(join(directory, "variants.yaml"), yaml);
+    return loadConfig({ cwd: directory, env: {} });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
 describe("branch naming settings", () => {
   it("defaults to main and the feat/ and fix/ prefixes", () => {
     const { variant } = loaded("db:\n  dialect: sqlite\n");
 
     expect(variant.baseBranch).toBe("main");
     expect(variant.branchPrefixes).toEqual(["feat/", "fix/"]);
+  });
+
+  it("detects the default branch of a master-only repository when baseBranch is not set", () => {
+    const { variant } = loadedInRepo("master", "db:\n  dialect: sqlite\n");
+
+    expect(variant.baseBranch).toBe("master");
+  });
+
+  it("detects the branch origin/HEAD points at, not a local main", () => {
+    const { variant } = loadedInRepo("main", "db:\n  dialect: sqlite\n", (git) => {
+      git("remote", "add", "origin", "https://unreachable.invalid/project.git");
+      git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop");
+    });
+
+    expect(variant.baseBranch).toBe("develop");
+  });
+
+  it("keeps a configured baseBranch over the detected one", () => {
+    const { variant } = loadedInRepo("master", "variant:\n  baseBranch: release\n", (git) => {
+      git("remote", "add", "origin", "https://unreachable.invalid/project.git");
+      git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop");
+    });
+
+    expect(variant.baseBranch).toBe("release");
   });
 
   it("carries configured values", () => {
