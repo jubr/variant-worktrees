@@ -15,15 +15,37 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const dist = join(import.meta.dir, "../dist");
 /**
  * `bunfig.toml` sets `[run] bun = true`, so `bun run` puts bun on `PATH` as `node`.
- * The Node install from Mise is the process these tests mean by Node.
+ * The first real Node on `PATH` (one that is not Bun in disguise) is the process these tests mean by Node.
  */
-const hostNode = execFileSync("mise", ["which", "node"], { encoding: "utf8" }).trim();
+const findHostNode = (): string => {
+  for (const directory of (process.env.PATH ?? "").split(delimiter)) {
+    const candidate = join(directory, "node");
+    try {
+      // AIDEV-NOTE: ask the process for `execPath` so a Mise shim resolves to the real binary; a shim run from a
+      // temporary directory has no version set and fails.
+      const [bunVersion, execPath] = execFileSync(
+        candidate,
+        ["-p", "(process.versions.bun ?? '') + '\\n' + process.execPath"],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      )
+        .trimEnd()
+        .split("\n");
+      if (bunVersion === "" && execPath) {
+        return execPath;
+      }
+    } catch {
+      // not there, not executable, or a Mise shim without an active version: try the next directory
+    }
+  }
+  throw new Error("these tests need a real Node on PATH");
+};
+const hostNode = findHostNode();
 const entries = {
   index: pathToFileURL(join(dist, "index.js")).href,
   commands: pathToFileURL(join(dist, "commands.js")).href,

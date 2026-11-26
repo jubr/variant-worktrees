@@ -121,8 +121,8 @@ prefer `task` names that match the gates.
 - `Taskfile.yaml` is the source of install / lint / format / build / test CLI invocations.
 - Biome and TypeScript run through workspace scripts (`bun run lint`, `bun run build`). 
 - Tests are `bun test` via `bun run test`.
-- `commitlint` and `openspec` are mise `npm:` tools.
-- `node` is pinned only as their shim runtime. 
+- `commitlint` and `openspec` are mise `npm:` tools, installed with `aube` so they run under `bun`.
+- `mise.toml` does not pin `node`. `variant-api`'s runtime tests use the first real Node on `PATH`. 
 
 ```bash
 task install           # bun install at workspace root
