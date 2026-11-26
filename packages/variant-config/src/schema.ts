@@ -47,11 +47,13 @@ export const DbConfigSchema = z.strictObject({
   password: z.string().optional(),
   database: z.string().min(1).optional(),
   schema: z.string().min(1).optional(),
-  filename: z.string().min(1).optional(),
   ssl: z.boolean().optional(),
   multi: DbMultiSchema.optional(),
 });
 export type DbConfig = z.infer<typeof DbConfigSchema>;
+
+/** The SQLite file when `db.database` is not set: one file per slug, relative to that slug's worktree. */
+export const DEFAULT_SQLITE_DATABASE = ".cache/variants/{slug}.sqlite";
 
 /** Template of the URL of a Vite watch. `${slug}`, `${abbr}` and `${port}` are placeholders. */
 export const DEFAULT_URL = "http://${slug}.${abbr}.localhost:${port}";
@@ -608,6 +610,11 @@ export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {
   warnings: string[];
   /** One line per name of an earlier version (`instances`, `reservedPorts`) that was read under the current one. */
   migrations: string[];
+  /**
+   * `<directory>/.cache/variants/{slug}.db` when the `.db` files of an earlier version are in use: loading resolved
+   * `db.database` to it and the file migration writes it. Not enumerable.
+   */
+  formerDatabase?: string;
 };
 
 export const variantsJsonSchema = z.toJSONSchema(VariantsConfigSchema);

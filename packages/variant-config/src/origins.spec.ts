@@ -180,7 +180,28 @@ describe("config origins", () => {
 
       expect(config.db.dialect).toBe("sqlite");
       expect(configOrigins(config)["db.dialect"]).toBe("# default");
-      expect(configOrigins(config)["db.filename"]).toBe("# default");
+      expect(configOrigins(config)["db.database"]).toBe("# default");
+    }));
+
+  it("names a SQLite database from the environment as # from env <NAME>", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
+
+      const path = loadConfig({ cwd: directory, environment: () => ({ SQLITE_PATH: "/x/{slug}.sqlite" }) });
+      expect(path.db.database).toBe("/x/{slug}.sqlite");
+      expect(configOrigins(path)["db.database"]).toBe("# from env SQLITE_PATH");
+      const url = loadConfig({ cwd: directory, environment: () => ({ DATABASE_URL: "sqlite:a.sqlite" }) });
+      expect(configOrigins(url)["db.database"]).toBe("# from env DATABASE_URL");
+    }));
+
+  it("names the default database of an explicit SQLite dialect as # default", () =>
+    withDirectory((directory) => {
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+
+      const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+      expect(config.db.database).toBe(".cache/variants/{slug}.sqlite");
+      expect(configOrigins(config)["db.database"]).toBe("# default");
     }));
 
   it("names a worktree file literal as # from ./variants.yaml and ignores the main prefix", () =>

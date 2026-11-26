@@ -64,7 +64,7 @@ const dbFromState = (state: StateFile): ResolvedRuntime["db"] => {
   if (state.dialect === "sqlite") {
     return {
       ...(state.dialect ? { dialect: state.dialect } : {}),
-      ...(state.target ? { filename: state.target } : {}),
+      ...(state.target ? { database: state.target } : {}),
     };
   }
   return {
@@ -102,7 +102,12 @@ const readDumpDb = (configDir: string): ResolvedRuntime["db"] => {
   }
   try {
     const dump = parseYaml(readFileSync(path, "utf8")) as { db?: ResolvedRuntime["db"] } | null;
-    return dump?.db;
+    const { db } = dump ?? {};
+    if (db && "filename" in db) {
+      const { filename, ...rest } = db as typeof db & { filename?: string };
+      return { ...rest, ...(rest.database === undefined && filename ? { database: filename } : {}) };
+    }
+    return db;
   } catch {
     return undefined;
   }
@@ -195,7 +200,8 @@ const writeIfChanged = (path: string, text: string): void => {
   writeFileSync(path, text);
 };
 
-const targetOf = (db: Runtime["db"]): string | undefined => db?.schema ?? db?.filename;
+const targetOf = (db: Runtime["db"]): string | undefined =>
+  db?.schema ?? (db?.dialect === "sqlite" ? db.database : undefined);
 
 const watchFacts = (watches: Runtime["watches"]): StateFile["watches"] =>
   Object.fromEntries(

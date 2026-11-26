@@ -49,10 +49,6 @@
           "type": "string",
           "minLength": 1
         },
-        "filename": {
-          "type": "string",
-          "minLength": 1
-        },
         "ssl": {
           "type": "boolean"
         },

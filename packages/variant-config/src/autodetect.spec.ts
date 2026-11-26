@@ -24,11 +24,46 @@ describe("detectConnection", () => {
     });
   });
 
-  it("falls back to a SQLite file in the directory when nothing is set", () => {
+  it("falls back to one SQLite file per slug when nothing is set", () => {
     const detected = detectConnection("/proj", () => ({}));
 
     expect(detected.source).toBe("default");
-    expect(detected.config).toEqual({ dialect: "sqlite", filename: "/proj/.cache/variants/variants.db" });
+    expect(detected.config).toEqual({ dialect: "sqlite", database: ".cache/variants/{slug}.sqlite" });
+  });
+});
+
+/** Specification: openspec/specs/variant-config/core/spec.md (SQLite database file) */
+describe("detectConnection for SQLite", () => {
+  it("reads SQLITE_DATABASE and SQLITE_PATH as the database file, the first one winning", () => {
+    expect(detectConnection("/proj", () => ({ SQLITE_DATABASE: "a.sqlite" })).config).toEqual(
+      expect.objectContaining({ dialect: "sqlite", database: "a.sqlite" }),
+    );
+    expect(detectConnection("/proj", () => ({ SQLITE_PATH: "/data/b.sqlite" })).config).toEqual(
+      expect.objectContaining({ dialect: "sqlite", database: "/data/b.sqlite" }),
+    );
+    const both = detectConnection("/proj", () => ({ SQLITE_DATABASE: "a.sqlite", SQLITE_PATH: "/x.sqlite" }));
+    expect(both.config.database).toBe("a.sqlite");
+    expect(both.config).not.toHaveProperty("filename");
+  });
+
+  it("reads the file of a sqlite: DATABASE_URL", () => {
+    const file = (url: string) => detectConnection("/proj", () => ({ DATABASE_URL: url })).config.database;
+    expect(file("sqlite:///var/data/app.sqlite")).toBe("/var/data/app.sqlite");
+    expect(file("sqlite:app.sqlite")).toBe("app.sqlite");
+    expect(file("sqlite:./data/app.sqlite")).toBe("./data/app.sqlite");
+    expect(file("sqlite://data/app.sqlite")).toBe("data/app.sqlite");
+  });
+
+  it("lets a variable win over the DATABASE_URL file and names the variable that gave the file", () => {
+    const { config, variables } = detectConnection("/proj", () => ({
+      DATABASE_URL: "sqlite:///url.sqlite",
+      SQLITE_DATABASE: "var.sqlite",
+    }));
+    expect(config.database).toBe("var.sqlite");
+    expect(variables.database).toBe("SQLITE_DATABASE");
+    expect(detectConnection("/proj", () => ({ DATABASE_URL: "sqlite:url.sqlite" })).variables.database).toBe(
+      "DATABASE_URL",
+    );
   });
 });
 
@@ -105,8 +140,8 @@ describe("detectConnection variables", () => {
     ).toEqual({ host: "MYSQL_HOST", password: "MARIADB_PASSWORD" });
     expect(detectConnection("/proj", () => ({ SQLITE_DATABASE: "a", SQLITE_PATH: "/x.db" })).variables).toEqual({
       database: "SQLITE_DATABASE",
-      filename: "SQLITE_PATH",
     });
+    expect(detectConnection("/proj", () => ({ SQLITE_PATH: "/x.db" })).variables).toEqual({ database: "SQLITE_PATH" });
   });
 
   it("names nothing when nothing is detected", () => {

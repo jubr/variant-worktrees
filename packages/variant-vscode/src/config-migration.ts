@@ -90,7 +90,8 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
           }
           announced.add(file);
           const before = readText(file);
-          const result = migrateFile(file, env);
+          const database = config.formerDatabase;
+          const result = migrateFile(file, env, database === undefined ? {} : { database });
           // a missing schema header is cosmetic: when it cannot be added, there is nothing to tell
           const cosmetic = result?.status === "skipped" && result.notices.every(isSchemaHeaderNotice);
           if (result && !cosmetic) {
