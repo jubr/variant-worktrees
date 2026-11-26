@@ -4,13 +4,13 @@
 
 For the `sqlite` dialect `db.database` SHALL be the database file of a variant: a full path, absolute or relative, that MAY contain the placeholder `{slug}` for the slug of the variant. The resolved configuration SHALL carry it as written; a relative path is resolved per variant against the directory of that variant, as `variant-api` does. When no setting names a file, `db.database` SHALL be `.cache/variants/{slug}.sqlite`, both when the dialect was autodetected and when `db.dialect: sqlite` is set without `database`, and an explicit one SHALL NOT read the environment for it. An explicit `db.database` SHALL win over every detected value.
 
-Environment detection SHALL stay as it is: `SQLITE_DATABASE` and `SQLITE_PATH` select the dialect. Both SHALL be read as `db.database`, `SQLITE_DATABASE` first, and neither SHALL be read as another field. A `DATABASE_URL` that starts with `sqlite:` SHALL yield the file it names as `db.database`: `sqlite:///<absolute path>` is that absolute path, and `sqlite:<path>`, `sqlite:./<path>` and `sqlite://<path>` are relative paths. `variant config` SHALL comment a `database` from the environment `# from env <NAME>` and the default `# autodetect connection`.
+Environment detection SHALL stay as it is: `SQLITE_DATABASE` and `SQLITE_PATH` select the dialect. Both SHALL be read as `db.database`, `SQLITE_DATABASE` first, and neither SHALL be read as another field. A `DATABASE_URL` that starts with `sqlite:` SHALL yield the file it names as `db.database`: `sqlite:///<absolute path>` is that absolute path, and `sqlite:<path>`, `sqlite:./<path>` and `sqlite://<path>` are relative paths. `variant config` SHALL comment a `database` from the environment `# from env <NAME>` and the default `# default`.
 
 #### Scenario: Default file
 
 - **WHEN** `variants.yaml` sets no `db` and the environment has no database setting
 - **THEN** `config.db.dialect` is `sqlite` and `config.db.database` is `.cache/variants/{slug}.sqlite`
-- **AND** `variant config` comments the `database` line `# autodetect connection`
+- **AND** `variant config` comments the `database` line `# default`
 
 #### Scenario: Explicit sqlite without a file
 
