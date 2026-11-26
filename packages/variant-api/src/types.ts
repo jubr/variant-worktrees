@@ -275,6 +275,8 @@ export interface InitResult {
     databaseSource: "env" | "default";
     abbr: string;
     prefix: string;
+    /** The default git branch written as `variant.baseBranch`; `null` when none was detected. */
+    baseBranch: string | null;
     watches: string[];
   } | null;
 }
