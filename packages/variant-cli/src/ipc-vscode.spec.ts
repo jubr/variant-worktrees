@@ -387,6 +387,39 @@ describe("vscode log stream", () => {
     expect(lines.filter((line) => line.includes("write failed"))).toEqual(["[debug] ipc write failed\n"]);
   });
 
+  it("exits the process when the editor accepts the connection but never answers or closes", async () => {
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-hang-")));
+    roots.push(directory);
+    mkdirSync(join(directory, ".vscode"), { recursive: true });
+    const sockets: Socket[] = [];
+    const server = createServer((socket) => {
+      sockets.push(socket);
+    });
+    await listen(server, socketPath(directory));
+    try {
+      const proc = Bun.spawn(["bun", "run", join(import.meta.dir, "cli.ts"), "list", "--log-level=debug"], {
+        cwd: directory,
+        env: { ...process.env, NO_COLOR: "1", VARIANT_WORKTREE: "0" },
+        stdout: "ignore",
+        stderr: "pipe",
+      });
+      const outcome = await Promise.race([
+        proc.exited.then(() => "exited" as const),
+        Bun.sleep(8000).then(() => "hung" as const),
+      ]);
+      if (outcome === "hung") {
+        proc.kill();
+      }
+      expect(outcome).toBe("exited");
+      expect(await new Response(proc.stderr).text()).toContain("[debug] ipc write failed");
+    } finally {
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      await closeServer(server);
+    }
+  }, 15000);
+
   it("hides the stalled write at the default threshold", async () => {
     const lines = await stalledWriteLines(LogLevel.warn);
     expect(lines.filter((line) => line.includes("write failed"))).toEqual([]);

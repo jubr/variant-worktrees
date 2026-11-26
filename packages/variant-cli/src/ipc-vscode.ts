@@ -33,7 +33,7 @@ const dropSocket = (): void => {
   socketDropped = true;
   const client = vscodeClient;
   vscodeClient = undefined;
-  client?.close();
+  client?.destroy();
   if (warnedWrite) {
     return;
   }
