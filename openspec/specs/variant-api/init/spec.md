@@ -53,8 +53,11 @@ values. A `prefix` that is empty or contains a path separator SHALL be refused b
 settings found in the Mise or process environment ([specs/tools/mise](../../tools/mise/spec.md)) (Postgres, MySQL and MariaDB, which are written as dialect
 `mysql`, and SQLite), `variant.abbr`, `variant.prefix`, and one entry of `variant.watches` per detected application
 with its `kind`, `watch` and, for Vite, `url` (in the `${...}` syntax); `dir` is written only when it differs from the key of the entry. When no
-database is detected it SHALL write only `db.dialect: sqlite`. Machine-specific paths (`variant.main`,
-`variant.root`, the default SQLite file) SHALL NOT be written. The written file SHALL pass the same validation as any
+database setting is detected it SHALL write no `db` key at all, so the file leaves the choice to autodetection. Machine-specific paths (`variant.main`,
+`variant.root`, the default SQLite file) SHALL NOT be written. The file SHALL begin with the schema header of
+[specs/variant-config/core | Schema header](../../variant-config/core/spec.md#requirement-schema-header) followed by a blank line, so a
+`variant` command or the extension that loads it afterwards finds nothing to migrate and writes no `variants.yaml~`.
+The written file SHALL pass the same validation as any
 `variants.yaml`, and loading it SHALL resolve to the same database and watches as the autodetected ones.
 
 #### Scenario: Postgres from mise
@@ -73,7 +76,19 @@ database is detected it SHALL write only `db.dialect: sqlite`. Machine-specific 
 #### Scenario: Nothing detected
 
 - **WHEN** no database setting is detected
-- **THEN** the file has `db: { dialect: sqlite }` and no `filename`
+- **THEN** the file has no `db` key
+- **AND** loading it resolves to the same SQLite database as autodetection without a file
+
+#### Scenario: Schema header first
+
+- **WHEN** init writes `variants.yaml`
+- **THEN** its first line is the `yaml-language-server` modeline of the main schema and its second line is blank
+- **AND** the "Written by `variant init`" comment follows
+
+#### Scenario: Nothing to migrate afterwards
+
+- **WHEN** init has written `variants.yaml` and a person runs `variant list` in that directory
+- **THEN** the command prints no migration message and `variants.yaml~` does not exist
 
 #### Scenario: Watches
 
