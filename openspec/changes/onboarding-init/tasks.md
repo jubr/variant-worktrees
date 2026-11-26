@@ -11,13 +11,18 @@
 - [ ] 2.2 Update the expectations of `operations/init.spec.ts` (`github:jubr` becomes `packslip:jubr`) and the MCP and CLI specs that read the mise line. Verify `bun test` of `variant-api`, `variant-cli` and `variant-mcp` passes.
 - [ ] 2.3 Task-group commit (`feat(init): ...`).
 
-## 3. Editor actions read the current configuration
+## 3. Bun hint for another Mise install
 
-- [ ] 3.1 Red then green in `packages/variant-vscode/src/variants-client.spec.ts` (create it if missing, with the mock of `variant-api`): a second `loadClient()` after `variants.yaml` changed creates a new client; after no change it returns the cached one; a created file (was `none`) counts as changed. Verify the spec passes.
-- [ ] 3.2 High-level spec in `variants-view.spec.ts`: play on `main` before and after a watch is added to `variants.yaml` starts the watch the second time. Verify the spec passes.
-- [ ] 3.3 Task-group commit (`fix(vscode): ...`).
+- [ ] 3.1 Red then green in `packages/variant-api/src/mise-bun.spec.ts`: with the first `bun` under `.../mise/installs/bun/1.4.4/bin` and a different pin, the warning says it is a Mise install not to delete, names the inherited environment and the restart, and has neither "delete" nor "a tool or another file your shell reads"; the `~/.bun`, Homebrew, `node_modules` and fallback hints are unchanged. Verify the spec passes.
+- [ ] 3.2 Task-group commit (`fix(mise): ...`).
 
-## 4. Docs, changelog and gates
+## 4. Editor actions read the current configuration
 
-- [ ] 4.1 Update `README.md` (init paragraph), `docs/guide/commands.md` (`variant init`), `docs/guide/installation.md` (output with the `packslip:` mise line, the header, and the `db`-less example) and `CHANGELOG.md` under Unreleased. Verify `task check:full` docs build passes and `scripts/docs-site.spec.ts` is green.
-- [ ] 4.2 `openspec validate --all --strict --no-interactive` passes, `task check:all` passes, and `task bleed:cli` publishes the binary. Show in chat `variant init` in an empty temp directory: no `db` key, header first, `packslip:` in `mise.toml`, and a following `variant list` without a migration message.
+- [ ] 4.1 Red then green in `packages/variant-vscode/src/variants-client.spec.ts` (create it if missing, with the mock of `variant-api`): a second `loadClient()` after `variants.yaml` changed creates a new client; after no change it returns the cached one; a created file (was `none`) counts as changed. Verify the spec passes.
+- [ ] 4.2 High-level spec in `variants-view.spec.ts`: play on `main` before and after a watch is added to `variants.yaml` starts the watch the second time. Verify the spec passes.
+- [ ] 4.3 Task-group commit (`fix(vscode): ...`).
+
+## 5. Docs, changelog and gates
+
+- [ ] 5.1 Update `README.md` (init paragraph), `docs/guide/commands.md` (`variant init`), `docs/guide/installation.md` (output with the `packslip:` mise line, the header, and the `db`-less example) and `CHANGELOG.md` under Unreleased. Verify `task check:full` docs build passes and `scripts/docs-site.spec.ts` is green.
+- [ ] 5.2 `openspec validate --all --strict --no-interactive` passes, `task check:all` passes, and `task bleed:cli` publishes the binary. Show in chat `variant init` in an empty temp directory: no `db` key, header first, `packslip:` in `mise.toml`, and a following `variant list` without a migration message.
