@@ -11,6 +11,11 @@ shellcheck = "0.11.0"
 task = "3.44.0"
 yq = "4.53.3"
 
+# AIDEV-NOTE: node is npm-backend runtime for commitlint/openspec shims, not the
+# package toolchain (those stay bun). mise installs `node` before `npm:.`
+# https://mise.jdx.dev/dev-tools/backends/npm.html
+node = "22.21.1"
+
 # lets use the latest version of ourselves
 "packslip:jubr/variant-worktrees" = "latest"
 
