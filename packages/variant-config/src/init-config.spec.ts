@@ -86,6 +86,25 @@ describe("renderInitConfig", () => {
     expect(detected.dialect).toBe("sqlite");
   });
 
+  it("writes a detected SQLite file as db.database and loads back to the same file", () => {
+    const environment = { SQLITE_PATH: "/data/app-{slug}.sqlite" };
+    const { text, detected } = render(environment);
+
+    expect(parsed(text).db).toEqual({ dialect: "sqlite", database: "/data/app-{slug}.sqlite" });
+    expect(text).not.toContain("filename");
+    expect(detected.dialect).toBe("sqlite");
+    expect(detected.databaseSource).toBe("env");
+    put("variants.yaml", text);
+    expect(loadConfig({ cwd: directory, environment: () => ({}) }).db.database).toBe("/data/app-{slug}.sqlite");
+  });
+
+  it("does not write a SQLite file that is only the default", () => {
+    const { text } = render({ DATABASE_URL: "sqlite:" });
+
+    expect(parsed(text).db).toEqual({ dialect: "sqlite", url: "sqlite:" });
+    expect(text).not.toContain("database:");
+  });
+
   it("writes the prefix given and the abbreviation of the project directory", () => {
     const { text } = render({}, {}, "wt-");
 

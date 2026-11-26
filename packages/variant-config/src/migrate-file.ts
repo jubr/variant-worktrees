@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { formerDatabaseNotice } from "./former-database.js";
 import { addSchemaHeader, schemaHeaderNotice } from "./header.js";
 import { migrateLegacy, migrateText } from "./legacy.js";
 import { LOCAL_FILENAME } from "./schema.js";
@@ -61,10 +62,14 @@ const optOut = (env: NodeJS.ProcessEnv): string | undefined => {
  * written by the tool, so the git conditions and the backup do not apply. Never throws: a failure is the reason of a skip. Only the `variant` CLI and the editor
  * extension call it; the library, the MCP server and `variant ui` never write.
  */
-export const migrateFile = (path: string, env: NodeJS.ProcessEnv = process.env): MigrationResult | undefined => {
+export const migrateFile = (
+  path: string,
+  env: NodeJS.ProcessEnv = process.env,
+  options: { database?: string } = {},
+): MigrationResult | undefined => {
   try {
     const text = readFileSync(path, "utf8");
-    const renamed = migrateText(text);
+    const renamed = migrateText(text, options);
     const migrated = addSchemaHeader(renamed ?? text, basename(path)) ?? renamed;
     if (migrated === undefined) {
       return undefined;
@@ -72,6 +77,9 @@ export const migrateFile = (path: string, env: NodeJS.ProcessEnv = process.env):
     const header = schemaHeaderNotice(renamed ?? text, basename(path), path);
     const notices = [
       ...(renamed === undefined ? [] : migrateLegacy(parseYaml(text), path).notices),
+      ...(options.database !== undefined && renamed !== migrateText(text)
+        ? [formerDatabaseNotice(path, options.database)]
+        : []),
       ...(header ? [header] : []),
     ];
     const isLocal = basename(path) === LOCAL_FILENAME;

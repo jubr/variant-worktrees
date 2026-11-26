@@ -15,6 +15,7 @@ import {
   detectWatches,
   type EnvironmentProvider,
 } from "./autodetect.js";
+import { findFormerSqliteDatabase, formerDatabaseNotice } from "./former-database.js";
 import { migrateLegacy } from "./legacy.js";
 import { readRuntimeState } from "./local.js";
 import {
@@ -33,6 +34,7 @@ import {
   DEFAULT_MAX_DIFF_LINES,
   DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
+  DEFAULT_SQLITE_DATABASE,
   DEFAULT_STORAGE_DIR,
   DEFAULT_STORAGE_ENV_VAR,
   parsePortRange,
@@ -279,6 +281,9 @@ const mergeDbConfig = (detected: Partial<DbConfig>, explicit: DbConfig | undefin
     ...explicit,
   }) as DbConfig;
 
+/** What an explicit `db.dialect: sqlite` gets instead of detection, which the environment cannot change. */
+const SQLITE_DEFAULTS: DbConfig = { dialect: "sqlite", database: DEFAULT_SQLITE_DATABASE };
+
 const memoize = <Value>(compute: () => Value): (() => Value) => {
   let cached: { value: Value } | undefined;
   return () => {
@@ -431,6 +436,17 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const configDir = dirname(configPath);
   const environment = memoize(options.environment ?? (() => process.env));
   const detected = memoize(() => detectConnection(configDir, environment));
+  /** The `.db` file pattern of the former location, when it applies: see "SQLite files of the former location". */
+  const formerDatabase = memoize((): string | undefined => {
+    const found = findFormerSqliteDatabase(configDir, config.db?.database);
+    if (found === undefined) {
+      return undefined;
+    }
+    if (config.db === undefined) {
+      return detected().source === "default" ? found : undefined;
+    }
+    return config.db.dialect === "sqlite" ? found : undefined;
+  });
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env, environment);
   const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
@@ -442,18 +458,35 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     configPath,
     configDir,
     warnings: [...discovered.warnings, ...read.warnings],
-    migrations: [...read.migrations, ...migrations],
   };
   // The database and its source are read lazily: detecting them is what asks the environment provider.
   // `environment` is a function and stays out of enumeration so a resolved configuration still prints and clones.
   Object.defineProperties(resolved, {
     environment: { enumerable: false, configurable: true, value: environment },
+    formerDatabase: { enumerable: false, configurable: true, get: formerDatabase },
+    migrations: {
+      enumerable: true,
+      configurable: true,
+      get: memoize(() => {
+        const former = formerDatabase();
+        return [
+          ...read.migrations,
+          ...migrations,
+          ...(former === undefined ? [] : [formerDatabaseNotice(configPath, former)]),
+        ];
+      }),
+    },
     db: {
       enumerable: true,
       configurable: true,
-      get: memoize(() =>
-        expandDb(mergeDbConfig(config.db?.dialect === "sqlite" ? {} : detected().config, config.db), environment),
-      ),
+      get: memoize(() => {
+        const base = config.db?.dialect === "sqlite" ? SQLITE_DEFAULTS : detected().config;
+        const former = formerDatabase();
+        return expandDb(
+          mergeDbConfig(former === undefined ? base : { ...base, database: former }, config.db),
+          environment,
+        );
+      }),
     },
     source: {
       enumerable: false,
@@ -469,6 +502,11 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
         fillDefaultOrigins(origins, variant.watches);
         if (config.db?.dialect !== "sqlite") {
           fillDbOrigins(origins, detected(), environment());
+        } else if (config.db.database === undefined) {
+          origins["db.database"] = "# default";
+        }
+        if (formerDatabase() !== undefined) {
+          origins["db.database"] = "# from the .db files of an earlier version";
         }
         fillGapOrigins(origins, variant, "variant");
         if (config.variant?.abbr === undefined) {
@@ -500,7 +538,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
         fillGapOrigins(origins, configPath, "configPath");
         fillGapOrigins(origins, configDir, "configDir");
         fillGapOrigins(origins, resolved.warnings, "warnings");
-        fillGapOrigins(origins, resolved.migrations, "migrations");
+        fillGapOrigins(origins, (resolved as ResolvedConfig).migrations, "migrations");
         return origins;
       }),
     },
@@ -558,6 +596,7 @@ export {
   type OnboardingApplication,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor, parseDotenv } from "./dotenv.js";
+export { findFormerSqliteDatabase, formerDatabaseNotice } from "./former-database.js";
 export {
   addSchemaHeader,
   findSchemaHeader,
@@ -601,6 +640,7 @@ export type {
 export {
   DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
+  DEFAULT_SQLITE_DATABASE,
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,

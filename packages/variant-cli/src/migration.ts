@@ -49,7 +49,8 @@ export const migrateConfigFiles = (
       continue;
     }
     handled.add(file);
-    const result = migrateFile(file, env);
+    const database = config.formerDatabase;
+    const result = migrateFile(file, env, database === undefined ? {} : { database });
     if (result) {
       for (const line of describeResult(result)) {
         print(line);

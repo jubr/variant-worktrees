@@ -41,13 +41,13 @@ describe("loadConfig", () => {
     }
   });
 
-  it("uses a default SQLite file when no connection environment exists", () => {
+  it("uses a default SQLite file per slug when no connection environment exists", () => {
     const directory = tempDirectory();
     try {
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
       expect(config.db).toEqual({
         dialect: "sqlite",
-        filename: join(directory, ".cache", "variants", "variants.db"),
+        database: ".cache/variants/{slug}.sqlite",
       });
       expect(config.source).toBe("default");
     } finally {

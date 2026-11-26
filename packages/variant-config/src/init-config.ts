@@ -97,20 +97,10 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
     };
     const postgresSetting = (field: "host" | "port" | "user"): boolean =>
       dialect === "postgres" && variables[field]?.startsWith("POSTGRES_") === true;
-    const fields: (keyof DbConfig)[] = [
-      "url",
-      "host",
-      "port",
-      "user",
-      "password",
-      "database",
-      "schema",
-      "filename",
-      "ssl",
-    ];
+    const fields: (keyof DbConfig)[] = ["url", "host", "port", "user", "password", "database", "schema", "ssl"];
     for (const field of fields) {
       const value = config[field];
-      if (value === undefined) {
+      if (value === undefined || (field === "database" && variables.database === undefined && dialect === "sqlite")) {
         continue;
       }
       if (field === "password" && variables.password !== undefined) {

@@ -56,6 +56,19 @@ describe("migrateFile", () => {
     expect(read(directory, "variants.yaml")).toBe(NEW);
   });
 
+  it("writes the database of the former location into a variants.yaml without db, with one notice", () => {
+    const directory = repository({ "variants.yaml": `${HEADER}\n\nvariant:\n  abbr: vw\n` });
+
+    const result = migrateFile(join(directory, "variants.yaml"), {}, { database: "/x/{slug}.db" });
+
+    expect(result).toMatchObject({ status: "rewritten" });
+    expect(result?.notices).toHaveLength(1);
+    expect(result?.notices[0]).toContain("db.database is now /x/{slug}.db");
+    expect(read(directory, "variants.yaml")).toBe(
+      `${HEADER}\n\nvariant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/{slug}.db\n`,
+    );
+  });
+
   it("rewrites former {{...}} templates and says so in one notice", () => {
     const directory = repository({
       "variants.yaml": `${HEADER}\n\nvariant:\n  watches:\n    fe:\n      url: http://{{slug}}.localhost:{{port}}\n`,
