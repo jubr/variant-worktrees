@@ -4,7 +4,14 @@
 
 ### Changed
 
+- `variant init` writes no `db` key when it detects no database (autodetection resolves SQLite on its own), and the file it writes starts with the `yaml-language-server` schema header, so the next `variant` command or editor load no longer rewrites it and leaves a `variants.yaml~` behind.
+- The mise step of `variant init` adds `"packslip:jubr/variant-worktrees" = "latest"`. A Mise configuration that already lists `github:jubr/variant-worktrees` counts as listing the tool and is not given a second entry.
 - `publish-extensions.yaml` publishes to the Visual Studio Marketplace through trusted publishing (`vsce publish --oidc`) instead of the `VSCE_PAT` secret, which is no longer used. The Marketplace needs a Trusted Publishing policy for the workflow `publish-extensions.yaml` and the environment `marketplace`.
+
+### Fixed
+
+- In the editor, play, stop and implode read `variants.yaml` again when it changed since the library was first used in that folder. Before, a watch added by `variant init` or by hand was not started until the window was reloaded, and play only logged that no watch has a watch command.
+- The Bun-on-`PATH` warning no longer tells you to delete a Bun that Mise installed. For another Mise version first on `PATH` it says the `PATH` was probably inherited from a process with another project's Mise environment, and to start the editor or terminal again from a shell without it.
 
 ## [0.0.13] - 2026-11-25
 
