@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import esbuild, { type BuildOptions } from "esbuild";
 import { loadConfig } from "variant-config";
@@ -53,6 +53,44 @@ describe("bundled watch relay", () => {
           // The sleep may already be gone.
         }
       }
+    } finally {
+      started?.kill();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("strips clear-screen sequences from the log when node runs the ESM bundle", async () => {
+    const builds = await import("../scripts/esbuild.config.ts");
+    const directory = realpathSync(mkdtempSync(join("/tmp", "variant-watch-relay-")));
+    const outfile = join(directory, "watch-relay.js");
+    const logPath = join(directory, "watch.log");
+    writeFileSync(join(directory, "package.json"), JSON.stringify({ type: "module" }));
+    let started: ReturnType<typeof Bun.spawn> | undefined;
+    try {
+      await buildBundle(builds.watchRelayBundle as BuildOptions, outfile);
+      const plan = {
+        launches: [
+          {
+            key: "fe",
+            command: "printf '\\033[2J\\033[3J\\033[Hbundled\\n'",
+            cwd: directory,
+            env: { PATH: process.env.PATH ?? "" },
+          },
+        ],
+        startDelayMs: 0,
+        logPath,
+      };
+      started = Bun.spawn(["node", outfile], {
+        cwd: directory,
+        stdin: new Blob([JSON.stringify(plan)]),
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      await Promise.race([started.exited, new Promise((resolve) => setTimeout(resolve, 20_000))]);
+
+      const logged = readFileSync(logPath, "utf8");
+      expect(logged).toContain("[fe] bundled\n");
+      expect(logged).not.toContain("\u001b");
     } finally {
       started?.kill();
       rmSync(directory, { recursive: true, force: true });
