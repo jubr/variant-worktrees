@@ -137,6 +137,13 @@ const ANSI_RESET = "\u001b[0m";
 const closeAnsi = (line: string, resetAnsi: boolean): string =>
   resetAnsi && line.includes(ANSI_ESCAPE) ? `${line}${ANSI_RESET}` : line;
 
+/** Erase in display (`J`), cursor home (`H`, any position) and the full terminal reset (`ESC c`). */
+const CLEAR_SCREEN = new RegExp(`${ANSI_ESCAPE}(?:\\[[0-9;]*[JH]|c)`, "g");
+
+/** Drops the clear-screen sequences, so a log or a pager is not wiped by the program that repaints its terminal. */
+const withoutClearScreen = (line: string): string =>
+  line.includes(ANSI_ESCAPE) ? line.replace(CLEAR_SCREEN, "") : line;
+
 const ttyModeLine = (args: string): string => {
   const head = args.length > 0 ? `[watch] ${args} mode=tty` : "[watch] mode=tty";
   return `${head} # set to 'no-tty' likely suppresses ansi escape sequences\n`;
@@ -152,7 +159,10 @@ const relay = (
   resetAnsi: boolean,
 ): void => {
   let buffer = "";
-  const emit = (line: string): void => {
+  const emit = (raw: string): void => {
+    const line = withoutClearScreen(raw);
+    // AIDEV-NOTE: a line emptied by the strip said nothing. A line the process wrote empty is kept.
+    if (line.length === 0 && raw.length > 0) return;
     const text = `[${key}] ${closeAnsi(line, resetAnsi)}\n`;
     consoleSink?.write(text);
     writeLog?.(text);
