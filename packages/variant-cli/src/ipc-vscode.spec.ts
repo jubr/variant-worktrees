@@ -345,7 +345,7 @@ describe("vscode log stream", () => {
     }
   });
 
-  it("warns once and stops when a write is not answered within one second", async () => {
+  const stalledWriteLines = async (level: LogLevel): Promise<string[]> => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-vscode-log-")));
     roots.push(directory);
     mkdirSync(join(directory, ".vscode"), { recursive: true });
@@ -362,7 +362,7 @@ describe("vscode log stream", () => {
     }) as typeof process.stderr.write;
     const started = Date.now();
     try {
-      attachLogLevel(LogLevel.warn, { directory });
+      attachLogLevel(level, { directory });
       log(LogLevel.info, "one");
       log(LogLevel.info, "two");
       const outcome = await Promise.race([
@@ -371,7 +371,7 @@ describe("vscode log stream", () => {
       ]);
       expect(outcome).toBe("done");
       expect(Date.now() - started).toBeLessThan(1800);
-      expect(lines.filter((line) => line.includes("write failed"))).toEqual(["[warn] ipc write failed\n"]);
+      return lines;
     } finally {
       process.stderr.write = write;
       setLogSink(undefined);
@@ -380,6 +380,17 @@ describe("vscode log stream", () => {
       }
       await closeServer(server);
     }
+  };
+
+  it("emits one debug line and stops when a write is not answered within one second", async () => {
+    const lines = await stalledWriteLines(LogLevel.debug);
+    expect(lines.filter((line) => line.includes("write failed"))).toEqual(["[debug] ipc write failed\n"]);
+  });
+
+  it("hides the stalled write at the default threshold", async () => {
+    const lines = await stalledWriteLines(LogLevel.warn);
+    expect(lines.filter((line) => line.includes("write failed"))).toEqual([]);
+    expect(lines.filter((line) => line.startsWith("[warn]"))).toEqual([]);
   });
 });
 

@@ -80,7 +80,7 @@ When the attempt succeeds, the CLI SHALL emit one debug event whose step is `ipc
 
 Each event that is sent SHALL be one request line whose `name` is `log` and whose `args` carry `level`, `message`, `origin` `cli`, `step` when the event has a step, and `slug` when the event has a slug. When the event has no slug and the command was given an explicit slug (`-s` or `--slug`), `args.slug` SHALL be that slug. When the event has no slug and the command was not given an explicit slug, `args.slug` SHALL be the autodetected slug of the working directory, including `main` for the primary checkout. When that slug cannot be derived and no explicit slug was given, `args.slug` SHALL be omitted and the command SHALL still succeed. An event that already has a slug SHALL keep it. Events emitted before the attempt settles SHALL be sent, in that order, after a successful connect. When the attempt fails, those events SHALL NOT be sent. A request that fails after a successful connect SHALL NOT fail the command and SHALL NOT start another attempt.
 
-A single write SHALL NOT wait longer than 1 second. When a write does not finish within that time after the connected debug event was emitted, the CLI SHALL drop the socket and SHALL NOT connect again. It SHALL emit one warn event whose step is `ipc` and whose message is `write failed`, and SHALL NOT emit that warn again. Later events SHALL NOT be sent and SHALL NOT wait on the socket.
+A single write SHALL NOT wait longer than 1 second. When a write does not finish within that time after the connected debug event was emitted, the CLI SHALL drop the socket and SHALL NOT connect again. It SHALL emit one debug event whose step is `ipc` and whose message is `write failed`, and SHALL NOT emit that event again. The event SHALL NOT be a warning: a stalled or closed editor does not change the command result, and the next command starts a fresh attempt. Later events SHALL NOT be sent and SHALL NOT wait on the socket.
 
 When the CLI finishes and the log sink is attached, including when the command fails, the CLI SHALL emit one debug event whose step is `cli` and whose message is `end`, and SHALL wait until queued socket sends have finished or the attempt has failed before the process exits. The `end` event SHALL NOT be a socket request. The stderr threshold SHALL still apply. An event below the threshold SHALL still be sent on the socket. The slug SHALL NOT be printed on stderr. Standard error SHALL NOT contain ` [cli]` or ` @cli`.
 
@@ -141,6 +141,18 @@ When the CLI finishes and the log sink is attached, including when the command f
 - **WHEN** the threshold is `warn`, a listener is accepting connections, and an info event is emitted
 - **THEN** standard error does not contain that event's message
 - **AND** the listener receives a `log` request for that info event
+
+#### Scenario: Write timeout is one debug line
+
+- **WHEN** a listener accepts the connection but never answers, and the CLI emits two info events with the threshold at `debug`
+- **THEN** standard error contains exactly one line whose text is `[debug] ipc write failed`
+- **AND** the CLI finishes its queued socket sends within 1.8 seconds of the first event
+
+#### Scenario: Write timeout is silent at the default threshold
+
+- **WHEN** a listener accepts the connection but never answers, and the CLI emits two info events with the default threshold
+- **THEN** standard error does not contain `write failed`
+- **AND** standard error does not contain a line that starts with `[warn]`
 
 ### Requirement: Lifecycle invocation
 
