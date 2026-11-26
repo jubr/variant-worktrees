@@ -74,7 +74,7 @@ When the CLI finishes and the log sink is attached, including when the command f
 
 - **WHEN** a listener accepts the connection but never answers, and the CLI emits two info events with the threshold at `debug`
 - **THEN** standard error contains exactly one line whose text is `[debug] ipc write failed`
-- **AND** the CLI exits within 1.8 seconds of the first event
+- **AND** the CLI finishes its queued socket sends within 1.8 seconds of the first event
 
 #### Scenario: Write timeout is silent at the default threshold
 
