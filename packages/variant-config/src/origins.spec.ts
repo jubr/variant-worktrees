@@ -91,6 +91,64 @@ describe("config origins", () => {
       expect(configOrigins(config)["variant.main"]).toBe("# autodetect from `git rev-parse --git-common-dir`");
     }));
 
+  describe("variant.baseBranch", () => {
+    const repo = (directory: string, branch: string, yaml: string, remoteHead?: string): void => {
+      const git = (...args: string[]): void => {
+        execFileSync("git", ["-C", directory, ...args], { stdio: "ignore" });
+      };
+      execFileSync("git", ["init", "-q", "-b", branch, directory]);
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide a case.
+      git("config", "init.defaultBranch", "no-such-branch");
+      git("commit", "-q", "--allow-empty", "-m", "initial");
+      if (remoteHead !== undefined) {
+        git("remote", "add", "origin", "https://unreachable.invalid/project.git");
+        git("symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${remoteHead}`);
+      }
+      writeFileSync(join(directory, "variants.yaml"), yaml);
+    };
+
+    it("names origin/HEAD when it decided the branch", () =>
+      withDirectory((directory) => {
+        repo(directory, "main", "variant:\n  prefix: _work-\n", "develop");
+
+        const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+        expect(config.variant.baseBranch).toBe("develop");
+        expect(configOrigins(config)["variant.baseBranch"]).toBe("# autodetect from origin/HEAD");
+      }));
+
+    it("names a local branch when that decided the branch", () =>
+      withDirectory((directory) => {
+        repo(directory, "master", "variant:\n  prefix: _work-\n");
+
+        const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+        expect(config.variant.baseBranch).toBe("master");
+        expect(configOrigins(config)["variant.baseBranch"]).toBe("# autodetect from a local branch");
+      }));
+
+    it("names the file for a configured value", () =>
+      withDirectory((directory) => {
+        repo(directory, "master", "variant:\n  baseBranch: release\n", "develop");
+
+        const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+        expect(configOrigins(config)["variant.baseBranch"]).toBe("# from ./variants.yaml");
+      }));
+
+    it("says default when nothing was detected", () =>
+      withDirectory((directory) => {
+        writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
+
+        const config = loadConfig({ cwd: directory, environment: () => ({}) });
+
+        expect(config.variant.baseBranch).toBe("main");
+        expect(configOrigins(config)["variant.baseBranch"]).toBe("# default");
+      }));
+  });
+
   it("leaves main and root uncommented when the path is only the config directory", () =>
     withDirectory((directory) => {
       writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");

@@ -5,7 +5,9 @@ import type { ChatRenamerConfig } from "chat-renamer-config/schema";
 import { parse as parseYaml } from "yaml";
 import {
   abbreviate,
+  type DefaultBranchVia,
   detectConnection,
+  detectDefaultBranch,
   detectOnboarding,
   detectVariantMain,
   detectVariantPlace,
@@ -355,6 +357,14 @@ const resolvePorts = (configured: string | undefined): ResolvedVariant["ports"] 
   return { range, low, high };
 };
 
+/** How `variant config` words the signal that decided a detected `variant.baseBranch`. */
+const DEFAULT_BRANCH_SIGNALS: Record<DefaultBranchVia, string> = {
+  "origin/HEAD": "origin/HEAD",
+  "init.defaultBranch": "init.defaultBranch",
+  "local branch": "a local branch",
+  "checked out": "the checked-out branch",
+};
+
 const resolveVariant = (
   config: VariantsConfig,
   configDir: string,
@@ -371,7 +381,7 @@ const resolveVariant = (
     abbr: variant.abbr ?? abbreviate(basename(main)),
     prefix: variant.prefix ?? DEFAULT_PREFIX,
     watches: resolveWatches(config, configDir, environment),
-    baseBranch: variant.baseBranch ?? DEFAULT_BASE_BRANCH,
+    baseBranch: variant.baseBranch ?? detectDefaultBranch(main)?.branch ?? DEFAULT_BASE_BRANCH,
     branchPrefixes: variant.branchPrefixes ?? [...DEFAULT_BRANCH_PREFIXES],
     open: resolveOpen(variant.open, env),
     ports: resolvePorts(ports?.range),
@@ -464,6 +474,12 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
         if (config.variant?.abbr === undefined) {
           origins["variant.abbr"] = `# autodetect from "${basename(variant.main)}"`;
         }
+        if (config.variant?.baseBranch === undefined) {
+          const found = detectDefaultBranch(variant.main);
+          if (found !== undefined) {
+            origins["variant.baseBranch"] = `# autodetect from ${DEFAULT_BRANCH_SIGNALS[found.via]}`;
+          }
+        }
         if (config.variant?.main === undefined) {
           const via = detectVariantPlace(configDir).via;
           if (via === "agents") {
@@ -530,7 +546,9 @@ export const writeJsonSchema = (): string => JSON.stringify(variantsJsonSchema, 
 
 export {
   abbreviate,
+  type DefaultBranchVia,
   detectConnection,
+  detectDefaultBranch,
   detectScriptWatches,
   detectVariantMain,
   detectVariantRoot,
