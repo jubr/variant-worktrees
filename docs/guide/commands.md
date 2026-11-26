@@ -12,13 +12,16 @@ The CLI-only commands (`ui`, `mcp`, `completions`) are on the [CLI](./cli) page.
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
 - `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), and one watch per Vite or NestJS app and per package with a `watch` script.
+  The file starts with the `yaml-language-server` schema header, so editors offer completion and the next command has nothing to migrate.
+  When no database is detected there is no `db` key: autodetection resolves SQLite on its own.
   Other accepted values of a setting follow `#` on the same line.
   Secrets are never written: a password or a URL with credentials becomes `${NAME}` with a comment such as `# from ../mise.local.toml`.
   For Postgres, `host`, `port`, `user` and `password` are `${NAME}` the same way, and `database` is the detected name.
   [`variant.main`](./configuration#variant-main) and [`variant.root`](./configuration#variant-root) are omitted.
 - `gitignore`: append `<prefix>*` to `.gitignore` (created when absent, left alone when the line exists).
-- `mise`: add `github:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
+- `mise`: add `packslip:jubr/variant-worktrees` (`latest`) to the closest Mise file inside the git checkout, skipping `*.local.*` files; `mise.toml` is created when there is none.
   Nothing is installed.
+  A file that already lists `github:jubr/variant-worktrees` counts as listing the tool and is left as it is.
   A file that is not valid TOML is left alone and reported, and so is a Mise that cannot be found (the message names where it looked and [`variant.mise.binPath`](./configuration#variant-mise-binpath)).
   A failing Mise step stops no other step.
 

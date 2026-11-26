@@ -13,7 +13,9 @@ import { gitRoot } from "./slug.js";
  * anything. Lines are inserted textually so that every other line of the file stays as it is.
  */
 
-export const MISE_TOOL = "github:jubr/variant-worktrees";
+export const MISE_TOOL = "packslip:jubr/variant-worktrees";
+/** The same program through the other backend: a configuration that lists it needs no second entry. */
+const LISTED_AS = [MISE_TOOL, "github:jubr/variant-worktrees"];
 const ENTRY_VALUE = "latest";
 
 export interface AugmentMiseOptions {
@@ -93,8 +95,11 @@ const HEADER = /^\s*\[\[?[A-Za-z0-9_."'\- ]+\]\]?\s*(?:#.*)?$/;
 const TOOLS_HEADER = /^\s*\[\s*tools\s*\]\s*(?:#.*)?$/;
 const TOOLS_SUBTABLE = /^\s*\[\s*tools\s*\./;
 
-const lists = (parsed: { tools?: unknown }): boolean =>
-  typeof parsed.tools === "object" && parsed.tools !== null && MISE_TOOL in parsed.tools;
+/** The tool the configuration lists, `MISE_TOOL` or its other backend, or undefined. */
+const listed = (parsed: { tools?: unknown }): string | undefined =>
+  typeof parsed.tools === "object" && parsed.tools !== null
+    ? LISTED_AS.find((tool) => tool in (parsed.tools as object))
+    : undefined;
 
 /** The new content, or the reason the file cannot be extended in place. */
 const withEntry = (content: string, parsed: { tools?: unknown }): { content: string } | { problem: string } => {
@@ -173,11 +178,12 @@ export const augmentMiseConfig = (options: AugmentMiseOptions): AugmentMiseResul
         message: `${display(directory, file)} is not valid TOML and was left unchanged: ${tomlProblem(error)}`,
       };
     }
-    if (lists(parsed)) {
+    const already = listed(parsed);
+    if (already !== undefined) {
       return {
         status: "unchanged",
         file,
-        message: `${display(directory, file)} already lists ${MISE_TOOL}`,
+        message: `${display(directory, file)} already lists ${already}`,
       };
     }
   }
@@ -192,7 +198,7 @@ export const augmentMiseConfig = (options: AugmentMiseOptions): AugmentMiseResul
     };
   }
   try {
-    if (!lists(parseFile(edited.content))) {
+    if (listed(parseFile(edited.content)) === undefined) {
       throw new Error("the entry did not land in the tools table");
     }
   } catch (error) {

@@ -100,9 +100,32 @@ const realOrSelf = (path: string): string => {
   }
 };
 
+/** Whether the path is inside a Mise `installs` directory: the default layout, or the `installs` of `MISE_DATA_DIR`. */
+const inMiseInstalls = (paths: string[], env: NodeJS.ProcessEnv): boolean => {
+  const data = env.MISE_DATA_DIR;
+  return paths.some(
+    (path) =>
+      path.includes(`${sep}mise${sep}installs${sep}`) ||
+      (data !== undefined && data !== "" && path.startsWith(join(data, "installs") + sep)),
+  );
+};
+
 /** How to remove the Bun, from where it lies; the installer shows in the path. */
-const removal = (executable: string, home: string): { advice: string; installer: boolean } => {
+const removal = (
+  executable: string,
+  home: string,
+  env: NodeJS.ProcessEnv,
+): { advice: string; installer: boolean; mise?: true } => {
   const paths = [executable, realOrSelf(executable)];
+  // AIDEV-NOTE: a Mise install is checked first: deleting it would break Mise, and the `PATH` entry came from the environment of a parent process.
+  if (inMiseInstalls(paths, env)) {
+    return {
+      advice:
+        "that Bun is another version installed by Mise; do not delete it. PATH was probably inherited from a process that had Mise active for another project: start the editor or terminal again from a shell without it",
+      installer: false,
+      mise: true,
+    };
+  }
   if (paths.some((path) => underHome(path, join(home, ".bun")) !== undefined || path === join(home, ".bun"))) {
     return { advice: "rm -rf ~/.bun (the official installer; also drop BUN_INSTALL)", installer: true };
   }
@@ -140,17 +163,19 @@ const startupLines = (directory: string, home: string, extra: string[]): string[
   return found;
 };
 
-const hintFor = (found: { executable: string; directory: string }, home: string): string[] => {
-  const { advice, installer } = removal(found.executable, home);
+const hintFor = (found: { executable: string; directory: string }, home: string, env: NodeJS.ProcessEnv): string[] => {
+  const { advice, installer, mise } = removal(found.executable, home, env);
   const lines = startupLines(found.directory, home, installer ? ["BUN_INSTALL"] : []);
   return [
     `${found.directory} comes before the Mise directories on PATH.`,
-    `Remove that Bun: ${advice}`,
+    mise ? `${advice[0]?.toUpperCase()}${advice.slice(1)}.` : `Remove that Bun: ${advice}`,
     ...(lines.length > 0
       ? ["Remove or move behind Mise the line that adds it to PATH:", ...lines]
-      : [
-          `No line in ${STARTUP_FILES.map((name) => tilde(join(home, name), home)).join(", ")} mentions ${found.directory}; a tool or another file your shell reads adds it.`,
-        ]),
+      : mise
+        ? ["No startup file adds it; it came with the environment of the parent process."]
+        : [
+            `No line in ${STARTUP_FILES.map((name) => tilde(join(home, name), home)).join(", ")} mentions ${found.directory}; a tool or another file your shell reads adds it.`,
+          ]),
     "Then open a new terminal and run `which -a bun`: the Mise bun must be first (`mise activate` belongs at the end of the startup file).",
   ];
 };
@@ -175,7 +200,7 @@ export const checkBun = ({ directory, binary, env, home = homedir() }: BunCheckO
   return {
     status: "differs",
     message: `bun ${actual} (${found.executable}) is first on PATH, but Mise pins bun ${expected} (${miseBunPath(directory, binary)})`,
-    hint: hintFor(found, home),
+    hint: hintFor(found, home, env),
   };
 };
 

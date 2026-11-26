@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as vscode from "vscode";
 import { resetEditorFocus } from "./test/mock-vscode.ts";
+import { loadVariantClient } from "./variants-client.ts";
 import { fakeClient, record } from "./variants-test-support.ts";
 import type { VariantNode } from "./variants-tree.ts";
 import { type ActivityLog, registerVariantsView, type ViewDeps } from "./variants-view.ts";
@@ -1924,5 +1925,51 @@ describe("Create variant", () => {
 
     expect(fake.calls).toEqual([]);
     expect(view.store.records().map((entry) => entry.slug)).toEqual(["main", "demo"]);
+  });
+});
+
+describe("play after variants.yaml changed", () => {
+  it("starts the watch that was added to variants.yaml since the first play, without a reload", async () => {
+    const dir = mkdtempSync(join("/tmp", "variant-play-"));
+    const config = join(dir, "variants.yaml");
+    const write = (text: string, seconds: number): void => {
+      writeFileSync(config, text);
+      const at = new Date(Date.now() + seconds * 1000);
+      utimesSync(config, at, at);
+    };
+    try {
+      write("variant:\n  abbr: vp\n  watches:\n    app:\n      dir: .\n", 0);
+      const main = record("main", { worktree: dir });
+      const fake = fakeClient([main]);
+      const load = loadVariantClient(dir);
+      const started: Array<Record<string, string | undefined>> = [];
+      // the library reads the file for the actions; the tree keeps its published records
+      const loadClient = async (cwd?: string) => {
+        if (cwd === undefined) {
+          return fake.client;
+        }
+        const real = (await load(cwd)) as unknown as {
+          config: () => { variant: { watches: Record<string, { watch?: string }> } };
+        };
+        const commands = Object.fromEntries(
+          Object.entries(real.config().variant.watches).map(([key, watch]) => [key, watch.watch]),
+        );
+        return {
+          ...real,
+          watch: async () => {
+            started.push(commands);
+          },
+        } as never;
+      };
+      const { command, node } = await open([main], { loadClient });
+
+      await command("variant.play")(node("main"));
+      write("variant:\n  abbr: vp\n  watches:\n    app:\n      dir: .\n      watch: npm run watch\n", 5);
+      await command("variant.play")(node("main"));
+
+      expect(started).toEqual([{ app: undefined }, { app: "npm run watch" }]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

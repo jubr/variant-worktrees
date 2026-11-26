@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { migrateFile } from "variant-config";
 import { parse as parseYaml } from "yaml";
 import { createVariantClient } from "../index.js";
 import { fakeMise } from "../test/mise-mock.js";
@@ -70,10 +71,21 @@ describe("init", () => {
     });
     expect(read("variants.yaml")).not.toContain("pw\n");
     expect(read(".gitignore")).toBe("_v-*\n");
-    expect(read("mise.toml")).toContain("github:jubr/variant-worktrees");
+    expect(read("mise.toml")).toContain("packslip:jubr/variant-worktrees");
     expect(result.gitignore).toMatchObject({ status: "created", changed: true });
     expect(result.mise).toMatchObject({ status: "created", changed: true, file: join(root, "mise.toml") });
     expect(result.detected).toMatchObject({ dialect: "postgres", prefix: "_v-" });
+  });
+
+  it("writes a final file when no database is detected: no db key, nothing left to migrate", async () => {
+    const { client } = setup();
+
+    await client.init();
+
+    expect(parseYaml(read("variants.yaml"))).not.toHaveProperty("db");
+    expect(read("variants.yaml").split("\n")[0]).toStartWith("# yaml-language-server: $schema=");
+    expect(migrateFile(join(root, "variants.yaml"), {})).toBeUndefined();
+    expect(files()).not.toContain("variants.yaml~");
   });
 
   it("writes a custom prefix to the file and .gitignore", async () => {
@@ -115,7 +127,7 @@ describe("init", () => {
     expect(result.detected).toBeNull();
     expect(read("variants.yaml")).toBe("db:\n  dialect: sqlite\n");
     expect(read(".gitignore")).toBe("_v-*\n");
-    expect(read("mise.toml")).toContain("github:jubr");
+    expect(read("mise.toml")).toContain("packslip:jubr");
   });
 
   it("refuses an existing variants.yaml naming it and changes nothing", async () => {
@@ -204,7 +216,7 @@ describe("init", () => {
       expect(result.mise.status).toBe("failed");
       expect(result.mise.message).toContain("not valid TOML");
       expect(result.mise.changed).toBe(false);
-      expect(read("variants.yaml")).toContain("dialect");
+      expect(parseYaml(read("variants.yaml")).variant.prefix).toBe("_v-");
       expect(read(".gitignore")).toBe("_v-*\n");
     });
   });
@@ -241,7 +253,7 @@ describe("init Bun check", () => {
     expect(result.bun.hint.length).toBeGreaterThan(0);
     expect(result.bun.hint.join("\n")).toContain("which -a bun");
     expect(read(".gitignore")).toBe("_v-*\n");
-    expect(read("mise.toml")).toContain("github:jubr");
+    expect(read("mise.toml")).toContain("packslip:jubr");
   });
 
   it("reports a matching Bun without a hint", async () => {

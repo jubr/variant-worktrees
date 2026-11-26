@@ -48,7 +48,7 @@ my-project/ $ mise x packslip:jubr/variant-worktrees@ -- variant init
 Initialized /path/to/my-project
 variants.yaml:  written to /path/to/my-project/variants.yaml
 .gitignore:     created .gitignore with _v-*
-mise:           created mise.toml with github:jubr/variant-worktrees
+mise:           created mise.toml with packslip:jubr/variant-worktrees
 detected:       database postgres; abbr mp; watches none
 bun:            bun 1.4.4 on PATH is the version Mise pins
 ```
@@ -63,6 +63,8 @@ Review it with `git diff`, adjust it, and commit it.
 A password is never written: it is a `${NAME}` reference, and the comment says where the value was found.
 
 ```yaml
+# yaml-language-server: $schema=https://github.com/jubr/variant-worktrees/raw/refs/heads/main/packages/variant-config/variants.yaml.schema.json
+
 # Written by `variant init` from what autodetection found. Other accepted values follow `#` on the same line.
 
 db:

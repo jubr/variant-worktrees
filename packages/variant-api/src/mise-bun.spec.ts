@@ -46,12 +46,13 @@ const check = (
   path: string,
   withMise = true,
   home = join(root, "home"),
+  extraEnv: NodeJS.ProcessEnv = {},
 ): string[] => {
   const log: string[] = [];
   warnWhenBunDiffers({
     directory: root,
     binary: withMise ? fakeMise(root, miseOptions).binary : undefined,
-    env: { PATH: path },
+    env: { PATH: path, ...extraEnv },
     home,
     log: (line) => log.push(line),
   });
@@ -128,7 +129,12 @@ describe("warnWhenBunDiffers", () => {
 });
 
 describe("the hint of the warning", () => {
-  const warn = (root: string, foreignName: string, home = join(root, "home")): string => {
+  const warn = (
+    root: string,
+    foreignName: string,
+    home = join(root, "home"),
+    extraEnv: NodeJS.ProcessEnv = {},
+  ): string => {
     const foreign = stubBun(root, foreignName, "1.3.0");
     const mise = stubBun(root, "mise-bun", "1.4.2");
     const [warning] = check(
@@ -137,6 +143,7 @@ describe("the hint of the warning", () => {
       `${foreign}:${mise}`,
       true,
       home,
+      extraEnv,
     );
     return warning ?? "";
   };
@@ -193,6 +200,58 @@ describe("the hint of the warning", () => {
     withRoot((root) => {
       expect(warn(root, "lib/node_modules/bun/bin")).toContain("npm uninstall -g bun");
     }));
+
+  describe("for another version installed by Mise", () => {
+    const notForMise = (warning: string): void => {
+      expect(warning).not.toContain("delete /");
+      expect(warning).not.toContain("uninstall the package");
+      expect(warning).not.toContain("Remove that Bun");
+      expect(warning).not.toContain("rm -rf");
+      expect(warning).not.toContain("a tool or another file your shell reads");
+    };
+
+    it("says it is a Mise install not to delete, inherited from another Mise environment, and to start again clean", () =>
+      withRoot((root) => {
+        const warning = warn(root, "opt/mise/installs/bun/1.3.0/bin");
+
+        expect(warning).toContain("installed by Mise");
+        expect(warning).toContain("do not delete it");
+        expect(warning).toContain("inherited");
+        expect(warning).toContain("another project");
+        expect(warning).toContain("start the editor or terminal again from a shell without it");
+        expect(warning).toContain("No startup file adds it");
+        expect(warning).toContain("which -a bun");
+        notForMise(warning);
+      }));
+
+    it("recognizes the installs directory of MISE_DATA_DIR", () =>
+      withRoot((root) => {
+        const data = join(root, "data");
+        const warning = warn(root, "data/installs/bun/1.3.0/bin", join(root, "home"), { MISE_DATA_DIR: data });
+
+        expect(warning).toContain("installed by Mise");
+        notForMise(warning);
+      }));
+
+    it("still names a startup line that mentions the directory", () =>
+      withRoot((root) => {
+        mkdirSync(join(root, "home"), { recursive: true });
+        writeFileSync(
+          join(root, "home", ".zshrc"),
+          `export PATH="${join(root, "opt", "mise", "installs", "bun", "1.3.0", "bin")}:$PATH"\n`,
+        );
+
+        const warning = warn(root, "opt/mise/installs/bun/1.3.0/bin");
+
+        expect(warning).toContain("~/.zshrc:1: export PATH=");
+        expect(warning).toContain("installed by Mise");
+      }));
+
+    it("leaves a path outside the installs directory with the delete advice", () =>
+      withRoot((root) => {
+        expect(warn(root, "opt/mise/shims")).toContain("delete /");
+      }));
+  });
 
   it("advises deleting the executable otherwise", () =>
     withRoot((root) => {

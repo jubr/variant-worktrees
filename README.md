@@ -102,7 +102,7 @@ Every string setting, `db` included, takes `${NAME}` (an environment variable, a
 
 ### Bootstrap with `variant init`
 
-`variant init` writes a `variants.yaml` that holds every value that `variant config` autodetection finds (the database, `variant.abbr`, `variant.prefix` and one watch per Vite or NestJS app, plus a watch for a package with a `watch` script), adds `<prefix>*` to `.gitignore` and adds `github:jubr/variant-worktrees` to the Mise configuration. The other accepted values of a setting follow `#` on the same line. A password or a connection URL with credentials is never written: it becomes a reference such as `password: ${POSTGRES_PASSWORD} # from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are written as `${NAME}` the same way, and `database` is the detected name.
+`variant init` writes a `variants.yaml` that holds every value that `variant config` autodetection finds (the database, `variant.abbr`, `variant.prefix` and one watch per Vite or NestJS app, plus a watch for a package with a `watch` script), adds `<prefix>*` to `.gitignore` and adds `packslip:jubr/variant-worktrees` to the Mise configuration. The file starts with the schema header and has no `db` key when no database is detected. The other accepted values of a setting follow `#` on the same line. A password or a connection URL with credentials is never written: it becomes a reference such as `password: ${POSTGRES_PASSWORD} # from ../mise.local.toml`. For Postgres, `host`, `port`, `user` and `password` are written as `${NAME}` the same way, and `database` is the detected name.
 
 ```bash
 variant init                        # all three steps, prefix _v-

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { detectConnection } from "./autodetect.js";
-import { loadConfig } from "./index.js";
+import { loadConfig, migrateFile } from "./index.js";
 import { renderInitConfig } from "./init-config.js";
 import { VariantsConfigSchema } from "./schema.js";
 
@@ -75,12 +75,14 @@ describe("renderInitConfig", () => {
     expect(parsed(text).db).toMatchObject({ dialect: "mysql", host: "maria", database: "shop" });
   });
 
-  it("writes only the sqlite dialect when nothing is detected", () => {
+  it("writes no db key when nothing is detected", () => {
     const { text, detected } = render();
 
-    expect(parsed(text).db).toEqual({ dialect: "sqlite" });
+    expect(parsed(text)).not.toHaveProperty("db");
+    expect(text).not.toContain("db:");
     expect(text).not.toContain("filename");
     expect(detected.databaseSource).toBe("default");
+    expect(detected.dialect).toBe("sqlite");
   });
 
   it("writes the prefix given and the abbreviation of the project directory", () => {
@@ -96,6 +98,25 @@ describe("renderInitConfig", () => {
     expect(text).not.toContain(directory);
     expect(parsed(text).variant.main).toBeUndefined();
     expect(parsed(text).variant.root).toBeUndefined();
+  });
+
+  describe("schema header", () => {
+    it("begins with the modeline of the main schema, a blank line and then the init comment", () => {
+      const lines = render().text.split("\n");
+
+      expect(lines[0]).toBe(
+        "# yaml-language-server: $schema=https://github.com/jubr/variant-worktrees/raw/refs/heads/main/packages/variant-config/variants.yaml.schema.json",
+      );
+      expect(lines[1]).toBe("");
+      expect(lines[2]).toStartWith("# Written by `variant init`");
+    });
+
+    it("leaves nothing to migrate and writes no backup", () => {
+      put("variants.yaml", render(POSTGRES).text);
+
+      expect(migrateFile(join(directory, "variants.yaml"), {})).toBeUndefined();
+      expect(existsSync(join(directory, "variants.yaml~"))).toBe(false);
+    });
   });
 
   describe("watches", () => {

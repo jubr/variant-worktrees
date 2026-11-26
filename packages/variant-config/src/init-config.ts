@@ -8,6 +8,7 @@ import {
   detectWatchesForInit,
   type EnvironmentProvider,
 } from "./autodetect.js";
+import { schemaHeaderFor } from "./header.js";
 import { type DbConfig, type DbDialect, DEFAULT_PREFIX, type VariantWatch } from "./schema.js";
 
 /**
@@ -139,7 +140,8 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
     variant.watches = writtenWatches;
   }
 
-  const document = new Document({ db, variant });
+  // AIDEV-NOTE: nothing detected means no `db` key at all: autodetection already resolves SQLite, so writing it would only pin a default.
+  const document = new Document(source === "env" ? { db, variant } : { variant });
   document.commentBefore =
     " Written by `variant init` from what autodetection found. Other accepted values follow `#` on the same line.";
   for (const [path, text] of notes) {
@@ -150,7 +152,8 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
   }
 
   return {
-    text: document.toString({ lineWidth: 0 }),
+    // AIDEV-NOTE: the header is the text `addSchemaHeader` would add, so the migration of the next command finds nothing to do and saves no `variants.yaml~`.
+    text: `${schemaHeaderFor("variants.yaml")}\n\n${document.toString({ lineWidth: 0 })}`,
     detected: { dialect, databaseSource: source, abbr, prefix, watches: Object.keys(writtenWatches) },
   };
 };
