@@ -13,7 +13,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createConnection } from "node:net";
+import { createConnection, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import { type LogEvent, setLogSink } from "variant-log";
 import { connect, createListener, socketPath } from "./index.ts";
@@ -409,6 +409,36 @@ describe("unix socket", () => {
       expect(existsSync(path)).toBe(false);
       await closed;
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("drops the connection at once when the client destroys it while the peer never closes", async () => {
+    const root = tempDirectory();
+    const path = join(root, ".vscode", "variant-worktrees.sock");
+    mkdirSync(join(root, ".vscode"), { recursive: true });
+    const server = createServer();
+    const peers: Socket[] = [];
+    const peerClosed: Promise<void>[] = [];
+    server.on("connection", (peer) => {
+      peers.push(peer);
+      peerClosed.push(new Promise<void>((resolve) => peer.once("close", () => resolve())));
+    });
+    try {
+      await new Promise<void>((resolve) => server.listen(path, () => resolve()));
+      const client = await connect(path);
+      client.destroy();
+
+      const outcome = await Promise.race([
+        Promise.all(peerClosed).then(() => "closed"),
+        new Promise<string>((resolve) => setTimeout(() => resolve("open"), 1000)),
+      ]);
+      expect(outcome).toBe("closed");
+    } finally {
+      for (const peer of peers) {
+        peer.destroy();
+      }
+      await new Promise<void>((resolve) => server.close(() => resolve()));
       rmSync(root, { recursive: true, force: true });
     }
   });

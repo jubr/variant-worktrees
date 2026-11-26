@@ -57,7 +57,7 @@ const deliver = async (directory: string, event: LogEvent): Promise<void> => {
       socketDropped = true;
       const client = editorClient;
       editorClient = undefined;
-      client?.close();
+      client?.destroy();
     }
   }
 };
