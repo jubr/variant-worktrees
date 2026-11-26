@@ -34,7 +34,7 @@ const run = (directory: string, ...paths: string[]) => {
   return { mise, result: augmentMiseConfig({ directory, miseBinPath: mise.binary }) };
 };
 
-const ENTRY = `"${MISE_TOOL}" = "latest"`;
+const ENTRY = '"packslip:jubr/variant-worktrees" = "latest"';
 
 describe("augmentMiseConfig", () => {
   it("creates mise.toml with a tools table when no file is inside the checkout", () => {
@@ -132,6 +132,21 @@ describe("augmentMiseConfig", () => {
 
     expect(result).toMatchObject({ status: "unchanged", file });
     expect(result.message).toContain("already");
+    expect(read("mise.toml")).toBe(original);
+  });
+
+  it("names the packslip tool", () => {
+    expect(MISE_TOOL).toBe("packslip:jubr/variant-worktrees");
+  });
+
+  it("changes nothing when the tool is listed through the github backend and adds no packslip entry", () => {
+    const original = '[tools]\n"github:jubr/variant-worktrees" = "latest"\n';
+    const file = write("mise.toml", original);
+
+    const { result } = run(root, file);
+
+    expect(result).toMatchObject({ status: "unchanged", file });
+    expect(result.message).toContain("already lists github:jubr/variant-worktrees");
     expect(read("mise.toml")).toBe(original);
   });
 

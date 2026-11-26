@@ -71,7 +71,7 @@ describe("init", () => {
     });
     expect(read("variants.yaml")).not.toContain("pw\n");
     expect(read(".gitignore")).toBe("_v-*\n");
-    expect(read("mise.toml")).toContain("github:jubr/variant-worktrees");
+    expect(read("mise.toml")).toContain("packslip:jubr/variant-worktrees");
     expect(result.gitignore).toMatchObject({ status: "created", changed: true });
     expect(result.mise).toMatchObject({ status: "created", changed: true, file: join(root, "mise.toml") });
     expect(result.detected).toMatchObject({ dialect: "postgres", prefix: "_v-" });
@@ -127,7 +127,7 @@ describe("init", () => {
     expect(result.detected).toBeNull();
     expect(read("variants.yaml")).toBe("db:\n  dialect: sqlite\n");
     expect(read(".gitignore")).toBe("_v-*\n");
-    expect(read("mise.toml")).toContain("github:jubr");
+    expect(read("mise.toml")).toContain("packslip:jubr");
   });
 
   it("refuses an existing variants.yaml naming it and changes nothing", async () => {
@@ -253,7 +253,7 @@ describe("init Bun check", () => {
     expect(result.bun.hint.length).toBeGreaterThan(0);
     expect(result.bun.hint.join("\n")).toContain("which -a bun");
     expect(read(".gitignore")).toBe("_v-*\n");
-    expect(read("mise.toml")).toContain("github:jubr");
+    expect(read("mise.toml")).toContain("packslip:jubr");
   });
 
   it("reports a matching Bun without a hint", async () => {
