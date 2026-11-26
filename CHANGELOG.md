@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `variant watch` removes clear-screen ANSI sequences (erase display `ESC[J`, cursor home `ESC[H`, terminal reset `ESC c`) from the lines it writes to `.cache/variant/watch.log` and to standard output, in every output mode. A line that held only those sequences is not written. Color and other sequences are kept.
 - `publish-extensions.yaml` publishes to the Visual Studio Marketplace through trusted publishing (`vsce publish --oidc`) instead of the `VSCE_PAT` secret, which is no longer used. The Marketplace needs a Trusted Publishing policy for the workflow `publish-extensions.yaml` and the environment `marketplace`.
 
 ## [0.0.13] - 2026-11-25
