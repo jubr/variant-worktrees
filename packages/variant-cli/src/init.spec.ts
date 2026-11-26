@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -29,6 +30,23 @@ describe("variant init", () => {
     expect(result.stdout).toMatch(/\.gitignore:\s+created \.gitignore with _v-\*/);
     expect(result.stdout).toMatch(/mise:\s+skipped/);
     expect(parseYaml(readFileSync(join(directory, "variants.yaml"), "utf8")).variant.prefix).toBe("_v-");
+  });
+
+  it("shows the detected default branch in the text output, JSON and the file", async () => {
+    execFileSync("git", ["init", "-q", "-b", "master", directory]);
+
+    const text = await init("--mise=false", "--force");
+    expect(text.stdout).toMatch(/detected:.*branch master/);
+    expect(parseYaml(readFileSync(join(directory, "variants.yaml"), "utf8")).variant.baseBranch).toBe("master");
+
+    const json = JSON.parse((await init("--json", "--mise=false", "--force")).stdout);
+    expect(json.detected.baseBranch).toBe("master");
+  });
+
+  it("leaves the branch out of the text output when none was detected", async () => {
+    const result = await init("--mise=false");
+
+    expect(result.stdout).not.toContain("branch ");
   });
 
   it("skips a step turned off with =false", async () => {

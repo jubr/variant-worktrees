@@ -26,7 +26,10 @@ export type SocketListener = {
 
 export type IpcClient = {
   request: (message: IpcRequest) => Promise<unknown>;
+  /** Ends the socket after queued writes. A peer that never closes keeps the process alive. */
   close: () => void;
+  /** Drops the socket at once, for a peer that stopped answering. */
+  destroy: () => void;
 };
 
 export const socketPath = (startDir: string): string => join(resolveMainVscodeDir(startDir), SOCKET_FILE_NAME);
@@ -246,6 +249,9 @@ export const connect = (path: string): Promise<IpcClient> =>
           }),
         close: () => {
           socket.end();
+        },
+        destroy: () => {
+          socket.destroy();
         },
       });
     });

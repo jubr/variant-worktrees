@@ -1,4 +1,4 @@
-import { type LogEvent, type LogLevel, LogOrigin, loadConfig, logD, logW, resolveSlug, setLogSink } from "variant-api";
+import { type LogEvent, type LogLevel, LogOrigin, loadConfig, logD, resolveSlug, setLogSink } from "variant-api";
 import { connect, type IpcClient, socketPath } from "variant-ipc";
 import { showsOnStderr, writeStderrLog } from "./ipc-log.js";
 
@@ -33,12 +33,12 @@ const dropSocket = (): void => {
   socketDropped = true;
   const client = vscodeClient;
   vscodeClient = undefined;
-  client?.close();
+  client?.destroy();
   if (warnedWrite) {
     return;
   }
   warnedWrite = true;
-  logW("write failed", { step: "ipc" });
+  logD("write failed", { step: "ipc" });
 };
 
 const connectReason = (error: unknown): string => {

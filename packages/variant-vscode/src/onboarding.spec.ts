@@ -269,7 +269,14 @@ describe("onboarding flow", () => {
             gitignore: { status: "skipped", changed: false, file: null, message: "skipped" },
             mise: { status: "skipped", changed: false, file: null, message: "skipped" },
             bun: { status: "unchecked", message: "not checked", hint: [] },
-            detected: { dialect: "sqlite", databaseSource: "default", abbr: "w", prefix: "_v-", watches: [] },
+            detected: {
+              dialect: "sqlite",
+              databaseSource: "default",
+              abbr: "w",
+              prefix: "_v-",
+              baseBranch: null,
+              watches: [],
+            },
           }),
         } as never;
       };

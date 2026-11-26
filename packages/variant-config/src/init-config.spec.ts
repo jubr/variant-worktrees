@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -117,6 +118,79 @@ describe("renderInitConfig", () => {
     expect(text).not.toContain(directory);
     expect(parsed(text).variant.main).toBeUndefined();
     expect(parsed(text).variant.root).toBeUndefined();
+  });
+
+  describe("variant.baseBranch", () => {
+    const git = (...args: string[]): void => {
+      execFileSync("git", ["-C", directory, ...args], { stdio: "ignore" });
+    };
+
+    /** Makes `directory` a repository whose first branch is `branch`. */
+    const repo = (branch: string, commit = true): void => {
+      execFileSync("git", ["init", "-q", "-b", branch, directory]);
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide a case.
+      git("config", "init.defaultBranch", "no-such-branch");
+      if (commit) {
+        git("commit", "-q", "--allow-empty", "-m", "initial");
+      }
+    };
+
+    it("writes the branch origin/HEAD points at and says so", () => {
+      repo("main");
+      git("remote", "add", "origin", "https://unreachable.invalid/project.git");
+      git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop");
+
+      const { text, detected } = render();
+
+      expect(parsed(text).variant.baseBranch).toBe("develop");
+      expect(text).toContain("baseBranch: develop # from origin/HEAD");
+      expect(detected.baseBranch).toBe("develop");
+    });
+
+    it("writes master with the comment local branch", () => {
+      repo("master");
+
+      const { text, detected } = render();
+
+      expect(text).toContain("baseBranch: master # local branch");
+      expect(detected.baseBranch).toBe("master");
+    });
+
+    it("writes main too when that is the default branch", () => {
+      repo("main");
+
+      expect(render().text).toContain("baseBranch: main # local branch");
+    });
+
+    it("writes the branch of init.defaultBranch and says so", () => {
+      repo("main");
+      git("branch", "trunk");
+      git("config", "init.defaultBranch", "trunk");
+
+      expect(render().text).toContain("baseBranch: trunk # from init.defaultBranch");
+    });
+
+    it("writes the unborn branch of a repository without commits", () => {
+      repo("trunk", false);
+
+      expect(render().text).toContain("baseBranch: trunk # checked out");
+    });
+
+    it("writes no baseBranch outside a git repository", () => {
+      const { text, detected } = render();
+
+      expect(parsed(text).variant).not.toHaveProperty("baseBranch");
+      expect(detected.baseBranch).toBeNull();
+    });
+
+    it("loads the written file with the written branch", () => {
+      repo("master");
+      put("variants.yaml", render().text);
+
+      expect(loadConfig({ cwd: directory, env: {} }).variant.baseBranch).toBe("master");
+    });
   });
 
   describe("schema header", () => {

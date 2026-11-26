@@ -2,8 +2,10 @@ import { basename, isAbsolute, relative, resolve } from "node:path";
 import { Document, isScalar } from "yaml";
 import {
   abbreviate,
+  type DefaultBranchVia,
   type DetectedConnection,
   detectConnection,
+  detectDefaultBranch,
   detectVariantMain,
   detectWatchesForInit,
   type EnvironmentProvider,
@@ -37,6 +39,8 @@ export interface RenderedInitConfig {
     databaseSource: DetectedConnection["source"];
     abbr: string;
     prefix: string;
+    /** The default git branch written as `variant.baseBranch`; `null` when none was detected and none written. */
+    baseBranch: string | null;
     /** The keys of the written watches. */
     watches: string[];
   };
@@ -47,6 +51,14 @@ const KINDS: readonly NonNullable<VariantWatch["kind"]>[] = ["vite", "nestjs"];
 
 /** Whether a connection URL carries a password (`scheme://user:password@host/...`). */
 const urlHasPassword = (url: string): boolean => /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/?#@]*:[^/?#@]+@/.test(url);
+
+/** The same-line comment of `variant.baseBranch`, by the signal that found the branch. */
+const BRANCH_SIGNAL_NOTES: Record<DefaultBranchVia, string> = {
+  "origin/HEAD": "from origin/HEAD",
+  "init.defaultBranch": "from init.defaultBranch",
+  "local branch": "local branch",
+  "checked out": "checked out",
+};
 
 const others = <T>(all: readonly T[], current: T | undefined): string =>
   all.filter((item) => item !== current).join(" | ");
@@ -60,6 +72,7 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
   const detectedConnection = detectConnection(dir, options.environment);
   const abbr = abbreviate(basename(detectVariantMain(dir)));
   const watches = detectWatchesForInit(dir);
+  const defaultBranch = detectDefaultBranch(dir);
 
   const notes: [Path, string][] = [];
   const note = (path: Path, text: string): void => {
@@ -108,6 +121,10 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
   const variant: Record<string, unknown> = { abbr, prefix };
   note(["variant", "abbr"], "lowercase letters and digits, single hyphens between");
   note(["variant", "prefix"], "starts every name derived from a slug; keep the connector");
+  if (defaultBranch !== undefined) {
+    variant.baseBranch = defaultBranch.branch;
+    note(["variant", "baseBranch"], BRANCH_SIGNAL_NOTES[defaultBranch.via]);
+  }
 
   const writtenWatches: Record<string, Record<string, unknown>> = {};
   for (const [key, watch] of Object.entries(watches)) {
@@ -144,6 +161,13 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
   return {
     // AIDEV-NOTE: the header is the text `addSchemaHeader` would add, so the migration of the next command finds nothing to do and saves no `variants.yaml~`.
     text: `${schemaHeaderFor("variants.yaml")}\n\n${document.toString({ lineWidth: 0 })}`,
-    detected: { dialect, databaseSource: source, abbr, prefix, watches: Object.keys(writtenWatches) },
+    detected: {
+      dialect,
+      databaseSource: source,
+      abbr,
+      prefix,
+      baseBranch: defaultBranch?.branch ?? null,
+      watches: Object.keys(writtenWatches),
+    },
   };
 };

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
@@ -10,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { migrateFile } from "variant-config";
+import { loadConfig, migrateFile } from "variant-config";
 import { parse as parseYaml } from "yaml";
 import { createVariantClient } from "../index.js";
 import { fakeMise } from "../test/mise-mock.js";
@@ -86,6 +87,48 @@ describe("init", () => {
     expect(read("variants.yaml").split("\n")[0]).toStartWith("# yaml-language-server: $schema=");
     expect(migrateFile(join(root, "variants.yaml"), {})).toBeUndefined();
     expect(files()).not.toContain("variants.yaml~");
+  });
+
+  it("writes the default git branch and reports it", async () => {
+    const git = (...args: string[]): void => {
+      execFileSync("git", ["-C", root, ...args], { stdio: "ignore" });
+    };
+    execFileSync("git", ["init", "-q", "-b", "master", root]);
+    git("config", "user.email", "variant@example.test");
+    git("config", "user.name", "Variant Tests");
+    // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide the case.
+    git("config", "init.defaultBranch", "no-such-branch");
+    git("commit", "-q", "--allow-empty", "-m", "initial");
+    const { client } = setup();
+
+    const result = await client.init();
+
+    expect(parseYaml(read("variants.yaml")).variant.baseBranch).toBe("master");
+    expect(read("variants.yaml")).toContain("baseBranch: master # local branch");
+    expect(result.detected?.baseBranch).toBe("master");
+  });
+
+  it("lets a create after init start from master in a repository whose only branch is master", async () => {
+    const git = (...args: string[]): string => execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
+    execFileSync("git", ["init", "-q", "-b", "master", root]);
+    git("config", "user.email", "variant@example.test");
+    git("config", "user.name", "Variant Tests");
+    // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide the case.
+    git("config", "init.defaultBranch", "no-such-branch");
+    put("README.md", "test\n");
+    git("add", "README.md");
+    git("commit", "-q", "-m", "initial");
+    await setup().client.init({ gitignore: false, mise: false });
+
+    const config = loadConfig({ cwd: root, env: {} });
+    const created = await createVariantClient({
+      config: { ...config, db: { dialect: "sqlite" } },
+      cwd: root,
+      stateDir: join(root, ".cache", "variants"),
+    }).create("demo");
+
+    expect(config.variant.baseBranch).toBe("master");
+    expect(git("-C", created.worktree as string, "branch", "--show-current")).toBe("feat/demo");
   });
 
   it("writes a custom prefix to the file and .gitignore", async () => {

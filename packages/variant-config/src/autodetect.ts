@@ -99,6 +99,47 @@ export const detectVariantPlace = (configDir: string): { main: string; via: Vari
   return { main: realpathSync(resolve(configDir)), via: "config" };
 };
 
+export type DefaultBranchVia = "origin/HEAD" | "init.defaultBranch" | "local branch" | "checked out";
+
+/** The output of `git -C directory ...args`, or `undefined` when git fails (not a repository, no such ref, no such setting). */
+const gitOutput = (directory: string, ...args: string[]): string | undefined => {
+  try {
+    const output = execFileSync("git", ["-C", resolve(directory), ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return output === "" ? undefined : output;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Specification: openspec/specs/variant-config/cfg-settings/spec.md (Branch naming settings)
+ *
+ * The default branch of the repository of `directory`, and which signal found it. Local git state only: never a fetch.
+ */
+export const detectDefaultBranch = (directory: string): { branch: string; via: DefaultBranchVia } | undefined => {
+  const remoteHead = gitOutput(directory, "symbolic-ref", "--short", "refs/remotes/origin/HEAD");
+  if (remoteHead?.startsWith("origin/")) {
+    return { branch: remoteHead.slice("origin/".length), via: "origin/HEAD" };
+  }
+  const hasBranch = (name: string): boolean =>
+    gitOutput(directory, "show-ref", "--verify", `refs/heads/${name}`) !== undefined;
+  const configured = gitOutput(directory, "config", "--get", "init.defaultBranch");
+  if (configured !== undefined && hasBranch(configured)) {
+    return { branch: configured, via: "init.defaultBranch" };
+  }
+  for (const name of ["main", "master"]) {
+    if (hasBranch(name)) {
+      return { branch: name, via: "local branch" };
+    }
+  }
+  // AIDEV-NOTE: reached only without a local main or master, where the old default `main` fails anyway; for a repository without commits the unborn branch is what the first commit creates.
+  const checkedOut = gitOutput(directory, "symbolic-ref", "--short", "HEAD");
+  return checkedOut === undefined ? undefined : { branch: checkedOut, via: "checked out" };
+};
+
 /** The main tree the worktrees are made from. */
 export const detectVariantMain = (configDir: string): string => detectVariantPlace(configDir).main;
 

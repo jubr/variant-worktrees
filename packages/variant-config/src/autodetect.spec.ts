@@ -1,5 +1,8 @@
-import { describe, expect, it } from "bun:test";
-import { detectConnection } from "./autodetect.js";
+import { afterEach, describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { detectConnection, detectDefaultBranch } from "./autodetect.js";
 
 describe("detectConnection", () => {
   it("reads PostgreSQL values from the environment provider", () => {
@@ -146,5 +149,111 @@ describe("detectConnection variables", () => {
 
   it("names nothing when nothing is detected", () => {
     expect(detectConnection("/proj", () => ({})).variables).toEqual({});
+  });
+});
+
+/** Specification: openspec/specs/variant-config/cfg-settings/spec.md (Branch naming settings) */
+describe("detectDefaultBranch", () => {
+  const roots: string[] = [];
+  afterEach(() => {
+    for (const root of roots.splice(0)) {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  const git = (cwd: string, ...args: string[]): string =>
+    execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+
+  /** A repository whose first branch is `branch`, with one commit unless `commit` is false. */
+  const repo = (branch: string, commit = true): string => {
+    const root = realpathSync(mkdtempSync(join("/tmp", "variant-default-branch-")));
+    roots.push(root);
+    execFileSync("git", ["init", "-q", "-b", branch, root]);
+    git(root, "config", "user.email", "variant@example.test");
+    git(root, "config", "user.name", "Variant Tests");
+    // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide a case.
+    git(root, "config", "init.defaultBranch", "no-such-branch");
+    if (commit) {
+      git(root, "commit", "-q", "--allow-empty", "-m", "initial");
+    }
+    return root;
+  };
+
+  /** Points `origin/HEAD` at `origin/<branch>` the way a clone leaves it. */
+  const originHead = (root: string, branch: string): void => {
+    git(root, "remote", "add", "origin", "https://unreachable.invalid/project.git");
+    git(root, "symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${branch}`);
+  };
+
+  it("takes the branch origin/HEAD points at over a local main", () => {
+    const root = repo("main");
+    originHead(root, "develop");
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "develop", via: "origin/HEAD" });
+  });
+
+  it("keeps a slash in the branch name of origin/HEAD", () => {
+    const root = repo("main");
+    originHead(root, "release/2");
+
+    expect(detectDefaultBranch(root)?.branch).toBe("release/2");
+  });
+
+  it("takes the local branch master when there is no main, no remote and no setting", () => {
+    const root = repo("master");
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "master", via: "local branch" });
+  });
+
+  it("takes main before master", () => {
+    const root = repo("master");
+    git(root, "branch", "main");
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "main", via: "local branch" });
+  });
+
+  it("takes init.defaultBranch when that local branch exists, before main", () => {
+    const root = repo("main");
+    git(root, "branch", "trunk");
+    git(root, "config", "init.defaultBranch", "trunk");
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "trunk", via: "init.defaultBranch" });
+  });
+
+  it("ignores init.defaultBranch when that local branch does not exist", () => {
+    const root = repo("master");
+    git(root, "config", "init.defaultBranch", "trunk");
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "master", via: "local branch" });
+  });
+
+  it("falls back to the checked-out branch when no other signal exists", () => {
+    const root = repo("develop");
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "develop", via: "checked out" });
+  });
+
+  it("takes the unborn branch of a repository without commits", () => {
+    const root = repo("trunk", false);
+
+    expect(detectDefaultBranch(root)).toEqual({ branch: "trunk", via: "checked out" });
+  });
+
+  it("finds nothing outside a git repository", () => {
+    const root = realpathSync(mkdtempSync(join("/tmp", "variant-default-branch-")));
+    roots.push(root);
+
+    expect(detectDefaultBranch(root)).toBeUndefined();
+  });
+
+  it("reads the default branch of a clone without contacting the remote", () => {
+    const remote = repo("develop");
+    const clone = realpathSync(mkdtempSync(join("/tmp", "variant-default-branch-")));
+    roots.push(clone);
+    execFileSync("git", ["clone", "-q", remote, clone]);
+    git(clone, "checkout", "-q", "-b", "feat/work");
+    git(clone, "remote", "set-url", "origin", "https://unreachable.invalid/project.git");
+
+    expect(detectDefaultBranch(clone)).toEqual({ branch: "develop", via: "origin/HEAD" });
   });
 });

@@ -23,7 +23,10 @@ It is the `${abbr}` of [Templates](#templates).
 
 ### `variant.baseBranch`
 
-New variant branches start here; a variant must be merged here before `implode` (default `main`).
+New variant branches start here; a variant must be merged here before `implode`.
+Absent: the default git branch of the main checkout, read from local git state without a fetch: the branch `origin/HEAD` points at, else `init.defaultBranch` when that branch exists, else a local `main` or `master`, else the branch that is checked out; `main` when none is found.
+`git remote set-head origin -a` repairs a stale `origin/HEAD`.
+[`variant init`](./commands#variant-init) writes the detected branch, and `variant config` names the signal in a comment.
 
 <hr class="option-sep">
 

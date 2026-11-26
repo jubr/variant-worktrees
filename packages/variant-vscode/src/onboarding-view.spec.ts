@@ -29,7 +29,7 @@ const result = (extra: Partial<InitResult> = {}): InitResult => ({
   gitignore: { status: "created", changed: true, file: "/work/.gitignore", message: "created .gitignore with _v-*" },
   mise: { status: "created", changed: true, file: "/work/mise.toml", message: "created mise.toml with tool" },
   bun: { status: "matches", message: "bun 1.4.2 on PATH is the version Mise pins", hint: [] },
-  detected: { dialect: "sqlite", databaseSource: "default", abbr: "w", prefix: "_v-", watches: [] },
+  detected: { dialect: "sqlite", databaseSource: "default", abbr: "w", prefix: "_v-", baseBranch: null, watches: [] },
   ...extra,
 });
 

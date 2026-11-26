@@ -237,6 +237,7 @@ const layouts: Record<string, (result: never, options: TextOptions) => string[] 
               [
                 `database ${result.detected.dialect}${result.detected.databaseSource === "default" ? " (default)" : ""}`,
                 `abbr ${result.detected.abbr}`,
+                ...(result.detected.baseBranch === null ? [] : [`branch ${result.detected.baseBranch}`]),
                 `watches ${result.detected.watches.length === 0 ? "none" : result.detected.watches.join(", ")}`,
               ].join("; "),
             ],

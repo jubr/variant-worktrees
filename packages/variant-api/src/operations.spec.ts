@@ -94,6 +94,41 @@ describe("variant client operations", () => {
     }
   });
 
+  it("creates and implodes a variant in a repository whose only branch is master, without baseBranch configured", async () => {
+    const parent = tempDirectory();
+    const repo = join(parent, "repo");
+    try {
+      const git = (...args: string[]): string =>
+        execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
+      execFileSync("git", ["init", "-q", "-b", "master", repo], { encoding: "utf8" });
+      git("config", "user.email", "variant@example.test");
+      git("config", "user.name", "Variant Tests");
+      // AIDEV-NOTE: names a branch that never exists, so the machine's own global init.defaultBranch cannot decide the case.
+      git("config", "init.defaultBranch", "no-such-branch");
+      writeFileSync(join(repo, "README.md"), "test\n");
+      git("add", "README.md");
+      git("commit", "-q", "-m", "initial");
+
+      const baseConfig = loadConfig({ cwd: repo, env: {} });
+      const client = createVariantClient({
+        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        cwd: repo,
+        stateDir: join(repo, ".cache", "variants"),
+      });
+      const created = await client.create("add-auth");
+
+      expect(baseConfig.variant.baseBranch).toBe("master");
+      expect(git("-C", created.worktree as string, "branch", "--show-current")).toBe("feat/add-auth");
+      expect(await client.implode("add-auth")).toMatchObject({
+        slug: "add-auth",
+        removed: true,
+        worktreeRemoved: true,
+      });
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  });
+
   it("writes runtime.createdAt in the variant directory and leaves an existing value", async () => {
     const parent = tempDirectory();
     const repo = join(parent, "repo");
