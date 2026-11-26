@@ -108,7 +108,7 @@ describe("variant-api on Node and Bun", () => {
           `import { existsSync } from "node:fs";
            const { createVariantClient } = await import(${JSON.stringify(entries.index)});
            const client = createVariantClient({ cwd: ${JSON.stringify(directory)}, configPath: ${JSON.stringify(join(directory, "variants.yaml"))}, worktree: true });
-           const file = ${JSON.stringify(join(directory, ".cache/variants/test-feature.db"))};
+           const file = ${JSON.stringify(join(directory, "_v-test-feature", ".cache/variants/test-feature.sqlite"))};
            const state = ${JSON.stringify(join(directory, "_v-test-feature", ".cache/variant/state.yaml"))};
            await client.create("test-feature");
            const database = existsSync(file);

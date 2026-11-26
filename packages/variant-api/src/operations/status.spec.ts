@@ -96,11 +96,11 @@ describe("client.status", () => {
 
   it("knows a variant that has only a database target", () =>
     withProject(async ({ put, client, directory }) => {
-      put(".cache/variants/orphan.db", "");
+      put(".cache/variants/orphan.sqlite", "");
 
       const status = await client().status("orphan");
 
-      expect(status.target).toBe(join(directory, ".cache", "variants", "orphan.db"));
+      expect(status.target).toBe(join(directory, ".cache", "variants", "orphan.sqlite"));
       expect(status.mode).toBeUndefined();
     }));
 
@@ -120,6 +120,31 @@ describe("client.status", () => {
       const status = await client(join(directory, "_v-demo")).status();
 
       expect(status.slug).toBe("demo");
+    }));
+});
+
+describe("status of a SQLite variant", () => {
+  it("carries the file as runtime.db.database and has no filename", () =>
+    withProject(async ({ put, client, directory }) => {
+      const file = join(directory, "_v-demo", ".cache", "variants", "demo.sqlite");
+      put("_v-demo/.cache/variant/state.yaml", `slug: demo\ndialect: sqlite\ntarget: ${file}\n`);
+
+      const status = await client().status("demo");
+
+      expect(status.runtime?.db).toEqual({ dialect: "sqlite", database: file });
+      expect(status.runtime?.db).not.toHaveProperty("filename");
+      expect(status.target).toBe(join(directory, ".cache", "variants", "demo.sqlite"));
+    }));
+
+  it("reads the filename of a runtime dump of an earlier version as the database", () =>
+    withProject(async ({ put, client, directory }) => {
+      const file = join(directory, "_v-demo", ".cache", "variants", "demo.sqlite");
+      put("_v-demo/.cache/variant/state.yaml", `slug: demo\ndialect: sqlite\ntarget: ${file}\n`);
+      put("_v-demo/.cache/variant/runtime.yaml", `db:\n  dialect: sqlite\n  filename: ${file}\n`);
+
+      const status = await client().status("demo");
+
+      expect(status.runtime?.db).toEqual({ dialect: "sqlite", database: file });
     }));
 });
 
@@ -298,7 +323,7 @@ describe("client.list with verbose", () => {
         "  fe: { port: 62060 }",
       ),
     );
-    put(".cache/variants/beta.db", "");
+    put(".cache/variants/beta.sqlite", "");
   };
 
   it("gives every record what status gives for its slug", () =>

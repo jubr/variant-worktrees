@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
@@ -29,7 +29,9 @@ describe("variant client operations", () => {
       const created = await client.create("test-feature");
       expect(created.slug).toBe("test-feature");
       expect(created.implodeClean).toBe(true);
-      expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
+      expect(created.target).toBe(
+        join(realpathSync(directory), "_v-test-feature", ".cache", "variants", "test-feature.sqlite"),
+      );
       expect(existsSync(created.target)).toBe(false);
       expect(existsSync(join(directory, ".cache", "variants", "test-feature.yaml"))).toBe(false);
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);

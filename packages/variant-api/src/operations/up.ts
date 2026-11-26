@@ -35,7 +35,7 @@ export const runtimeOf = (
     ...(previous?.createdAt ? { createdAt: previous.createdAt } : {}),
     db: {
       ...(db.dialect ? { dialect: db.dialect } : {}),
-      ...(db.dialect === "sqlite" ? { filename: run.target } : { schema: run.target }),
+      ...(db.dialect === "sqlite" ? { database: run.target } : { schema: run.target }),
     },
     watches: Object.fromEntries(
       [...new Set([...Object.keys(config.variant.watches), ...Object.keys(pids)])].map((key) => {

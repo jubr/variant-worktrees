@@ -8,6 +8,7 @@ import {
   type TemplateContext,
   type VariantWatch,
 } from "variant-config";
+import { databaseTarget } from "./database-target.js";
 import { repositoryDirectory } from "./locate.js";
 import { type ResolvedMulti, resolveMulti } from "./multi.js";
 import type { OperationContext } from "./operations/types.js";
@@ -85,7 +86,7 @@ export const prepareRun = async (
   const { config } = context;
   // AIDEV-NOTE: Single choke point: `${worktree}` must be absolute and normalized however the producers spelled it.
   const worktree = resolve(requestedWorktree);
-  const target = slug === "main" ? (config.db.schema ?? "public") : context.adapter.target(slug);
+  const target = databaseTarget(context, slug);
   const recorded = readVariantRuntime(config, worktree);
   assertDistinctOverrides(Object.keys(config.variant.watches));
   const ports: Record<string, number> = {};
