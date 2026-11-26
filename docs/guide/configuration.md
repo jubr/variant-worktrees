@@ -396,8 +396,14 @@ Every key has a heading of its own, in alphabetical order.
 
 ### `db.database`
 
-The database name for Postgres and MySQL.
+The database name for PostgreSQL and MySQL.
 Autodetected from `POSTGRES_DB`, `MYSQL_DATABASE` or `MARIADB_DATABASE`.
+
+For SQLite it is the full file name, absolute or relative, not a database name.
+`{slug}` stands for the slug of the variant, and a relative name is resolved in the worktree of the variant (the main checkout for `main`).
+Absent: `.cache/variants/{slug}.sqlite`.
+Autodetected from `SQLITE_DATABASE`, `SQLITE_PATH` or a `sqlite:` `DATABASE_URL`.
+Examples for each dialect, with the file layout, are on the [Database](./database) page.
 
 <hr class="option-sep">
 
@@ -405,12 +411,6 @@ Autodetected from `POSTGRES_DB`, `MYSQL_DATABASE` or `MARIADB_DATABASE`.
 
 `postgres`, `mysql` or `sqlite`. MariaDB is `mysql`. Absent: autodetected.
 An explicit `sqlite` reads no environment at all.
-
-<hr class="option-sep">
-
-### `db.filename`
-
-SQLite only: the database file. Absent: a default file for the variant.
 
 <hr class="option-sep">
 
@@ -617,5 +617,10 @@ The same migration puts the schema header on top of a `variants.yaml` that has n
 A schema line you wrote yourself stays.
 When the header cannot be added (a tracked file with uncommitted changes, `CI`, `VARIANT_MIGRATE=0`) nothing is printed, because it is cosmetic.
 `.cache/variant/state.yaml` and `runtime.yaml` have no schema line.
+
+`db.filename` was renamed [`db.database`](#db-database), and the migration rewrites it: the notice is `<file>: db.filename is now db.database`, and a file that has both keeps [`db.database`](#db-database) and drops `db.filename`.
+The value is kept as it was written.
+A relative name now resolves in the worktree of the variant, where it resolved in the directory of `variants.yaml` before, so write an absolute path to keep a file where it is.
+When there is no [`db.database`](#db-database) and the directory of `variants.yaml` holds `{slug}.db` files below its `.cache/variants` directory, the migration adds `db.database: <that directory>/{slug}.db`, so those databases stay in use; delete the line to move to `.cache/variants/{slug}.sqlite`.
 
 :::

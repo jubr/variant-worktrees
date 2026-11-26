@@ -96,6 +96,8 @@ The [`example/`](https://github.com/jubr/variant-worktrees/tree/main/example) pr
 
 Database settings are autodetected from the environment (Postgres, MySQL, MariaDB as dialect `mysql`, SQLite). The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over the process environment, read once and only when a value is first needed (`variant list` of a configuration without references starts no process). Explicit `db` values in `variants.yaml` override autodetected values, and an explicit `db.dialect: sqlite` reads no environment at all. Mise is found by the `variant.mise.binPath` setting of the editor, the `variant.mise.binPath` key, `PATH`, then the usual install locations.
 
+For SQLite, `db.database` is the full absolute or relative file name (`{slug}` stands for the slug; a relative name resolves in the worktree of the variant). Without a setting a variant uses `.cache/variants/{slug}.sqlite`. `variant create`, `status` and `list` print it as `database` (a PostgreSQL or MySQL connection has the password as `***`). `db.filename` is now `db.database`. The [Database guide](https://jubr.github.io/variant-worktrees/guide/database) has examples for each dialect.
+
 Every string setting, `db` included, takes `${NAME}` (an environment variable, an error when unset), `${NAME:-default}` and the variant placeholders `${slug}`, `${abbr}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}` and `${<key>.port}`. Write `$${` for a literal `${` that a shell must see. `db.port` is a positive integer or a string: digits, or one `${NAME}`. The string must resolve to a positive integer; `"not-a-number"` still fails. The published JSON schema accepts both.
 
 `db.multi` (PostgreSQL only) is one schema per tenant: `schemaPrefix` (default `v_${slug}-`), and exactly one of `tenants` (`east,west`) and `tenantsCmd` (a shell command, run lazily). `${multi.tenants}` and `${multi.schemaPrefix}` fill a step's `env`. `variant.steps` is a map keyed by step name. A step has `cmd`, and a custom step has exactly one of `runBefore` and `runAfter`. A step named `provision`, `seed` or `deprovision` fills that phase. The flow is in the [overview](https://jubr.github.io/variant-worktrees/guide/overview#flow-of-steps), not repeated here.
@@ -154,7 +156,7 @@ variant create -s preview-one
 variant create -s preview-one --from feat/other   # new branch starts at that commit
 variant create -s preview-one --pull-ff           # fast-forward the start branch first
 variant create -s preview-one --mise-install=sync # wait for mise install in the worktree
-variant list                           # slug, mode, uptime, full url, watch log file, dir
+variant list                           # slug, mode, uptime, full url, watch log file, dir, database
 variant list --verbose                 # all meta information of every variant
 variant status -s preview-one          # everything known about one variant
 variant provision -s preview-one
@@ -183,7 +185,7 @@ file per variant. Every command is explained in the
 [command reference](https://jubr.github.io/variant-worktrees/guide/commands#lifecycle-commands).
 
 `variant status` reports one variant: the facts `list` shows plus all of its runtime state (mode,
-directory, database settings with the password hidden, and each watch's port, pid, URL, whether the
+directory, the database (SQLite file or connection, password as `***`), database settings with the password hidden, and each watch's port, pid, URL, whether the
 process is alive, and how long it has run). Attached and detached `variant watch` prefix each line with `[name]`
 and write `.cache/variant/watch.log` in the worktree, so you can follow it with `tail -f`. `output.mode: tty` on a watch gives that process a terminal, so color is in the log. Otherwise the watch runs with pipes and a warning. A colored line ends with an ANSI reset, and the log starts with one line `[watch] {args} mode=tty # set to 'no-tty' likely suppresses ansi escape sequences`, where `{args}` is the invocation flags such as `--detach`. `no-tty` keeps pipes. Clear-screen sequences (erase display, cursor home, terminal reset) are removed from every watch line, color stays. Omit it and the editor uses `tty` when an enabled extension's description contains both `log` and `ansi`, otherwise `no-tty`. The CLI leaves an omitted mode as `no-tty`. The first ready probe
 and the first status 200 log the full URL. `list` and `status` show the path. `up` writes no log. Commands print

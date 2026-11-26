@@ -82,7 +82,8 @@ variant config
 
 ### `variant list`
 
-List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`.
+List the known database variants as a table, one row per variant, with the columns `slug`, `mode`, `uptime`, `url`, `log`, `dir` and `database`.
+`database` is the SQLite file (relative unless [`db.database`](./configuration#db-database) is absolute) or the `postgres://` or `mysql://` connection of the variant, with the password as `***`.
 `url` is the complete URL of the first watch that has one, `uptime` is how long the longest-running process of the variant has been up, `log` is the absolute path of `.cache/variant/watch.log` while `watch` is running, and `dir` is relative to the variant root.
 A `-` marks what a variant does not have: a variant started with `up` has no uptime or log.
 A variant with [`db.multi`](./configuration#db-multi) is still one row; its `schemas` are printed by `status` and by `list --verbose`, and they are on the JSON and YAML record.
@@ -108,7 +109,7 @@ variant list --verbose --json
 
 ### `variant status`
 
-Show everything known about one variant: the facts `list` shows plus `.cache/variant/runtime.yaml`: `mode`, the worktree directory, the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime.
+Show everything known about one variant: the facts `list` shows plus `.cache/variant/runtime.yaml`: `mode`, the worktree directory, the `database` (the same value as `create` prints, with the password as `***`), the database settings (the password is shown as `***`), and for every watch its port, pid, URL, whether the process is `alive`, and its uptime.
 It also shows the path of that file and the log file of a running `watch`.
 `VARIANT_<KEY>_*` overrides do not apply. It fails when nothing is known about the slug.
 
@@ -126,6 +127,17 @@ These commands move a variant through the [flow of steps](./overview#flow-of-ste
 Create the git worktree and the state for a slug.
 This does not create a database schema or file; that is `provision`.
 Creating the same variant again is safe.
+It prints the slug, the worktree and the database of the variant:
+
+```text
+Created demo
+worktree:  /work/_v-demo
+database:  .cache/variants/demo.sqlite
+```
+
+The SQLite file is shown as configured: relative, unless [`db.database`](./configuration#db-database) is absolute.
+PostgreSQL and MySQL print the connection with the password as `***`, and a `schema:` line with the schema of the variant.
+See [Database](./database).
 If PostgreSQL or MySQL cannot be contacted, `create` fails with the contact warning and does not create the worktree.
 
 `--from` is a commit, tag, or branch, and it has no short flag. A new branch starts there.
