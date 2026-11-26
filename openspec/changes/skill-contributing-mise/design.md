@@ -16,8 +16,8 @@
 
 ## Decisions
 
-- **Floor, not pin.** `min_version = "2026.9.2"`, the release that introduced the backend. Later mise releases only add features (age rules, man pages, pins) that the repository does not depend on. Alternative: the latest release the maintainer uses. Rejected: it would reject Mise versions that work.
-- **Top-level key in `mise.toml`**, above `[tools]`, with an `AIDEV-NOTE` that names the reason, so a later edit does not lower it without seeing why.
+- **Floor, not pin.** The spec requires `min_version` no lower than 2026.9.2, the release that introduced the backend, and never an exact pin of Mise. The repository sets `2026.11.12`, the release it is developed and tested with, above the floor. Alternative: exactly 2026.9.2. Not chosen: the repository is only exercised with the newer release.
+- **Top-level key in `mise.toml`**, above `[tools]`, with a comment that names the reason (`for packslip`), so a later edit does not lower it without seeing why. `scripts/mise-config.spec.ts` fails if it drops below the floor.
 - **No code or workflow change.** CI installs the latest Mise, which is above the floor.
 - **Skill front matter and the guide's Cursor paragraph** are prose fixes with no behavior; they ship in the same change since they were already written, and need no spec.
 
