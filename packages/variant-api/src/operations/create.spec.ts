@@ -55,7 +55,17 @@ describe("create for a SQLite project", () => {
     const record = await client.create("demo");
 
     expect(record.target).toBe(file);
+    expect(record.database).toBe(".cache/variants/demo.sqlite");
     expect(readRuntime(worktree, {})?.db).toEqual({ dialect: "sqlite", database: file });
+  });
+
+  it("names an absolute file as the database and the target", async () => {
+    const { client } = project("db:\n  dialect: sqlite\n  database: /tmp/variant-create-abs/{slug}.sqlite\n");
+
+    const record = await client.create("demo");
+
+    expect(record.database).toBe("/tmp/variant-create-abs/demo.sqlite");
+    expect(record.target).toBe(record.database);
   });
 
   it("gives a run the same file as SQLITE_DATABASE and VARIANT_TARGET", async () => {
@@ -112,6 +122,7 @@ describe("create for a SQLite project", () => {
     const records = await client.list();
 
     expect(records.map((record) => record.slug)).toEqual(["demo"]);
+    expect(records[0]?.database).toBe(".cache/variants/demo.sqlite");
     expect(records[0]?.target).toBe(join(parent, "repo", "_v-demo", ".cache", "variants", "demo.sqlite"));
   });
 

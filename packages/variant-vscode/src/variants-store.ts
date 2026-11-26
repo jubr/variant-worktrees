@@ -6,6 +6,7 @@ const syntheticMain = (): VariantRecord => ({
   slug: "main",
   target: "",
   dialect: "sqlite",
+  database: "",
   statePath: "",
   createdAt: "",
   exists: true,

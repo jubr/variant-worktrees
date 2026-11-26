@@ -14,6 +14,7 @@ const record = (slug: string, extra: Partial<VariantRecord> = {}): VariantRecord
   slug,
   target: slug,
   dialect: "sqlite",
+  database: ".cache/variants/x.sqlite",
   statePath: "",
   createdAt: "",
   exists: true,

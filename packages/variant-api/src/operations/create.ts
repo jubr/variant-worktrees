@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { formatLocalStamp, type Runtime, readRuntime, STATE_FILE, writeRuntime } from "variant-config";
 import { databaseTarget } from "../database-target.js";
+import { describeDatabase } from "../describe-database.js";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { miseBinaryFor } from "../mise.js";
 import { installMiseInWorktree, parseMiseInstall } from "../mise-install.js";
@@ -108,6 +109,7 @@ export const createVariant = async (
   };
   return {
     ...state,
+    database: describeDatabase(context.config.db, slug),
     statePath: state.statePath,
     exists: true,
     implodeClean: implodeWouldSucceed(context, slug, state.worktree),

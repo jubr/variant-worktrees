@@ -7,20 +7,52 @@ const text = (command: string, result: unknown): string =>
   renderOutput(command, result, { format: "text", variantRoot: "/work" });
 
 describe("text output of each command", () => {
-  it("shows a created variant with its slug, target and worktree", () => {
-    const out = text("create", {
+  describe("create", () => {
+    const created = (extra: Record<string, unknown>) => ({
       slug: "demo",
       target: "v_demo",
       dialect: "postgres",
+      database: "postgres://app:***@db.example:5432/app",
       statePath: "/work/.cache/variants/demo.yaml",
       worktree: "/work/_v-demo",
       createdAt: "2026-11-01T10:00:00.000Z",
       exists: true,
+      ...extra,
     });
 
-    expect(out.split("\n")[0]).toBe("Created demo");
-    expect(out).toMatch(/target:\s+v_demo/);
-    expect(out).toMatch(/worktree:\s+\/work\/_v-demo/);
+    it("shows the slug, the worktree and the database, aligned, for SQLite", () => {
+      const out = text(
+        "create",
+        created({
+          target: "/work/_v-demo/.cache/variants/demo.sqlite",
+          dialect: "sqlite",
+          database: ".cache/variants/demo.sqlite",
+        }),
+      );
+
+      expect(out).toBe("Created demo\nworktree:  /work/_v-demo\ndatabase:  .cache/variants/demo.sqlite");
+    });
+
+    it("shows an absolute SQLite file as it is", () => {
+      const out = text("create", created({ dialect: "sqlite", database: "/srv/db/demo.sqlite" }));
+
+      expect(out).toContain("database:  /srv/db/demo.sqlite");
+    });
+
+    it("shows the URL with *** and a schema line for PostgreSQL, without target or dialect", () => {
+      const out = text("create", created({}));
+
+      expect(out).toBe(
+        [
+          "Created demo",
+          "worktree:  /work/_v-demo",
+          "database:  postgres://app:***@db.example:5432/app",
+          "schema:    v_demo",
+        ].join("\n"),
+      );
+      expect(out).not.toContain("target:");
+      expect(out).not.toContain("dialect:");
+    });
   });
 
   describe("init", () => {
@@ -212,6 +244,7 @@ describe("status text", () => {
     slug: "demo",
     target: "v_demo",
     dialect: "postgres",
+    database: "postgres://app@db.example/app",
     statePath: "",
     worktree: "/work/_v-demo",
     createdAt: "",
@@ -238,7 +271,11 @@ describe("status text", () => {
     const out = text("status", status);
 
     expect(out.split("\n")[0]).toBe("demo");
-    expect(out).toMatch(/target:\s+v_demo/);
+    expect(out).toMatch(/worktree:\s+\/work\/_v-demo/);
+    expect(out).toMatch(/database:\s+postgres:\/\/app@db\.example\/app/);
+    expect(out).toMatch(/schema:\s+v_demo/);
+    expect(out).not.toMatch(/^target:/m);
+    expect(out).not.toMatch(/^dialect:/m);
     expect(out).toMatch(/mode:\s+watch/);
     expect(out).toMatch(/uptime:\s+2h 5m/);
     expect(out).toMatch(/url:\s+http:\/\/demo\.vw\.localhost:62060\//);
@@ -281,14 +318,17 @@ describe("status text", () => {
   it("leaves out what a variant without a runtime state does not have", () => {
     const out = text("status", {
       slug: "orphan",
-      target: "v_orphan",
+      target: "/work/_v-orphan/.cache/variants/orphan.sqlite",
       dialect: "sqlite",
+      database: ".cache/variants/orphan.sqlite",
       statePath: "",
       createdAt: "",
       exists: true,
     });
 
     expect(out).toContain("orphan");
+    expect(out).toMatch(/database:\s+\.cache\/variants\/orphan\.sqlite/);
+    expect(out).not.toContain("schema:");
     expect(out).not.toContain("runtime:");
     expect(out).not.toContain("uptime");
     expect(out).not.toContain("schemas:");
@@ -301,6 +341,7 @@ describe("list text", () => {
       slug: "demo",
       target: "v_demo",
       dialect: "postgres",
+      database: "postgres://app@db.example/app",
       statePath: "",
       createdAt: "",
       exists: true,
@@ -308,6 +349,36 @@ describe("list text", () => {
       schemas: ["v_demo-east", "v_demo-west", "v_demo-north"],
     },
   ];
+
+  it("ends the table with a database column, and - for a variant that has none", () => {
+    const sqlite = ["beta", "alpha"].map((slug) => ({
+      slug,
+      target: `/work/_v-${slug}/.cache/variants/${slug}.sqlite`,
+      dialect: "sqlite",
+      database: `.cache/variants/${slug}.sqlite`,
+      worktree: `/work/_v-${slug}`,
+      statePath: "",
+      createdAt: "",
+      exists: true,
+      implodeClean: true,
+    }));
+    const table = renderOutput("list", [...sqlite, { ...sqlite[0], slug: "gamma", database: "" }], {
+      format: "text",
+      variantRoot: "/work",
+    }).split("\n");
+
+    expect(table[0]).toMatch(/\sdir\s+database$/);
+    expect(table[1]).toMatch(/^alpha\s.*\s_v-alpha\s+\.cache\/variants\/alpha\.sqlite$/);
+    expect(table[2]).toMatch(/^beta\s.*\.cache\/variants\/beta\.sqlite$/);
+    expect(table[3]).toMatch(/^gamma\s.*\s-$/);
+  });
+
+  it("prints each variant as status does when verbose, with worktree and database", () => {
+    const verbose = renderOutput("list", records, { format: "text", variantRoot: "/work", verbose: true });
+
+    expect(verbose).toMatch(/database:\s+postgres:\/\/app@db\.example\/app/);
+    expect(verbose).not.toMatch(/^target:/m);
+  });
 
   it("keeps one row per variant", () => {
     const table = renderOutput("list", records, { format: "text", variantRoot: "/work" });
@@ -321,6 +392,12 @@ describe("list text", () => {
 
     expect(verbose).toContain("v_demo-east");
     expect(verbose).toContain("v_demo-north");
+  });
+
+  it("keeps database, target and dialect in JSON and YAML", () => {
+    const json = JSON.parse(renderOutput("list", records, { format: "json", variantRoot: "/work" }))[0];
+
+    expect(json).toMatchObject({ database: "postgres://app@db.example/app", target: "v_demo", dialect: "postgres" });
   });
 
   it("carries schemas in JSON and YAML", () => {
