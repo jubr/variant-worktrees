@@ -60,7 +60,7 @@ describe("create for a SQLite project", () => {
   });
 
   it("names an absolute file as the database and the target", async () => {
-    const { client } = project("db:\n  dialect: sqlite\n  database: /tmp/variant-create-abs/{slug}.sqlite\n");
+    const { client } = project("db:\n  dialect: sqlite\n  database: /tmp/variant-create-abs/${slug}.sqlite\n");
 
     const record = await client.create("demo");
 

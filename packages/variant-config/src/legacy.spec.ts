@@ -284,13 +284,13 @@ describe("SQLite files of the former location", () => {
       run(directory);
     });
 
-  it("resolves db.database to the {slug}.db form of that directory, with one notice and no write", () =>
+  it("resolves db.database to the ${slug}.db form of that directory, with one notice and no write", () =>
     withFormer({ [CONFIG]: "variant:\n  prefix: _v-\n" }, (directory) => {
       const before = readFileSync(join(directory, CONFIG), "utf8");
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
 
       expect(config.db.dialect).toBe("sqlite");
-      expect(config.db.database).toBe(join(directory, ".cache", "variants", "{slug}.db"));
+      expect(config.db.database).toBe(join(directory, ".cache", "variants", "${slug}.db"));
       expect(config.migrations).toHaveLength(1);
       expect(config.migrations[0]).toContain(join(directory, ".cache", "variants"));
       expect(readFileSync(join(directory, CONFIG), "utf8")).toBe(before);
@@ -307,7 +307,7 @@ describe("SQLite files of the former location", () => {
         },
       });
 
-      expect(config.db.database).toBe(join(directory, ".cache", "variants", "{slug}.db"));
+      expect(config.db.database).toBe(join(directory, ".cache", "variants", "${slug}.db"));
       expect(config.migrations).toHaveLength(1);
       expect(asked).toBe(0);
     }));
@@ -315,7 +315,7 @@ describe("SQLite files of the former location", () => {
   it("gives no notice without files, with only .sqlite files, with an explicit database or an environment file", () => {
     withProject({ [CONFIG]: "variant:\n  prefix: _v-\n" }, (directory) => {
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
-      expect(config.db.database).toBe(".cache/variants/{slug}.sqlite");
+      expect(config.db.database).toBe(".cache/variants/${slug}.sqlite");
       expect(config.migrations).toEqual([]);
       mkdirSync(join(directory, ".cache", "variants"), { recursive: true });
       writeFileSync(join(directory, ".cache", "variants", "demo.sqlite"), "");
@@ -338,7 +338,7 @@ describe("SQLite files of the former location", () => {
 
   it("reports the value for a directory, nothing when a database is set", () =>
     withFormer({}, (directory) => {
-      expect(findFormerSqliteDatabase(directory)).toBe(join(directory, ".cache", "variants", "{slug}.db"));
+      expect(findFormerSqliteDatabase(directory)).toBe(join(directory, ".cache", "variants", "${slug}.db"));
       expect(findFormerSqliteDatabase(directory, "abc.sqlite")).toBeUndefined();
     }));
 
@@ -351,30 +351,32 @@ describe("SQLite files of the former location", () => {
     }));
 
   it("adds db with dialect: sqlite and the database to a file without db, even without a trailing newline", () => {
-    expect(migrateText("variant:\n  abbr: vw\n", { database: "/x/{slug}.db" })).toBe(
-      "variant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/{slug}.db\n",
+    expect(migrateText("variant:\n  abbr: vw\n", { database: "/x/${slug}.db" })).toBe(
+      "variant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/${slug}.db\n",
     );
-    expect(migrateText("variant:\n  abbr: vw", { database: "/x/{slug}.db" })).toBe(
-      "variant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/{slug}.db\n",
+    expect(migrateText("variant:\n  abbr: vw", { database: "/x/${slug}.db" })).toBe(
+      "variant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/${slug}.db\n",
     );
   });
 
   it("adds only database below the existing db keys, keeping comments", () => {
     const text = "# top\ndb:\n  dialect: sqlite # my choice\nvariant:\n  abbr: vw\n";
 
-    expect(migrateText(text, { database: "/x/{slug}.db" })).toBe(
-      "# top\ndb:\n  dialect: sqlite # my choice\n  database: /x/{slug}.db\nvariant:\n  abbr: vw\n",
+    expect(migrateText(text, { database: "/x/${slug}.db" })).toBe(
+      "# top\ndb:\n  dialect: sqlite # my choice\n  database: /x/${slug}.db\nvariant:\n  abbr: vw\n",
     );
   });
 
   it("adds database to a flow-style db", () => {
-    expect(migrateText("db: { dialect: sqlite }\n", { database: "/x/{slug}.db" })).toBe(
-      'db: { dialect: sqlite, database: "/x/{slug}.db" }\n',
+    expect(migrateText("db: { dialect: sqlite }\n", { database: "/x/${slug}.db" })).toBe(
+      'db: { dialect: sqlite, database: "/x/${slug}.db" }\n',
     );
   });
 
   it("leaves a file that already names a database alone", () => {
-    expect(migrateText("db:\n  dialect: sqlite\n  database: a.sqlite\n", { database: "/x/{slug}.db" })).toBeUndefined();
+    expect(
+      migrateText("db:\n  dialect: sqlite\n  database: a.sqlite\n", { database: "/x/${slug}.db" }),
+    ).toBeUndefined();
   });
 });
 

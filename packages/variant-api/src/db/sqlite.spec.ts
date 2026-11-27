@@ -68,11 +68,11 @@ describe("SqliteAdapter target", () => {
   );
 
   it(
-    "fills {slug} in a relative and in an absolute file",
+    "fills ${slug} in a relative and in an absolute file",
     workspace((root) => {
-      const relative = new SqliteAdapter({ dialect: "sqlite", database: "db-{slug}.sqlite" }, worktrees(root));
+      const relative = new SqliteAdapter({ dialect: "sqlite", database: "db-${slug}.sqlite" }, worktrees(root));
       const absolute = new SqliteAdapter(
-        { dialect: "sqlite", database: join(root, "all", "{slug}.sqlite") },
+        { dialect: "sqlite", database: join(root, "all", "${slug}.sqlite") },
         worktrees(root),
       );
 
@@ -83,7 +83,7 @@ describe("SqliteAdapter target", () => {
   );
 
   it(
-    "uses an absolute file without {slug} for main and <slug> plus its extension beside it for the others",
+    "uses an absolute file without ${slug} for main and <slug> plus its extension beside it for the others",
     workspace((root) => {
       const adapter = new SqliteAdapter(
         { dialect: "sqlite", database: join(root, "all", "app.sqlite") },
@@ -169,7 +169,7 @@ describe("SqliteAdapter files", () => {
         writeFileSync(join(directory, "slugged", name), "");
       }
       const template = new SqliteAdapter(
-        { dialect: "sqlite", database: join(directory, "slugged", "{slug}.sqlite") },
+        { dialect: "sqlite", database: join(directory, "slugged", "${slug}.sqlite") },
         worktrees(root),
       );
       expect(await template.list()).toEqual(["x"]);
@@ -180,7 +180,7 @@ describe("SqliteAdapter files", () => {
     "lists nothing for a directory that does not exist",
     workspace(async (root) => {
       const adapter = new SqliteAdapter(
-        { dialect: "sqlite", database: join(root, "nope", "{slug}.sqlite") },
+        { dialect: "sqlite", database: join(root, "nope", "${slug}.sqlite") },
         worktrees(root),
       );
 

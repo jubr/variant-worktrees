@@ -47,9 +47,9 @@ export interface SqliteLayout {
   slugs(): string[];
 }
 
-const SLUG = "{slug}";
+const SLUG = "${slug}";
 
-/** `name` of a template as a pattern that captures the slug, or `undefined` when the name has no `{slug}`. */
+/** `name` of a template as a pattern that captures the slug, or `undefined` when the name has no `${slug}`. */
 const slugPattern = (name: string): RegExp | undefined => {
   if (!name.includes(SLUG)) {
     return undefined;
@@ -61,7 +61,7 @@ const slugPattern = (name: string): RegExp | undefined => {
 /**
  * Specification: openspec/specs/variant-api/core/spec.md (One SQLite target for every slug)
  *
- * The database file of each slug is `db.database` (default `.cache/variants/{slug}.sqlite`) with `{slug}` replaced; a
+ * The database file of each slug is `db.database` (default `.cache/variants/${slug}.sqlite`) with `${slug}` replaced; a
  * relative path is resolved against the directory of that variant, an absolute path stays.
  */
 export class SqliteAdapter implements DatabaseAdapter {
@@ -90,7 +90,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     const file = this.fileOf(slug);
     if (slug !== "main" && file === this.fileOf("main")) {
       throw new Error(
-        `The SQLite file of ${slug} would be the file of main (${file}): add {slug} to db.database (${this.template}) or name a directory`,
+        `The SQLite file of ${slug} would be the file of main (${file}): add \${slug} to db.database (${this.template}) or name a directory`,
       );
     }
     return file;
@@ -148,7 +148,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       if (!existsSync(directory)) {
         continue;
       }
-      // a template without {slug} names the file of main; the files of the other slugs sit beside it with its extension
+      // a template without ${slug} names the file of main; the files of the other slugs sit beside it with its extension
       const sharesName = pattern === undefined && isAbsolute(template) && extension !== "";
       for (const name of pattern || sharesName ? readdirSync(directory) : []) {
         const slug = pattern

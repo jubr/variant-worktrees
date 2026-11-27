@@ -336,13 +336,20 @@ const positivePort = (value: string, setting: string): number => {
   return port;
 };
 
-/** `db` with the environment references of its text settings expanded; `db` belongs to no variant. */
+/**
+ * `db` with the environment references of its text settings expanded; `db` belongs to no variant.
+ * AIDEV-NOTE: `db.database` keeps `${slug}` as it is, because the SQLite adapter fills in the slug of each variant.
+ */
 const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig => {
   const expanded = Object.fromEntries(
     Object.entries(db).map(([name, value]) => [
       name,
       typeof value === "string"
-        ? renderTemplate(value, { env: environment, variant: false, setting: `db.${name}` })
+        ? renderTemplate(name === "database" ? value.replaceAll("${slug}", () => "$${slug}") : value, {
+            env: environment,
+            variant: false,
+            setting: `db.${name}`,
+          })
         : value,
     ]),
   ) as DbConfig;

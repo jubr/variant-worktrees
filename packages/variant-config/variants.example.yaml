@@ -12,7 +12,7 @@ db:
   port: 5432 # mysql: 3306; or ${POSTGRES_PORT}
   user: app
   password: secret
-  database: app # sqlite: the database file, e.g. ./data/{slug}.sqlite
+  database: app # sqlite: the database file, e.g. ./data/${slug}.sqlite
   schema: public # database schema of the main variant
   ssl: false # true
   multi: # one schema per tenant. Absent: the one schema v_<slug>

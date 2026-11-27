@@ -3,16 +3,16 @@ import { describeDatabase } from "./describe-database.js";
 
 /** Specification: openspec/specs/variant-api/core/spec.md (Variant records name their database) */
 describe("describeDatabase", () => {
-  it("shows a relative SQLite file relative, with {slug} replaced", () => {
+  it("shows a relative SQLite file relative, with ${slug} replaced", () => {
     expect(describeDatabase({ dialect: "sqlite" }, "demo")).toBe(".cache/variants/demo.sqlite");
-    expect(describeDatabase({ dialect: "sqlite", database: "data/{slug}/app.sqlite" }, "demo")).toBe(
+    expect(describeDatabase({ dialect: "sqlite", database: "data/${slug}/app.sqlite" }, "demo")).toBe(
       "data/demo/app.sqlite",
     );
     expect(describeDatabase({ dialect: "sqlite", database: "abc.sqlite" }, "demo")).toBe("abc.sqlite");
   });
 
   it("shows an absolute SQLite file absolute", () => {
-    expect(describeDatabase({ dialect: "sqlite", database: "/srv/db/{slug}.sqlite" }, "demo")).toBe(
+    expect(describeDatabase({ dialect: "sqlite", database: "/srv/db/${slug}.sqlite" }, "demo")).toBe(
       "/srv/db/demo.sqlite",
     );
   });
