@@ -47,7 +47,7 @@ describe("loadConfig", () => {
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
       expect(config.db).toEqual({
         dialect: "sqlite",
-        database: ".cache/variants/{slug}.sqlite",
+        database: ".cache/variants/${slug}.sqlite",
       });
       expect(config.source).toBe("default");
     } finally {

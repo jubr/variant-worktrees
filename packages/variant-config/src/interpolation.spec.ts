@@ -57,6 +57,25 @@ describe("interpolation in db", () => {
     expect(() => config.db).toThrow(/slug/);
   });
 
+  it("keeps ${slug} in db.database for the SQLite file of each variant", () => {
+    const config = load("db:\n  dialect: sqlite\n  database: data/${slug}.sqlite\n");
+
+    expect(config.db.database).toBe("data/${slug}.sqlite");
+  });
+
+  it("keeps ${slug} in a SQLite database named by the environment", () => {
+    const config = load("variant:\n  prefix: wt-\n", { SQLITE_DATABASE: "data/${slug}.sqlite" });
+
+    expect(config.db.database).toBe("data/${slug}.sqlite");
+  });
+
+  it("still fails for another variant placeholder in db.database", () => {
+    const config = load("db:\n  dialect: sqlite\n  database: ${abbr}/${slug}.sqlite\n");
+
+    expect(() => config.db).toThrow(/db\.database/);
+    expect(() => config.db).toThrow(/abbr/);
+  });
+
   it("loads a configuration with an unset reference as long as db is not read", () => {
     const config = load("db:\n  dialect: postgres\n  host: h\n  password: ${MISSING}\nvariant:\n  prefix: wt-\n");
 

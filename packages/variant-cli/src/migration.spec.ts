@@ -178,7 +178,7 @@ describe("the SQLite files of the former location in the CLI", () => {
 
   it("writes the former location into a tracked clean variants.yaml once, then prints nothing", async () => {
     const { directory, file } = withFormerFile(true);
-    const database = join(directory, ".cache", "variants", "{slug}.db");
+    const database = join(directory, ".cache", "variants", "${slug}.db");
 
     const first = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...NO_DATABASE });
     const second = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...NO_DATABASE });

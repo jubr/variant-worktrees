@@ -40,7 +40,7 @@ export interface RuntimeStatus {
 export interface VariantRecord extends VariantState {
   exists: boolean;
   /**
-   * Where the data of the variant is, without a secret: for SQLite `db.database` with `{slug}` replaced (relative stays
+   * Where the data of the variant is, without a secret: for SQLite `db.database` with `${slug}` replaced (relative stays
    * relative to the worktree), otherwise the `postgres://` or `mysql://` URL with `***` for the password.
    */
   database: string;

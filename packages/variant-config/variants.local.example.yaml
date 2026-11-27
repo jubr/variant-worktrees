@@ -19,7 +19,7 @@ runtime:
     port: '${POSTGRES_PORT}' # from the environment; a number also works
     user: app
     password: '${POSTGRES_PASSWORD}'
-    database: app # sqlite: the database file, e.g. ./data/{slug}.sqlite
+    database: app # sqlite: the database file, e.g. ./data/${slug}.sqlite
     schema: v_demo_embody_assume_user # also in POSTGRES_SCHEMA
     ssl: false # true
   watches: # keyed by the key of the entry in variant.watches

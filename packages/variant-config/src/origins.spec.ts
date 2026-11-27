@@ -245,8 +245,8 @@ describe("config origins", () => {
     withDirectory((directory) => {
       writeFileSync(join(directory, "variants.yaml"), "variant:\n  prefix: _work-\n");
 
-      const path = loadConfig({ cwd: directory, environment: () => ({ SQLITE_PATH: "/x/{slug}.sqlite" }) });
-      expect(path.db.database).toBe("/x/{slug}.sqlite");
+      const path = loadConfig({ cwd: directory, environment: () => ({ SQLITE_PATH: "/x/${slug}.sqlite" }) });
+      expect(path.db.database).toBe("/x/${slug}.sqlite");
       expect(configOrigins(path)["db.database"]).toBe("# from env SQLITE_PATH");
       const url = loadConfig({ cwd: directory, environment: () => ({ DATABASE_URL: "sqlite:a.sqlite" }) });
       expect(configOrigins(url)["db.database"]).toBe("# from env DATABASE_URL");
@@ -258,7 +258,7 @@ describe("config origins", () => {
 
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
 
-      expect(config.db.database).toBe(".cache/variants/{slug}.sqlite");
+      expect(config.db.database).toBe(".cache/variants/${slug}.sqlite");
       expect(configOrigins(config)["db.database"]).toBe("# default");
     }));
 

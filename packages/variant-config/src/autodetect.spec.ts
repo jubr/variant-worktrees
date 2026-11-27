@@ -31,7 +31,7 @@ describe("detectConnection", () => {
     const detected = detectConnection("/proj", () => ({}));
 
     expect(detected.source).toBe("default");
-    expect(detected.config).toEqual({ dialect: "sqlite", database: ".cache/variants/{slug}.sqlite" });
+    expect(detected.config).toEqual({ dialect: "sqlite", database: ".cache/variants/${slug}.sqlite" });
   });
 });
 

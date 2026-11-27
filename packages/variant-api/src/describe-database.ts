@@ -3,7 +3,7 @@ import { type DbConfig, DEFAULT_SQLITE_DATABASE } from "variant-config";
 /**
  * Specification: openspec/specs/variant-api/core/spec.md (Variant records name their database)
  *
- * Where the data of a variant is, without a secret. SQLite: `db.database` with `{slug}` replaced, relative stays
+ * Where the data of a variant is, without a secret. SQLite: `db.database` with `${slug}` replaced, relative stays
  * relative. PostgreSQL and MySQL: the connection URL, with `***` for the password.
  */
 
@@ -30,7 +30,7 @@ const redactUrl = (url: string): string => {
 
 export const describeDatabase = (db: DbConfig, slug: string): string => {
   if (db.dialect === "sqlite") {
-    return (db.database ?? DEFAULT_SQLITE_DATABASE).replaceAll("{slug}", slug);
+    return (db.database ?? DEFAULT_SQLITE_DATABASE).replaceAll("${slug}", slug);
   }
   if (db.url) {
     return redactUrl(db.url);

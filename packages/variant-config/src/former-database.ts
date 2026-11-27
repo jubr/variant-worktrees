@@ -11,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
 const FORMER_DIRECTORY = join(".cache", "variants");
 
 /**
- * `<absolute configDir>/.cache/variants/{slug}.db` when that directory holds a `.db` file, so those files stay the
+ * `<absolute configDir>/.cache/variants/${slug}.db` when that directory holds a `.db` file, so those files stay the
  * databases of their variants. Nothing when it holds none, or when `database` is already set. Reads the file system.
  */
 export const findFormerSqliteDatabase = (configDir: string, database?: string): string | undefined => {
@@ -26,7 +26,7 @@ export const findFormerSqliteDatabase = (configDir: string, database?: string): 
   } catch {
     return undefined;
   }
-  return join(directory, "{slug}.db");
+  return join(directory, "${slug}.db");
 };
 
 /** The migration notice for the former location: where the value comes from and which file it belongs in. */
