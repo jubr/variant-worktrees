@@ -29,7 +29,7 @@ const custom = createVariantClient({ miseBinPath: "/opt/tools/mise" });
 
 ```ts
 const result = await client.init({ prefix: "wt-", mise: false });
-console.log(result.file, result.gitignore.status, result.detected?.dialect);
+console.log(result.file, result.gitignore.status, result.detected?.type);
 ```
 
 ## Lifecycle
@@ -79,7 +79,7 @@ The options a caller meets first:
 - [`variant.steps`](/guide/configuration#variant-steps): what `provision` and `seed` run
 - [`variant.mise`](/guide/configuration#variant-mise): how Mise provides the environment
 - [`variant.baseBranch`](/guide/configuration#variant-basebranch): where a new variant branch starts
-- [Database](/guide/configuration#database-options): [`db.dialect`](/guide/configuration#db-dialect), host, port and the rest of the connection
+- [Database](/guide/configuration#database-options): [`db.type`](/guide/configuration#db-type), host, port and the rest of the connection
 
 Every option is in [Configuration](/guide/configuration#variant-options), and what watches do at run time is in [Runtime](/guide/runtime).
 

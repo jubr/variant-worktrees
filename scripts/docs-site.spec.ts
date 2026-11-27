@@ -630,11 +630,11 @@ describe("configuration page, sub-keys and templates", () => {
     expect(expected.filter((item) => !cells.includes(item))).toEqual([]);
   });
 
-  test("the templates table has the columns Item, Meaning, Example use and Example value, and a value in every row", () => {
+  test("the templates table has the columns Item, Meaning, Usage example and Usage value, and a value in every row", () => {
     const html = sectionOf(configuration(), "templates");
     const text = (cell: string) => decodeEntities(cell.replace(/<[^>]+>/g, "")).trim();
     const header = [...html.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => text(match[1]));
-    expect(header).toEqual(["Item", "Meaning", "Example use", "Example value"]);
+    expect(header).toEqual(["Item", "Meaning", "Usage example", "Usage value"]);
     const rows = [...html.matchAll(/<tr>(\s*<td[\s\S]*?)<\/tr>/g)].map((match) =>
       [...match[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => text(cell[1])),
     );

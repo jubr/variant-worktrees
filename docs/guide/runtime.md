@@ -83,7 +83,7 @@ It records no `log` in `runtime.yaml`.
 ## Environment through Mise
 
 The environment is what `mise -C <dir> env --dotenv --quiet` prints, merged over the process environment (a value from Mise wins).
-It is read once per loaded configuration, and only when a database setting or a `${NAME}` reference is first needed, so a command that needs neither (such as `variant list` of a configuration with an explicit `db.dialect: sqlite`) starts no Mise process.
+It is read once per loaded configuration, and only when a database setting or a `${NAME}` reference is first needed, so a command that needs neither (such as `variant list` of a configuration with an explicit `db.type: sqlite`) starts no Mise process.
 Mise files are not parsed.
 The database values it supplies (`POSTGRES_*`, `MYSQL_*`, `MARIADB_*`, `SQLITE_DATABASE`, `SQLITE_PATH` and `DATABASE_URL`) are detected as [`db`](./configuration#database-options), and `SQLITE_DATABASE` and `SQLITE_PATH` feed [`db.database`](./configuration#db-database).
 Examples with `mise.local.toml` are on the [Database](./database) page.

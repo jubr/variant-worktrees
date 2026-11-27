@@ -68,7 +68,7 @@ A password is never written: it is a `${NAME}` reference, and the comment says w
 # Written by `variant init` from what autodetection found. Other accepted values follow `#` on the same line.
 
 db:
-  dialect: postgres # sqlite | mysql
+  type: postgres # sqlite | mysql
   host: ${POSTGRES_HOST} # from mise.local.toml
   port: ${POSTGRES_PORT} # from mise.local.toml
   user: ${POSTGRES_USER} # from mise.local.toml

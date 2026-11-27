@@ -11,7 +11,7 @@ The CLI-only commands (`ui`, `mcp`, `completions`) are on the [CLI](./cli) page.
 
 Bootstrap the current directory for Variant in up to three steps, each of which `--<step>=false` turns off:
 
-- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as dialect `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), the default git branch as [`variant.baseBranch`](./configuration#variant-basebranch), and one watch per Vite or NestJS app and per package with a `watch` script.
+- `file`: write `variants.yaml` with every autodetected value: the database (Postgres, MySQL, MariaDB as type `mysql`, or SQLite), [`variant.abbr`](./configuration#variant-abbr), [`variant.prefix`](./configuration#variant-prefix), the default git branch as [`variant.baseBranch`](./configuration#variant-basebranch), and one watch per Vite or NestJS app and per package with a `watch` script.
   The file starts with the `yaml-language-server` schema header, so editors offer completion and the next command has nothing to migrate.
   When no database is detected there is no `db` key: autodetection resolves SQLite on its own.
   Other accepted values of a setting follow `#` on the same line.
