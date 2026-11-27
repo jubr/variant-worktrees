@@ -2,20 +2,20 @@
 
 ### Requirement: SQLite database file
 
-For the `sqlite` dialect `db.database` SHALL be the database file of a variant: a full path, absolute or relative, that MAY contain the placeholder `{slug}` for the slug of the variant. The resolved configuration SHALL carry it as written; a relative path is resolved per variant against the directory of that variant, as `variant-api` does. When no setting names a file, `db.database` SHALL be `.cache/variants/{slug}.sqlite`, both when the dialect was autodetected and when `db.dialect: sqlite` is set without `database`, and an explicit one SHALL NOT read the environment for it. An explicit `db.database` SHALL win over every detected value.
+For the `sqlite` dialect `db.database` SHALL be the database file of a variant: a full path, absolute or relative, that MAY contain the placeholder `${slug}` for the slug of the variant. The resolved configuration SHALL carry it as written; a relative path is resolved per variant against the directory of that variant, as `variant-api` does. When no setting names a file, `db.database` SHALL be `.cache/variants/${slug}.sqlite`, both when the dialect was autodetected and when `db.dialect: sqlite` is set without `database`, and an explicit one SHALL NOT read the environment for it. An explicit `db.database` SHALL win over every detected value.
 
 Environment detection SHALL stay as it is: `SQLITE_DATABASE` and `SQLITE_PATH` select the dialect. Both SHALL be read as `db.database`, `SQLITE_DATABASE` first, and neither SHALL be read as another field. A `DATABASE_URL` that starts with `sqlite:` SHALL yield the file it names as `db.database`: `sqlite:///<absolute path>` is that absolute path, and `sqlite:<path>`, `sqlite:./<path>` and `sqlite://<path>` are relative paths. `variant config` SHALL comment a `database` from the environment `# from env <NAME>` and the default `# default`.
 
 #### Scenario: Default file
 
 - **WHEN** `variants.yaml` sets no `db` and the environment has no database setting
-- **THEN** `config.db.dialect` is `sqlite` and `config.db.database` is `.cache/variants/{slug}.sqlite`
+- **THEN** `config.db.dialect` is `sqlite` and `config.db.database` is `.cache/variants/${slug}.sqlite`
 - **AND** `variant config` comments the `database` line `# default`
 
 #### Scenario: Explicit sqlite without a file
 
 - **WHEN** `variants.yaml` has `db.dialect: sqlite` and no `database`
-- **THEN** `config.db.database` is `.cache/variants/{slug}.sqlite`, and no environment is read
+- **THEN** `config.db.database` is `.cache/variants/${slug}.sqlite`, and no environment is read
 
 #### Scenario: Explicit file
 
@@ -65,12 +65,12 @@ The setting `db.filename` of an earlier version SHALL be read as `db.database` u
 
 ### Requirement: SQLite files of the former location are kept
 
-Earlier versions stored the SQLite file of a variant in `<directory of variants.yaml>/.cache/variants/<slug>.db`. When the resolved dialect is SQLite, no `db.database` is set in `variants.yaml` and the environment names no SQLite file, and that directory holds at least one `.db` file, loading SHALL resolve `db.database` as `<absolute directory>/.cache/variants/{slug}.db`, so those files stay the databases of their variants, and SHALL add a migration notice that names the directory. Loading SHALL NOT write anything. The system SHALL offer a function that reports that value for a directory (nothing when the directory has no such file or a `db.database` is set), and the function that returns the migrated text SHALL accept it and set `db.database` to it, adding `db` and `dialect: sqlite` when the file has no `db`, keeping comments, key order and layout. The file migration of the `variant` command and the extension SHALL write it under the same rules as a rename, with the same notice. Once `db.database` is set, no further migration applies, and an `.sqlite` file in the new default location SHALL NOT trigger it. A `db.filename` of an earlier version is only renamed (see "db.filename is read as db.database"); its files are not searched for.
+Earlier versions stored the SQLite file of a variant in `<directory of variants.yaml>/.cache/variants/<slug>.db`. When the resolved dialect is SQLite, no `db.database` is set in `variants.yaml` and the environment names no SQLite file, and that directory holds at least one `.db` file, loading SHALL resolve `db.database` as `<absolute directory>/.cache/variants/${slug}.db`, so those files stay the databases of their variants, and SHALL add a migration notice that names the directory. Loading SHALL NOT write anything. The system SHALL offer a function that reports that value for a directory (nothing when the directory has no such file or a `db.database` is set), and the function that returns the migrated text SHALL accept it and set `db.database` to it, adding `db` and `dialect: sqlite` when the file has no `db`, keeping comments, key order and layout. The file migration of the `variant` command and the extension SHALL write it under the same rules as a rename, with the same notice. Once `db.database` is set, no further migration applies, and an `.sqlite` file in the new default location SHALL NOT trigger it. A `db.filename` of an earlier version is only renamed (see "db.filename is read as db.database"); its files are not searched for.
 
 #### Scenario: Old files found
 
 - **WHEN** `.cache/variants/demo.db` exists below the directory of `variants.yaml`, which sets no `db`, and the environment names no database
-- **THEN** `config.db.database` is `<absolute directory>/.cache/variants/{slug}.db` and one migration notice names the directory
+- **THEN** `config.db.database` is `<absolute directory>/.cache/variants/${slug}.db` and one migration notice names the directory
 - **AND** nothing was written
 
 #### Scenario: Old files found, file rewritten
@@ -81,7 +81,7 @@ Earlier versions stored the SQLite file of a variant in `<directory of variants.
 #### Scenario: No old files
 
 - **WHEN** `.cache/variants/` does not exist, or holds only `.sqlite` files
-- **THEN** `config.db.database` is `.cache/variants/{slug}.sqlite` and there is no notice
+- **THEN** `config.db.database` is `.cache/variants/${slug}.sqlite` and there is no notice
 
 #### Scenario: Explicit file wins
 

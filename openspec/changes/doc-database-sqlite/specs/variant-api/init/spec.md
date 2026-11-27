@@ -2,7 +2,7 @@
 
 ### Requirement: Init writes the detected SQLite file
 
-When the detected database is SQLite, `variant init` SHALL write `db.dialect: sqlite` and the detected file as `db.database`, exactly as detection resolved it, and SHALL NOT write `db.filename`. A SQLite file that autodetection only defaults, `.cache/variants/{slug}.sqlite`, SHALL NOT be written. The written file SHALL load to the same `db.database` as autodetection without it.
+When the detected database is SQLite, `variant init` SHALL write `db.dialect: sqlite` and the detected file as `db.database`, exactly as detection resolved it, and SHALL NOT write `db.filename`. A SQLite file that autodetection only defaults, `.cache/variants/${slug}.sqlite`, SHALL NOT be written. The written file SHALL load to the same `db.database` as autodetection without it.
 
 #### Scenario: File from the environment
 

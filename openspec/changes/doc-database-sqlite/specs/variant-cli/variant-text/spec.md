@@ -15,7 +15,7 @@ The text output of `variant create` SHALL be the line `Created <slug>`, then the
 
 #### Scenario: Absolute SQLite file
 
-- **WHEN** `db.database` is `/srv/db/{slug}.sqlite` and a person runs `variant create -s demo`
+- **WHEN** `db.database` is `/srv/db/${slug}.sqlite` and a person runs `variant create -s demo`
 - **THEN** the `database:` line is `database:  /srv/db/demo.sqlite`
 
 #### Scenario: PostgreSQL create
