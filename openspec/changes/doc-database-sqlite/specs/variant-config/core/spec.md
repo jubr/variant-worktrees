@@ -39,6 +39,12 @@ Environment detection SHALL stay as it is: `SQLITE_DATABASE` and `SQLITE_PATH` s
 - **WHEN** `DATABASE_URL` is `sqlite:///var/data/app.sqlite`
 - **THEN** `config.db.dialect` is `sqlite` and `config.db.database` is `/var/data/app.sqlite`
 
+#### Scenario: Slug placeholder stays
+
+- **WHEN** `variants.yaml` has `db.database: data/${slug}.sqlite`, or `SQLITE_DATABASE` is that value
+- **THEN** `config.db.database` is `data/${slug}.sqlite`
+- **AND** `db.database: ${abbr}/${slug}.sqlite` fails and names `db.database` and `abbr`
+
 #### Scenario: Explicit file wins
 
 - **WHEN** `variants.yaml` has `db.database: ./mine.sqlite` and `SQLITE_DATABASE` is `/tmp/app.sqlite`
