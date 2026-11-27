@@ -66,7 +66,7 @@ The system SHALL start every watch that has a `container` as a container named `
 
 #### Scenario: Host paths withheld
 
-- **WHEN** the dialect is SQLite, storage is configured and `up` starts a container
+- **WHEN** the type is SQLite, storage is configured and `up` starts a container
 - **THEN** the container receives neither `SQLITE_DATABASE` nor the storage variable
 
 #### Scenario: Replacing a running container
@@ -194,7 +194,7 @@ The system SHALL allow only one runtime per slug. `watch` SHALL stop the variant
 
 ### Requirement: Runtime state recording
 
-The system SHALL write `.cache/variant/state.yaml` and `.cache/variant/runtime.yaml` in the variant directory after watches start. `state.yaml` SHALL hold `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `dialect`, `target` and, for every watch by key, `port`, the rendered `url` when it has a `url` template, `startedAt`, and, for host processes, `pid`. `startedAt` SHALL be the local time that watch started, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). An existing `createdAt` SHALL be kept. `runtime.yaml` SHALL hold the resolved detection dump, including the resolved database settings, each watch command, and the configuration path. Either file SHALL be left untouched when its serialized content would not change. The system SHALL NOT write `variants.local.yaml`.
+The system SHALL write `.cache/variant/state.yaml` and `.cache/variant/runtime.yaml` in the variant directory after watches start. `state.yaml` SHALL hold `slug`, `mode` (`up` or `watch`), `dir` (the worktree path), `type`, `target` and, for every watch by key, `port`, the rendered `url` when it has a `url` template, `startedAt`, and, for host processes, `pid`. `startedAt` SHALL be the local time that watch started, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix). An existing `createdAt` SHALL be kept. `runtime.yaml` SHALL hold the resolved detection dump, including the resolved database settings, each watch command, and the configuration path. Either file SHALL be left untouched when its serialized content would not change. The system SHALL NOT write `variants.local.yaml`.
 
 #### Scenario: Written after up
 
@@ -291,7 +291,7 @@ The system SHALL, after watches start in attached `up` and attached `watch`, pol
 
 ### Requirement: Down
 
-The system SHALL provide `down` for a slug that stops every recorded host process with its descendants, removes the variant's containers and its network, and clears `mode`, `log` and `watches` from `.cache/variant/state.yaml` while keeping `slug`, `createdAt`, `dir`, `dialect` and `target`. It SHALL drop the process facts from `.cache/variant/runtime.yaml` in the same way. It SHALL keep the database target and the storage directory, and SHALL work for slug `main`. A variant that has nothing running SHALL succeed without changes.
+The system SHALL provide `down` for a slug that stops every recorded host process with its descendants, removes the variant's containers and its network, and clears `mode`, `log` and `watches` from `.cache/variant/state.yaml` while keeping `slug`, `createdAt`, `dir`, `type` and `target`. It SHALL drop the process facts from `.cache/variant/runtime.yaml` in the same way. It SHALL keep the database target and the storage directory, and SHALL work for slug `main`. A variant that has nothing running SHALL succeed without changes.
 
 #### Scenario: Down after watch
 

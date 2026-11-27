@@ -90,9 +90,13 @@ export const createConfigMigration = (deps: ConfigMigrationDeps): { run: () => v
           }
           announced.add(file);
           const before = readText(file);
-          const result = migrateFile(file, env);
+          const database = config.formerDatabase;
+          const result = migrateFile(file, env, database === undefined ? {} : { database });
           // a missing schema header is cosmetic: when it cannot be added, there is nothing to tell
-          const cosmetic = result?.status === "skipped" && result.notices.every(isSchemaHeaderNotice);
+          const cosmetic =
+            (result?.status === "skipped" && result.notices.every(isSchemaHeaderNotice)) ||
+            // AIDEV-NOTE: a rewrite without a notice (the former `db.dialect` key) is silent on purpose
+            (result?.status === "rewritten" && result.notices.length === 0);
           if (result && !cosmetic) {
             const after = result.status === "rewritten" ? readText(file) : undefined;
             const canUndo = before !== undefined && after !== undefined;

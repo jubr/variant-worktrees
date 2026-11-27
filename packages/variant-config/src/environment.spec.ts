@@ -46,7 +46,7 @@ describe("loadConfig environment provider", () => {
 
     const config = loadConfig({ cwd: directory, environment: environment.provider });
 
-    expect(config.db).toMatchObject({ dialect: "postgres", host: "db.local", port: 5433, database: "app" });
+    expect(config.db).toMatchObject({ type: "postgres", host: "db.local", port: 5433, database: "app" });
     expect(environment.calls()).toBe(1);
   });
 
@@ -62,7 +62,7 @@ describe("loadConfig environment provider", () => {
   });
 
   it("lets explicit database fields win over the provider values", () => {
-    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: postgres\n  host: config.host\n");
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  type: postgres\n  host: config.host\n");
     const environment = counting({ POSTGRES_HOST: "env.host", POSTGRES_DB: "env-db" });
 
     const config = loadConfig({ cwd: directory, environment: environment.provider });
@@ -72,12 +72,12 @@ describe("loadConfig environment provider", () => {
   });
 
   it("does not call the provider for an explicit SQLite database, which the environment cannot change", () => {
-    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
     const environment = counting({ POSTGRES_HOST: "db.local" });
 
     const config = loadConfig({ cwd: directory, environment: environment.provider });
 
-    expect(config.db).toMatchObject({ dialect: "sqlite" });
+    expect(config.db).toMatchObject({ type: "sqlite" });
     expect(config.source).toBe("config");
     expect(environment.calls()).toBe(0);
   });

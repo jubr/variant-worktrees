@@ -1,7 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path";
-import { type DbConfig, type DbDialect, DEFAULT_URL, type VariantWatch, WATCH_KEY } from "./schema.js";
+import {
+  type DbConfig,
+  type DbType,
+  DEFAULT_SQLITE_DATABASE,
+  DEFAULT_URL,
+  type VariantWatch,
+  WATCH_KEY,
+} from "./schema.js";
 
 const ENV_KEYS = [
   "DATABASE_URL",
@@ -175,7 +182,7 @@ export const abbreviate = (name: string): string => {
   return letters === "" ? "app" : letters;
 };
 
-const detectDialect = (values: Environment): DbDialect | undefined => {
+const detectType = (values: Environment): DbType | undefined => {
   if (values.DATABASE_URL?.startsWith("postgres")) {
     return "postgres";
   }
@@ -204,6 +211,19 @@ const detectDialect = (values: Environment): DbDialect | undefined => {
   return undefined;
 };
 
+/**
+ * The file a `sqlite:` URL names: `sqlite:///abs/path` is absolute, `sqlite:path`, `sqlite:./path` and `sqlite://path`
+ * are relative. Query strings are dropped.
+ */
+const sqliteUrlFile = (url: string | undefined): string | undefined => {
+  if (url === undefined || !url.startsWith("sqlite:")) {
+    return undefined;
+  }
+  const rest = url.slice("sqlite:".length).split("?")[0] ?? "";
+  const file = rest.startsWith("//") ? rest.slice(2) : rest;
+  return file === "" ? undefined : file;
+};
+
 /** Supplies the environment on demand; the first call may cost a process start, so callers call it only when needed. */
 export type EnvironmentProvider = () => NodeJS.ProcessEnv;
 
@@ -215,7 +235,7 @@ export interface DetectedConnection {
 }
 
 export const detectConnection = (
-  startDir = process.cwd(),
+  _startDir = process.cwd(),
   environment: EnvironmentProvider = () => process.env,
 ): DetectedConnection => {
   const current = environment();
@@ -224,13 +244,10 @@ export const detectConnection = (
     values[key] = current[key];
   }
 
-  const dialect = detectDialect(values);
-  if (!dialect) {
+  const type = detectType(values);
+  if (!type) {
     return {
-      config: {
-        dialect: "sqlite",
-        filename: join(startDir, ".cache", "variants", "variants.db"),
-      },
+      config: { type: "sqlite", database: DEFAULT_SQLITE_DATABASE },
       source: "default",
       variables: {},
     };
@@ -249,17 +266,27 @@ export const detectConnection = (
     return undefined;
   };
   const config: DbConfig = {
-    dialect,
+    type,
     url: take("url", "DATABASE_URL"),
     host: take("host", "POSTGRES_HOST", "MYSQL_HOST", "MARIADB_HOST"),
     port: parsePort(take("port", "POSTGRES_PORT", "MYSQL_PORT", "MARIADB_PORT")),
     user: take("user", "POSTGRES_USER", "MYSQL_USER", "MARIADB_USER"),
     password: take("password", "POSTGRES_PASSWORD", "MYSQL_PASSWORD", "MARIADB_PASSWORD"),
-    database: take("database", "POSTGRES_DB", "MYSQL_DATABASE", "MARIADB_DATABASE", "SQLITE_DATABASE"),
+    database: take("database", "POSTGRES_DB", "MYSQL_DATABASE", "MARIADB_DATABASE", "SQLITE_DATABASE", "SQLITE_PATH"),
     schema: take("schema", "POSTGRES_SCHEMA", "MYSQL_SCHEMA"),
-    filename: take("filename", "SQLITE_PATH"),
     ssl: parseBoolean(take("ssl", "POSTGRES_SSL")),
   };
+  // AIDEV-NOTE: MySQL has no schemas, so each variant gets a database of its own: the detected name is the prefix of it.
+  if (type === "mysql" && config.database !== undefined && variables.database !== undefined) {
+    config.database = `${config.database}__\${schema}`;
+  }
+  if (type === "sqlite" && config.database === undefined) {
+    const file = sqliteUrlFile(config.url);
+    config.database = file ?? DEFAULT_SQLITE_DATABASE;
+    if (file !== undefined) {
+      variables.database = "DATABASE_URL";
+    }
+  }
 
   return { config, source: "env", variables };
 };
@@ -484,7 +511,7 @@ export interface OnboardingDetection {
   error?: unknown;
 }
 
-/** Whether the detected MySQL-dialect database is MariaDB: a `mariadb` URL, or only `MARIADB_` variables. */
+/** Whether the detected MySQL-type database is MariaDB: a `mariadb` URL, or only `MARIADB_` variables. */
 const isMariaDb = (detected: DetectedConnection): boolean => {
   if (detected.config.url?.startsWith("mariadb")) {
     return true;
@@ -524,7 +551,7 @@ export const detectOnboarding = (
   if (detected.source === "default") {
     return { database: undefined, applications, label: undefined };
   }
-  const database = detected.config.dialect === "mysql" && isMariaDb(detected) ? "mariadb" : detected.config.dialect;
+  const database = detected.config.type === "mysql" && isMariaDb(detected) ? "mariadb" : detected.config.type;
   return { database, applications, label: [database, ...applications].join("+") };
 };
 

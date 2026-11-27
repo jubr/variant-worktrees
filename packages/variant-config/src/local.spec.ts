@@ -8,7 +8,7 @@ import { VariantsLocalSchema } from "./schema.js";
 const withProject = (local: string | undefined, run: (directory: string) => void): void => {
   const directory = mkdtempSync(join("/tmp", "variant-local-"));
   try {
-    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
     if (local !== undefined) {
       writeFileSync(join(directory, "variants.local.yaml"), local);
     }
@@ -26,7 +26,7 @@ describe("VariantsLocalSchema", () => {
       slug: "demo",
       mode: "watch",
       dir: "/work/_v-demo",
-      db: { dialect: "postgres", schema: "v_demo", port: "${POSTGRES_PORT}" },
+      db: { type: "postgres", schema: "v_demo", port: "${POSTGRES_PORT}" },
       watches: { fe: { port: 62060, pid: 123, url: "http://demo.vw.localhost:62060/" }, be: { port: 62061 } },
     });
 
@@ -142,17 +142,17 @@ describe("writeRuntime", () => {
     withProject(undefined, (directory) => {
       writeRuntime(directory, {
         slug: "demo",
-        db: { dialect: "postgres", schema: "v_demo", password: "secret" },
+        db: { type: "postgres", schema: "v_demo", password: "secret" },
       });
 
       expect(readRuntime(directory)).toEqual({
         slug: "demo",
-        db: { dialect: "postgres", schema: "v_demo", password: "secret" },
+        db: { type: "postgres", schema: "v_demo", password: "secret" },
       });
       expect(existsSync(join(directory, "variants.local.yaml"))).toBe(false);
       expect(parseYaml(readFileSync(statePath(directory), "utf8"))).toEqual({
         slug: "demo",
-        dialect: "postgres",
+        type: "postgres",
         target: "v_demo",
       });
       const dump = parseYaml(readFileSync(join(directory, ".cache", "variant", "runtime.yaml"), "utf8")) as {

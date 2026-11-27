@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { LOCAL_FILENAME, STATE_FILE } from "variant-config";
 import { createDatabaseAdapter } from "./db/index.js";
@@ -28,8 +28,8 @@ export const createVariantClient = (options: VariantClientOptions = {}): Variant
       configPath: options.configPath ?? process.env.VARIANT_CONFIG,
       miseBinPath: options.miseBinPath,
     });
-  if (config.db.multi !== undefined && config.db.dialect !== "postgres") {
-    throw new Error(`db.multi needs PostgreSQL, not ${config.db.dialect}`);
+  if (config.db.multi !== undefined && config.db.type !== "postgres") {
+    throw new Error(`db.multi needs PostgreSQL, not ${config.db.type}`);
   }
   const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));
@@ -42,9 +42,28 @@ export const createVariantClient = (options: VariantClientOptions = {}): Variant
     }
   };
 
+  /** Where a variant's SQLite file lives: its worktree, the main checkout for `main`, or the config directory. */
+  const sqliteLayout = {
+    directoryOf: (slug: string): string => {
+      if (options.worktree === false) {
+        return config.configDir;
+      }
+      return slug === "main" ? config.variant.main : join(variantRoot, `${config.variant.prefix}${slug}`);
+    },
+    slugs: (): string[] => {
+      const { prefix } = config.variant;
+      if (options.worktree === false || !existsSync(variantRoot)) {
+        return [];
+      }
+      return readdirSync(variantRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix) && entry.name.length > prefix.length)
+        .map((entry) => entry.name.slice(prefix.length));
+    },
+  };
+
   const withAdapter = async <T>(operation: (context: OperationContext) => Promise<T>): Promise<T> => {
     ensureState();
-    const adapter = createDatabaseAdapter(config.db, stateDir);
+    const adapter = createDatabaseAdapter(config.db, sqliteLayout);
     try {
       return await operation({
         config,

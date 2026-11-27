@@ -18,7 +18,7 @@ describe("VariantsConfigSchema", () => {
 
   it("rejects a database port that is neither an integer nor a port template", () => {
     const result = VariantsConfigSchema.safeParse({
-      db: { dialect: "postgres", host: "localhost", port: "not-a-number" },
+      db: { type: "postgres", host: "localhost", port: "not-a-number" },
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -27,12 +27,12 @@ describe("VariantsConfigSchema", () => {
   });
 
   it("accepts a digit string and a single ${NAME} template for db.port", () => {
-    expect(
-      VariantsConfigSchema.safeParse({ db: { dialect: "postgres", host: "localhost", port: "5432" } }).success,
-    ).toBe(true);
+    expect(VariantsConfigSchema.safeParse({ db: { type: "postgres", host: "localhost", port: "5432" } }).success).toBe(
+      true,
+    );
     expect(
       VariantsConfigSchema.safeParse({
-        db: { dialect: "postgres", host: "localhost", port: "${POSTGRES_PORT}" },
+        db: { type: "postgres", host: "localhost", port: "${POSTGRES_PORT}" },
       }).success,
     ).toBe(true);
   });

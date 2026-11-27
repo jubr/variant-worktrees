@@ -6,7 +6,7 @@ import { PostgresAdapter } from "./db/postgres.js";
 import { createVariantClient } from "./index.js";
 import { type LogEvent, setLogSink } from "./log.js";
 
-const YAML = "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n";
+const YAML = "db:\n  type: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n";
 
 const withUnreachable = async (
   run: (client: ReturnType<typeof createVariantClient>, events: () => LogEvent[]) => Promise<void>,
@@ -108,7 +108,7 @@ describe("mutations fail closed when the database cannot be contacted", () => {
 
   it("fails schema create, drop, and destroy with the contact warning", async () => {
     const adapter = new PostgresAdapter({
-      dialect: "postgres",
+      type: "postgres",
       host: "127.0.0.1",
       port: 1,
       database: "app",

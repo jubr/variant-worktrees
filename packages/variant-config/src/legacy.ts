@@ -1,4 +1,15 @@
-import { type Document, isMap, isNode, isPair, isScalar, type Pair, parseDocument, visit, type YAMLMap } from "yaml";
+import {
+  type Document,
+  isMap,
+  isNode,
+  isPair,
+  isScalar,
+  type Pair,
+  parseDocument,
+  stringify,
+  visit,
+  type YAMLMap,
+} from "yaml";
 
 /**
  * Specification: openspec/specs/variant-config/core/spec.md (Legacy configuration is read under the current names)
@@ -75,6 +86,31 @@ const renameInstances = (
   delete target.instances;
 };
 
+/** Renames `<section>.filename` to `<section>.database` in `target`; the new key wins when both exist. */
+const renameFilename = (target: Record<string, unknown>, section: string, file: string, notices: string[]): void => {
+  if (!("filename" in target)) {
+    return;
+  }
+  if ("database" in target) {
+    notices.push(`${file}: ${section}.filename was ignored because ${section}.database is present`);
+  } else {
+    target.database = target.filename;
+    notices.push(`${file}: ${section}.filename is now ${section}.database`);
+  }
+  delete target.filename;
+};
+
+/** Renames `db.dialect` to `db.type` in `target`, without a notice; the new key wins when both exist. */
+const renameDialect = (target: Record<string, unknown>): void => {
+  if (!("dialect" in target)) {
+    return;
+  }
+  if (!("type" in target)) {
+    target.type = target.dialect;
+  }
+  delete target.dialect;
+};
+
 /**
  * `data` of `variants.yaml` or `variants.local.yaml` under the current names, in a copy, with a notice for every change.
  * Both names present: the current one wins and the old one is dropped.
@@ -95,6 +131,14 @@ export const migrateLegacy = (data: unknown, file: string): Migrated => {
   }
   if (isRecord(runtime)) {
     renameInstances(runtime, "runtime", file, notices);
+    if (isRecord(runtime.db)) {
+      renameDialect(runtime.db);
+      renameFilename(runtime.db, "runtime.db", file, notices);
+    }
+  }
+  if (isRecord(copy.db)) {
+    renameDialect(copy.db);
+    renameFilename(copy.db, "db", file, notices);
   }
   const templates = { count: 0 };
   const converted = convertData(copy, undefined, templates);
@@ -136,19 +180,75 @@ const removal = (text: string, pair: Pair): Edit | undefined => {
 };
 
 const isInstances = (pair: Pair): boolean => isScalar(pair.key) && pair.key.value === "instances";
+const isFilename = (pair: Pair): boolean => isScalar(pair.key) && pair.key.value === "filename";
+const isDialect = (pair: Pair): boolean => isScalar(pair.key) && pair.key.value === "dialect";
 
-/** The edits that give `map` its `watches` key: rename `instances`, or drop it when `watches` exists. */
-const renameEdits = (text: string, map: YAMLMap): Edit[] | undefined => {
-  const pair = map.items.find(isInstances);
+/** The edits that give `map` its `current` key: rename `former`, or drop it when `current` exists. */
+const renameKeyEdits = (
+  text: string,
+  map: YAMLMap,
+  matches: (pair: Pair) => boolean,
+  current: string,
+): Edit[] | undefined => {
+  const pair = map.items.find(matches);
   if (!pair) {
     return [];
   }
-  if (map.has("watches")) {
+  if (map.has(current)) {
     const edit = removal(text, pair);
     return edit ? [edit] : undefined;
   }
   const range = isScalar(pair.key) ? pair.key.range : undefined;
-  return range ? [{ start: range[0], end: range[1], replacement: "watches" }] : undefined;
+  return range ? [{ start: range[0], end: range[1], replacement: current }] : undefined;
+};
+
+/** The edits that give `map` its `watches` key: rename `instances`, or drop it when `watches` exists. */
+const renameEdits = (text: string, map: YAMLMap): Edit[] | undefined =>
+  renameKeyEdits(text, map, isInstances, "watches");
+
+/**
+ * The edits that give `map` its `database` key (rename `filename`, or drop it when `database` exists) and its `type`
+ * key (the same for `dialect`).
+ */
+const databaseRenameEdits = (text: string, map: YAMLMap): Edit[] | undefined => {
+  const dialect = renameKeyEdits(text, map, isDialect, "type");
+  const filename = renameKeyEdits(text, map, isFilename, "database");
+  return dialect === undefined || filename === undefined ? undefined : [...dialect, ...filename];
+};
+
+/** One scalar as YAML text, quoted when it needs it. */
+const yamlScalar = (value: string): string => stringify(value, { lineWidth: 0 }).trimEnd();
+
+/**
+ * The edit that gives the file the former SQLite file as `db.database`: a new `db` section at the end, or one more
+ * key at the end of a block-style `db`. Nothing when `db` already names a file; `undefined` for a flow-style `db`.
+ */
+const databaseAddEdits = (text: string, root: YAMLMap, database: string): Edit[] | undefined => {
+  const db = mapAt(root, "db");
+  if (!db) {
+    const lead = text === "" || text.endsWith("\n") ? "" : "\n";
+    return [
+      {
+        start: text.length,
+        end: text.length,
+        replacement: `${lead}db:\n  type: sqlite\n  database: ${yamlScalar(database)}\n`,
+      },
+    ];
+  }
+  if (db.has("database") || db.has("filename")) {
+    return [];
+  }
+  const first = db.items[0];
+  const last = db.items[db.items.length - 1];
+  const keyRange = first && isScalar(first.key) ? first.key.range : undefined;
+  if (db.flow || !keyRange || !last) {
+    return undefined;
+  }
+  const lastEnd = isNode(last.value) && last.value.range ? last.value.range[1] : keyRange[1];
+  const at = lineEnd(text, Math.max(lastEnd - 1, 0));
+  const indent = text.slice(lineStart(text, keyRange[0]), keyRange[0]);
+  const lead = text.slice(0, at).endsWith("\n") ? "" : "\n";
+  return [{ start: at, end: at, replacement: `${lead}${indent}database: ${yamlScalar(database)}\n` }];
 };
 
 const removeEdits = (text: string, map: YAMLMap, key: string): Edit[] | undefined => {
@@ -183,11 +283,41 @@ const templateEdits = (text: string, document: Document.Parsed): Edit[] => {
 };
 
 /** The same changes through the document, which keeps order and comments but may move a comment of a key. */
-const rewriteDocument = (document: Document.Parsed): string | undefined => {
+const rewriteDocument = (document: Document.Parsed, database?: string): string | undefined => {
   let changed = false;
   const root = document.contents as YAMLMap;
   const variant = mapAt(root, "variant");
   const runtime = mapAt(root, "runtime");
+  for (const map of [mapAt(root, "db"), runtime ? mapAt(runtime, "db") : undefined]) {
+    const pair = map?.items.find(isFilename);
+    if (map && pair && isScalar(pair.key)) {
+      if (map.has("database")) {
+        map.delete("filename");
+      } else {
+        pair.key.value = "database";
+      }
+      changed = true;
+    }
+    const former = map?.items.find(isDialect);
+    if (map && former && isScalar(former.key)) {
+      if (map.has("type")) {
+        map.delete("dialect");
+      } else {
+        former.key.value = "type";
+      }
+      changed = true;
+    }
+  }
+  if (database !== undefined) {
+    const db = mapAt(root, "db");
+    if (!db) {
+      root.set("db", document.createNode({ type: "sqlite", database }));
+      changed = true;
+    } else if (!db.has("database")) {
+      db.set("database", database);
+      changed = true;
+    }
+  }
   for (const map of [variant, runtime]) {
     const pair = map?.items.find(isInstances);
     if (map && pair && isScalar(pair.key)) {
@@ -222,20 +352,25 @@ const rewriteDocument = (document: Document.Parsed): string | undefined => {
  * order and layout: only the renamed key and the dropped lines differ. Nothing when the text needs no change or is not a
  * YAML mapping.
  */
-export const migrateText = (text: string): string | undefined => {
+export const migrateText = (text: string, options: { database?: string } = {}): string | undefined => {
   const document = parseDocument(text);
   if (document.errors.length > 0 || !isMap(document.contents)) {
     return undefined;
   }
   const variant = mapAt(document.contents, "variant");
   const runtime = mapAt(document.contents, "runtime");
+  const db = mapAt(document.contents, "db");
+  const runtimeDb = runtime ? mapAt(runtime, "db") : undefined;
   const parts = [
     variant ? renameEdits(text, variant) : [],
     variant ? removeEdits(text, variant, "reservedPorts") : [],
     runtime ? renameEdits(text, runtime) : [],
+    db ? databaseRenameEdits(text, db) : [],
+    runtimeDb ? databaseRenameEdits(text, runtimeDb) : [],
+    options.database === undefined ? [] : databaseAddEdits(text, document.contents, options.database),
   ];
   if (parts.some((part) => part === undefined)) {
-    return rewriteDocument(document);
+    return rewriteDocument(document, options.database);
   }
   const structural = (parts as Edit[][]).flat();
   const removed = structural.filter((edit) => edit.replacement === "" && edit.end > edit.start);

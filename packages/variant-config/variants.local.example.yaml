@@ -13,15 +13,14 @@ runtime:
   log: /Users/me/work/_v-demo-embody-assume-user/.cache/variant/watch.log # output of a detached watch; follow it with tail -f
   createdAt: 2026-11-04_12:22:05 # local time the variant was created, YYYY-MM-DD_HH:MM:SS
   db: # the same settings as `db` in variants.yaml; only `port` may also be a ${NAME} template
-    dialect: postgres # sqlite | mysql
+    type: postgres # sqlite | mysql
     url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set
     host: 127.0.0.1
     port: '${POSTGRES_PORT}' # from the environment; a number also works
     user: app
     password: '${POSTGRES_PASSWORD}'
-    database: app
+    database: app # sqlite: the database file, e.g. ./data/${slug}.sqlite
     schema: v_demo_embody_assume_user # also in POSTGRES_SCHEMA
-    filename: ./app.sqlite # sqlite only
     ssl: false # true
   watches: # keyed by the key of the entry in variant.watches
     fe:

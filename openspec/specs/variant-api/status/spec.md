@@ -7,7 +7,7 @@ The `status` command answers what one variant is doing right now: what `list` kn
 
 ### Requirement: Status command
 
-The system SHALL provide a `status` command that takes the optional `slug` argument, resolved like every other command (explicit slug, else the current git worktree), and returns the record of that single variant. The record SHALL hold the facts `list` returns for the variant (`slug`, `target`, `dialect`, `statePath`, `worktree`, `createdAt`, `exists`, and, when a runtime state exists, `mode`, `url`, `watches`, `uptimeSeconds` and `log`) and a `runtime` object. The command SHALL fail with an error naming the slug when no state file, database target or runtime state exists for it. It SHALL NOT change any state.
+The system SHALL provide a `status` command that takes the optional `slug` argument, resolved like every other command (explicit slug, else the current git worktree), and returns the record of that single variant. The record SHALL hold the facts `list` returns for the variant (`slug`, `target`, `type`, `statePath`, `worktree`, `createdAt`, `exists`, and, when a runtime state exists, `mode`, `url`, `watches`, `uptimeSeconds` and `log`) and a `runtime` object. The command SHALL fail with an error naming the slug when no state file, database target or runtime state exists for it. It SHALL NOT change any state.
 
 #### Scenario: Status of a running variant
 
@@ -31,12 +31,17 @@ The system SHALL provide a `status` command that takes the optional `slug` argum
 
 ### Requirement: Status carries the runtime meta information
 
-The `runtime` object of a status result SHALL hold the operational state of the variant's `.cache/variant/state.yaml` and, when `.cache/variant/runtime.yaml` exists, the database settings from that dump. `${NAME}` templates SHALL be replaced as when discovering runtime states (the `VARIANT_<KEY>_*` overrides describe only the variant being run and do not apply). The object SHALL include `slug`, `mode`, `dir`, `log`, `createdAt`, `db`, and `watches` with each watch's `port`, `pid`, `url`, `startedAt`, `alive` (set when a pid is recorded) and `uptimeSeconds`. `db.dialect` SHALL be the state file's `dialect`, and `db.schema` or the database filename SHALL be the state file's `target`, completed from the detection dump when that dump has those settings. It SHALL also hold `file`, the path of `.cache/variant/state.yaml`. The `db.password` value SHALL be shown as `***` in every output format. A variant with no operational state SHALL have no `runtime` object.
+The `runtime` object of a status result SHALL hold the operational state of the variant's `.cache/variant/state.yaml` and, when `.cache/variant/runtime.yaml` exists, the database settings from that dump. `${NAME}` templates SHALL be replaced as when discovering runtime states (the `VARIANT_<KEY>_*` overrides describe only the variant being run and do not apply). The object SHALL include `slug`, `mode`, `dir`, `log`, `createdAt`, `db`, and `watches` with each watch's `port`, `pid`, `url`, `startedAt`, `alive` (set when a pid is recorded) and `uptimeSeconds`. `db.type` SHALL be the state file's `type`, and `db.schema` (or, for SQLite, `db.database`, the absolute file) SHALL be the state file's `target`, completed from the detection dump when that dump has those settings. It SHALL also hold `file`, the path of `.cache/variant/state.yaml`. The `db.password` value SHALL be shown as `***` in every output format. A variant with no operational state SHALL have no `runtime` object.
 
 #### Scenario: Full runtime section
 
-- **WHEN** the state file of `demo` records mode `up`, `dir`, `dialect` `postgres`, `target` `v_demo`, and watch `be` with port 62061
-- **THEN** `runtime.mode`, `runtime.dir`, `runtime.db.dialect`, `runtime.db.schema` and `runtime.watches.be.port` carry those values and `runtime.file` is the path of that `state.yaml`
+- **WHEN** the state file of `demo` records mode `up`, `dir`, `type` `postgres`, `target` `v_demo`, and watch `be` with port 62061
+- **THEN** `runtime.mode`, `runtime.dir`, `runtime.db.type`, `runtime.db.schema` and `runtime.watches.be.port` carry those values and `runtime.file` is the path of that `state.yaml`
+
+#### Scenario: SQLite runtime file
+
+- **WHEN** the state file of `demo` records `type` `sqlite` and `target` `/work/_v-demo/.cache/variants/demo.sqlite`
+- **THEN** `runtime.db.database` is that path and `runtime.db` has no `filename`
 
 #### Scenario: Created and start times
 

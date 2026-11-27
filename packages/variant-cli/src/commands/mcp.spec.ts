@@ -71,7 +71,7 @@ const configText = (result: Talk): string =>
 
 const project = (run: (directory: string) => Promise<void>): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-mcp-")));
-  writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+  writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
   return run(directory).finally(() => rmSync(directory, { recursive: true, force: true }));
 };
 

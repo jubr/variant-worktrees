@@ -10,7 +10,7 @@ const withProject = async (watch: string, run: (log: string[], watch: () => Prom
     mkdirSync(join(directory, "be"));
     writeFileSync(
       join(directory, "variants.yaml"),
-      `db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be${watch} }\n`,
+      `db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be${watch} }\n`,
     );
     const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),

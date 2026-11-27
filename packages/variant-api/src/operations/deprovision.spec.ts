@@ -11,7 +11,7 @@ import { prepareVariant } from "./prepare.js";
 import type { OperationContext } from "./types.js";
 
 const yaml = (multi: string, steps = ""): string =>
-  `db:\n  dialect: postgres\n  host: 127.0.0.1\n  multi:\n${multi}${steps ? `variant:\n${steps}` : "variant: {}\n"}`;
+  `db:\n  type: postgres\n  host: 127.0.0.1\n  multi:\n${multi}${steps ? `variant:\n${steps}` : "variant: {}\n"}`;
 
 /** Outside the known temporary directories, so a log stays at the level the call site asked for. */
 const loudParent = (): string => {
@@ -30,7 +30,7 @@ const withDrop = async (
   const dropped: string[] = [];
   const names = [...catalog];
   const adapter: DatabaseAdapter = {
-    dialect: "postgres",
+    type: "postgres",
     create: async (slug) => `v_${slug}`,
     createSchema: async (name) => {
       dropped.push(`create ${name}`);

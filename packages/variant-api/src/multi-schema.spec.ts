@@ -14,7 +14,7 @@ import type { OperationContext } from "./operations/types.js";
 import type { DatabaseAdapter } from "./types.js";
 
 const postgres = (multi: string, steps = ""): string =>
-  `db:\n  dialect: postgres\n  host: 127.0.0.1\n  multi:\n${multi}${steps ? `variant:\n${steps}` : "variant: {}\n"}`;
+  `db:\n  type: postgres\n  host: 127.0.0.1\n  multi:\n${multi}${steps ? `variant:\n${steps}` : "variant: {}\n"}`;
 
 interface Tools {
   directory: string;
@@ -28,7 +28,7 @@ const withMulti = async (yaml: string, run: (tools: Tools) => Promise<void>): Pr
   const directory = mkdtempSync(join(tmpdir(), "variant-multi-"));
   const schemas: string[] = [];
   const adapter: DatabaseAdapter = {
-    dialect: "postgres",
+    type: "postgres",
     create: async (slug) => {
       schemas.push(`create ${slug}`);
       return `v_${slug}`;
@@ -77,14 +77,14 @@ const withMulti = async (yaml: string, run: (tools: Tools) => Promise<void>): Pr
 const read = (directory: string, name: string): string => readFileSync(join(directory, name), "utf8");
 
 describe("multi schema", () => {
-  it("refuses db.multi on sqlite and mysql and names the dialect", () => {
-    const directory = mkdtempSync(join(tmpdir(), "variant-multi-dialect-"));
+  it("refuses db.multi on sqlite and mysql and names the type", () => {
+    const directory = mkdtempSync(join(tmpdir(), "variant-multi-type-"));
     try {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n  multi:\n    tenants: east\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n  multi:\n    tenants: east\n");
       expect(() => createVariantClient({ cwd: directory, worktree: false })).toThrow(/sqlite/);
       writeFileSync(
         join(directory, "variants.yaml"),
-        "db:\n  dialect: mysql\n  host: 127.0.0.1\n  multi:\n    tenants: east\n",
+        "db:\n  type: mysql\n  host: 127.0.0.1\n  multi:\n    tenants: east\n",
       );
       expect(() => createVariantClient({ cwd: directory, worktree: false })).toThrow(/mysql/);
     } finally {
@@ -266,7 +266,7 @@ describe("multi schema", () => {
 
   it("renders an empty tenant list when db.multi is absent", () =>
     withMulti(
-      "db:\n  dialect: sqlite\nvariant:\n  steps:\n    seed:\n      cmd: 'echo \"[$MULTI_TENANT_LIST]\" > out'\n      env:\n        MULTI_TENANT_LIST: ${multi.tenants}\n",
+      "db:\n  type: sqlite\nvariant:\n  steps:\n    seed:\n      cmd: 'echo \"[$MULTI_TENANT_LIST]\" > out'\n      env:\n        MULTI_TENANT_LIST: ${multi.tenants}\n",
       async ({ directory, schemas, provision }) => {
         await provision();
 
@@ -354,7 +354,7 @@ const withSchemas = async (
 ): Promise<void> => {
   const directory = mkdtempSync(join(tmpdir(), "variant-multi-list-"));
   const adapter: DatabaseAdapter = {
-    dialect: "postgres",
+    type: "postgres",
     create: async (slug) => `v_${slug}`,
     createSchema: async () => {},
     matchingSchemas: async (prefix) => names.filter((name) => name.startsWith(prefix)),
@@ -415,7 +415,7 @@ describe("one record per variant", () => {
     }));
 
   it("omits schemas when db.multi is absent", () =>
-    withSchemas(["v_demo"], "db:\n  dialect: postgres\n  host: 127.0.0.1\nvariant: {}\n", async ({ list }) => {
+    withSchemas(["v_demo"], "db:\n  type: postgres\n  host: 127.0.0.1\nvariant: {}\n", async ({ list }) => {
       const [record] = await list();
 
       expect(record?.slug).toBe("demo");
@@ -433,7 +433,7 @@ describe("one record per variant", () => {
         "v_sso_user_agent_from_user-de99",
         "v_sso_user_agent_from_user-nl21",
       ],
-      "db:\n  dialect: postgres\n  host: 127.0.0.1\nvariant: {}\n",
+      "db:\n  type: postgres\n  host: 127.0.0.1\nvariant: {}\n",
       async ({ list }) => {
         const records = await list();
 
@@ -457,7 +457,7 @@ describe("one record per variant", () => {
     ];
     const dropped: string[] = [];
     try {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: postgres\n  host: 127.0.0.1\nvariant: {}\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: postgres\n  host: 127.0.0.1\nvariant: {}\n");
       const context: OperationContext = {
         config: loadConfig({ cwd: directory, env: {} }),
         variantRoot: directory,
@@ -465,7 +465,7 @@ describe("one record per variant", () => {
         cwd: directory,
         useWorktree: true,
         adapter: {
-          dialect: "postgres",
+          type: "postgres",
           create: async (slug) => `v_${slug}`,
           createSchema: async () => {},
           matchingSchemas: async (prefix) => names.filter((name) => name.startsWith(prefix)),
@@ -553,7 +553,7 @@ describe("one record per variant", () => {
       mkdirSync(stateDir, { recursive: true });
       writeFileSync(
         join(stateDir, "demo.yaml"),
-        'slug: demo\ntarget: v_demo\ndialect: postgres\nstatePath: ""\ncreatedAt: now\n',
+        'slug: demo\ntarget: v_demo\ntype: postgres\nstatePath: ""\ncreatedAt: now\n',
       );
 
       const records = await list();
@@ -594,7 +594,7 @@ describe("one record per variant", () => {
       mkdirSync(join(repo, ".cache", "variants"), { recursive: true });
       writeFileSync(
         join(repo, ".cache", "variants", "demo.yaml"),
-        `slug: demo\ntarget: v_demo\ndialect: postgres\nstatePath: ""\ncreatedAt: now\nworktree: ${worktree}\n`,
+        `slug: demo\ntarget: v_demo\ntype: postgres\nstatePath: ""\ncreatedAt: now\nworktree: ${worktree}\n`,
       );
       const context: OperationContext = {
         config,
@@ -603,7 +603,7 @@ describe("one record per variant", () => {
         cwd: repo,
         useWorktree: true,
         adapter: {
-          dialect: "postgres",
+          type: "postgres",
           create: async (slug) => `v_${slug}`,
           createSchema: async () => {},
           matchingSchemas: async (prefix) => names.filter((name) => name.startsWith(prefix)),

@@ -1,5 +1,7 @@
 import { join } from "node:path";
 import { formatLocalStamp, type Runtime, readRuntime, STATE_FILE, writeRuntime } from "variant-config";
+import { databaseTarget } from "../database-target.js";
+import { describeDatabase } from "../describe-database.js";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { miseBinaryFor } from "../mise.js";
 import { installMiseInWorktree, parseMiseInstall } from "../mise-install.js";
@@ -10,12 +12,12 @@ import type { VariantRecord } from "../types.js";
 import { ensureWorktree } from "../worktree.js";
 import type { OperationContext } from "./types.js";
 
-/** The adapter reports a dialect name. `state.yaml` stores the three known ones. */
-const recordedDialect = (dialect: string): "postgres" | "mysql" | "sqlite" => {
-  if (dialect === "postgres" || dialect === "mysql" || dialect === "sqlite") {
-    return dialect;
+/** The adapter reports a type name. `state.yaml` stores the three known ones. */
+const recordedType = (type: string): "postgres" | "mysql" | "sqlite" => {
+  if (type === "postgres" || type === "mysql" || type === "sqlite") {
+    return type;
   }
-  throw new Error(`unknown dialect ${dialect}`);
+  throw new Error(`unknown type ${type}`);
 };
 
 /** Writes identity into `state.yaml` once `createdAt` is missing. An existing stamp stays. */
@@ -26,15 +28,19 @@ const rememberCreated = (context: OperationContext, directory: string, slug: str
   } catch {
     existing = undefined;
   }
+  const type = recordedType(context.adapter.type);
   if (existing?.createdAt) {
+    // AIDEV-NOTE: an earlier version recorded the PostgreSQL target `public` for the SQLite file of main; the stamp stays, the target heals
+    if (type === "sqlite" && existing.db?.database !== target) {
+      writeRuntime(directory, { ...existing, db: { ...existing.db, type, database: target } });
+    }
     return;
   }
-  const dialect = recordedDialect(context.adapter.dialect);
   writeRuntime(directory, {
     ...existing,
     slug: existing?.slug ?? slug,
     dir: existing?.dir ?? directory,
-    db: existing?.db ?? (dialect === "sqlite" ? { dialect, filename: target } : { dialect, schema: target }),
+    db: existing?.db ?? (type === "sqlite" ? { type, database: target } : { type, schema: target }),
     createdAt: formatLocalStamp(context.now?.() ?? new Date()),
   });
 };
@@ -81,7 +87,7 @@ export const createVariant = async (
           },
         )
       : undefined;
-  const target = slug === "main" ? (context.config.db.schema ?? "public") : context.adapter.target(slug);
+  const target = databaseTarget(context, slug);
   // AIDEV-NOTE: the schema or database file appears at provision, which watch and up imply. create only records the target.
   const variantDirectory =
     slug === "main"
@@ -96,13 +102,14 @@ export const createVariant = async (
   const state = existing ?? {
     slug,
     target,
-    dialect: context.adapter.dialect,
+    type: context.adapter.type,
     statePath: variantDirectory === undefined ? "" : join(variantDirectory, STATE_FILE),
     worktree,
     createdAt: "",
   };
   return {
     ...state,
+    database: describeDatabase(context.config.db, slug, state.target),
     statePath: state.statePath,
     exists: true,
     implodeClean: implodeWouldSucceed(context, slug, state.worktree),

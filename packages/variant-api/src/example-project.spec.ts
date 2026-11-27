@@ -27,7 +27,7 @@ describe("the example project", () => {
       });
 
       const created = await client.create("demo");
-      expect(created.target).toBe(join(directory, ".cache", "variants", "demo.db"));
+      expect(created.target).toBe(join(directory, ".cache", "variants", "demo.sqlite"));
 
       const seed = config.variant.steps.seed?.cmd;
       expect(seed).toBeDefined();

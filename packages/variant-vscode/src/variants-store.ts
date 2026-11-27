@@ -5,7 +5,8 @@ import { type LoadClient, messageOf } from "./variants-client.ts";
 const syntheticMain = (): VariantRecord => ({
   slug: "main",
   target: "",
-  dialect: "sqlite",
+  type: "sqlite",
+  database: "",
   statePath: "",
   createdAt: "",
   exists: true,

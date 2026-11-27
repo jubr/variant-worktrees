@@ -15,6 +15,7 @@ import {
   UI_WATCH_KEY,
 } from "variant-config";
 import { DatabaseContactError } from "../db/failure.js";
+import { describeDatabase } from "../describe-database.js";
 import { implodeWouldSucceed } from "../implode-clean.js";
 import { redacted } from "../redact.js";
 import { isProcessAlive } from "../runtime-state.js";
@@ -23,11 +24,31 @@ import type { RuntimeStatus, VariantRecord, WatchFacts } from "../types.js";
 import { processUptimeSeconds } from "../uptime.js";
 import type { OperationContext } from "./types.js";
 
-const slugFromTarget = (target: string, dialect: string): string => {
-  if (dialect === "sqlite") {
+const slugFromTarget = (target: string, type: string): string => {
+  if (type === "sqlite") {
     return target;
   }
   return target.replace(/^v_/, "").replaceAll("_", "-");
+};
+
+/** The target a record shows. SQLite: the file the configuration names for the slug, which no stale state can change. */
+const recordTarget = (
+  context: OperationContext,
+  slug: string,
+  recorded: string | undefined,
+  known: boolean,
+): string => {
+  const resolved = (): string | undefined => {
+    try {
+      return context.adapter.target(slug);
+    } catch {
+      return undefined;
+    }
+  };
+  if (context.adapter.type === "sqlite") {
+    return resolved() ?? recorded ?? "";
+  }
+  return recorded ?? (known ? (resolved() ?? "") : "");
 };
 
 /** The directories whose `variants.local.yaml` makes up the runtime state: the variant worktrees and the main checkout. */
@@ -184,7 +205,7 @@ export const collectRecords = async (
   context: OperationContext,
   options: CollectOptions = {},
 ): Promise<VariantRecord[]> => {
-  const { dialect } = context.adapter;
+  const { type } = context.adapter;
   const multi = context.config.db.multi;
   const head = multi === undefined ? undefined : multiSchemaHead(multi.schemaPrefix);
   let listed: string[] = [];
@@ -251,9 +272,7 @@ export const collectRecords = async (
     }
   }
   const databaseSlugs = new Map(
-    catalog
-      .filter((target) => !consumed.has(target))
-      .map((target) => [slugFromTarget(target, dialect), target] as const),
+    catalog.filter((target) => !consumed.has(target)).map((target) => [slugFromTarget(target, type), target] as const),
   );
   const known = new Set([
     ...fromState,
@@ -269,17 +288,20 @@ export const collectRecords = async (
     const watches = found ? watchFacts(found.runtime) : undefined;
     const url = ownWatches(watches ?? {}).find((watch) => watch.url !== undefined)?.url;
     const uptimeSeconds = watches ? longestUptime(watches) : undefined;
-    const runtimeTarget = found?.runtime.db?.schema ?? found?.runtime.db?.filename;
+    const runtimeDb = found?.runtime.db;
+    const runtimeTarget = runtimeDb?.schema ?? (runtimeDb?.type === "sqlite" ? runtimeDb.database : undefined);
     const prefixed = join(context.config.variant.root, `${context.config.variant.prefix}${slug}`);
     const located = existsSync(prefixed) ? prefixed : undefined;
     const directory = [state?.worktree, found?.dir, located].find((path) => path !== undefined && existsSync(path));
     const yaml = found ? runtimeFile(found.dir) : directory ? runtimeFile(directory) : undefined;
     const worktree = state?.worktree ?? found?.runtime.dir ?? found?.dir ?? located;
     const knownTarget = multi !== undefined || databaseSlugs.has(slug);
+    const target = recordTarget(context, slug, state?.target ?? runtimeTarget, knownTarget);
     return {
       slug,
-      target: state?.target ?? runtimeTarget ?? (knownTarget ? context.adapter.target(slug) : ""),
-      dialect: state?.dialect ?? context.adapter.dialect,
+      target,
+      type: state?.type ?? context.adapter.type,
+      database: describeDatabase(context.config.db, slug, target),
       statePath: state?.statePath ?? "",
       worktree,
       createdAt: state?.createdAt ?? "",

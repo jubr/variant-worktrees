@@ -15,6 +15,7 @@ import {
   detectWatches,
   type EnvironmentProvider,
 } from "./autodetect.js";
+import { findFormerSqliteDatabase, formerDatabaseNotice } from "./former-database.js";
 import { migrateLegacy } from "./legacy.js";
 import { readRuntimeState } from "./local.js";
 import {
@@ -33,6 +34,7 @@ import {
   DEFAULT_MAX_DIFF_LINES,
   DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
+  DEFAULT_SQLITE_DATABASE,
   DEFAULT_STORAGE_DIR,
   DEFAULT_STORAGE_ENV_VAR,
   parsePortRange,
@@ -279,6 +281,9 @@ const mergeDbConfig = (detected: Partial<DbConfig>, explicit: DbConfig | undefin
     ...explicit,
   }) as DbConfig;
 
+/** What an explicit `db.type: sqlite` gets instead of detection, which the environment cannot change. */
+const SQLITE_DEFAULTS: DbConfig = { type: "sqlite", database: DEFAULT_SQLITE_DATABASE };
+
 const memoize = <Value>(compute: () => Value): (() => Value) => {
   let cached: { value: Value } | undefined;
   return () => {
@@ -331,18 +336,35 @@ const positivePort = (value: string, setting: string): number => {
   return port;
 };
 
-/** `db` with the environment references of its text settings expanded; `db` belongs to no variant. */
+/**
+ * `db` with the environment references of its text settings expanded; `db` belongs to no variant.
+ * AIDEV-NOTE: `db.database` keeps `${slug}` and `${schema}` as they are, because the adapters fill them in for each
+ * variant: SQLite the slug, MySQL the schema name.
+ */
 const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig => {
   const expanded = Object.fromEntries(
     Object.entries(db).map(([name, value]) => [
       name,
       typeof value === "string"
-        ? renderTemplate(value, { env: environment, variant: false, setting: `db.${name}` })
+        ? renderTemplate(
+            name === "database" ? value.replace(/\$\{(?:slug|schema)\}/g, (match) => `$${match}`) : value,
+            {
+              env: environment,
+              variant: false,
+              setting: `db.${name}`,
+            },
+          )
         : value,
     ]),
   ) as DbConfig;
   if (typeof expanded.port === "string") {
     expanded.port = positivePort(expanded.port, "db.port");
+  }
+  if (expanded.database?.includes("${slug}") && expanded.type !== "sqlite") {
+    throw new Error("db.database: ${slug} is for type sqlite");
+  }
+  if (expanded.database?.includes("${schema}") && expanded.type !== "mysql") {
+    throw new Error("db.database: ${schema} is for type mysql");
   }
   return expanded;
 };
@@ -431,6 +453,17 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
   const configDir = dirname(configPath);
   const environment = memoize(options.environment ?? (() => process.env));
   const detected = memoize(() => detectConnection(configDir, environment));
+  /** The `.db` file pattern of the former location, when it applies: see "SQLite files of the former location". */
+  const formerDatabase = memoize((): string | undefined => {
+    const found = findFormerSqliteDatabase(configDir, config.db?.database);
+    if (found === undefined) {
+      return undefined;
+    }
+    if (config.db === undefined) {
+      return detected().source === "default" ? found : undefined;
+    }
+    return config.db.type === "sqlite" ? found : undefined;
+  });
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env, environment);
   const { runtime, migrations } = readRuntimeState(configDir, env, Object.keys(variant.watches));
@@ -442,18 +475,38 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     configPath,
     configDir,
     warnings: [...discovered.warnings, ...read.warnings],
-    migrations: [...read.migrations, ...migrations],
   };
   // The database and its source are read lazily: detecting them is what asks the environment provider.
   // `environment` is a function and stays out of enumeration so a resolved configuration still prints and clones.
   Object.defineProperties(resolved, {
     environment: { enumerable: false, configurable: true, value: environment },
+    formerDatabase: { enumerable: false, configurable: true, get: formerDatabase },
+    migrations: {
+      enumerable: true,
+      configurable: true,
+      get: memoize(() => {
+        const former = formerDatabase();
+        return [
+          ...read.migrations,
+          ...migrations,
+          ...(former === undefined ? [] : [formerDatabaseNotice(configPath, former)]),
+        ];
+      }),
+    },
     db: {
       enumerable: true,
       configurable: true,
-      get: memoize(() =>
-        expandDb(mergeDbConfig(config.db?.dialect === "sqlite" ? {} : detected().config, config.db), environment),
-      ),
+      get: memoize(() => {
+        const found = config.db?.type === "sqlite" ? SQLITE_DEFAULTS : detected().config;
+        // the database name of another type (the SQLite default, a MySQL prefix) says nothing about an explicit type
+        const { database: foreign, ...unnamed } = found;
+        const base = config.db?.type === undefined || config.db.type === found.type ? found : unnamed;
+        const former = formerDatabase();
+        return expandDb(
+          mergeDbConfig(former === undefined ? base : { ...base, database: former }, config.db),
+          environment,
+        );
+      }),
     },
     source: {
       enumerable: false,
@@ -467,8 +520,13 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
         const origins = originsFromRaw(config, configFileOrigin(cwd, configPath));
         applyTemplateOrigins(origins, config, environment());
         fillDefaultOrigins(origins, variant.watches);
-        if (config.db?.dialect !== "sqlite") {
+        if (config.db?.type !== "sqlite") {
           fillDbOrigins(origins, detected(), environment());
+        } else if (config.db.database === undefined) {
+          origins["db.database"] = "# default";
+        }
+        if (formerDatabase() !== undefined) {
+          origins["db.database"] = "# from the .db files of an earlier version";
         }
         fillGapOrigins(origins, variant, "variant");
         if (config.variant?.abbr === undefined) {
@@ -500,7 +558,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
         fillGapOrigins(origins, configPath, "configPath");
         fillGapOrigins(origins, configDir, "configDir");
         fillGapOrigins(origins, resolved.warnings, "warnings");
-        fillGapOrigins(origins, resolved.migrations, "migrations");
+        fillGapOrigins(origins, (resolved as ResolvedConfig).migrations, "migrations");
         return origins;
       }),
     },
@@ -558,6 +616,7 @@ export {
   type OnboardingApplication,
 } from "./autodetect.js";
 export { amendDotenv, dotenvFor, parseDotenv } from "./dotenv.js";
+export { findFormerSqliteDatabase, formerDatabaseNotice } from "./former-database.js";
 export {
   addSchemaHeader,
   findSchemaHeader,
@@ -586,7 +645,7 @@ export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {
   DbConfig,
-  DbDialect,
+  DbType,
   PortRange,
   ResolvedConfig,
   ResolvedRuntime,
@@ -601,6 +660,7 @@ export type {
 export {
   DEFAULT_PORT_RANGE,
   DEFAULT_PREFIX,
+  DEFAULT_SQLITE_DATABASE,
   DEFAULT_URL,
   envSegment,
   LOCAL_FILENAME,

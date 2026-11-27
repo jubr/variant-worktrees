@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
@@ -21,7 +21,7 @@ describe("variant client operations", () => {
       execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
       const baseConfig = loadConfig({ cwd: directory, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" as const } },
+        config: { ...baseConfig, db: { type: "sqlite" as const } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
       });
@@ -29,7 +29,9 @@ describe("variant client operations", () => {
       const created = await client.create("test-feature");
       expect(created.slug).toBe("test-feature");
       expect(created.implodeClean).toBe(true);
-      expect(created.target).toBe(join(directory, ".cache", "variants", "test-feature.db"));
+      expect(created.target).toBe(
+        join(realpathSync(directory), "_v-test-feature", ".cache", "variants", "test-feature.sqlite"),
+      );
       expect(existsSync(created.target)).toBe(false);
       expect(existsSync(join(directory, ".cache", "variants", "test-feature.yaml"))).toBe(false);
       expect((await client.list()).map((variant) => variant.slug)).toEqual(["test-feature"]);
@@ -50,7 +52,7 @@ describe("variant client operations", () => {
     try {
       const baseConfig = loadConfig({ cwd: directory });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
         worktree: false,
@@ -78,7 +80,7 @@ describe("variant client operations", () => {
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
       });
@@ -109,7 +111,7 @@ describe("variant client operations", () => {
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
       });
@@ -143,7 +145,7 @@ describe("variant client operations", () => {
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         now: () => new Date(2026, 10, 4, 12, 22, 5),
@@ -154,7 +156,7 @@ describe("variant client operations", () => {
       const written = readFileSync(stateFile, "utf8");
       expect(written).toContain("createdAt: 2026-11-04_12:22:05");
       expect(written).toContain("slug: demo");
-      expect(written).toContain("dialect: sqlite");
+      expect(written).toContain("type: sqlite");
       expect(existsSync(join(repo, ".cache", "variants", "demo.yaml"))).toBe(false);
 
       writeFileSync(stateFile, "slug: demo\ncreatedAt: 2026-01-02_03:04:05\n");

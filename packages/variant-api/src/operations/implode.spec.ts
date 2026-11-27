@@ -38,7 +38,7 @@ const yellowTrace = (command: string): string => `\n\x1b[33m+ ${command}\x1b[0m\
 
 const CONFIG = lines(
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  storage: {}",
   "  watches:",
@@ -518,7 +518,7 @@ describe("implode cleanup", () => {
 
         expect(messages.join("\n")).not.toContain("dist/");
       },
-      lines("db:", "  dialect: sqlite", "variant:", "  implode: { preRm: [dist] }"),
+      lines("db:", "  type: sqlite", "variant:", "  implode: { preRm: [dist] }"),
     ));
 
   it("keeps a matching directory that contains a tracked file", () =>

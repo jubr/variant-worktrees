@@ -3,7 +3,7 @@
 # The example project: a Vite app (fe) and a NestJS app (be) on SQLite.
 # `variant watch` runs both dev servers on the host, `variant up` runs both as containers.
 db:
-  dialect: sqlite
+  type: sqlite
 
 variant:
   abbr: vw # the host of the open URL below; without it the abbreviation would come from this directory's name

@@ -20,7 +20,7 @@ const loaded = (yaml: string) => {
   }
 };
 
-const postgres = (multi: string): string => `db:\n  dialect: postgres\n  host: 127.0.0.1\n  multi:\n${multi}`;
+const postgres = (multi: string): string => `db:\n  type: postgres\n  host: 127.0.0.1\n  multi:\n${multi}`;
 
 describe("multi-schema settings", () => {
   it("defaults schemaPrefix when only tenantsCmd is set", () => {
@@ -35,14 +35,14 @@ describe("multi-schema settings", () => {
   });
 
   it("rejects both list forms and names db.multi", () => {
-    expect(issues({ dialect: "postgres", host: "h", multi: { tenants: "east", tenantsCmd: "echo east" } })).toContain(
+    expect(issues({ type: "postgres", host: "h", multi: { tenants: "east", tenantsCmd: "echo east" } })).toContain(
       "db.multi",
     );
   });
 
   it("rejects neither list form and names db.multi.tenants", () => {
-    expect(issues({ dialect: "postgres", host: "h", multi: {} })).toContain("db.multi.tenants");
-    expect(issues({ dialect: "postgres", host: "h", multi: { tenants: "" } })).toContain("tenants");
+    expect(issues({ type: "postgres", host: "h", multi: {} })).toContain("db.multi.tenants");
+    expect(issues({ type: "postgres", host: "h", multi: { tenants: "" } })).toContain("tenants");
   });
 
   it("does not shape the prefix", () => {
@@ -57,7 +57,7 @@ describe("multi-schema settings", () => {
     const { steps } = loaded(
       [
         "db:",
-        "  dialect: sqlite",
+        "  type: sqlite",
         "variant:",
         "  steps:",
         "    provision:",
@@ -75,7 +75,7 @@ describe("multi-schema settings", () => {
 
   it("rejects multi on the runtime db", () => {
     expect(() =>
-      RuntimeSchema.parse({ db: { dialect: "postgres", schema: "v_demo", multi: { tenants: "east" } } }),
+      RuntimeSchema.parse({ db: { type: "postgres", schema: "v_demo", multi: { tenants: "east" } } }),
     ).toThrow(/multi/);
   });
 });

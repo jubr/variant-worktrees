@@ -4,8 +4,7 @@ import { join } from "node:path";
 import { loadConfig } from "variant-config";
 import { createVariantClient } from "./index.js";
 
-const OLD =
-  "db:\n  dialect: sqlite\nvariant:\n  reservedPorts: [3000]\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+const OLD = "db:\n  type: sqlite\nvariant:\n  reservedPorts: [3000]\n  instances:\n    be: { kind: nestjs, dir: . }\n";
 const OLD_LOCAL = "runtime:\n  slug: main\n  instances:\n    be: { port: 62060 }\n";
 
 describe("legacy configuration in the library", () => {

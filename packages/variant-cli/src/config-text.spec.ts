@@ -241,7 +241,7 @@ describe("config text origins", () => {
     }));
 
   it("redacts a file password and still names the file", () =>
-    withProject("db:\n  dialect: postgres\n  host: db.example\n  password: hunter2\n", async (directory) => {
+    withProject("db:\n  type: postgres\n  host: db.example\n  password: hunter2\n", async (directory) => {
       for (const args of [["config"], ["config", "--json"], ["config", "--yaml"]]) {
         const result = await config(directory, args);
         expect(result.exitCode).toBe(0);
@@ -281,7 +281,7 @@ describe("config text origins", () => {
     }));
 
   it("exits 1 with the validation error when variants.yaml is invalid", () =>
-    withProject("db:\n  dialect: not-a-dialect\n", async (directory) => {
+    withProject("db:\n  type: not-a-type\n", async (directory) => {
       const result = await config(directory, ["config"]);
 
       expect(result.exitCode).toBe(1);

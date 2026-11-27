@@ -97,8 +97,7 @@ describe("worktree configuration file", () => {
     }));
 });
 
-const dbFile = (port: string): string =>
-  `db:\n  dialect: postgres\n  host: localhost\n  port: ${port}\n  database: app\n`;
+const dbFile = (port: string): string => `db:\n  type: postgres\n  host: localhost\n  port: ${port}\n  database: app\n`;
 
 describe("db.port", () => {
   it("resolves a digit string to the integer", () =>

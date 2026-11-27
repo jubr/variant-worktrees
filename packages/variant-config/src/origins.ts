@@ -55,8 +55,8 @@ export const fillDbOrigins = (
     if (origins[path] !== undefined) {
       continue;
     }
-    if (field === "dialect") {
-      const variable = detected.source === "env" ? dialectVariable(env) : undefined;
+    if (field === "type") {
+      const variable = detected.source === "env" ? typeVariable(env) : undefined;
       origins[path] = variable ? `# from env ${variable}` : "# default";
       continue;
     }
@@ -70,13 +70,13 @@ export const fillDbOrigins = (
   if (origins.db === undefined) {
     origins.db = detected.source === "default" ? "# default" : "# autodetect connection";
   }
-  if (origins["db.dialect"] === undefined) {
-    const variable = dialectVariable(env);
-    origins["db.dialect"] = variable ? `# from env ${variable}` : "# default";
+  if (origins["db.type"] === undefined) {
+    const variable = typeVariable(env);
+    origins["db.type"] = variable ? `# from env ${variable}` : "# default";
   }
 };
 
-const dialectVariable = (env: NodeJS.ProcessEnv): string | undefined => {
+const typeVariable = (env: NodeJS.ProcessEnv): string | undefined => {
   const url = env.DATABASE_URL;
   if (
     url?.startsWith("postgres") ||

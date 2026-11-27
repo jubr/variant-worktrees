@@ -73,7 +73,7 @@ describe("variants.example.yaml", () => {
   });
 
   it("lists alternatives in end-of-line comments", () => {
-    expect(exampleText).toMatch(/dialect: postgres +# .*sqlite/);
+    expect(exampleText).toMatch(/type: postgres +# .*sqlite/);
     expect(exampleText).toMatch(/kind: vite +# .*nestjs/);
     expect(exampleText).toMatch(/trigger: titleEvent +# .*hook/);
     expect(exampleText).toMatch(/hookScope: workspace +# .*user/);
@@ -115,6 +115,6 @@ describe("variants.local.example.yaml", () => {
 
   it("lists alternatives in end-of-line comments", () => {
     expect(text).toMatch(/mode: watch +# .*up/);
-    expect(text).toMatch(/dialect: postgres +# .*sqlite/);
+    expect(text).toMatch(/type: postgres +# .*sqlite/);
   });
 });

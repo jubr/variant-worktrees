@@ -17,7 +17,7 @@ describe("detectConnection", () => {
 
     expect(detected.source).toBe("env");
     expect(detected.config).toMatchObject({
-      dialect: "postgres",
+      type: "postgres",
       host: "127.0.0.1",
       port: 5432,
       user: "variant",
@@ -27,20 +27,55 @@ describe("detectConnection", () => {
     });
   });
 
-  it("falls back to a SQLite file in the directory when nothing is set", () => {
+  it("falls back to one SQLite file per slug when nothing is set", () => {
     const detected = detectConnection("/proj", () => ({}));
 
     expect(detected.source).toBe("default");
-    expect(detected.config).toEqual({ dialect: "sqlite", filename: "/proj/.cache/variants/variants.db" });
+    expect(detected.config).toEqual({ type: "sqlite", database: ".cache/variants/${slug}.sqlite" });
+  });
+});
+
+/** Specification: openspec/specs/variant-config/core/spec.md (SQLite database file) */
+describe("detectConnection for SQLite", () => {
+  it("reads SQLITE_DATABASE and SQLITE_PATH as the database file, the first one winning", () => {
+    expect(detectConnection("/proj", () => ({ SQLITE_DATABASE: "a.sqlite" })).config).toEqual(
+      expect.objectContaining({ type: "sqlite", database: "a.sqlite" }),
+    );
+    expect(detectConnection("/proj", () => ({ SQLITE_PATH: "/data/b.sqlite" })).config).toEqual(
+      expect.objectContaining({ type: "sqlite", database: "/data/b.sqlite" }),
+    );
+    const both = detectConnection("/proj", () => ({ SQLITE_DATABASE: "a.sqlite", SQLITE_PATH: "/x.sqlite" }));
+    expect(both.config.database).toBe("a.sqlite");
+    expect(both.config).not.toHaveProperty("filename");
+  });
+
+  it("reads the file of a sqlite: DATABASE_URL", () => {
+    const file = (url: string) => detectConnection("/proj", () => ({ DATABASE_URL: url })).config.database;
+    expect(file("sqlite:///var/data/app.sqlite")).toBe("/var/data/app.sqlite");
+    expect(file("sqlite:app.sqlite")).toBe("app.sqlite");
+    expect(file("sqlite:./data/app.sqlite")).toBe("./data/app.sqlite");
+    expect(file("sqlite://data/app.sqlite")).toBe("data/app.sqlite");
+  });
+
+  it("lets a variable win over the DATABASE_URL file and names the variable that gave the file", () => {
+    const { config, variables } = detectConnection("/proj", () => ({
+      DATABASE_URL: "sqlite:///url.sqlite",
+      SQLITE_DATABASE: "var.sqlite",
+    }));
+    expect(config.database).toBe("var.sqlite");
+    expect(variables.database).toBe("SQLITE_DATABASE");
+    expect(detectConnection("/proj", () => ({ DATABASE_URL: "sqlite:url.sqlite" })).variables.database).toBe(
+      "DATABASE_URL",
+    );
   });
 });
 
 /** Specification: openspec/specs/variant-config/core/spec.md (MariaDB detection) */
 describe("detectConnection for MariaDB", () => {
-  it("detects a mariadb:// URL as the mysql dialect and keeps the URL", () => {
+  it("detects a mariadb:// URL as the mysql type and keeps the URL", () => {
     const { config } = detectConnection("/proj", () => ({ DATABASE_URL: "mariadb://app@localhost/app" }));
 
-    expect(config).toMatchObject({ dialect: "mysql", url: "mariadb://app@localhost/app" });
+    expect(config).toMatchObject({ type: "mysql", url: "mariadb://app@localhost/app" });
   });
 
   it("reads MARIADB_ variables like their MYSQL_ counterparts", () => {
@@ -53,13 +88,30 @@ describe("detectConnection for MariaDB", () => {
     }));
 
     expect(config).toMatchObject({
-      dialect: "mysql",
+      type: "mysql",
       host: "maria.local",
       port: 3307,
       user: "app",
       password: "pw",
-      database: "shop",
+      database: "shop__${schema}",
     });
+  });
+
+  it("makes the MySQL database name the prefix of the database of each variant", () => {
+    const { config, variables } = detectConnection("/proj", () => ({ MYSQL_HOST: "h", MYSQL_DATABASE: "shop" }));
+
+    expect(config.database).toBe("shop__${schema}");
+    expect(variables.database).toBe("MYSQL_DATABASE");
+  });
+
+  it("detects no database name for MySQL from a URL alone", () => {
+    const { config } = detectConnection("/proj", () => ({ DATABASE_URL: "mysql://app@h/shop" }));
+
+    expect(config.database).toBeUndefined();
+  });
+
+  it("leaves the PostgreSQL database name as it is", () => {
+    expect(detectConnection("/proj", () => ({ POSTGRES_HOST: "h", POSTGRES_DB: "shop" })).config.database).toBe("shop");
   });
 
   it("lets a MYSQL_ variable win over the MARIADB_ one of the same setting", () => {
@@ -70,9 +122,9 @@ describe("detectConnection for MariaDB", () => {
 
   it("detects Postgres before MySQL and MariaDB, and those before SQLite", () => {
     expect(
-      detectConnection("/proj", () => ({ POSTGRES_HOST: "p", MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.dialect,
+      detectConnection("/proj", () => ({ POSTGRES_HOST: "p", MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.type,
     ).toBe("postgres");
-    expect(detectConnection("/proj", () => ({ MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.dialect).toBe("mysql");
+    expect(detectConnection("/proj", () => ({ MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.type).toBe("mysql");
   });
 });
 
@@ -108,8 +160,8 @@ describe("detectConnection variables", () => {
     ).toEqual({ host: "MYSQL_HOST", password: "MARIADB_PASSWORD" });
     expect(detectConnection("/proj", () => ({ SQLITE_DATABASE: "a", SQLITE_PATH: "/x.db" })).variables).toEqual({
       database: "SQLITE_DATABASE",
-      filename: "SQLITE_PATH",
     });
+    expect(detectConnection("/proj", () => ({ SQLITE_PATH: "/x.db" })).variables).toEqual({ database: "SQLITE_PATH" });
   });
 
   it("names nothing when nothing is detected", () => {

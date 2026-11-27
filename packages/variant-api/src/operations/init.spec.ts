@@ -65,9 +65,9 @@ describe("init", () => {
     const config = parseYaml(read("variants.yaml"));
     expect(config.variant.prefix).toBe("_v-");
     expect(config.db).toMatchObject({
-      dialect: "postgres",
+      type: "postgres",
       host: "${POSTGRES_HOST}",
-      database: "app",
+      database: "${POSTGRES_DB}",
       password: "${POSTGRES_PASSWORD}",
     });
     expect(read("variants.yaml")).not.toContain("pw\n");
@@ -75,7 +75,7 @@ describe("init", () => {
     expect(read("mise.toml")).toContain("packslip:jubr/variant-worktrees");
     expect(result.gitignore).toMatchObject({ status: "created", changed: true });
     expect(result.mise).toMatchObject({ status: "created", changed: true, file: join(root, "mise.toml") });
-    expect(result.detected).toMatchObject({ dialect: "postgres", prefix: "_v-" });
+    expect(result.detected).toMatchObject({ type: "postgres", prefix: "_v-" });
   });
 
   it("writes a final file when no database is detected: no db key, nothing left to migrate", async () => {
@@ -122,7 +122,7 @@ describe("init", () => {
 
     const config = loadConfig({ cwd: root, env: {} });
     const created = await createVariantClient({
-      config: { ...config, db: { dialect: "sqlite" } },
+      config: { ...config, db: { type: "sqlite" } },
       cwd: root,
       stateDir: join(root, ".cache", "variants"),
     }).create("demo");
@@ -161,31 +161,31 @@ describe("init", () => {
   });
 
   it("skips the file step and still handles the other steps", async () => {
-    put("variants.yaml", "db:\n  dialect: sqlite\n");
+    put("variants.yaml", "db:\n  type: sqlite\n");
     const { client } = setup();
 
     const result = await client.init({ file: false });
 
     expect(result.file).toBeNull();
     expect(result.detected).toBeNull();
-    expect(read("variants.yaml")).toBe("db:\n  dialect: sqlite\n");
+    expect(read("variants.yaml")).toBe("db:\n  type: sqlite\n");
     expect(read(".gitignore")).toBe("_v-*\n");
     expect(read("mise.toml")).toContain("packslip:jubr");
   });
 
   it("refuses an existing variants.yaml naming it and changes nothing", async () => {
-    put("variants.yaml", "db:\n  dialect: sqlite\n");
+    put("variants.yaml", "db:\n  type: sqlite\n");
     const { client } = setup();
     const before = files();
 
     await expect(client.init()).rejects.toThrow(join(root, "variants.yaml"));
 
     expect(files()).toEqual(before);
-    expect(read("variants.yaml")).toBe("db:\n  dialect: sqlite\n");
+    expect(read("variants.yaml")).toBe("db:\n  type: sqlite\n");
   });
 
   it("refuses an existing variants.yml too", async () => {
-    put("variants.yml", "db:\n  dialect: sqlite\n");
+    put("variants.yml", "db:\n  type: sqlite\n");
     const { client } = setup();
 
     await expect(client.init()).rejects.toThrow(join(root, "variants.yml"));
@@ -206,7 +206,7 @@ describe("init", () => {
     await client.init();
 
     const loaded = createVariantClient({ cwd: root, miseBinPath: fake.binary, worktree: false }).config();
-    expect(loaded.db).toMatchObject({ dialect: "mysql", host: "maria", database: "shop" });
+    expect(loaded.db).toMatchObject({ type: "mysql", host: "maria", database: "shop__${schema}" });
   });
 
   describe(".gitignore", () => {

@@ -149,7 +149,7 @@ describe("directory option", () => {
     const start = scratch("start");
     const absent = join(start, "missing");
     try {
-      writeFileSync(join(start, "variants.yaml"), yaml("db:\n  dialect: not-a-dialect\n"));
+      writeFileSync(join(start, "variants.yaml"), yaml("db:\n  type: not-a-type\n"));
 
       const result = await run(["-C", absent, "config"], start);
 

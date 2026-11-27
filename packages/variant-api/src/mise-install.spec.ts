@@ -73,7 +73,7 @@ describe("create installs Mise tools", () => {
       );
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -109,7 +109,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -141,7 +141,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -178,7 +178,7 @@ describe("create installs Mise tools", () => {
       );
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -213,7 +213,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -240,7 +240,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, 'case "$3" in trust) echo TRUST_BROKE >&2; exit 1;; esac\nexit 0');
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -269,7 +269,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, 'case "$3" in install) echo INSTALL_BROKE >&2; exit 1;; esac\nexit 0');
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -293,7 +293,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -316,7 +316,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -341,7 +341,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -368,7 +368,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -394,7 +394,7 @@ describe("create installs Mise tools", () => {
       const client = createVariantClient({
         config: {
           ...baseConfig,
-          db: { dialect: "sqlite" },
+          db: { type: "sqlite" },
           variant: { ...baseConfig.variant, mise: { binPath: join(parent, "missing-mise") } },
         },
         cwd: repo,
@@ -416,7 +416,7 @@ describe("create installs Mise tools", () => {
       initRepo(repo);
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
       });
@@ -442,7 +442,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -469,7 +469,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, `case "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0`);
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -498,7 +498,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, `case "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0`);
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -524,7 +524,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, "exit 0");
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -554,7 +554,7 @@ describe("create installs Mise tools", () => {
       );
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,
@@ -585,7 +585,7 @@ describe("create installs Mise tools", () => {
       const mise = stubMise(parent, 'case "$3" in install) echo THIS_RUN;; esac\nexit 0');
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         miseBinPath: mise.binary,

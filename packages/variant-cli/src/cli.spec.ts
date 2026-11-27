@@ -68,7 +68,7 @@ describe("variant CLI", () => {
   it("logs a lifecycle command with the flags as they were typed", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-cli-log-"));
     const configPath = join(directory, "variants.yaml");
-    writeFileSync(configPath, "db:\n  dialect: sqlite\n");
+    writeFileSync(configPath, "db:\n  type: sqlite\n");
     try {
       const result = await runCli(["create", "--from", "abc", "--pull-ff=no", "--log-level=info"], {
         VARIANT_CONFIG: configPath,
@@ -280,7 +280,7 @@ describe("variant CLI", () => {
     const withExtra = async (run: (environment: Record<string, string>) => Promise<void>): Promise<void> => {
       const directory = mkdtempSync(join("/tmp", "variant-cli-warn-"));
       const configPath = join(directory, "variants.yaml");
-      writeFileSync(configPath, "db:\n  dialect: sqlite\n  colour: red\nvariant:\n  ui:\n    color: red\n");
+      writeFileSync(configPath, "db:\n  type: sqlite\n  colour: red\nvariant:\n  ui:\n    color: red\n");
       try {
         await run({ VARIANT_CONFIG: configPath });
       } finally {
@@ -312,7 +312,7 @@ describe("variant CLI", () => {
     it("prints nothing for a configuration without extra keys", async () => {
       const directory = mkdtempSync(join("/tmp", "variant-cli-warn-"));
       const configPath = join(directory, "variants.yaml");
-      writeFileSync(configPath, "db:\n  dialect: sqlite\n");
+      writeFileSync(configPath, "db:\n  type: sqlite\n");
       try {
         const result = await runCli(["config", "--json"], { VARIANT_CONFIG: configPath });
 
@@ -328,7 +328,7 @@ describe("variant CLI", () => {
     const configPath = join(directory, "variants.yaml");
     writeFileSync(
       configPath,
-      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: sleep 30 }\n",
+      "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: sleep 30 }\n",
     );
     const { FORCE_COLOR: _color, ...inherited } = process.env;
     const proc = Bun.spawn(["bun", "run", "src/cli.ts", "watch", "-s", "demo"], {
@@ -369,7 +369,7 @@ describe("variant CLI", () => {
     const configPath = join(directory, "variants.yaml");
     writeFileSync(
       configPath,
-      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
+      "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
     );
     try {
       const result = await runCli(["watch", "-s", "demo", "--json"], { VARIANT_CONFIG: configPath });
@@ -393,7 +393,7 @@ describe("variant CLI", () => {
   it("runs the config, create, list, implode smoke sequence", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-")));
     const configPath = join(directory, "variants.yaml");
-    writeFileSync(configPath, "db:\n  dialect: sqlite\n");
+    writeFileSync(configPath, "db:\n  type: sqlite\n");
     execFileSync("git", ["init", "-q", "-b", "main", directory]);
     execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
     execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
@@ -442,10 +442,7 @@ describe("variant CLI", () => {
     execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
     execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
     writeFileSync(join(directory, "mise.toml"), "[tools]\n");
-    writeFileSync(
-      join(directory, "variants.yaml"),
-      `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`,
-    );
+    writeFileSync(join(directory, "variants.yaml"), `db:\n  type: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
     execFileSync("git", ["-C", directory, "add", "mise.toml", "variants.yaml"]);
     execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
     writeFileSync(log, "");
@@ -473,7 +470,7 @@ describe("variant CLI", () => {
 
   it("rejects --mise-install=later before creating a worktree", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-mise-")));
-    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
     execFileSync("git", ["init", "-q", "-b", "main", directory]);
     execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
     execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);

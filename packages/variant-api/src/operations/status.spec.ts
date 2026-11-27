@@ -36,7 +36,7 @@ const withProject = async (
   try {
     put(
       "variants.yaml",
-      "db:\n  dialect: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n",
+      "db:\n  type: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n",
     );
     const client = (cwd = directory): Client =>
       createVariantClient({
@@ -96,11 +96,11 @@ describe("client.status", () => {
 
   it("knows a variant that has only a database target", () =>
     withProject(async ({ put, client, directory }) => {
-      put(".cache/variants/orphan.db", "");
+      put(".cache/variants/orphan.sqlite", "");
 
       const status = await client().status("orphan");
 
-      expect(status.target).toBe(join(directory, ".cache", "variants", "orphan.db"));
+      expect(status.target).toBe(join(directory, ".cache", "variants", "orphan.sqlite"));
       expect(status.mode).toBeUndefined();
     }));
 
@@ -123,6 +123,31 @@ describe("client.status", () => {
     }));
 });
 
+describe("status of a SQLite variant", () => {
+  it("carries the file as runtime.db.database and has no filename", () =>
+    withProject(async ({ put, client, directory }) => {
+      const file = join(directory, "_v-demo", ".cache", "variants", "demo.sqlite");
+      put("_v-demo/.cache/variant/state.yaml", `slug: demo\ntype: sqlite\ntarget: ${file}\n`);
+
+      const status = await client().status("demo");
+
+      expect(status.runtime?.db).toEqual({ type: "sqlite", database: file });
+      expect(status.runtime?.db).not.toHaveProperty("filename");
+      expect(status.target).toBe(join(directory, ".cache", "variants", "demo.sqlite"));
+    }));
+
+  it("reads the filename of a runtime dump of an earlier version as the database", () =>
+    withProject(async ({ put, client, directory }) => {
+      const file = join(directory, "_v-demo", ".cache", "variants", "demo.sqlite");
+      put("_v-demo/.cache/variant/state.yaml", `slug: demo\ntype: sqlite\ntarget: ${file}\n`);
+      put("_v-demo/.cache/variant/runtime.yaml", `db:\n  type: sqlite\n  filename: ${file}\n`);
+
+      const status = await client().status("demo");
+
+      expect(status.runtime?.db).toEqual({ type: "sqlite", database: file });
+    }));
+});
+
 describe("status runtime meta information", () => {
   it("carries every value of the runtime section and the file it came from", () =>
     withProject(async ({ put, client, directory }) => {
@@ -132,7 +157,7 @@ describe("status runtime meta information", () => {
           "slug: demo",
           "mode: up",
           `dir: ${join(directory, "_v-demo")}`,
-          "db: { dialect: postgres, host: db.example, schema: v_demo }",
+          "db: { type: postgres, host: db.example, schema: v_demo }",
           "watches:",
           "  be: { port: 62061 }",
         ),
@@ -145,7 +170,7 @@ describe("status runtime meta information", () => {
         slug: "demo",
         mode: "up",
         dir: join(directory, "_v-demo"),
-        db: { dialect: "postgres", host: "db.example", schema: "v_demo" },
+        db: { type: "postgres", host: "db.example", schema: "v_demo" },
         watches: { be: { port: 62061 } },
       });
     }));
@@ -198,7 +223,7 @@ describe("status runtime meta information", () => {
     withProject(async ({ put, client }) => {
       put(
         "_v-demo/variants.local.yaml",
-        runtimeFile("slug: demo", "db: { dialect: postgres, host: h, password: secret }"),
+        runtimeFile("slug: demo", "db: { type: postgres, host: h, password: secret }"),
       );
 
       const status = await client().status("demo");
@@ -219,7 +244,7 @@ describe("status runtime meta information", () => {
 
   it("has no runtime and no mode for a variant without a runtime state", () =>
     withProject(async ({ put, client }) => {
-      put(".cache/variants/demo.yaml", "slug: demo\ntarget: v_demo\ndialect: sqlite\nstatePath: ''\ncreatedAt: now\n");
+      put(".cache/variants/demo.yaml", "slug: demo\ntarget: v_demo\ntype: sqlite\nstatePath: ''\ncreatedAt: now\n");
 
       const status = await client().status("demo");
 
@@ -293,12 +318,12 @@ describe("client.list with verbose", () => {
       runtimeFile(
         "slug: alpha",
         "mode: watch",
-        "db: { dialect: postgres, host: h, password: secret }",
+        "db: { type: postgres, host: h, password: secret }",
         "watches:",
         "  fe: { port: 62060 }",
       ),
     );
-    put(".cache/variants/beta.db", "");
+    put(".cache/variants/beta.sqlite", "");
   };
 
   it("gives every record what status gives for its slug", () =>

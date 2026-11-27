@@ -2,17 +2,17 @@ import type { DbConfig } from "variant-config";
 import type { DatabaseAdapter } from "../types.js";
 import { MysqlAdapter } from "./mysql.js";
 import { PostgresAdapter } from "./postgres.js";
-import { SqliteAdapter } from "./sqlite.js";
+import { SqliteAdapter, type SqliteLayout } from "./sqlite.js";
 
-export const createDatabaseAdapter = (config: DbConfig, stateDir: string): DatabaseAdapter => {
-  switch (config.dialect) {
+export const createDatabaseAdapter = (config: DbConfig, layout: SqliteLayout): DatabaseAdapter => {
+  switch (config.type) {
     case "postgres":
       return new PostgresAdapter(config);
     case "mysql":
       return new MysqlAdapter(config);
     case "sqlite":
-      return new SqliteAdapter(config, stateDir);
+      return new SqliteAdapter(config, layout);
     default:
-      throw new Error(`Unsupported database dialect: ${String(config.dialect)}`);
+      throw new Error(`Unsupported database type: ${String(config.type)}`);
   }
 };

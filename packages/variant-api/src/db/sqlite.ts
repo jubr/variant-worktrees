@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
-import type { DbConfig } from "variant-config";
+import { basename, dirname, extname, isAbsolute, join, resolve } from "node:path";
+import { type DbConfig, DEFAULT_SQLITE_DATABASE } from "variant-config";
 import type { DatabaseAdapter } from "../types.js";
 
 /** What both drivers' database classes share: opening a file creates it, `close` releases it. */
@@ -35,28 +35,65 @@ export const loadDatabase = async (bun: boolean, load: Load = importModule): Pro
   try {
     return (await load(specifier))[name] as Database;
   } catch (error) {
-    throw new Error(`The SQLite dialect needs bun:sqlite (Bun) or node:sqlite (Node 22.13 or newer): ${String(error)}`);
+    throw new Error(`The SQLite type needs bun:sqlite (Bun) or node:sqlite (Node 22.13 or newer): ${String(error)}`);
   }
 };
 
-const filenameFor = (config: DbConfig, stateDir: string, slug: string): string => {
-  if (config.filename?.includes("{slug}")) {
-    return config.filename.replace("{slug}", slug);
+/** Where the SQLite files of the slugs live: the directory of each variant, and the slugs that have one. */
+export interface SqliteLayout {
+  /** The directory a relative `db.database` is resolved against for `slug`: its worktree, or the main checkout. */
+  directoryOf(slug: string): string;
+  /** The slugs that have a worktree directory; `main` is not among them. */
+  slugs(): string[];
+}
+
+const SLUG = "${slug}";
+
+/** `name` of a template as a pattern that captures the slug, or `undefined` when the name has no `${slug}`. */
+const slugPattern = (name: string): RegExp | undefined => {
+  if (!name.includes(SLUG)) {
+    return undefined;
   }
-  const base = config.filename ? dirname(config.filename) : stateDir;
-  return join(base, `${slug}.db`);
+  const escaped = name.split(SLUG).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^${escaped.join("(.+)")}$`);
 };
 
+/**
+ * Specification: openspec/specs/variant-api/core/spec.md (One SQLite target for every slug)
+ *
+ * The database file of each slug is `db.database` (default `.cache/variants/${slug}.sqlite`) with `${slug}` replaced; a
+ * relative path is resolved against the directory of that variant, an absolute path stays.
+ */
 export class SqliteAdapter implements DatabaseAdapter {
-  readonly dialect = "sqlite";
+  readonly type = "sqlite";
 
   constructor(
     private readonly config: DbConfig,
-    private readonly stateDir: string,
+    private readonly layout: SqliteLayout,
   ) {}
 
+  private get template(): string {
+    return this.config.database ?? DEFAULT_SQLITE_DATABASE;
+  }
+
+  /** The file of `slug` before the check against the file of `main`. */
+  private fileOf(slug: string): string {
+    const template = this.template;
+    const own = resolve(this.layout.directoryOf(slug), template.replaceAll(SLUG, slug));
+    if (template.includes(SLUG) || !isAbsolute(template) || slug === "main") {
+      return own;
+    }
+    return join(dirname(own), `${slug}${extname(own)}`);
+  }
+
   target(slug: string): string {
-    return filenameFor(this.config, this.stateDir, slug);
+    const file = this.fileOf(slug);
+    if (slug !== "main" && file === this.fileOf("main")) {
+      throw new Error(
+        `The SQLite file of ${slug} would be the file of main (${file}): add \${slug} to db.database (${this.template}) or name a directory`,
+      );
+    }
+    return file;
   }
 
   async create(slug: string): Promise<string> {
@@ -88,14 +125,56 @@ export class SqliteAdapter implements DatabaseAdapter {
     return true;
   }
 
-  async list(): Promise<string[]> {
-    if (!existsSync(this.stateDir)) {
+  /** The directories that can hold a file named by the template, for every known variant directory. */
+  private directories(): string[] {
+    const template = this.template;
+    const directoryPart = dirname(template);
+    if (directoryPart.includes(SLUG)) {
       return [];
     }
-    return readdirSync(this.stateDir)
-      .filter((filename) => filename.endsWith(".db"))
-      .map((filename) => basename(filename, ".db"))
-      .sort();
+    if (isAbsolute(template)) {
+      return [directoryPart];
+    }
+    const slugs = ["main", ...this.layout.slugs()];
+    return [...new Set(slugs.map((slug) => resolve(this.layout.directoryOf(slug), directoryPart)))];
+  }
+
+  async list(): Promise<string[]> {
+    const candidates = new Set(this.layout.slugs());
+    const template = this.template;
+    const pattern = slugPattern(basename(template));
+    const extension = extname(template);
+    for (const directory of this.directories()) {
+      if (!existsSync(directory)) {
+        continue;
+      }
+      // a template without ${slug} names the file of main; the files of the other slugs sit beside it with its extension
+      const sharesName = pattern === undefined && isAbsolute(template) && extension !== "";
+      for (const name of pattern || sharesName ? readdirSync(directory) : []) {
+        const slug = pattern
+          ? pattern.exec(name)?.[1]
+          : name.endsWith(extension)
+            ? basename(name, extension)
+            : undefined;
+        if (slug !== undefined) {
+          candidates.add(slug);
+        }
+      }
+    }
+    const found: string[] = [];
+    for (const slug of candidates) {
+      if (slug === "main") {
+        continue;
+      }
+      try {
+        if (existsSync(this.target(slug))) {
+          found.push(slug);
+        }
+      } catch {
+        // a slug whose file would be the file of main is not a variant of its own
+      }
+    }
+    return found.sort();
   }
 
   async close(): Promise<void> {}

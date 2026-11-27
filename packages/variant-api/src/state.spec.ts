@@ -12,12 +12,24 @@ describe("variant state", () => {
       const path = writeState(directory, {
         slug: "test-feature",
         target: "v_test_feature",
-        dialect: "postgres",
+        type: "postgres",
         statePath: statePath(directory, "test-feature"),
         createdAt: "2026-01-01T00:00:00.000Z",
       });
       expect(readFileSync(path, "utf8")).toContain("slug: test-feature");
       expect(readState(directory, "test-feature")?.target).toBe("v_test_feature");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("reads the former dialect key of a record as type", () => {
+    const directory = tempDirectory();
+    try {
+      writeFileSync(statePath(directory, "demo"), "slug: demo\ntarget: v_demo\ndialect: postgres\n");
+      const state = readState(directory, "demo");
+      expect(state?.type).toBe("postgres");
+      expect(state).not.toHaveProperty("dialect");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

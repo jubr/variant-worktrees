@@ -30,7 +30,7 @@
         "db": {
           "type": "object",
           "properties": {
-            "dialect": {
+            "type": {
               "type": "string",
               "enum": [
                 "postgres",
@@ -71,10 +71,6 @@
               "minLength": 1
             },
             "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "filename": {
               "type": "string",
               "minLength": 1
             },

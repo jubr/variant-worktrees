@@ -56,7 +56,7 @@ const withProject = async (
     writeFileSync(join(directory, path), content);
   };
   try {
-    put("variants.yaml", `db:\n  dialect: sqlite\n${yaml}`);
+    put("variants.yaml", `db:\n  type: sqlite\n${yaml}`);
     put("app/index.html", "<!doctype html>");
     const printed: string[] = [];
     const options = (): UiCommandOptions => ({
@@ -150,7 +150,7 @@ describe("variant ui", () => {
   it("listens on variant.ui.port when VARIANT_UI_PORT is not set", () =>
     withProject(async (project) => {
       const port = await freePort();
-      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${port}\n`);
+      project.put("variants.yaml", `db:\n  type: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${port}\n`);
       const server = await attached(project, { env: { ...project.options().env, VARIANT_UI_PORT: undefined } });
       try {
         expect(new URL(project.printed[0] as string).port).toBe(String(port));
@@ -163,7 +163,7 @@ describe("variant ui", () => {
     withProject(async (project) => {
       const configured = await freePort();
       const given = await freePort();
-      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${configured}\n`);
+      project.put("variants.yaml", `db:\n  type: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${configured}\n`);
       const server = await attached(project, {
         env: { ...project.options().env, VARIANT_UI_PORT: String(given) },
       });
@@ -177,7 +177,7 @@ describe("variant ui", () => {
   it("treats an empty VARIANT_UI_PORT as unset", () =>
     withProject(async (project) => {
       const port = await freePort();
-      project.put("variants.yaml", `db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${port}\n`);
+      project.put("variants.yaml", `db:\n  type: sqlite\nvariant:\n  abbr: vw\n  ui:\n    port: ${port}\n`);
       const server = await attached(project, { env: { ...project.options().env, VARIANT_UI_PORT: "" } });
       try {
         expect(new URL(project.printed[0] as string).port).toBe(String(port));
@@ -199,10 +199,7 @@ describe("variant ui", () => {
 
   it("picks a free port of variant.ports.range", () =>
     withProject(async (project) => {
-      project.put(
-        "variants.yaml",
-        'db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ports:\n    range: "50000-50009"\n',
-      );
+      project.put("variants.yaml", 'db:\n  type: sqlite\nvariant:\n  abbr: vw\n  ports:\n    range: "50000-50009"\n');
       const server = await attached(project, { isFree: async (port) => port === 50003 });
       try {
         expect(new URL(project.printed[0] as string).port).toBe("50003");
@@ -226,10 +223,7 @@ describe("variant ui", () => {
   it("keeps a port named by VARIANT_UI_PORT that lies outside the range", () =>
     withProject(async (project) => {
       const port = await freePort();
-      project.put(
-        "variants.yaml",
-        'db:\n  dialect: sqlite\nvariant:\n  abbr: vw\n  ports:\n    range: "50000-50009"\n',
-      );
+      project.put("variants.yaml", 'db:\n  type: sqlite\nvariant:\n  abbr: vw\n  ports:\n    range: "50000-50009"\n');
       const server = await attached(project, { env: { ...project.options().env, VARIANT_UI_PORT: String(port) } });
       try {
         expect(new URL(project.printed[0] as string).port).toBe(String(port));

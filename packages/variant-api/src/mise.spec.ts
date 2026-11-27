@@ -119,12 +119,12 @@ describe("loadVariantConfig", () => {
     const mise = fakeMise(root, { env: "POSTGRES_HOST=db\nPOSTGRES_PASSWORD=s3\nJWT_SECRET=jwt\n" });
     writeFileSync(
       join(root, "variants.yaml"),
-      "db:\n  dialect: postgres\n  host: ${POSTGRES_HOST}\n  password: ${POSTGRES_PASSWORD}\nvariant:\n  steps:\n    seed: { cmd: 'echo ${JWT_SECRET}' }\n",
+      "db:\n  type: postgres\n  host: ${POSTGRES_HOST}\n  password: ${POSTGRES_PASSWORD}\nvariant:\n  steps:\n    seed: { cmd: 'echo ${JWT_SECRET}' }\n",
     );
 
     const config = loadVariantConfig({ cwd: root, miseBinPath: mise.binary });
     expect(mise.calls()).toEqual([]);
-    expect(config.db).toMatchObject({ dialect: "postgres", host: "db", password: "s3" });
+    expect(config.db).toMatchObject({ type: "postgres", host: "db", password: "s3" });
     expect(config.environment().JWT_SECRET).toBe("jwt");
     expect(mise.callsOf("env")).toHaveLength(1);
   });
@@ -170,7 +170,7 @@ describe("runMiseTrust", () => {
 describe("createVariantClient laziness", () => {
   it("starts no Mise process for list when the database is an explicit SQLite one", async () => {
     const mise = fakeMise(root, { env: "POSTGRES_HOST=db\n" });
-    writeFileSync(join(root, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    writeFileSync(join(root, "variants.yaml"), "db:\n  type: sqlite\n");
     const client = createVariantClient({ cwd: root, miseBinPath: mise.binary, worktree: false });
 
     await client.list();

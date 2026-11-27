@@ -44,7 +44,7 @@ export const runCli = (args: string[], environment: Record<string, string> = {})
 export const withVariants = async (
   run: (environment: Record<string, string>, directory: string) => Promise<void>,
   files: Record<string, string> | ((directory: string) => Record<string, string>) = {},
-  yaml = "db:\n  dialect: sqlite\n",
+  yaml = "db:\n  type: sqlite\n",
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-")));
   try {
@@ -54,8 +54,8 @@ export const withVariants = async (
     };
     // AIDEV-NOTE: the schema header keeps the migration quiet, so tests that assert an empty stderr see only their own output
     put("variants.yaml", findSchemaHeader(yaml) ? yaml : `${schemaHeaderFor("variants.yaml")}\n\n${yaml}`);
-    put(".cache/variants/beta.db", "");
-    put(".cache/variants/alpha.db", "");
+    put(".cache/variants/beta.sqlite", "");
+    put(".cache/variants/alpha.sqlite", "");
     put(
       "_v-alpha/variants.local.yaml",
       `${schemaHeaderFor("variants.local.yaml")}\n\nruntime:\n  slug: alpha\n  mode: watch\n  watches:\n    fe: { port: 62060, url: 'http://alpha.vw.localhost:62060/' }\n`,

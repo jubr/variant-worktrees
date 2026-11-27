@@ -46,7 +46,7 @@ const withRoot = async (
       join(main, "variants.yaml"),
       [
         "db:",
-        "  dialect: sqlite",
+        "  type: sqlite",
         "variant:",
         "  supervise: { startDelaySeconds: 0, checkoutPollSeconds: 0 }",
         "  watches:",
@@ -231,7 +231,7 @@ describe("operations from the variant root", () => {
         join(main, "variants.yaml"),
         [
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  supervise: { startDelaySeconds: 0, checkoutPollSeconds: 0 }",
           "  watches:",

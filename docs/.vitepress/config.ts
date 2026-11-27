@@ -24,6 +24,18 @@ export default defineConfig({
     "Manages git worktrees, database schemas, watches, environment variables, and implodes. CLI, MCP server, VS Code extension, and library.",
   base: "./",
   vite: { clearScreen: false },
+  markdown: {
+    // AIDEV-NOTE: on the Configuration page a plain `---` between two options renders as the tighter hr.option-sep (see custom.css)
+    config(md) {
+      const rule = md.renderer.rules.hr;
+      md.renderer.rules.hr = (tokens, index, options, env, self) =>
+        (env as { relativePath?: string }).relativePath === "guide/configuration.md"
+          ? '<hr class="option-sep">\n'
+          : rule
+            ? rule(tokens, index, options, env, self)
+            : self.renderToken(tokens, index, options);
+    },
+  },
   transformHead({ pageData }) {
     return faviconHeads(pageData.relativePath);
   },
@@ -61,8 +73,9 @@ export default defineConfig({
           { text: "Overview", link: "/guide/overview" },
           { text: "Installation", link: "/guide/installation" },
           { text: "Commands", link: "/guide/commands" },
-          { text: "CLI", link: "/guide/cli" },
           { text: "Configuration", link: "/guide/configuration" },
+          { text: "CLI", link: "/guide/cli" },
+          { text: "Database", link: "/guide/database" },
           { text: "Runtime", link: "/guide/runtime" },
           { text: "Workspace", link: "/guide/workspace" },
         ],

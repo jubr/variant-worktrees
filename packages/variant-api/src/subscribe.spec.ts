@@ -13,7 +13,8 @@ import type { VariantRecord, VariantUpdate } from "./types.js";
 const record = (slug: string, extra: Partial<VariantRecord> = {}): VariantRecord => ({
   slug,
   target: slug,
-  dialect: "sqlite",
+  type: "sqlite",
+  database: ".cache/variants/x.sqlite",
   statePath: "",
   createdAt: "",
   exists: true,
@@ -75,7 +76,7 @@ const withProject = async (
     writeFileSync(join(directory, path), content);
   };
   try {
-    put("variants.yaml", "db:\n  dialect: sqlite\n");
+    put("variants.yaml", "db:\n  type: sqlite\n");
     put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n");
     const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),
@@ -113,7 +114,7 @@ describe("client.subscribe", () => {
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
     writeFileSync(
       join(directory, "variants.yaml"),
-      "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n",
+      "db:\n  type: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n",
     );
     writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
     const client = createVariantClient({
@@ -164,7 +165,7 @@ describe("client.subscribe", () => {
         await received.until(() => true);
         put(
           ".cache/variants/fresh.yaml",
-          "slug: fresh\ntarget: fresh\ndialect: sqlite\nstatePath: ''\ncreatedAt: '2026-01-01T00:00:00.000Z'\n",
+          "slug: fresh\ntarget: fresh\ntype: sqlite\nstatePath: ''\ncreatedAt: '2026-01-01T00:00:00.000Z'\n",
         );
 
         await received.until((update) => slugs(update).includes("fresh"));

@@ -42,7 +42,7 @@ describe("the example project", () => {
   it("lists fe (Vite, url) and be (NestJS, env.sourceFile) with a seed step on SQLite", () => {
     const config = loadConfig({ cwd: exampleDirectory });
 
-    expect(config.db.dialect).toBe("sqlite");
+    expect(config.db.type).toBe("sqlite");
     expect(config.variant.steps.seed?.cmd).toBe("bun scripts/seed.mjs");
     expect(config.variant.watches).toMatchObject({
       fe: { kind: "vite", dir: "fe", url: DEFAULT_URL },

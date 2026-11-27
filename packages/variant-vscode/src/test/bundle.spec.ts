@@ -13,7 +13,7 @@ describe("the extension bundle", () => {
   it("loads variant-api under Node, dependencies that read import.meta.url included, and lists a project", async () => {
     const directory = mkdtempSync(join("/tmp", "variant-bundle-"));
     try {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
       const { entryPoints: _entry, outdir: _outdir, outbase: _outbase, outExtension: _ext, ...shared } = config;
       const outfile = join(directory, "probe.cjs");
       const build = {

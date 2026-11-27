@@ -270,7 +270,7 @@ describe("onboarding flow", () => {
             mise: { status: "skipped", changed: false, file: null, message: "skipped" },
             bun: { status: "unchecked", message: "not checked", hint: [] },
             detected: {
-              dialect: "sqlite",
+              type: "sqlite",
               databaseSource: "default",
               abbr: "w",
               prefix: "_v-",

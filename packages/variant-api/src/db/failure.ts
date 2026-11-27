@@ -5,7 +5,7 @@ import { levelForDirectory } from "../log-directory.js";
 /** Specification: openspec/specs/variant-api/logging/spec.md */
 
 export interface ContactTarget {
-  dialect: "postgres" | "mysql";
+  type: "postgres" | "mysql";
   database: string;
   host: string;
   port: number;
@@ -54,7 +54,7 @@ const CONTACT_CODES = new Set([
 /** MySQL errno values for access denied and an unknown database. Node's `ECONNREFUSED` errno is not in this set. */
 const CONTACT_ERRNOS = new Set([1044, 1045, 1049]);
 
-const fallbackPort = (dialect: "postgres" | "mysql"): number => (dialect === "postgres" ? 5432 : 3306);
+const fallbackPort = (type: "postgres" | "mysql"): number => (type === "postgres" ? 5432 : 3306);
 
 const numericPort = (port: DbConfig["port"], fallback: number): number => {
   if (typeof port === "number" && Number.isInteger(port) && port > 0) {
@@ -68,15 +68,15 @@ const numericPort = (port: DbConfig["port"], fallback: number): number => {
 
 /** Where a PostgreSQL or MySQL command was aimed. Built from the configured target, never from driver text. */
 export const contactTarget = (config: DbConfig): ContactTarget | undefined => {
-  if (config.dialect !== "postgres" && config.dialect !== "mysql") {
+  if (config.type !== "postgres" && config.type !== "mysql") {
     return undefined;
   }
-  const port = fallbackPort(config.dialect);
+  const port = fallbackPort(config.type);
   if (config.url) {
     try {
       const url = new URL(config.url);
       return {
-        dialect: config.dialect,
+        type: config.type,
         database: decodeURIComponent(url.pathname.replace(/^\//, "")),
         host: url.hostname,
         port: url.port === "" ? port : Number(url.port),
@@ -86,15 +86,15 @@ export const contactTarget = (config: DbConfig): ContactTarget | undefined => {
     }
   }
   return {
-    dialect: config.dialect,
-    database: config.database ?? "",
+    type: config.type,
+    database: (config.database ?? "").replaceAll("${schema}", "*"),
     host: config.host ?? "127.0.0.1",
     port: numericPort(config.port, port),
   };
 };
 
 export const contactWarning = (target: ContactTarget): string =>
-  `Cannot contact ${target.dialect} database ${target.database} at ${target.host}:${target.port}`;
+  `Cannot contact ${target.type} database ${target.database} at ${target.host}:${target.port}`;
 
 const nodesOf = (error: unknown): object[] => {
   const found: object[] = [];

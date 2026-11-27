@@ -37,7 +37,7 @@ const withUnreachable = async (
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-log-level-")));
   try {
-    const yaml = `${schemaHeaderFor("variants.yaml")}\n\ndb:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n`;
+    const yaml = `${schemaHeaderFor("variants.yaml")}\n\ndb:\n  type: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n`;
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
     writeFileSync(join(directory, "variants.yaml"), yaml);
     writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");

@@ -9,7 +9,7 @@ describe("the state directory", () => {
   it("is not created by a command that writes nothing into it", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-state-dir-")));
     try {
-      writeFileSync(join(directory, "variants.yaml"), `db:\n  dialect: sqlite\n  filename: ${directory}/db/app.db\n`);
+      writeFileSync(join(directory, "variants.yaml"), `db:\n  type: sqlite\n  database: ${directory}/db/app.sqlite\n`);
       const stateDir = join(directory, ".cache", "variants");
       const client = createVariantClient({
         config: loadConfig({ cwd: directory, env: {}, environment: () => ({}) }),
@@ -29,7 +29,7 @@ describe("the state directory", () => {
   it("is left alone, with its legacy states still read, when it exists", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-state-dir-")));
     try {
-      writeFileSync(join(directory, "variants.yaml"), `db:\n  dialect: sqlite\n  filename: ${directory}/db/app.db\n`);
+      writeFileSync(join(directory, "variants.yaml"), `db:\n  type: sqlite\n  database: ${directory}/db/app.sqlite\n`);
       const stateDir = join(directory, ".cache", "variants");
       mkdirSync(stateDir, { recursive: true });
       writeFileSync(join(stateDir, "old.yaml"), "slug: old\n");

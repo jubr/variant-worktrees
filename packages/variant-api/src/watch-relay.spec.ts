@@ -40,7 +40,7 @@ const until = async (condition: () => boolean, ms = 15000): Promise<void> => {
   }
 };
 
-const VARIANTS = "db:\n  dialect: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: fe }\n";
+const VARIANTS = "db:\n  type: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: fe }\n";
 
 interface Relay {
   project: string;

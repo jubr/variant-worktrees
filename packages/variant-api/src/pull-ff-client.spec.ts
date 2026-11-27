@@ -55,7 +55,7 @@ const pushAhead = (origin: string): void => {
 const clientFor = (repo: string) => {
   const config = loadConfig({ cwd: repo, env: {} });
   return createVariantClient({
-    config: { ...config, db: { dialect: "sqlite" } },
+    config: { ...config, db: { type: "sqlite" } },
     cwd: repo,
     stateDir: join(repo, ".cache", "variants"),
   });

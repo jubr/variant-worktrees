@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, schemaHeaderFor } from "variant-config";
 import { migrateConfigFiles } from "./migration.js";
@@ -9,8 +9,8 @@ import { runCli } from "./test/cli.js";
 const HEADER = schemaHeaderFor("variants.yaml");
 const LOCAL_HEADER = schemaHeaderFor("variants.local.yaml");
 // AIDEV-NOTE: the fixtures carry the schema header so the tests of the renames see no header change; the last describe covers it
-const BARE_OLD = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: . }\n";
-const BARE_NEW = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_OLD = "db:\n  type: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_NEW = "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: . }\n";
 const OLD = `${HEADER}\n\n${BARE_OLD}`;
 const NEW = `${HEADER}\n\n${BARE_NEW}`;
 // AIDEV-NOTE: CI="" because a CI runner sets CI=true, which turns the rewrite off; an empty value counts as unset
@@ -55,6 +55,16 @@ describe("configuration migration in the CLI", () => {
     expect(result.stderr).toContain(`git diff -- ${file}`);
     expect(result.stderr).toContain(`git checkout -- ${file}`);
     expect(JSON.parse(result.stdout)).toBeArray();
+  });
+
+  it("rewrites db.dialect as db.type and prints nothing about it", async () => {
+    const { file } = project(`${HEADER}\n\ndb:\n  dialect: sqlite\nvariant:\n  open: false\n`, true);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(`${HEADER}\n\ndb:\n  type: sqlite\nvariant:\n  open: false\n`);
+    expect(result.stderr).toBe("");
   });
 
   it("prints the rewrite once, and a second run finds a current file and prints nothing", async () => {
@@ -146,6 +156,75 @@ describe("configuration migration in the CLI", () => {
     migrateConfigFiles(config, { CI: "true" }, (line) => lines.push(line));
 
     expect(lines.filter((line) => line.startsWith("warning:"))).toHaveLength(1);
+  });
+});
+
+/** Specification: openspec/specs/variant-config/core/spec.md (SQLite files of the former location are kept) */
+describe("the SQLite files of the former location in the CLI", () => {
+  // AIDEV-NOTE: the developer's shell can carry POSTGRES_* from Mise; blank values keep detection on its SQLite default
+  const NO_DATABASE = {
+    ...ENV,
+    DATABASE_URL: "",
+    POSTGRES_HOST: "",
+    POSTGRES_USER: "",
+    POSTGRES_DB: "",
+    MYSQL_HOST: "",
+    MYSQL_USER: "",
+    MYSQL_DATABASE: "",
+    MARIADB_HOST: "",
+    MARIADB_USER: "",
+    MARIADB_DATABASE: "",
+    SQLITE_DATABASE: "",
+    SQLITE_PATH: "",
+  };
+  const CURRENT = `${HEADER}\n\nvariant:\n  open: false\n`;
+
+  const withFormerFile = (committed: boolean) => {
+    const found = project(CURRENT, committed);
+    mkdirSync(join(found.directory, ".cache", "variants"), { recursive: true });
+    writeFileSync(join(found.directory, ".cache", "variants", "demo.db"), "");
+    return found;
+  };
+
+  it("writes the former location into a tracked clean variants.yaml once, then prints nothing", async () => {
+    const { directory, file } = withFormerFile(true);
+    const database = join(directory, ".cache", "variants", "${slug}.db");
+
+    const first = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...NO_DATABASE });
+    const second = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...NO_DATABASE });
+
+    expect(first.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(`${CURRENT}db:\n  type: sqlite\n  database: ${database}\n`);
+    expect(first.stderr).toContain("db.database is now");
+    expect(first.stderr).toContain(`git checkout -- ${file}`);
+    expect(second.stderr).toBe("");
+  });
+
+  it("keeps provisioning demo into the former .db file after the rewrite", async () => {
+    const { directory, file } = withFormerFile(true);
+    const former = join(directory, ".cache", "variants", "demo.db");
+
+    const provisioned = await runCli(["provision", "-s", "demo", "--mise-install=no"], {
+      VARIANT_CONFIG: file,
+      ...NO_DATABASE,
+    });
+
+    expect(provisioned.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toContain("database:");
+    expect(existsSync(former)).toBe(true);
+    expect(existsSync(join(directory, ".cache", "variants", "demo.sqlite"))).toBe(false);
+  });
+
+  it("saves a backup when variants.yaml is untracked, and leaves a skipped file alone", async () => {
+    const untracked = withFormerFile(false);
+    await runCli(["list", "--json"], { VARIANT_CONFIG: untracked.file, ...NO_DATABASE });
+    expect(readFileSync(`${untracked.file}~`, "utf8")).toBe(CURRENT);
+
+    const skipped = withFormerFile(true);
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: skipped.file, ...NO_DATABASE, CI: "true" });
+    expect(readFileSync(skipped.file, "utf8")).toBe(CURRENT);
+    expect(result.stderr).toContain("db.database is now");
+    expect(result.exitCode).toBe(0);
   });
 });
 

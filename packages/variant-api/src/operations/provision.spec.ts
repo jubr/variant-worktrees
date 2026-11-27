@@ -16,7 +16,7 @@ describe("provision", () => {
         join(directory, "variants.yaml"),
         [
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  watches:",
           "    fe: { kind: vite, dir: fe, up: pwd > ../fe.out }",

@@ -275,7 +275,7 @@ describe("provision with another Bun first on PATH", () => {
       }
       writeFileSync(
         join(root, "variants.yaml"),
-        "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n  steps:\n    seed: { cmd: touch seeded }\n",
+        "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    fe: { kind: vite, dir: fe }\n    be: { kind: nestjs, dir: be }\n  steps:\n    seed: { cmd: touch seeded }\n",
       );
       process.env.PATH = `${foreign}:${mise}:${savedPath}`;
       const client = createVariantClient({
@@ -298,7 +298,7 @@ describe("provision with another Bun first on PATH", () => {
       const foreign = stubBun(root, "foreign", "1.3.0");
       const mise = stubBun(root, "mise-bun", "1.4.2");
       const fake = fakeMise(root, { lsCurrent: pinned("1.4.2", mise), which: join(mise, "bun") });
-      writeFileSync(join(root, "variants.yaml"), "db:\n  dialect: sqlite\nvariant:\n  open: false\n");
+      writeFileSync(join(root, "variants.yaml"), "db:\n  type: sqlite\nvariant:\n  open: false\n");
       process.env.PATH = `${foreign}:${mise}:${savedPath}`;
       const client = createVariantClient({
         config: loadConfig({ cwd: root, env: {} }),

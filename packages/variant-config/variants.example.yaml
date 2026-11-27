@@ -6,15 +6,14 @@
 
 # Database connection. Detected from mise.local.toml, then environment variables, when absent.
 db:
-  dialect: postgres # sqlite | mysql
+  type: postgres # sqlite | mysql
   url: postgres://app:secret@127.0.0.1:5432/app # replaces host/port/user/password/database when set
-  host: 127.0.0.1 # required when `url` is absent and dialect is not sqlite
+  host: 127.0.0.1 # required when `url` is absent and type is not sqlite
   port: 5432 # mysql: 3306; or ${POSTGRES_PORT}
   user: app
   password: secret
-  database: app
+  database: app # sqlite: the database file, e.g. ./data/${slug}.sqlite
   schema: public # database schema of the main variant
-  filename: ./app.sqlite # sqlite only
   ssl: false # true
   multi: # one schema per tenant. Absent: the one schema v_<slug>
     schemaPrefix: v_${slug}- # ${slug} is filled in. Alternate: app_${slug}

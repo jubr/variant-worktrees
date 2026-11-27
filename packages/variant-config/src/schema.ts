@@ -3,8 +3,8 @@ import { ChatRenamerConfigSchema } from "chat-renamer-config/schema";
 import { z } from "zod/v4";
 import { parseLocalStamp } from "./stamp.js";
 
-export const DbDialectSchema = z.enum(["postgres", "mysql", "sqlite"]);
-export type DbDialect = z.infer<typeof DbDialectSchema>;
+export const DbTypeSchema = z.enum(["postgres", "mysql", "sqlite"]);
+export type DbType = z.infer<typeof DbTypeSchema>;
 
 /** A TCP port: shared by the database settings and the runtime state of watches. */
 export const PortSchema = z.number().int().positive();
@@ -39,7 +39,7 @@ export type DbMulti = z.infer<typeof DbMultiSchema>;
 const configPortSchema = z.union([PortSchema, z.string().regex(/^(\d+|\$\{[A-Za-z_][A-Za-z0-9_]*\})$/)]);
 
 export const DbConfigSchema = z.strictObject({
-  dialect: DbDialectSchema.optional(),
+  type: DbTypeSchema.optional(),
   url: z.string().min(1).optional(),
   host: z.string().min(1).optional(),
   port: configPortSchema.optional(),
@@ -47,11 +47,13 @@ export const DbConfigSchema = z.strictObject({
   password: z.string().optional(),
   database: z.string().min(1).optional(),
   schema: z.string().min(1).optional(),
-  filename: z.string().min(1).optional(),
   ssl: z.boolean().optional(),
   multi: DbMultiSchema.optional(),
 });
 export type DbConfig = z.infer<typeof DbConfigSchema>;
+
+/** The SQLite file when `db.database` is not set: one file per slug, relative to that slug's worktree. */
+export const DEFAULT_SQLITE_DATABASE = ".cache/variants/${slug}.sqlite";
 
 /** Template of the URL of a Vite watch. `${slug}`, `${abbr}` and `${port}` are placeholders. */
 export const DEFAULT_URL = "http://${slug}.${abbr}.localhost:${port}";
@@ -482,11 +484,11 @@ export const VariantsConfigSchema = z
     chatRenamer: ChatRenamerConfigSchema.optional(),
   })
   .superRefine((config, context) => {
-    if (config.db && !config.db.url && config.db.dialect !== "sqlite" && !config.db.host) {
+    if (config.db && !config.db.url && config.db.type !== "sqlite" && !config.db.host) {
       context.addIssue({
         code: "custom",
         path: ["db", "host"],
-        message: "db.host is required when db.url is absent and dialect is not sqlite",
+        message: "db.host is required when db.url is absent and type is not sqlite",
       });
     }
   });
@@ -538,7 +540,7 @@ export const StateFileSchema = z.strictObject({
   slug: z.string().min(1).optional(),
   createdAt: localStampSchema.optional(),
   dir: z.string().min(1).optional(),
-  dialect: DbDialectSchema.optional(),
+  type: DbTypeSchema.optional(),
   target: z.string().min(1).optional(),
   mode: z.enum(["up", "watch"]).optional(),
   log: z.string().min(1).optional(),
@@ -608,6 +610,11 @@ export type ResolvedConfig = Omit<VariantsConfig, "variant"> & {
   warnings: string[];
   /** One line per name of an earlier version (`instances`, `reservedPorts`) that was read under the current one. */
   migrations: string[];
+  /**
+   * `<directory>/.cache/variants/${slug}.db` when the `.db` files of an earlier version are in use: loading resolved
+   * `db.database` to it and the file migration writes it. Not enumerable.
+   */
+  formerDatabase?: string;
 };
 
 export const variantsJsonSchema = z.toJSONSchema(VariantsConfigSchema);

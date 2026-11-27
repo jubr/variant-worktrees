@@ -27,7 +27,7 @@ const withProject = async (
     mkdirSync(join(directory, "fe"));
     writeFileSync(
       join(directory, "variants.yaml"),
-      "db:\n  dialect: sqlite\nvariant:\n  storage: {}\n  watches:\n    fe: { kind: vite, dir: fe }\n",
+      "db:\n  type: sqlite\nvariant:\n  storage: {}\n  watches:\n    fe: { kind: vite, dir: fe }\n",
     );
     const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),
@@ -61,7 +61,7 @@ describe("implode teardown", () => {
         await sleep(50);
       }
       expect(isProcessAlive(watcher.pid as number)).toBe(false);
-      expect(existsSync(join(directory, ".cache", "variants", "demo.db"))).toBe(false);
+      expect(existsSync(join(directory, ".cache", "variants", "demo.sqlite"))).toBe(false);
       expect(existsSync(join(directory, ".cache", "variants", "demo.yaml"))).toBe(false);
       expect(existsSync(join(directory, ".storage"))).toBe(false);
       expect(existsSync(join(directory, ".cache", "variant", "state.yaml"))).toBe(false);

@@ -10,7 +10,7 @@ import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 
 const CONFIG = [
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  watches:",
   "    fe: { kind: vite, dir: fe, container: { dockerfile: fe/Dockerfile } }",
@@ -156,7 +156,7 @@ describe("down", () => {
     withProject(async ({ directory, down, localFile }) => {
       const stateDir = join(directory, ".cache", "variants");
       mkdirSync(stateDir, { recursive: true });
-      writeFileSync(join(stateDir, "demo.db"), "rows");
+      writeFileSync(join(stateDir, "demo.sqlite"), "rows");
       writeFileSync(join(stateDir, "demo.yaml"), "slug: demo\n");
       writeFileSync(localFile, "other: kept\nruntime:\n  slug: demo\n");
 
@@ -164,7 +164,7 @@ describe("down", () => {
 
       expect(readFileSync(localFile, "utf8")).toContain("other: kept");
       expect(readRuntime(directory)).toEqual({ slug: "demo" });
-      expect(readFileSync(join(stateDir, "demo.db"), "utf8")).toBe("rows");
+      expect(readFileSync(join(stateDir, "demo.sqlite"), "utf8")).toBe("rows");
       expect(existsSync(join(stateDir, "demo.yaml"))).toBe(true);
     }));
 
