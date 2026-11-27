@@ -10,87 +10,105 @@ The database is found in this order:
 `variant config` prints the result and says where each value came from, and [`variant init`](./commands#variant-init) writes what it found.
 Whatever the source, the value ends up in the same setting, [`db.database`](./configuration#db-database).
 
-A password never goes into `variants.yaml`: it prefers a file like `mise.local.toml` which is not committed.
+A password never goes into `variants.yaml`: it prefers a file like `mise.local.toml` which is not committed.  
 In `variants.yaml` it's referred to as `${X_PASSWORD}`.
 
-The examples use the [workspace layout](./workspace): a folder `px/` that is not a git repository, with the primary checkout `project-x` in it, and a variant `_v-feature-42` next to it.
-`mise.local.toml` sits in `px/`, not in the checkout, so Mise finds it from `project-x` and from every `_v-*` worktree, and each of them gets the same settings.
+### Generic layout
+
+The examples use the [workspace layout](./workspace): a folder `px/` that is not a git repository, with the primary checkout `project-x` in it, and a variant `_v-feature-42` next to it. For all examples below the directory tree could look like this:
+
+```text
+px/
+├── _v-feature-42/       # variant worktree, same files, same settings
+├── project-x/           # primary checkout, branch main
+│   ├── app/             # your app, accessing the db
+│   ├── mise.toml        # committed: tools and shared settings
+│   └── variants.yaml    # committed: the db block above
+└── mise.local.toml      # not committed: host, user and password, found from every checkout below px/
+```
+
+So `mise.local.toml` sits in `px/`, not in the checkout, so Mise finds it from `project-x` and from every `_v-*` worktree, and each of them gets the same settings.
 
 ## PostgreSQL
 
 In `variants.yaml` the explicit form refers to the secrets in `mise.local.toml`:
 
 ```yaml
+# px/project-x/variants.yaml
 db:
   dialect: postgres
   host: ${POSTGRES_HOST}
   port: ${POSTGRES_PORT}
   user: ${POSTGRES_USER}
   password: ${POSTGRES_PASSWORD}
-  database: my_project
+  database: ${POSTGRES_DB}
+
+variant:
+  watches:
+    app:
+      dir: app/
+      watch: bun run watch:dev
+      env:
+        overrides: # mise sets some from mise.local.toml, but left for completeness
+          POSTGRES_HOST: ${POSTGRES_HOST}
+          POSTGRES_PORT: ${POSTGRES_PORT}
+          POSTGRES_USER: ${POSTGRES_USER}
+          POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+          POSTGRES_DB: ${POSTGRES_DB}
+          POSTGRES_SCHEMA: ${schema} # v_feature_42
 ```
 
-`mise.local.toml` holds the local values:
-
-```text
-px/
-├── _v-feature-42/         # variant worktree, same files, same settings
-├── project-x/             # primary checkout, branch main
-│   ├── mise.toml          # committed: tools and shared settings
-│   └── variants.yaml      # committed: the db block above
-└── mise.local.toml        # not committed: host, user and password, found from every checkout below px/
-```
+[`watches.app`](./configuration#variant-watches) hands the same values to the app; `${schema}` is the schema of the variant it runs in.
 
 ```toml
 # px/mise.local.toml
 [env]
 POSTGRES_HOST = "127.0.0.1"
 POSTGRES_PORT = "5432"
+POSTGRES_DB = "project_x"
 POSTGRES_USER = "app"
 POSTGRES_PASSWORD = "<your-password>"
 ```
 
-Without a `db` block in `variants.yaml` the same `[env]` table is detected, and `variants.yaml` needs nothing at all.
-Add `POSTGRES_DB` there to name the database.
-
 Each variant gets the schema `v_<slug>` in that database.
-`variant create -s feature-42` prints the connection, with the password as `***`:
 
-```text
+```bash
+$ variant create -s feature-42
+
 Created feature-42
 worktree:  /work/px/_v-feature-42
-database:  postgres://app:***@127.0.0.1:5432/my_project
+database:  postgres://app:***@127.0.0.1:5432/project_x
 schema:    v_feature_42
 ```
 
-A `DATABASE_URL` such as `postgres://app:<your-password>@127.0.0.1:5432/my_project` is detected too, and is printed with the password as `***` as well.
+A `DATABASE_URL` such as `postgres://app:<your-password>@127.0.0.1:5432/project_x` is also detected.
 
 <details>
-<summary>Extra credit: postgres docker as mise task</summary>
+   <summary>Extra credit: postgres docker as mise task</summary>
 
-A task in the committed `mise.toml` can start the server that those values point at.
-It reads the same `POSTGRES_*` variables, because Mise gives its tasks the environment of `mise.local.toml`, so the container and `variants.yaml` cannot disagree:
+   A task in the committed `mise.toml` can start the server that those values point at.
+   It reads the same `POSTGRES_*` variables, because Mise gives its tasks the environment of `mise.local.toml`, so the container and `variants.yaml` cannot disagree:
 
-```toml
-# px/project-x/mise.toml
-[tasks."db:up"]
-description = "Start PostgreSQL in Docker with the POSTGRES_* values"
-run = '''
-docker start px-postgres 2>/dev/null || docker run -d --name px-postgres --restart unless-stopped \
-  -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
-  -p "${POSTGRES_PORT:-5432}:5432" \
-  -v px_postgres_data:/var/lib/postgresql \
-  --health-cmd 'pg_isready -U "$POSTGRES_USER"' --health-interval 10s --health-timeout 5s --health-retries 5 \
-  postgres:18-alpine
-'''
-
-[tasks."db:down"]
-description = "Stop the PostgreSQL container, keeping its data"
-run = "docker stop px-postgres"
-```
-
-`mise run db:up` creates the container the first time and starts it again after that; the data stays in the volume `px_postgres_data`.
-`variant create` and `variant provision` then connect to it, and `variant implode` drops only the schema of that variant.
+   ```toml
+   # px/project-x/mise.toml
+   [tasks."db:up"]
+   description = "Start PostgreSQL in Docker with the POSTGRES_* values"
+   run = '''
+   docker start px-postgres 2>/dev/null || docker run -d --name px-postgres --restart unless-stopped \
+     -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
+     -p "${POSTGRES_PORT:-5432}:5432" \
+     -v px_postgres_data:/var/lib/postgresql \
+     --health-cmd 'pg_isready -U "$POSTGRES_USER"' --health-interval 10s --health-timeout 5s --health-retries 5 \
+     postgres:18-alpine
+   '''
+   
+   [tasks."db:down"]
+   description = "Stop the PostgreSQL container, keeping its data"
+   run = "docker stop px-postgres"
+   ```
+   
+   `mise run db:up` creates the container the first time and starts it again after that; the data stays in the volume    `px_postgres_data`.
+   `variant create` and `variant provision` then connect to it, and `variant implode` drops only the schema of that variant.
 
 </details>
 
@@ -105,8 +123,26 @@ db:
   port: ${MYSQL_PORT}
   user: ${MYSQL_USER}
   password: ${MYSQL_PASSWORD}
-  database: my_project
+  database: project_x
+
+variant:
+  watches:
+    app:
+      dir: .
+      watch: bun run dev
+      env:
+        sourceFile: .env # copied once for each variant
+        overrides: # written into that copy, so the app connects to the database of its variant
+          MYSQL_HOST: ${MYSQL_HOST}
+          MYSQL_PORT: ${MYSQL_PORT}
+          MYSQL_USER: ${MYSQL_USER}
+          MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+          MYSQL_DATABASE: project_x
+          MYSQL_SCHEMA: ${schema} # v_feature_42
 ```
+
+[`watches.app`](./configuration#variant-watches) hands the same values to the app, as for PostgreSQL.
+With MariaDB, write `MARIADB_*` in `mise.local.toml` and in this snippet instead of `MYSQL_*`.
 
 `mise.local.toml` holds the local values:
 
@@ -132,12 +168,12 @@ Without a `db` block the same table is detected.
 For MariaDB the variables are `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, `MARIADB_PASSWORD` and `MARIADB_DATABASE`, and a `DATABASE_URL` that starts with `mariadb://` is detected too.
 They all resolve to `dialect: mysql`.
 
-The schema of a variant is named `v_<slug>`. `variant create -s feature-42` prints:
+The schema of a variant is named `v_<slug>`. Then `variant create -s feature-42` prints:
 
 ```text
 Created feature-42
 worktree:  /work/px/_v-feature-42
-database:  mysql://app:***@127.0.0.1:3306/my_project
+database:  mysql://app:***@127.0.0.1:3306/project_x
 schema:    v_feature_42
 ```
 
@@ -151,7 +187,19 @@ The default value is `.cache/variants/${slug}.sqlite`:
 db:
   dialect: sqlite
   database: .cache/variants/${slug}.sqlite # ${slug} is the slug of the variant
+
+variant:
+  watches:
+    app:
+      dir: .
+      watch: bun run dev
+      env:
+        sourceFile: .env # copied once for each variant
+        overrides:
+          SQLITE_DATABASE: ${schema} # the file of the variant: .cache/variants/feature-42.sqlite
 ```
+
+[`watches.app`](./configuration#variant-watches) hands the file of the variant to the app in its `.env`, for an app that reads `SQLITE_DATABASE`.
 
 `mise.local.toml` is not needed for SQLite, because there is no secret.
 It is where the detected form lives, when the file is not at the default:
