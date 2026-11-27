@@ -9,6 +9,7 @@ import {
   type VariantWatch,
 } from "variant-config";
 import { databaseTarget } from "./database-target.js";
+import { hasSchemaPlaceholder, mysqlDatabase } from "./db/mysql-names.js";
 import { repositoryDirectory } from "./locate.js";
 import { type ResolvedMulti, resolveMulti } from "./multi.js";
 import type { OperationContext } from "./operations/types.js";
@@ -210,15 +211,18 @@ export const variantVariables = (
     VARIANT_TARGET: run.target,
     VARIANT_CONFIG: config.configPath,
   };
-  const prefix = config.db.dialect === "postgres" ? "POSTGRES" : config.db.dialect === "mysql" ? "MYSQL" : undefined;
+  const prefix = config.db.type === "postgres" ? "POSTGRES" : config.db.type === "mysql" ? "MYSQL" : undefined;
   if (prefix) {
     variables[`${prefix}_HOST`] = host;
     variables[`${prefix}_PORT`] = settings.port;
     variables[`${prefix}_USER`] = settings.user;
     variables[`${prefix}_PASSWORD`] = settings.password;
-    variables[prefix === "POSTGRES" ? "POSTGRES_DB" : "MYSQL_DATABASE"] = settings.database;
+    variables[prefix === "POSTGRES" ? "POSTGRES_DB" : "MYSQL_DATABASE"] =
+      prefix === "MYSQL" && hasSchemaPlaceholder(settings.database)
+        ? mysqlDatabase(settings.database, run.target)
+        : settings.database;
     variables[`${prefix}_SCHEMA`] = run.target;
-  } else if (config.db.dialect === "sqlite") {
+  } else if (config.db.type === "sqlite") {
     variables.SQLITE_DATABASE = run.target;
   }
   if (run.storage && config.variant.storage) {

@@ -30,7 +30,7 @@
         "db": {
           "type": "object",
           "properties": {
-            "dialect": {
+            "type": {
               "type": "string",
               "enum": [
                 "postgres",

@@ -58,17 +58,17 @@ const readLegacy = (configDir: string, env: NodeJS.ProcessEnv): LocalState => {
 };
 
 const dbFromState = (state: StateFile): ResolvedRuntime["db"] => {
-  if (state.dialect === undefined && state.target === undefined) {
+  if (state.type === undefined && state.target === undefined) {
     return undefined;
   }
-  if (state.dialect === "sqlite") {
+  if (state.type === "sqlite") {
     return {
-      ...(state.dialect ? { dialect: state.dialect } : {}),
+      ...(state.type ? { type: state.type } : {}),
       ...(state.target ? { database: state.target } : {}),
     };
   }
   return {
-    ...(state.dialect ? { dialect: state.dialect } : {}),
+    ...(state.type ? { type: state.type } : {}),
     ...(state.target ? { schema: state.target } : {}),
   };
 };
@@ -87,12 +87,21 @@ const runtimeFromState = (state: StateFile): ResolvedRuntime => {
 };
 
 /** Reads `.cache/variant/state.yaml`. Absent file is `undefined`. An unknown key fails validation. */
+/** `data` of a state file with the former `dialect` key read as `type`, which wins when both exist. */
+const withType = (data: unknown): unknown => {
+  if (typeof data !== "object" || data === null || !("dialect" in data)) {
+    return data;
+  }
+  const { dialect, ...rest } = data as Record<string, unknown>;
+  return { type: dialect, ...rest };
+};
+
 const readStateFile = (configDir: string): StateFile | undefined => {
   const path = join(configDir, STATE_FILE);
   if (!existsSync(path)) {
     return undefined;
   }
-  return StateFileSchema.parse(parseYaml(readFileSync(path, "utf8")) ?? {});
+  return StateFileSchema.parse(withType(parseYaml(readFileSync(path, "utf8")) ?? {}));
 };
 
 const readDumpDb = (configDir: string): ResolvedRuntime["db"] => {
@@ -103,9 +112,17 @@ const readDumpDb = (configDir: string): ResolvedRuntime["db"] => {
   try {
     const dump = parseYaml(readFileSync(path, "utf8")) as { db?: ResolvedRuntime["db"] } | null;
     const { db } = dump ?? {};
-    if (db && "filename" in db) {
-      const { filename, ...rest } = db as typeof db & { filename?: string };
-      return { ...rest, ...(rest.database === undefined && filename ? { database: filename } : {}) };
+    if (db && ("filename" in db || "dialect" in db)) {
+      const { filename, dialect, ...rest } = db as typeof db & {
+        filename?: string;
+        dialect?: "postgres" | "mysql" | "sqlite";
+      };
+      const type = rest.type ?? dialect;
+      return {
+        ...rest,
+        ...(type ? { type } : {}),
+        ...(rest.database === undefined && filename ? { database: filename } : {}),
+      };
     }
     return db;
   } catch {
@@ -201,7 +218,7 @@ const writeIfChanged = (path: string, text: string): void => {
 };
 
 const targetOf = (db: Runtime["db"]): string | undefined =>
-  db?.schema ?? (db?.dialect === "sqlite" ? db.database : undefined);
+  db?.schema ?? (db?.type === "sqlite" ? db.database : undefined);
 
 const watchFacts = (watches: Runtime["watches"]): StateFile["watches"] =>
   Object.fromEntries(
@@ -222,7 +239,7 @@ const stateFromRuntime = (runtime: Runtime): StateFile => {
     ...(runtime.slug ? { slug: runtime.slug } : {}),
     ...(runtime.createdAt ? { createdAt: runtime.createdAt } : {}),
     ...(runtime.dir ? { dir: runtime.dir } : {}),
-    ...(runtime.db?.dialect ? { dialect: runtime.db.dialect } : {}),
+    ...(runtime.db?.type ? { type: runtime.db.type } : {}),
     ...(target ? { target } : {}),
     ...(runtime.mode ? { mode: runtime.mode } : {}),
     ...(runtime.log ? { log: runtime.log } : {}),

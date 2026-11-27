@@ -9,7 +9,7 @@ import { MysqlAdapter } from "./mysql.js";
 import { PostgresAdapter } from "./postgres.js";
 
 const target = {
-  dialect: "postgres" as const,
+  type: "postgres" as const,
   database: "app",
   host: "127.0.0.1",
   port: 5432,
@@ -36,11 +36,11 @@ const capture = async (run: () => Promise<void>): Promise<LogEvent[]> => {
   return events;
 };
 
-const expectContact = (events: LogEvent[], error: unknown, dialect: string, port: number): void => {
+const expectContact = (events: LogEvent[], error: unknown, type: string, port: number): void => {
   const warnings = events.filter((event) => event.level === "warn");
   expect(warnings).toHaveLength(1);
   const message = warnings[0]?.message ?? "";
-  expect(message).toContain(dialect);
+  expect(message).toContain(type);
   expect(message).toContain("app");
   expect(message).toContain("127.0.0.1");
   expect(message).toContain(`:${port}`);
@@ -91,7 +91,7 @@ describe("database contact warning", () => {
   });
 
   it("warns for a mysql authentication failure and a missing database", async () => {
-    const mysql = { dialect: "mysql" as const, database: "app", host: "127.0.0.1", port: 3306 };
+    const mysql = { type: "mysql" as const, database: "app", host: "127.0.0.1", port: 3306 };
     for (const code of ["ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR"]) {
       const guard = new QueryGuard(mysql);
       let thrown: unknown;
@@ -104,7 +104,7 @@ describe("database contact warning", () => {
 
   it("leaves a password out of the warning when the connection URL contains one", async () => {
     const parsed = contactTarget({
-      dialect: "postgres",
+      type: "postgres",
       url: "postgres://appuser:s3cret-url@127.0.0.1:5432/app",
     });
     const guard = new QueryGuard(parsed);
@@ -136,7 +136,7 @@ describe("database contact warning", () => {
 
   it("warns from the postgres adapter when the port refuses the connection", async () => {
     const adapter = new PostgresAdapter({
-      dialect: "postgres",
+      type: "postgres",
       host: "127.0.0.1",
       port: 1,
       database: "app",
@@ -155,7 +155,7 @@ describe("database contact warning", () => {
 
   it("warns from the mysql adapter when the port refuses the connection", async () => {
     const adapter = new MysqlAdapter({
-      dialect: "mysql",
+      type: "mysql",
       host: "127.0.0.1",
       port: 1,
       database: "app",
@@ -175,7 +175,7 @@ describe("database contact warning", () => {
   it("does not warn when a sqlite file is missing", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-sqlite-missing-")));
     try {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
       const client = createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
         cwd: directory,

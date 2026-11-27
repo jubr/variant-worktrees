@@ -5,7 +5,7 @@ import { PostgresAdapter } from "./postgres.js";
 import { SqliteAdapter, type SqliteLayout } from "./sqlite.js";
 
 export const createDatabaseAdapter = (config: DbConfig, layout: SqliteLayout): DatabaseAdapter => {
-  switch (config.dialect) {
+  switch (config.type) {
     case "postgres":
       return new PostgresAdapter(config);
     case "mysql":
@@ -13,6 +13,6 @@ export const createDatabaseAdapter = (config: DbConfig, layout: SqliteLayout): D
     case "sqlite":
       return new SqliteAdapter(config, layout);
     default:
-      throw new Error(`Unsupported database dialect: ${String(config.dialect)}`);
+      throw new Error(`Unsupported database type: ${String(config.type)}`);
   }
 };

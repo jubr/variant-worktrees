@@ -34,7 +34,7 @@ describe("bundled MCP server", () => {
     const elsewhere = realpathSync(mkdtempSync(join("/tmp", "variant-mcp-entry-cwd-")));
     const configPath = join(directory, "variants.yaml");
     const outfile = join(elsewhere, "dist", "mcp.mjs");
-    writeFileSync(configPath, "db:\n  dialect: sqlite\n  colour: red\n");
+    writeFileSync(configPath, "db:\n  type: sqlite\n  colour: red\n");
     writeFileSync(join(elsewhere, "package.json"), JSON.stringify({ version: "0.0.0" }));
     mkdirSync(join(elsewhere, "dist"));
     try {

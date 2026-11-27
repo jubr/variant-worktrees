@@ -43,8 +43,9 @@ const POSTGRES = {
 };
 
 describe("renderInitConfig", () => {
-  it("writes Postgres host, port, user and password as references and the database name as text", () => {
+  it("writes Postgres host, port, user, password and database as references", () => {
     const { text } = render(POSTGRES, {
+      POSTGRES_DB: join(dirname(directory), "mise.local.toml"),
       POSTGRES_HOST: join(dirname(directory), "mise.local.toml"),
       POSTGRES_PORT: join(dirname(directory), "mise.local.toml"),
       POSTGRES_USER: join(dirname(directory), "mise.local.toml"),
@@ -53,27 +54,45 @@ describe("renderInitConfig", () => {
     const db = parsed(text).db;
 
     expect(db).toMatchObject({
-      dialect: "postgres",
+      type: "postgres",
       host: "${POSTGRES_HOST}",
       port: "${POSTGRES_PORT}",
       user: "${POSTGRES_USER}",
       password: "${POSTGRES_PASSWORD}",
-      database: "appdb",
+      database: "${POSTGRES_DB}",
     });
     expect(text).toContain("host: ${POSTGRES_HOST} # from ../mise.local.toml");
     expect(text).toContain("port: ${POSTGRES_PORT} # from ../mise.local.toml");
     expect(text).toContain("user: ${POSTGRES_USER} # from ../mise.local.toml");
     expect(text).toContain("password: ${POSTGRES_PASSWORD} # from ../mise.local.toml");
+    expect(text).toContain("database: ${POSTGRES_DB} # from ../mise.local.toml");
     expect(parsed(text).variant.main).toBeUndefined();
     expect(parsed(text).variant.root).toBeUndefined();
     expect(text).not.toContain("hunter2");
     expect(text).not.toContain("db.local");
   });
 
-  it("writes MariaDB as dialect mysql", () => {
+  it("writes MariaDB as type mysql", () => {
     const { text } = render({ MARIADB_HOST: "maria", MARIADB_DATABASE: "shop" });
 
-    expect(parsed(text).db).toMatchObject({ dialect: "mysql", host: "maria", database: "shop" });
+    expect(parsed(text).db).toMatchObject({
+      type: "mysql",
+      host: "${MARIADB_HOST}",
+      database: "${MARIADB_DATABASE}__${schema}",
+    });
+  });
+
+  it("writes MySQL settings as references, the database name as the prefix of the database of each variant", () => {
+    const { text } = render({ MYSQL_HOST: "h", MYSQL_PORT: "3307", MYSQL_USER: "app", MYSQL_DATABASE: "shop" });
+
+    expect(parsed(text).db).toMatchObject({
+      type: "mysql",
+      host: "${MYSQL_HOST}",
+      port: "${MYSQL_PORT}",
+      user: "${MYSQL_USER}",
+      database: "${MYSQL_DATABASE}__${schema}",
+    });
+    expect(text).toContain("database: ${MYSQL_DATABASE}__${schema} # from the environment");
   });
 
   it("writes no db key when nothing is detected", () => {
@@ -83,16 +102,16 @@ describe("renderInitConfig", () => {
     expect(text).not.toContain("db:");
     expect(text).not.toContain("filename");
     expect(detected.databaseSource).toBe("default");
-    expect(detected.dialect).toBe("sqlite");
+    expect(detected.type).toBe("sqlite");
   });
 
   it("writes a detected SQLite file as db.database and loads back to the same file", () => {
     const environment = { SQLITE_PATH: "/data/app-${slug}.sqlite" };
     const { text, detected } = render(environment);
 
-    expect(parsed(text).db).toEqual({ dialect: "sqlite", database: "/data/app-${slug}.sqlite" });
+    expect(parsed(text).db).toEqual({ type: "sqlite", database: "/data/app-${slug}.sqlite" });
     expect(text).not.toContain("filename");
-    expect(detected.dialect).toBe("sqlite");
+    expect(detected.type).toBe("sqlite");
     expect(detected.databaseSource).toBe("env");
     put("variants.yaml", text);
     expect(loadConfig({ cwd: directory, environment: () => ({}) }).db.database).toBe("/data/app-${slug}.sqlite");
@@ -101,7 +120,7 @@ describe("renderInitConfig", () => {
   it("does not write a SQLite file that is only the default", () => {
     const { text } = render({ DATABASE_URL: "sqlite:" });
 
-    expect(parsed(text).db).toEqual({ dialect: "sqlite", url: "sqlite:" });
+    expect(parsed(text).db).toEqual({ type: "sqlite", url: "sqlite:" });
     expect(text).not.toContain("database:");
   });
 
@@ -287,13 +306,13 @@ describe("renderInitConfig", () => {
   });
 
   describe("alternatives", () => {
-    it("lists the other dialects, the other kinds and the other boolean after the value", () => {
+    it("lists the other types, the other kinds and the other boolean after the value", () => {
       put("fe/vite.config.ts");
       put("be/nest-cli.json", "{}");
 
       const { text } = render({ ...POSTGRES, POSTGRES_SSL: "true" });
 
-      expect(text).toMatch(/^ {2}dialect: postgres # sqlite \| mysql$/m);
+      expect(text).toMatch(/^ {2}type: postgres # sqlite \| mysql$/m);
       expect(text).toMatch(/^ {6}kind: vite # nestjs$/m);
       expect(text).toMatch(/^ {6}kind: nestjs # vite$/m);
       expect(text).toMatch(/^ {2}ssl: true # false$/m);
@@ -311,7 +330,7 @@ describe("renderInitConfig", () => {
 
       const { text } = render({ ...POSTGRES, POSTGRES_SSL: "false" });
 
-      expect(parsed(text).db.dialect).toBe("postgres");
+      expect(parsed(text).db.type).toBe("postgres");
       expect(parsed(text).db.ssl).toBe(false);
       expect(parsed(text).variant.watches.fe.kind).toBe("vite");
     });
@@ -337,7 +356,7 @@ describe("renderInitConfig", () => {
     it("loads a database-less file to a SQLite database", () => {
       put("variants.yaml", render().text);
 
-      expect(loadConfig({ cwd: directory, environment: () => ({}) }).db.dialect).toBe("sqlite");
+      expect(loadConfig({ cwd: directory, environment: () => ({}) }).db.type).toBe("sqlite");
     });
 
     it("renders the example project to a loadable file", () => {

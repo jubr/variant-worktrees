@@ -35,7 +35,7 @@ export const loadDatabase = async (bun: boolean, load: Load = importModule): Pro
   try {
     return (await load(specifier))[name] as Database;
   } catch (error) {
-    throw new Error(`The SQLite dialect needs bun:sqlite (Bun) or node:sqlite (Node 22.13 or newer): ${String(error)}`);
+    throw new Error(`The SQLite type needs bun:sqlite (Bun) or node:sqlite (Node 22.13 or newer): ${String(error)}`);
   }
 };
 
@@ -65,7 +65,7 @@ const slugPattern = (name: string): RegExp | undefined => {
  * relative path is resolved against the directory of that variant, an absolute path stays.
  */
 export class SqliteAdapter implements DatabaseAdapter {
-  readonly dialect = "sqlite";
+  readonly type = "sqlite";
 
   constructor(
     private readonly config: DbConfig,

@@ -15,8 +15,8 @@ const openTextDocument = spyOn(vscode.workspace, "openTextDocument");
 const HEADER = schemaHeaderFor("variants.yaml");
 const LOCAL_HEADER = schemaHeaderFor("variants.local.yaml");
 // AIDEV-NOTE: the fixtures carry the schema header so the tests of the renames see no header change; the last describe covers it
-const BARE_OLD = "db:\n  dialect: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
-const BARE_NEW = "db:\n  dialect: sqlite\nvariant:\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_OLD = "db:\n  type: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_NEW = "db:\n  type: sqlite\nvariant:\n  watches:\n    be: { kind: nestjs, dir: . }\n";
 const OLD = `${HEADER}\n\n${BARE_OLD}`;
 const NEW = `${HEADER}\n\n${BARE_NEW}`;
 // AIDEV-NOTE: an empty CI counts as unset; a CI runner sets CI=true, which turns the rewrite off

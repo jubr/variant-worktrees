@@ -100,6 +100,17 @@ const renameFilename = (target: Record<string, unknown>, section: string, file: 
   delete target.filename;
 };
 
+/** Renames `db.dialect` to `db.type` in `target`, without a notice; the new key wins when both exist. */
+const renameDialect = (target: Record<string, unknown>): void => {
+  if (!("dialect" in target)) {
+    return;
+  }
+  if (!("type" in target)) {
+    target.type = target.dialect;
+  }
+  delete target.dialect;
+};
+
 /**
  * `data` of `variants.yaml` or `variants.local.yaml` under the current names, in a copy, with a notice for every change.
  * Both names present: the current one wins and the old one is dropped.
@@ -121,10 +132,12 @@ export const migrateLegacy = (data: unknown, file: string): Migrated => {
   if (isRecord(runtime)) {
     renameInstances(runtime, "runtime", file, notices);
     if (isRecord(runtime.db)) {
+      renameDialect(runtime.db);
       renameFilename(runtime.db, "runtime.db", file, notices);
     }
   }
   if (isRecord(copy.db)) {
+    renameDialect(copy.db);
     renameFilename(copy.db, "db", file, notices);
   }
   const templates = { count: 0 };
@@ -168,6 +181,7 @@ const removal = (text: string, pair: Pair): Edit | undefined => {
 
 const isInstances = (pair: Pair): boolean => isScalar(pair.key) && pair.key.value === "instances";
 const isFilename = (pair: Pair): boolean => isScalar(pair.key) && pair.key.value === "filename";
+const isDialect = (pair: Pair): boolean => isScalar(pair.key) && pair.key.value === "dialect";
 
 /** The edits that give `map` its `current` key: rename `former`, or drop it when `current` exists. */
 const renameKeyEdits = (
@@ -192,9 +206,15 @@ const renameKeyEdits = (
 const renameEdits = (text: string, map: YAMLMap): Edit[] | undefined =>
   renameKeyEdits(text, map, isInstances, "watches");
 
-/** The edits that give `map` its `database` key: rename `filename`, or drop it when `database` exists. */
-const databaseRenameEdits = (text: string, map: YAMLMap): Edit[] | undefined =>
-  renameKeyEdits(text, map, isFilename, "database");
+/**
+ * The edits that give `map` its `database` key (rename `filename`, or drop it when `database` exists) and its `type`
+ * key (the same for `dialect`).
+ */
+const databaseRenameEdits = (text: string, map: YAMLMap): Edit[] | undefined => {
+  const dialect = renameKeyEdits(text, map, isDialect, "type");
+  const filename = renameKeyEdits(text, map, isFilename, "database");
+  return dialect === undefined || filename === undefined ? undefined : [...dialect, ...filename];
+};
 
 /** One scalar as YAML text, quoted when it needs it. */
 const yamlScalar = (value: string): string => stringify(value, { lineWidth: 0 }).trimEnd();
@@ -211,7 +231,7 @@ const databaseAddEdits = (text: string, root: YAMLMap, database: string): Edit[]
       {
         start: text.length,
         end: text.length,
-        replacement: `${lead}db:\n  dialect: sqlite\n  database: ${yamlScalar(database)}\n`,
+        replacement: `${lead}db:\n  type: sqlite\n  database: ${yamlScalar(database)}\n`,
       },
     ];
   }
@@ -278,11 +298,20 @@ const rewriteDocument = (document: Document.Parsed, database?: string): string |
       }
       changed = true;
     }
+    const former = map?.items.find(isDialect);
+    if (map && former && isScalar(former.key)) {
+      if (map.has("type")) {
+        map.delete("dialect");
+      } else {
+        former.key.value = "type";
+      }
+      changed = true;
+    }
   }
   if (database !== undefined) {
     const db = mapAt(root, "db");
     if (!db) {
-      root.set("db", document.createNode({ dialect: "sqlite", database }));
+      root.set("db", document.createNode({ type: "sqlite", database }));
       changed = true;
     } else if (!db.has("database")) {
       db.set("database", database);

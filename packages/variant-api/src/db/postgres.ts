@@ -33,7 +33,7 @@ const connectionUrl = (config: DbConfig): string => {
 };
 
 export class PostgresAdapter implements DatabaseAdapter {
-  readonly dialect = "postgres";
+  readonly type = "postgres";
   private readonly client;
   private readonly db;
   private readonly guard: QueryGuard;

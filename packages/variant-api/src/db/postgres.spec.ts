@@ -4,7 +4,7 @@ import { createSchemaSql, matchingSchemasSql, PostgresAdapter } from "./postgres
 describe("PostgresAdapter", () => {
   it("maps slugs to isolated schema names", async () => {
     const adapter = new PostgresAdapter({
-      dialect: "postgres",
+      type: "postgres",
       host: "127.0.0.1",
       database: "variants",
     });
@@ -26,7 +26,7 @@ describe("PostgresAdapter", () => {
   });
 
   it("keeps server notices off standard output", async () => {
-    const adapter = new PostgresAdapter({ dialect: "postgres", host: "127.0.0.1", database: "variants" });
+    const adapter = new PostgresAdapter({ type: "postgres", host: "127.0.0.1", database: "variants" });
     const logged: unknown[] = [];
     const original = console.log;
     console.log = (...args: unknown[]) => void logged.push(args);

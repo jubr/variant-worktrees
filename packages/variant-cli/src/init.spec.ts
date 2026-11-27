@@ -79,7 +79,7 @@ describe("variant init", () => {
   });
 
   it("fails on an existing file, naming it, with exit code 1 and no change", async () => {
-    writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
 
     const result = await init("--mise=false");
 

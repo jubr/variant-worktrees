@@ -5,7 +5,7 @@ import type { ViewClient } from "./variants-client.ts";
 export const record = (slug: string, extra: Partial<VariantRecord> = {}): VariantRecord => ({
   slug,
   target: "",
-  dialect: "sqlite",
+  type: "sqlite",
   database: ".cache/variants/x.sqlite",
   statePath: "",
   createdAt: "",

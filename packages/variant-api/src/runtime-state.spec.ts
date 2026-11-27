@@ -22,7 +22,7 @@ const withRepo = (subdir: string, run: (repo: string, worktree: string) => void)
     git("config", "user.email", "variant@example.test");
     git("config", "user.name", "Variant Tests");
     mkdirSync(join(repo, subdir), { recursive: true });
-    writeFileSync(join(repo, subdir, "variants.yaml"), "db:\n  dialect: sqlite\n");
+    writeFileSync(join(repo, subdir, "variants.yaml"), "db:\n  type: sqlite\n");
     git("add", ".");
     git("commit", "-q", "-m", "initial");
     const worktree = join(repo, "_v-demo");
@@ -56,7 +56,7 @@ describe("variantConfigDir", () => {
   it("is the configuration directory outside a git repository", () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-state-plain-")));
     try {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
 
       expect(variantConfigDir(loadConfig({ cwd: directory }), directory)).toBe(directory);
     } finally {

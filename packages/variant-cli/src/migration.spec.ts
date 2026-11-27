@@ -9,8 +9,8 @@ import { runCli } from "./test/cli.js";
 const HEADER = schemaHeaderFor("variants.yaml");
 const LOCAL_HEADER = schemaHeaderFor("variants.local.yaml");
 // AIDEV-NOTE: the fixtures carry the schema header so the tests of the renames see no header change; the last describe covers it
-const BARE_OLD = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: . }\n";
-const BARE_NEW = "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_OLD = "db:\n  type: sqlite\nvariant:\n  open: false\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+const BARE_NEW = "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: . }\n";
 const OLD = `${HEADER}\n\n${BARE_OLD}`;
 const NEW = `${HEADER}\n\n${BARE_NEW}`;
 // AIDEV-NOTE: CI="" because a CI runner sets CI=true, which turns the rewrite off; an empty value counts as unset
@@ -55,6 +55,16 @@ describe("configuration migration in the CLI", () => {
     expect(result.stderr).toContain(`git diff -- ${file}`);
     expect(result.stderr).toContain(`git checkout -- ${file}`);
     expect(JSON.parse(result.stdout)).toBeArray();
+  });
+
+  it("rewrites db.dialect as db.type and prints nothing about it", async () => {
+    const { file } = project(`${HEADER}\n\ndb:\n  dialect: sqlite\nvariant:\n  open: false\n`, true);
+
+    const result = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...ENV });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(`${HEADER}\n\ndb:\n  type: sqlite\nvariant:\n  open: false\n`);
+    expect(result.stderr).toBe("");
   });
 
   it("prints the rewrite once, and a second run finds a current file and prints nothing", async () => {
@@ -184,7 +194,7 @@ describe("the SQLite files of the former location in the CLI", () => {
     const second = await runCli(["list", "--json"], { VARIANT_CONFIG: file, ...NO_DATABASE });
 
     expect(first.exitCode).toBe(0);
-    expect(readFileSync(file, "utf8")).toBe(`${CURRENT}db:\n  dialect: sqlite\n  database: ${database}\n`);
+    expect(readFileSync(file, "utf8")).toBe(`${CURRENT}db:\n  type: sqlite\n  database: ${database}\n`);
     expect(first.stderr).toContain("db.database is now");
     expect(first.stderr).toContain(`git checkout -- ${file}`);
     expect(second.stderr).toBe("");

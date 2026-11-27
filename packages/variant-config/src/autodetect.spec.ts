@@ -17,7 +17,7 @@ describe("detectConnection", () => {
 
     expect(detected.source).toBe("env");
     expect(detected.config).toMatchObject({
-      dialect: "postgres",
+      type: "postgres",
       host: "127.0.0.1",
       port: 5432,
       user: "variant",
@@ -31,7 +31,7 @@ describe("detectConnection", () => {
     const detected = detectConnection("/proj", () => ({}));
 
     expect(detected.source).toBe("default");
-    expect(detected.config).toEqual({ dialect: "sqlite", database: ".cache/variants/${slug}.sqlite" });
+    expect(detected.config).toEqual({ type: "sqlite", database: ".cache/variants/${slug}.sqlite" });
   });
 });
 
@@ -39,10 +39,10 @@ describe("detectConnection", () => {
 describe("detectConnection for SQLite", () => {
   it("reads SQLITE_DATABASE and SQLITE_PATH as the database file, the first one winning", () => {
     expect(detectConnection("/proj", () => ({ SQLITE_DATABASE: "a.sqlite" })).config).toEqual(
-      expect.objectContaining({ dialect: "sqlite", database: "a.sqlite" }),
+      expect.objectContaining({ type: "sqlite", database: "a.sqlite" }),
     );
     expect(detectConnection("/proj", () => ({ SQLITE_PATH: "/data/b.sqlite" })).config).toEqual(
-      expect.objectContaining({ dialect: "sqlite", database: "/data/b.sqlite" }),
+      expect.objectContaining({ type: "sqlite", database: "/data/b.sqlite" }),
     );
     const both = detectConnection("/proj", () => ({ SQLITE_DATABASE: "a.sqlite", SQLITE_PATH: "/x.sqlite" }));
     expect(both.config.database).toBe("a.sqlite");
@@ -72,10 +72,10 @@ describe("detectConnection for SQLite", () => {
 
 /** Specification: openspec/specs/variant-config/core/spec.md (MariaDB detection) */
 describe("detectConnection for MariaDB", () => {
-  it("detects a mariadb:// URL as the mysql dialect and keeps the URL", () => {
+  it("detects a mariadb:// URL as the mysql type and keeps the URL", () => {
     const { config } = detectConnection("/proj", () => ({ DATABASE_URL: "mariadb://app@localhost/app" }));
 
-    expect(config).toMatchObject({ dialect: "mysql", url: "mariadb://app@localhost/app" });
+    expect(config).toMatchObject({ type: "mysql", url: "mariadb://app@localhost/app" });
   });
 
   it("reads MARIADB_ variables like their MYSQL_ counterparts", () => {
@@ -88,13 +88,30 @@ describe("detectConnection for MariaDB", () => {
     }));
 
     expect(config).toMatchObject({
-      dialect: "mysql",
+      type: "mysql",
       host: "maria.local",
       port: 3307,
       user: "app",
       password: "pw",
-      database: "shop",
+      database: "shop__${schema}",
     });
+  });
+
+  it("makes the MySQL database name the prefix of the database of each variant", () => {
+    const { config, variables } = detectConnection("/proj", () => ({ MYSQL_HOST: "h", MYSQL_DATABASE: "shop" }));
+
+    expect(config.database).toBe("shop__${schema}");
+    expect(variables.database).toBe("MYSQL_DATABASE");
+  });
+
+  it("detects no database name for MySQL from a URL alone", () => {
+    const { config } = detectConnection("/proj", () => ({ DATABASE_URL: "mysql://app@h/shop" }));
+
+    expect(config.database).toBeUndefined();
+  });
+
+  it("leaves the PostgreSQL database name as it is", () => {
+    expect(detectConnection("/proj", () => ({ POSTGRES_HOST: "h", POSTGRES_DB: "shop" })).config.database).toBe("shop");
   });
 
   it("lets a MYSQL_ variable win over the MARIADB_ one of the same setting", () => {
@@ -105,9 +122,9 @@ describe("detectConnection for MariaDB", () => {
 
   it("detects Postgres before MySQL and MariaDB, and those before SQLite", () => {
     expect(
-      detectConnection("/proj", () => ({ POSTGRES_HOST: "p", MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.dialect,
+      detectConnection("/proj", () => ({ POSTGRES_HOST: "p", MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.type,
     ).toBe("postgres");
-    expect(detectConnection("/proj", () => ({ MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.dialect).toBe("mysql");
+    expect(detectConnection("/proj", () => ({ MARIADB_HOST: "m", SQLITE_DATABASE: "s" })).config.type).toBe("mysql");
   });
 });
 

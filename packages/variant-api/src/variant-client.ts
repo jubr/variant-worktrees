@@ -28,8 +28,8 @@ export const createVariantClient = (options: VariantClientOptions = {}): Variant
       configPath: options.configPath ?? process.env.VARIANT_CONFIG,
       miseBinPath: options.miseBinPath,
     });
-  if (config.db.multi !== undefined && config.db.dialect !== "postgres") {
-    throw new Error(`db.multi needs PostgreSQL, not ${config.db.dialect}`);
+  if (config.db.multi !== undefined && config.db.type !== "postgres") {
+    throw new Error(`db.multi needs PostgreSQL, not ${config.db.type}`);
   }
   const variantRoot = config.variant?.root ?? config.configDir;
   const stateDir = resolve(options.stateDir ?? defaultStateDir(config.configDir));

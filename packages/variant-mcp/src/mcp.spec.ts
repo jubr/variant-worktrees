@@ -32,10 +32,7 @@ const loudParent = (): string => {
 
 const configFile = (directory: string, seed = false): string => {
   const path = join(directory, "variants.yaml");
-  writeFileSync(
-    path,
-    `db:\n  dialect: sqlite\n${seed ? 'variant:\n  steps:\n    seed: { cmd: "printf seeded" }\n' : ""}`,
-  );
+  writeFileSync(path, `db:\n  type: sqlite\n${seed ? 'variant:\n  steps:\n    seed: { cmd: "printf seeded" }\n' : ""}`);
   return path;
 };
 
@@ -385,7 +382,7 @@ describe("MCP server", () => {
         `#!/bin/sh\necho "$*" >> "${log}"\ncase "$3" in install) sleep 0.3; echo done > "${marker}";; esac\nexit 0\n`,
       );
       chmodSync(binary, 0o755);
-      writeFileSync(join(repo, "variants.yaml"), `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
+      writeFileSync(join(repo, "variants.yaml"), `db:\n  type: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
 
       const result = await mcp(
         [...initMessages(), call(3, "variant_create", { slug: "add-auth" })],
@@ -421,7 +418,7 @@ describe("MCP server", () => {
       writeFileSync(binary, '#!/bin/sh\necho "$3" >> "$LOG"\nexit 0\n'.replace("$LOG", log));
       chmodSync(binary, 0o755);
       writeFileSync(log, "");
-      writeFileSync(join(repo, "variants.yaml"), `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
+      writeFileSync(join(repo, "variants.yaml"), `db:\n  type: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n`);
       const skipped = await mcp(
         [...initMessages(), call(3, "variant_create", { slug: "quiet", miseInstall: "no" })],
         join(repo, "variants.yaml"),
@@ -461,7 +458,7 @@ describe("MCP server", () => {
       writeFileSync(log, "");
       writeFileSync(
         join(repo, "variants.yaml"),
-        `db:\n  dialect: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n  watches:\n    be:\n      kind: nestjs\n      dir: .\n      watch: exit 0\n`,
+        `db:\n  type: sqlite\nvariant:\n  mise:\n    binPath: ${binary}\n  watches:\n    be:\n      kind: nestjs\n      dir: .\n      watch: exit 0\n`,
       );
       const provisioned = await mcp(
         [...initMessages(), call(3, "variant_provision", { slug: "add-auth", miseInstall: "sync" })],
@@ -529,7 +526,7 @@ describe("MCP runtime tools", () => {
         configPath,
         [
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  open: false",
           "  supervise: { startDelaySeconds: 0 }",
@@ -570,7 +567,7 @@ describe("MCP runtime tools", () => {
       const configPath = join(directory, "variants.yaml");
       writeFileSync(
         configPath,
-        "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be, watch: 'sleep 300' }\n",
+        "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: be, watch: 'sleep 300' }\n",
       );
 
       const watched = answer(
@@ -617,7 +614,7 @@ describe("MCP runtime tools", () => {
       execFileSync("git", ["init", "-q", "-b", "main", repo]);
       git(repo, "config", "user.email", "variant@example.test");
       git(repo, "config", "user.name", "Variant Tests");
-      writeFileSync(join(repo, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(repo, "variants.yaml"), "db:\n  type: sqlite\n");
       writeFileSync(join(repo, ".gitignore"), ".cache\n_v-*\n");
       git(repo, "add", ".");
       git(repo, "commit", "-q", "-m", "initial");
@@ -677,7 +674,7 @@ describe("MCP runtime tools", () => {
       execFileSync("git", ["init", "-q", "-b", "main", repo]);
       git(repo, "config", "user.email", "variant@example.test");
       git(repo, "config", "user.name", "Variant Tests");
-      writeFileSync(join(repo, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(repo, "variants.yaml"), "db:\n  type: sqlite\n");
       writeFileSync(join(repo, ".gitignore"), ".cache\n_v-*\n");
       git(repo, "add", ".");
       git(repo, "commit", "-q", "-m", "initial");
@@ -716,7 +713,7 @@ describe("MCP status and verbose list", () => {
       mkdirSync(join(directory, "_v-demo"));
       writeFileSync(
         join(directory, "_v-demo", "variants.local.yaml"),
-        "runtime:\n  slug: demo\n  mode: watch\n  log: /work/_v-demo/variants.watch.log\n  db: { dialect: postgres, host: h, password: secret }\n  watches:\n    fe: { port: 62060, url: 'http://demo.vw.localhost:62060/' }\n",
+        "runtime:\n  slug: demo\n  mode: watch\n  log: /work/_v-demo/variants.watch.log\n  db: { type: postgres, host: h, password: secret }\n  watches:\n    fe: { port: 62060, url: 'http://demo.vw.localhost:62060/' }\n",
       );
       await run(directory, configFile(directory));
     } finally {
@@ -748,7 +745,7 @@ describe("MCP status and verbose list", () => {
     const directory = tempDirectory();
     try {
       const configPath = join(directory, "variants.yaml");
-      writeFileSync(configPath, "db:\n  dialect: sqlite\n  colour: red\n");
+      writeFileSync(configPath, "db:\n  type: sqlite\n  colour: red\n");
       const result = await mcp([...initMessages(), call(2, "variant_config")], configPath, { cwd: directory });
       const config = JSON.parse(answer(result, 2).text);
 
@@ -763,7 +760,7 @@ describe("MCP status and verbose list", () => {
     const directory = tempDirectory();
     try {
       const configPath = join(directory, "variants.yaml");
-      const old = "db:\n  dialect: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
+      const old = "db:\n  type: sqlite\nvariant:\n  instances:\n    be: { kind: nestjs, dir: . }\n";
       writeFileSync(configPath, old);
       const result = await mcp([...initMessages(), call(2, "variant_config")], configPath, {
         cwd: directory,
@@ -833,7 +830,7 @@ const withUnreachableMcp = async (
     mkdirSync(join(directory, "_v-demo", ".cache", "variant"), { recursive: true });
     writeFileSync(
       configPath,
-      "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n",
+      "db:\n  type: postgres\n  host: 127.0.0.1\n  port: 1\n  database: app\n  password: s3cret-db\n",
     );
     writeFileSync(join(directory, "_v-demo", ".cache", "variant", "state.yaml"), "slug: demo\n");
     await run(directory, configPath);

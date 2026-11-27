@@ -7,7 +7,7 @@ import { startUiServer, type UiClient, type UiServer } from "./index.js";
 export const record = (slug: string, extra: Partial<VariantRecord> = {}): VariantRecord => ({
   slug,
   target: slug,
-  dialect: "sqlite",
+  type: "sqlite",
   database: ".cache/variants/x.sqlite",
   statePath: "",
   createdAt: "",

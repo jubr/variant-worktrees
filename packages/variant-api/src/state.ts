@@ -47,7 +47,12 @@ export const readState = (stateDir: string, slug: string): VariantState | undefi
   if (!existsSync(path)) {
     return undefined;
   }
-  const value = parse(readFileSync(path, "utf8")) as VariantState;
+  const value = parse(readFileSync(path, "utf8")) as VariantState & { dialect?: string };
+  // AIDEV-NOTE: records of an earlier version name the database type `dialect`; they are read as `type`
+  if (value.dialect !== undefined) {
+    const { dialect, ...rest } = value;
+    return { ...rest, type: value.type ?? dialect };
+  }
   return value;
 };
 

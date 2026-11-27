@@ -74,7 +74,7 @@ describe("output formats", () => {
         expect(result.exitCode).toBe(1);
       },
       {},
-      "db:\n  dialect: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
+      "db:\n  type: sqlite\nvariant:\n  open: false\n  watches:\n    be: { kind: nestjs, dir: ., watch: exit 0 }\n",
     ));
 
   it("redacts the password in text, JSON and YAML", () =>
@@ -89,7 +89,7 @@ describe("output formats", () => {
         }
       },
       {},
-      "db:\n  dialect: postgres\n  host: db.example\n  user: app\n  password: hunter2\n  database: app\n",
+      "db:\n  type: postgres\n  host: db.example\n  user: app\n  password: hunter2\n  database: app\n",
     ));
 
   it("prints a non-empty text summary for every command that runs without a runtime", () =>

@@ -74,20 +74,20 @@ const loadedInRepo = (
 
 describe("branch naming settings", () => {
   it("defaults to main and the feat/ and fix/ prefixes", () => {
-    const { variant } = loaded("db:\n  dialect: sqlite\n");
+    const { variant } = loaded("db:\n  type: sqlite\n");
 
     expect(variant.baseBranch).toBe("main");
     expect(variant.branchPrefixes).toEqual(["feat/", "fix/"]);
   });
 
   it("detects the default branch of a master-only repository when baseBranch is not set", () => {
-    const { variant } = loadedInRepo("master", "db:\n  dialect: sqlite\n");
+    const { variant } = loadedInRepo("master", "db:\n  type: sqlite\n");
 
     expect(variant.baseBranch).toBe("master");
   });
 
   it("detects the branch origin/HEAD points at, not a local main", () => {
-    const { variant } = loadedInRepo("main", "db:\n  dialect: sqlite\n", (git) => {
+    const { variant } = loadedInRepo("main", "db:\n  type: sqlite\n", (git) => {
       git("remote", "add", "origin", "https://unreachable.invalid/project.git");
       git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop");
     });
@@ -126,7 +126,7 @@ describe("container engine and opening", () => {
   });
 
   it("opens URLs by default", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.open).toBe(true);
+    expect(loaded("db:\n  type: sqlite\n").variant.open).toBe(true);
   });
 
   it("does not open URLs when variant.open is false or VARIANT_OPEN is 0", () => {
@@ -144,7 +144,7 @@ describe("variant storage", () => {
   });
 
   it("has no storage when absent", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.storage).toBeUndefined();
+    expect(loaded("db:\n  type: sqlite\n").variant.storage).toBeUndefined();
   });
 
   it("rejects an absolute or escaping directory", () => {
@@ -251,7 +251,7 @@ describe("resolved steps", () => {
   const builtin = ["create", "provision", "seed", "watch", "down", "deprovision", "implode"];
 
   it("prints every builtin step when variant.steps is absent", () => {
-    const { steps } = loaded("db:\n  dialect: sqlite\n").variant;
+    const { steps } = loaded("db:\n  type: sqlite\n").variant;
 
     expect(Object.keys(steps)).toEqual(builtin);
     expect(Object.values(steps).map((entry) => entry.cmd)).toEqual(builtin.map((name) => `\${builtin.step.${name}}`));
@@ -282,7 +282,7 @@ describe("resolved steps", () => {
 
 describe("supervision settings", () => {
   it("defaults to 2, 180 and 5", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.supervise).toEqual({
+    expect(loaded("db:\n  type: sqlite\n").variant.supervise).toEqual({
       startDelaySeconds: 2,
       readyTimeoutSeconds: 180,
       checkoutPollSeconds: 5,
@@ -301,7 +301,7 @@ describe("supervision settings", () => {
 
 describe("implode settings", () => {
   it("defaults to empty lists, a merge gate and 200 diff lines", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.implode).toEqual({
+    expect(loaded("db:\n  type: sqlite\n").variant.implode).toEqual({
       preRm: [],
       discard: [],
       requireMerged: true,
@@ -340,7 +340,7 @@ describe("implode settings", () => {
 
 describe("port range", () => {
   it("defaults to 42000-42999", () => {
-    expect(loaded("db:\n  dialect: sqlite\n").variant.ports).toEqual({ range: "42000-42999", low: 42000, high: 42999 });
+    expect(loaded("db:\n  type: sqlite\n").variant.ports).toEqual({ range: "42000-42999", low: 42000, high: 42999 });
   });
 
   it("carries a custom range", () => {
@@ -398,7 +398,7 @@ describe("watches as a keyed record", () => {
 
   it("keeps the explicit dir of an autodetected watch", () => {
     withProject(
-      "db:\n  dialect: sqlite\n",
+      "db:\n  type: sqlite\n",
       (directory) => {
         const { watches } = loadConfig({ cwd: directory }).variant;
 
@@ -425,7 +425,7 @@ describe("watches as a keyed record", () => {
 
   it("autodetects keys from directory names, with numeric suffixes for repeats", () => {
     withProject(
-      "db:\n  dialect: sqlite\n",
+      "db:\n  type: sqlite\n",
       (directory) => {
         expect(Object.keys(loadConfig({ cwd: directory }).variant.watches)).toEqual(["web", "web-2"]);
       },

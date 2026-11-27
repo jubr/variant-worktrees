@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 /** A git repository with a SQLite `variants.yaml`, and a client with worktrees. */
-const project = (yaml = "db:\n  dialect: sqlite\n") => {
+const project = (yaml = "db:\n  type: sqlite\n") => {
   const parent = realpathSync(mkdtempSync(join("/tmp", "variant-create-")));
   parents.push(parent);
   const repo = join(parent, "repo");
@@ -42,7 +42,7 @@ describe("create for a SQLite project", () => {
     const record = await client.create("main");
 
     expect(record.target).toBe(file);
-    expect(readRuntime(repo, {})?.db).toEqual({ dialect: "sqlite", database: file });
+    expect(readRuntime(repo, {})?.db).toEqual({ type: "sqlite", database: file });
     expect(readFileSync(join(repo, STATE_FILE), "utf8")).not.toContain("public");
     expect(existsSync(file)).toBe(false);
   });
@@ -56,11 +56,11 @@ describe("create for a SQLite project", () => {
 
     expect(record.target).toBe(file);
     expect(record.database).toBe(".cache/variants/demo.sqlite");
-    expect(readRuntime(worktree, {})?.db).toEqual({ dialect: "sqlite", database: file });
+    expect(readRuntime(worktree, {})?.db).toEqual({ type: "sqlite", database: file });
   });
 
   it("names an absolute file as the database and the target", async () => {
-    const { client } = project("db:\n  dialect: sqlite\n  database: /tmp/variant-create-abs/${slug}.sqlite\n");
+    const { client } = project("db:\n  type: sqlite\n  database: /tmp/variant-create-abs/${slug}.sqlite\n");
 
     const record = await client.create("demo");
 
@@ -95,13 +95,13 @@ describe("create for a SQLite project", () => {
     mkdirSync(join(repo, ".cache", "variant"), { recursive: true });
     writeFileSync(
       join(repo, STATE_FILE),
-      `slug: main\ncreatedAt: 2026-01-02_03:04:05\ndir: ${repo}\ndialect: sqlite\ntarget: public\n`,
+      `slug: main\ncreatedAt: 2026-01-02_03:04:05\ndir: ${repo}\ntype: sqlite\ntarget: public\n`,
     );
 
     await client.create("main");
 
     const runtime = readRuntime(repo, {});
-    expect(runtime?.db).toEqual({ dialect: "sqlite", database: join(repo, ".cache", "variants", "main.sqlite") });
+    expect(runtime?.db).toEqual({ type: "sqlite", database: join(repo, ".cache", "variants", "main.sqlite") });
     expect(runtime?.createdAt).toBe("2026-01-02_03:04:05");
     expect(readFileSync(join(repo, STATE_FILE), "utf8")).toContain(
       `target: ${join(repo, ".cache", "variants", "main.sqlite")}`,
@@ -127,7 +127,7 @@ describe("create for a SQLite project", () => {
   });
 
   it("fails naming the slug and db.database when two slugs would share the file of main", async () => {
-    const { repo, config } = project("db:\n  dialect: sqlite\n  database: app.sqlite\n");
+    const { repo, config } = project("db:\n  type: sqlite\n  database: app.sqlite\n");
     const shared = createVariantClient({
       config,
       cwd: repo,

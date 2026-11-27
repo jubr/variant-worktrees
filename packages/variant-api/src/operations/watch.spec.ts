@@ -128,7 +128,7 @@ const printingWatcher = (who: string): string => watcher(who).replace("ORDER_LOG
 
 const BASE = lines(
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 3, checkoutPollSeconds: 0 }",
   "  watches:",
@@ -177,7 +177,7 @@ const withProject = async (
     process.env.PATH = `${engine.bin}:${originalPath}`;
     const database: string[] = [];
     const adapter: DatabaseAdapter = {
-      dialect: "sqlite",
+      type: "sqlite",
       create: async (slug) => {
         database.push(`create ${slug}`);
         return slug;
@@ -294,7 +294,7 @@ const shellWatch = async (
       cwd: directory,
       useWorktree: false,
       adapter: {
-        dialect: "sqlite",
+        type: "sqlite",
         create: async (slug) => slug,
         createSchema: async () => {},
         matchingSchemas: async () => [],

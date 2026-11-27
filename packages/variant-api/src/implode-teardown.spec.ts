@@ -27,7 +27,7 @@ const withProject = async (
     mkdirSync(join(directory, "fe"));
     writeFileSync(
       join(directory, "variants.yaml"),
-      "db:\n  dialect: sqlite\nvariant:\n  storage: {}\n  watches:\n    fe: { kind: vite, dir: fe }\n",
+      "db:\n  type: sqlite\nvariant:\n  storage: {}\n  watches:\n    fe: { kind: vite, dir: fe }\n",
     );
     const client = createVariantClient({
       config: loadConfig({ cwd: directory, env: {} }),

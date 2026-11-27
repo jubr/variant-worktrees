@@ -98,7 +98,7 @@ describe("variant-api on Node and Bun", () => {
     it(`creates, lists and removes a SQLite variant under ${runtime}`, async () => {
       const directory = realpathSync(mkdtempSync(join("/tmp", "variant-node-sqlite-")));
       try {
-        writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+        writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
         execFileSync("git", ["init", "-q", "-b", "main", directory]);
         execFileSync("git", ["-C", directory, "config", "user.email", "variant@example.test"]);
         execFileSync("git", ["-C", directory, "config", "user.name", "Variant Tests"]);
@@ -147,7 +147,7 @@ describe("variant-api on Node and Bun", () => {
            execFileSync("git", ["init", "-q", "-b", "main", repo]);
            git("config", "user.email", "variant@example.test");
            git("config", "user.name", "Variant Tests");
-           put(repo, "variants.yaml", "db:\\n  dialect: sqlite\\nvariant:\\n  implode:\\n    preRm: ['{out,dist}/**', '.cache/*', 'rec/\${slug}/pr*-demo.webm', 'tracked/*.js']\\n");
+           put(repo, "variants.yaml", "db:\\n  type: sqlite\\nvariant:\\n  implode:\\n    preRm: ['{out,dist}/**', '.cache/*', 'rec/\${slug}/pr*-demo.webm', 'tracked/*.js']\\n");
            put(repo, "tracked/keep.js");
            git("add", ".");
            git("commit", "-q", "-m", "initial");
@@ -173,10 +173,7 @@ describe("variant-api on Node and Bun", () => {
   it("loads no sqlite module when a PostgreSQL client is used under Node", async () => {
     const directory = realpathSync(mkdtempSync(join("/tmp", "variant-node-pg-")));
     try {
-      writeFileSync(
-        join(directory, "variants.yaml"),
-        "db:\n  dialect: postgres\n  url: postgres://u:p@127.0.0.1:1/db\n",
-      );
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: postgres\n  url: postgres://u:p@127.0.0.1:1/db\n");
       const result = await run(
         "node",
         `const { createVariantClient } = await import(${JSON.stringify(entries.index)});
@@ -234,7 +231,7 @@ const watchTtyOnNode = async (
     join(directory, "variants.yaml"),
     [
       "db:",
-      "  dialect: sqlite",
+      "  type: sqlite",
       "variant:",
       "  supervise: { startDelaySeconds: 0, readyTimeoutSeconds: 1, checkoutPollSeconds: 0 }",
       "  watches:",

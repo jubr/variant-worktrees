@@ -1,10 +1,12 @@
 import { type DbConfig, DEFAULT_SQLITE_DATABASE } from "variant-config";
+import { hasSchemaPlaceholder, mysqlDatabase } from "./db/mysql-names.js";
 
 /**
  * Specification: openspec/specs/variant-api/core/spec.md (Variant records name their database)
  *
  * Where the data of a variant is, without a secret. SQLite: `db.database` with `${slug}` replaced, relative stays
- * relative. PostgreSQL and MySQL: the connection URL, with `***` for the password.
+ * relative. PostgreSQL and MySQL: the connection URL, with `***` for the password; for MySQL with `${schema}` in
+ * `db.database` it names the database of the variant, `target` being its schema name.
  */
 
 const MASK = "***";
@@ -28,17 +30,22 @@ const redactUrl = (url: string): string => {
   );
 };
 
-export const describeDatabase = (db: DbConfig, slug: string): string => {
-  if (db.dialect === "sqlite") {
+export const describeDatabase = (db: DbConfig, slug: string, target?: string): string => {
+  if (db.type === "sqlite") {
     return (db.database ?? DEFAULT_SQLITE_DATABASE).replaceAll("${slug}", slug);
   }
   if (db.url) {
     return redactUrl(db.url);
   }
-  const scheme = db.dialect === "mysql" ? "mysql" : "postgres";
+  const scheme = db.type === "mysql" ? "mysql" : "postgres";
   const user = db.user ? encodeURIComponent(db.user) : "";
   const login = user === "" ? "" : `${user}${db.password ? `:${MASK}` : ""}@`;
   const port = db.port === undefined ? "" : `:${db.port}`;
-  const name = db.database ? `/${encodeURIComponent(db.database)}` : "";
+  // a MySQL `db.database` with `${schema}` is the database of each variant: `target` is the schema name of this one
+  const database =
+    db.type === "mysql" && hasSchemaPlaceholder(db.database) && target !== undefined
+      ? mysqlDatabase(db.database, target)
+      : db.database;
+  const name = database ? `/${encodeURIComponent(database)}` : "";
   return `${scheme}://${login}${db.host ?? "localhost"}${port}${name}`;
 };

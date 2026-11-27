@@ -12,6 +12,10 @@ const describeResult = (result: MigrationResult): string[] => {
   if (result.status === "skipped" && result.notices.every(isSchemaHeaderNotice)) {
     return [];
   }
+  // AIDEV-NOTE: a rewrite without a notice (the former `db.dialect` key) is silent on purpose
+  if (result.status === "rewritten" && result.notices.length === 0) {
+    return [];
+  }
   if (result.status === "skipped") {
     return [
       `warning: ${result.file} uses names of an earlier version and was not rewritten: ${result.reason}.`,

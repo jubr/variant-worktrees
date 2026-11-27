@@ -12,7 +12,7 @@ const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
 
 const CONFIG = lines(
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  storage: {}",
   "  watches:",

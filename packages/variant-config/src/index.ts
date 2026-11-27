@@ -281,8 +281,8 @@ const mergeDbConfig = (detected: Partial<DbConfig>, explicit: DbConfig | undefin
     ...explicit,
   }) as DbConfig;
 
-/** What an explicit `db.dialect: sqlite` gets instead of detection, which the environment cannot change. */
-const SQLITE_DEFAULTS: DbConfig = { dialect: "sqlite", database: DEFAULT_SQLITE_DATABASE };
+/** What an explicit `db.type: sqlite` gets instead of detection, which the environment cannot change. */
+const SQLITE_DEFAULTS: DbConfig = { type: "sqlite", database: DEFAULT_SQLITE_DATABASE };
 
 const memoize = <Value>(compute: () => Value): (() => Value) => {
   let cached: { value: Value } | undefined;
@@ -338,23 +338,33 @@ const positivePort = (value: string, setting: string): number => {
 
 /**
  * `db` with the environment references of its text settings expanded; `db` belongs to no variant.
- * AIDEV-NOTE: `db.database` keeps `${slug}` as it is, because the SQLite adapter fills in the slug of each variant.
+ * AIDEV-NOTE: `db.database` keeps `${slug}` and `${schema}` as they are, because the adapters fill them in for each
+ * variant: SQLite the slug, MySQL the schema name.
  */
 const expandDb = (db: DbConfig, environment: EnvironmentProvider): DbConfig => {
   const expanded = Object.fromEntries(
     Object.entries(db).map(([name, value]) => [
       name,
       typeof value === "string"
-        ? renderTemplate(name === "database" ? value.replaceAll("${slug}", () => "$${slug}") : value, {
-            env: environment,
-            variant: false,
-            setting: `db.${name}`,
-          })
+        ? renderTemplate(
+            name === "database" ? value.replace(/\$\{(?:slug|schema)\}/g, (match) => `$${match}`) : value,
+            {
+              env: environment,
+              variant: false,
+              setting: `db.${name}`,
+            },
+          )
         : value,
     ]),
   ) as DbConfig;
   if (typeof expanded.port === "string") {
     expanded.port = positivePort(expanded.port, "db.port");
+  }
+  if (expanded.database?.includes("${slug}") && expanded.type !== "sqlite") {
+    throw new Error("db.database: ${slug} is for type sqlite");
+  }
+  if (expanded.database?.includes("${schema}") && expanded.type !== "mysql") {
+    throw new Error("db.database: ${schema} is for type mysql");
   }
   return expanded;
 };
@@ -452,7 +462,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
     if (config.db === undefined) {
       return detected().source === "default" ? found : undefined;
     }
-    return config.db.dialect === "sqlite" ? found : undefined;
+    return config.db.type === "sqlite" ? found : undefined;
   });
   const env = options.env ?? process.env;
   const variant = resolveVariant(config, configDir, env, environment);
@@ -487,7 +497,10 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
       enumerable: true,
       configurable: true,
       get: memoize(() => {
-        const base = config.db?.dialect === "sqlite" ? SQLITE_DEFAULTS : detected().config;
+        const found = config.db?.type === "sqlite" ? SQLITE_DEFAULTS : detected().config;
+        // the database name of another type (the SQLite default, a MySQL prefix) says nothing about an explicit type
+        const { database: foreign, ...unnamed } = found;
+        const base = config.db?.type === undefined || config.db.type === found.type ? found : unnamed;
         const former = formerDatabase();
         return expandDb(
           mergeDbConfig(former === undefined ? base : { ...base, database: former }, config.db),
@@ -507,7 +520,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): ResolvedConfig => {
         const origins = originsFromRaw(config, configFileOrigin(cwd, configPath));
         applyTemplateOrigins(origins, config, environment());
         fillDefaultOrigins(origins, variant.watches);
-        if (config.db?.dialect !== "sqlite") {
+        if (config.db?.type !== "sqlite") {
           fillDbOrigins(origins, detected(), environment());
         } else if (config.db.database === undefined) {
           origins["db.database"] = "# default";
@@ -632,7 +645,7 @@ export { type ParsedConfig, parseConfig } from "./parse.js";
 export { openUrlFor, type PickFreePortOptions, pickFreePort, resolveWatchPort } from "./ports.js";
 export type {
   DbConfig,
-  DbDialect,
+  DbType,
   PortRange,
   ResolvedConfig,
   ResolvedRuntime,

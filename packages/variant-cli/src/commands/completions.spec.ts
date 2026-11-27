@@ -100,7 +100,7 @@ describe("variant completions --list-slugs", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   };
-  const sqlite = "db:\n  dialect: sqlite\n";
+  const sqlite = "db:\n  type: sqlite\n";
   const state = (directory: string, slug: string): void => {
     mkdirSync(join(directory, ".cache", "variants"), { recursive: true });
     writeFileSync(join(directory, ".cache", "variants", `${slug}.yaml`), `slug: ${slug}\n`);
@@ -131,7 +131,7 @@ describe("variant completions --list-slugs", () => {
     }));
 
   it("uses the configured variant.prefix", () =>
-    inProject("db:\n  dialect: sqlite\nvariant:\n  prefix: wt-\n", async (directory, options) => {
+    inProject("db:\n  type: sqlite\nvariant:\n  prefix: wt-\n", async (directory, options) => {
       mkdirSync(join(directory, "wt-add-auth"));
       mkdirSync(join(directory, "_v-ignored"));
 
@@ -197,7 +197,7 @@ describe("variant completions --list-slugs", () => {
   it("creates no file or directory and never opens the database", () =>
     // An unreachable PostgreSQL server: a connection attempt would fail or hang, so success proves none was made.
     inProject(
-      "db:\n  dialect: postgres\n  host: 127.0.0.1\n  port: 1\n  user: nobody\n  password: nothing\n  database: none\n",
+      "db:\n  type: postgres\n  host: 127.0.0.1\n  port: 1\n  user: nobody\n  password: nothing\n  database: none\n",
       async (directory, options) => {
         mkdirSync(join(directory, "_v-add-auth"));
         const before = tree(directory);

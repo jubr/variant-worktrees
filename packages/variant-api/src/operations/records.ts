@@ -24,8 +24,8 @@ import type { RuntimeStatus, VariantRecord, WatchFacts } from "../types.js";
 import { processUptimeSeconds } from "../uptime.js";
 import type { OperationContext } from "./types.js";
 
-const slugFromTarget = (target: string, dialect: string): string => {
-  if (dialect === "sqlite") {
+const slugFromTarget = (target: string, type: string): string => {
+  if (type === "sqlite") {
     return target;
   }
   return target.replace(/^v_/, "").replaceAll("_", "-");
@@ -45,7 +45,7 @@ const recordTarget = (
       return undefined;
     }
   };
-  if (context.adapter.dialect === "sqlite") {
+  if (context.adapter.type === "sqlite") {
     return resolved() ?? recorded ?? "";
   }
   return recorded ?? (known ? (resolved() ?? "") : "");
@@ -205,7 +205,7 @@ export const collectRecords = async (
   context: OperationContext,
   options: CollectOptions = {},
 ): Promise<VariantRecord[]> => {
-  const { dialect } = context.adapter;
+  const { type } = context.adapter;
   const multi = context.config.db.multi;
   const head = multi === undefined ? undefined : multiSchemaHead(multi.schemaPrefix);
   let listed: string[] = [];
@@ -272,9 +272,7 @@ export const collectRecords = async (
     }
   }
   const databaseSlugs = new Map(
-    catalog
-      .filter((target) => !consumed.has(target))
-      .map((target) => [slugFromTarget(target, dialect), target] as const),
+    catalog.filter((target) => !consumed.has(target)).map((target) => [slugFromTarget(target, type), target] as const),
   );
   const known = new Set([
     ...fromState,
@@ -291,18 +289,19 @@ export const collectRecords = async (
     const url = ownWatches(watches ?? {}).find((watch) => watch.url !== undefined)?.url;
     const uptimeSeconds = watches ? longestUptime(watches) : undefined;
     const runtimeDb = found?.runtime.db;
-    const runtimeTarget = runtimeDb?.schema ?? (runtimeDb?.dialect === "sqlite" ? runtimeDb.database : undefined);
+    const runtimeTarget = runtimeDb?.schema ?? (runtimeDb?.type === "sqlite" ? runtimeDb.database : undefined);
     const prefixed = join(context.config.variant.root, `${context.config.variant.prefix}${slug}`);
     const located = existsSync(prefixed) ? prefixed : undefined;
     const directory = [state?.worktree, found?.dir, located].find((path) => path !== undefined && existsSync(path));
     const yaml = found ? runtimeFile(found.dir) : directory ? runtimeFile(directory) : undefined;
     const worktree = state?.worktree ?? found?.runtime.dir ?? found?.dir ?? located;
     const knownTarget = multi !== undefined || databaseSlugs.has(slug);
+    const target = recordTarget(context, slug, state?.target ?? runtimeTarget, knownTarget);
     return {
       slug,
-      target: recordTarget(context, slug, state?.target ?? runtimeTarget, knownTarget),
-      dialect: state?.dialect ?? context.adapter.dialect,
-      database: describeDatabase(context.config.db, slug),
+      target,
+      type: state?.type ?? context.adapter.type,
+      database: describeDatabase(context.config.db, slug, target),
       statePath: state?.statePath ?? "",
       worktree,
       createdAt: state?.createdAt ?? "",

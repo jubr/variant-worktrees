@@ -114,7 +114,7 @@ describe("bundled watch relay", () => {
       writeFileSync(join(bundle, "package.json"), JSON.stringify({ type: "module" }));
       writeFileSync(
         join(project, "variants.yaml"),
-        "db:\n  dialect: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: . }\n",
+        "db:\n  type: sqlite\nvariant:\n  watches:\n    fe: { kind: vite, dir: . }\n",
       );
       await buildBundle(builds.watchRelayBundle as BuildOptions, join(bundle, "watch-relay.js"));
       const plan = {

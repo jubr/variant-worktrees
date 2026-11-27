@@ -11,7 +11,7 @@ import {
   type EnvironmentProvider,
 } from "./autodetect.js";
 import { schemaHeaderFor } from "./header.js";
-import { type DbConfig, type DbDialect, DEFAULT_PREFIX, type VariantWatch } from "./schema.js";
+import { type DbConfig, type DbType, DEFAULT_PREFIX, type VariantWatch } from "./schema.js";
 
 /**
  * Specification: openspec/specs/variant-api/init/spec.md
@@ -34,7 +34,7 @@ export interface RenderedInitConfig {
   text: string;
   /** What was detected and written, without any secret. */
   detected: {
-    dialect: DbDialect;
+    type: DbType;
     /** `env` when the database was found in the environment, `default` when only SQLite was written. */
     databaseSource: DetectedConnection["source"];
     abbr: string;
@@ -46,7 +46,7 @@ export interface RenderedInitConfig {
   };
 }
 
-const DIALECTS: readonly DbDialect[] = ["postgres", "sqlite", "mysql"];
+const TYPES: readonly DbType[] = ["postgres", "sqlite", "mysql"];
 const KINDS: readonly NonNullable<VariantWatch["kind"]>[] = ["vite", "nestjs"];
 
 /** Whether a connection URL carries a password (`scheme://user:password@host/...`). */
@@ -86,30 +86,41 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
 
   const db: Record<string, unknown> = {};
   const { config, variables, source } = detectedConnection;
-  const dialect = config.dialect ?? "sqlite";
-  db.dialect = dialect;
-  note(["db", "dialect"], others(DIALECTS, dialect));
+  const type = config.type ?? "sqlite";
+  db.type = type;
+  note(["db", "type"], others(TYPES, type));
   if (source === "env") {
-    const reference = (field: "host" | "port" | "user" | "password" | "url"): void => {
+    const reference = (field: "host" | "port" | "user" | "password" | "url" | "database", suffix = ""): void => {
       const name = variables[field];
-      db[field] = `\${${name}}`;
+      db[field] = `\${${name}}${suffix}`;
       note(["db", field], fromWhere(name as string));
     };
-    const postgresSetting = (field: "host" | "port" | "user"): boolean =>
-      dialect === "postgres" && variables[field]?.startsWith("POSTGRES_") === true;
+    // the variables of the server type itself: POSTGRES_* for PostgreSQL, MYSQL_* and MARIADB_* for MySQL
+    const serverSetting = (field: "host" | "port" | "user" | "database"): boolean => {
+      const name = variables[field];
+      return type === "postgres"
+        ? name?.startsWith("POSTGRES_") === true
+        : type === "mysql" && (name?.startsWith("MYSQL_") === true || name?.startsWith("MARIADB_") === true);
+    };
     const fields: (keyof DbConfig)[] = ["url", "host", "port", "user", "password", "database", "schema", "ssl"];
     for (const field of fields) {
       const value = config[field];
-      if (value === undefined || (field === "database" && variables.database === undefined && dialect === "sqlite")) {
+      if (value === undefined || (field === "database" && variables.database === undefined && type === "sqlite")) {
         continue;
       }
       if (field === "password" && variables.password !== undefined) {
         reference("password");
       } else if (field === "url" && variables.url !== undefined && urlHasPassword(value as string)) {
         reference("url");
-      } else if ((field === "host" || field === "port" || field === "user") && postgresSetting(field)) {
+      } else if (field === "database" && type === "mysql" && serverSetting(field)) {
+        // each variant gets a database of its own: the name from the environment is the prefix of it
+        reference(field, "__${schema}");
+      } else if (
+        (field === "host" || field === "port" || field === "user" || field === "database") &&
+        serverSetting(field)
+      ) {
         reference(field);
-      } else if (field !== "dialect") {
+      } else if (field !== "type") {
         db[field] = value;
       }
     }
@@ -162,7 +173,7 @@ export const renderInitConfig = (directory: string, options: RenderInitConfigOpt
     // AIDEV-NOTE: the header is the text `addSchemaHeader` would add, so the migration of the next command finds nothing to do and saves no `variants.yaml~`.
     text: `${schemaHeaderFor("variants.yaml")}\n\n${document.toString({ lineWidth: 0 })}`,
     detected: {
-      dialect,
+      type,
       databaseSource: source,
       abbr,
       prefix,

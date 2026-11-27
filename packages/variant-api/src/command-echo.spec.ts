@@ -42,7 +42,7 @@ describe("provisioning command echo", () => {
   const PROVISIONED = (d: string): string =>
     lines(
       "db:",
-      "  dialect: sqlite",
+      "  type: sqlite",
       "variant:",
       "  watches:",
       '    fe: { kind: vite, dir: fe, up: "echo up" }',
@@ -86,7 +86,7 @@ describe("provisioning command echo", () => {
       () =>
         lines(
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  steps:",
           '    broken: { cmd: "echo boom; exit 3", runBefore: seed }',
@@ -106,7 +106,7 @@ describe("provisioning command echo", () => {
 
 const CONTAINERS = lines(
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  watches:",
   "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",
@@ -135,7 +135,7 @@ describe("container command echo", () => {
       () =>
         lines(
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  watches:",
           "    be: { kind: nestjs, dir: be, container: { dockerfile: be/Dockerfile, internalPort: 3000 } }",

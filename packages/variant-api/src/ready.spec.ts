@@ -51,7 +51,7 @@ describe("watch interactive hint", () => {
     try {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "db:\n  dialect: sqlite\nvariant:\n  watches:\n    be:\n      ready: /health\n",
+        "db:\n  type: sqlite\nvariant:\n  watches:\n    be:\n      ready: /health\n",
       );
       const messages: string[] = [];
       const recorded: string[] = [];
@@ -94,7 +94,7 @@ describe("watch interactive hint", () => {
     try {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "db:\n  dialect: sqlite\nvariant:\n  watches:\n    be:\n      ready: /health\n    fe:\n      ready: /health\n",
+        "db:\n  type: sqlite\nvariant:\n  watches:\n    be:\n      ready: /health\n    fe:\n      ready: /health\n",
       );
       const messages: string[] = [];
       await announce(
@@ -123,7 +123,7 @@ describe("watch interactive hint", () => {
     try {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "db:\n  dialect: sqlite\nvariant:\n  watches:\n    be:\n      ready: /health\n",
+        "db:\n  type: sqlite\nvariant:\n  watches:\n    be:\n      ready: /health\n",
       );
       const messages: string[] = [];
 

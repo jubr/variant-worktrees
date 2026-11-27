@@ -57,7 +57,7 @@ const lines = (...entries: string[]): string => `${entries.join("\n")}\n`;
 
 const FE_BE = lines(
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  watches:",
   "    be:",
@@ -101,7 +101,7 @@ const withProject = async (
     process.env.PATH = `${engine.bin}:${originalPath}`;
     const database: string[] = [];
     const adapter: DatabaseAdapter = {
-      dialect: "sqlite",
+      type: "sqlite",
       create: async (slug) => {
         database.push(`create ${slug}`);
         return slug;
@@ -305,8 +305,8 @@ describe("up containers", () => {
         expect(flagValues(run, "-e")).toContain("POSTGRES_SCHEMA=v_demo");
       },
       FE_BE.replace(
-        "  dialect: sqlite",
-        "  dialect: postgres\n  host: host.docker.internal\n  user: u\n  password: p\n  database: d",
+        "  type: sqlite",
+        "  type: postgres\n  host: host.docker.internal\n  user: u\n  password: p\n  database: d",
       ),
     ));
 
@@ -324,10 +324,7 @@ describe("up containers", () => {
         expect(environment.some((entry) => entry.startsWith("STORAGE_ROOT="))).toBe(false);
         expect(flagValues(runCall(engine, "v-be-demo"), "-v")).toEqual([]);
       },
-      FE_BE.replace(
-        "  dialect: sqlite",
-        "  dialect: postgres\n  host: localhost\n  user: u\n  password: p\n  database: d",
-      )
+      FE_BE.replace("  type: sqlite", "  type: postgres\n  host: localhost\n  user: u\n  password: p\n  database: d")
         .replace("variant:\n", "variant:\n  storage: {}\n")
         .replace(
           "      container: { dockerfile: be/Dockerfile, internalPort: 3000 }",
@@ -443,7 +440,7 @@ describe("up mode switch and runtime state", () => {
           slug: "demo",
           mode: "up",
           dir: directory,
-          db: { dialect: "sqlite", database: "v_demo" },
+          db: { type: "sqlite", database: "v_demo" },
           watches: {
             be: { port: expect.any(Number), startedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/) },
             fe: {

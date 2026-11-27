@@ -30,7 +30,7 @@ describe("dotenvFor", () => {
   const withProject = (run: (directory: string) => void): void => {
     const directory = mkdtempSync(join("/tmp", "variant-dotenv-"));
     try {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
       mkdirSync(join(directory, "server"));
       run(directory);
     } finally {

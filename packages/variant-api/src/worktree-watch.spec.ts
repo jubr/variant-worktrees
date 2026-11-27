@@ -49,7 +49,7 @@ describe("watch from the worktree file", () => {
     writeFileSync(
       join(main, "variants.yaml"),
       [
-        "db: { dialect: sqlite }",
+        "db: { type: sqlite }",
         "variant:",
         "  open: false",
         "  supervise: { startDelaySeconds: 0, checkoutPollSeconds: 0 }",
@@ -66,7 +66,7 @@ describe("watch from the worktree file", () => {
     writeFileSync(
       join(linked, "variants.yaml"),
       [
-        "db: { dialect: sqlite }",
+        "db: { type: sqlite }",
         "variant:",
         "  open: false",
         "  supervise: { startDelaySeconds: 0, checkoutPollSeconds: 0 }",

@@ -10,7 +10,7 @@ import { type EngineStub, installEngineStub } from "../test/engine-stub.js";
 
 const CONFIG = [
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  watches:",
   "    fe: { kind: vite, dir: fe, container: { dockerfile: fe/Dockerfile } }",

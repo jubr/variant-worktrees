@@ -3,7 +3,7 @@ import type { ResolvedConfig, ResolvedRuntime } from "variant-config";
 export interface VariantState {
   slug: string;
   target: string;
-  dialect: string;
+  type: string;
   statePath: string;
   worktree?: string;
   createdAt: string;
@@ -276,7 +276,7 @@ export interface InitResult {
   };
   /** What autodetection found and the file holds, without any secret; null when the file step was off. */
   detected: {
-    dialect: "postgres" | "mysql" | "sqlite";
+    type: "postgres" | "mysql" | "sqlite";
     databaseSource: "env" | "default";
     abbr: string;
     prefix: string;
@@ -324,7 +324,7 @@ export interface VariantClient {
 }
 
 export interface DatabaseAdapter {
-  readonly dialect: string;
+  readonly type: string;
   create(slug: string): Promise<string>;
   /** Creates one named schema. PostgreSQL only; `db.multi` uses it for each tenant. */
   createSchema(name: string): Promise<void>;

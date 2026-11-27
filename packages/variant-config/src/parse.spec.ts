@@ -9,16 +9,16 @@ const FILE = "/p/variants.yaml";
 
 describe("parseConfig", () => {
   it("returns the data and no warning for a valid document", () => {
-    const { data, warnings } = parseConfig(VariantsConfigSchema, { db: { dialect: "sqlite" } }, FILE);
+    const { data, warnings } = parseConfig(VariantsConfigSchema, { db: { type: "sqlite" } }, FILE);
 
-    expect(data.db?.dialect).toBe("sqlite");
+    expect(data.db?.type).toBe("sqlite");
     expect(warnings).toEqual([]);
   });
 
   it("drops an extra key and warns with the file and the key path", () => {
-    const { data, warnings } = parseConfig(VariantsConfigSchema, { db: { dialect: "sqlite", colour: "red" } }, FILE);
+    const { data, warnings } = parseConfig(VariantsConfigSchema, { db: { type: "sqlite", colour: "red" } }, FILE);
 
-    expect(data.db).toEqual({ dialect: "sqlite" });
+    expect(data.db).toEqual({ type: "sqlite" });
     expect(warnings).toEqual([`${FILE}: unknown key db.colour`]);
   });
 
@@ -55,23 +55,23 @@ describe("parseConfig", () => {
   });
 
   it("warns for each of several extra keys in one object", () => {
-    const { warnings } = parseConfig(VariantsConfigSchema, { db: { dialect: "sqlite", a: 1, b: 2 } }, FILE);
+    const { warnings } = parseConfig(VariantsConfigSchema, { db: { type: "sqlite", a: 1, b: 2 } }, FILE);
 
     expect([...warnings].sort()).toEqual([`${FILE}: unknown key db.a`, `${FILE}: unknown key db.b`]);
   });
 
   it("does not change the data that was passed in", () => {
-    const input = { db: { dialect: "sqlite", colour: "red" } };
+    const input = { db: { type: "sqlite", colour: "red" } };
 
     parseConfig(VariantsConfigSchema, input, FILE);
 
-    expect(input.db).toEqual({ dialect: "sqlite", colour: "red" });
+    expect(input.db).toEqual({ type: "sqlite", colour: "red" });
   });
 
   it("throws for a wrong type", () => {
-    expect(() =>
-      parseConfig(VariantsConfigSchema, { db: { dialect: "postgres", host: "h", port: "x" } }, FILE),
-    ).toThrow(/port/);
+    expect(() => parseConfig(VariantsConfigSchema, { db: { type: "postgres", host: "h", port: "x" } }, FILE)).toThrow(
+      /port/,
+    );
   });
 
   it("throws for a missing required key", () => {
@@ -99,7 +99,7 @@ describe("parseConfig", () => {
   });
 
   it("reports the warning together with the error", () => {
-    const document = { db: { dialect: "postgres", host: "h", port: "abc", colour: "red" } };
+    const document = { db: { type: "postgres", host: "h", port: "abc", colour: "red" } };
 
     let message = "";
     try {
@@ -125,7 +125,7 @@ describe("loadConfig warnings", () => {
   };
 
   it("carries the warnings of an extra property in the resolved configuration", () => {
-    withProject("db:\n  dialect: sqlite\n  colour: red\n", (directory) => {
+    withProject("db:\n  type: sqlite\n  colour: red\n", (directory) => {
       const config = loadConfig({ cwd: directory });
 
       expect(config.warnings).toEqual([`${join(directory, "variants.yaml")}: unknown key db.colour`]);
@@ -134,7 +134,7 @@ describe("loadConfig warnings", () => {
   });
 
   it("has an empty warning list for a clean file and for no file", () => {
-    withProject("db:\n  dialect: sqlite\n", (directory) => {
+    withProject("db:\n  type: sqlite\n", (directory) => {
       expect(loadConfig({ cwd: directory }).warnings).toEqual([]);
     });
     const empty = mkdtempSync(join("/tmp", "variant-config-warn-"));
@@ -146,7 +146,7 @@ describe("loadConfig warnings", () => {
   });
 
   it("fails for an error and names the extra property in the same message", () => {
-    withProject("db:\n  dialect: postgres\n  host: h\n  port: abc\n  colour: red\n", (directory) => {
+    withProject("db:\n  type: postgres\n  host: h\n  port: abc\n  colour: red\n", (directory) => {
       expect(() => loadConfig({ cwd: directory })).toThrow(/db\.colour/);
     });
   });

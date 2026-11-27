@@ -11,7 +11,7 @@ describe("text output of each command", () => {
     const created = (extra: Record<string, unknown>) => ({
       slug: "demo",
       target: "v_demo",
-      dialect: "postgres",
+      type: "postgres",
       database: "postgres://app:***@db.example:5432/app",
       statePath: "/work/.cache/variants/demo.yaml",
       worktree: "/work/_v-demo",
@@ -25,7 +25,7 @@ describe("text output of each command", () => {
         "create",
         created({
           target: "/work/_v-demo/.cache/variants/demo.sqlite",
-          dialect: "sqlite",
+          type: "sqlite",
           database: ".cache/variants/demo.sqlite",
         }),
       );
@@ -34,12 +34,12 @@ describe("text output of each command", () => {
     });
 
     it("shows an absolute SQLite file as it is", () => {
-      const out = text("create", created({ dialect: "sqlite", database: "/srv/db/demo.sqlite" }));
+      const out = text("create", created({ type: "sqlite", database: "/srv/db/demo.sqlite" }));
 
       expect(out).toContain("database:  /srv/db/demo.sqlite");
     });
 
-    it("shows the URL with *** and a schema line for PostgreSQL, without target or dialect", () => {
+    it("shows the URL with *** and a schema line for PostgreSQL, without target or type", () => {
       const out = text("create", created({}));
 
       expect(out).toBe(
@@ -51,7 +51,7 @@ describe("text output of each command", () => {
         ].join("\n"),
       );
       expect(out).not.toContain("target:");
-      expect(out).not.toContain("dialect:");
+      expect(out).not.toContain("type:");
     });
   });
 
@@ -198,9 +198,9 @@ describe("text output of each command", () => {
   });
 
   it("shows config as an outline without the password", () => {
-    const out = text("config", { db: { dialect: "postgres", password: "hunter2" }, variant: { prefix: "_v-" } });
+    const out = text("config", { db: { type: "postgres", password: "hunter2" }, variant: { prefix: "_v-" } });
 
-    expect(out).toContain("dialect: postgres");
+    expect(out).toContain("type: postgres");
     expect(out).toContain("prefix: _v-");
     expect(out).not.toContain("hunter2");
   });
@@ -243,7 +243,7 @@ describe("status text", () => {
   const status = {
     slug: "demo",
     target: "v_demo",
-    dialect: "postgres",
+    type: "postgres",
     database: "postgres://app@db.example/app",
     statePath: "",
     worktree: "/work/_v-demo",
@@ -263,7 +263,7 @@ describe("status text", () => {
       mode: "watch",
       dir: "/work/_v-demo",
       log: "/work/_v-demo/variants.watch.log",
-      db: { dialect: "postgres", host: "db.example", schema: "v_demo", password: "hunter2" },
+      db: { type: "postgres", host: "db.example", schema: "v_demo", password: "hunter2" },
     },
   };
 
@@ -275,11 +275,18 @@ describe("status text", () => {
     expect(out).toMatch(/database:\s+postgres:\/\/app@db\.example\/app/);
     expect(out).toMatch(/schema:\s+v_demo/);
     expect(out).not.toMatch(/^target:/m);
-    expect(out).not.toMatch(/^dialect:/m);
+    expect(out).not.toMatch(/^type:/m);
     expect(out).toMatch(/mode:\s+watch/);
     expect(out).toMatch(/uptime:\s+2h 5m/);
     expect(out).toMatch(/url:\s+http:\/\/demo\.vw\.localhost:62060\//);
     expect(out).toMatch(/log:\s+\/work\/_v-demo\/variants\.watch\.log/);
+  });
+
+  it("leaves out the schema when the database line already ends with it", () => {
+    const out = text("status", { ...status, type: "mysql", database: "mysql://app:***@h:3306/project_x__v_demo" });
+
+    expect(out).toMatch(/database:\s+mysql:\/\/app:\*\*\*@h:3306\/project_x__v_demo/);
+    expect(out).not.toMatch(/^schema:/m);
   });
 
   it("shows each watch with its port, pid, liveness and uptime", () => {
@@ -303,7 +310,7 @@ describe("status text", () => {
     const out = text("status", {
       slug: "demo",
       target: "v_demo",
-      dialect: "postgres",
+      type: "postgres",
       statePath: "",
       createdAt: "",
       exists: true,
@@ -319,7 +326,7 @@ describe("status text", () => {
     const out = text("status", {
       slug: "orphan",
       target: "/work/_v-orphan/.cache/variants/orphan.sqlite",
-      dialect: "sqlite",
+      type: "sqlite",
       database: ".cache/variants/orphan.sqlite",
       statePath: "",
       createdAt: "",
@@ -340,7 +347,7 @@ describe("list text", () => {
     {
       slug: "demo",
       target: "v_demo",
-      dialect: "postgres",
+      type: "postgres",
       database: "postgres://app@db.example/app",
       statePath: "",
       createdAt: "",
@@ -354,7 +361,7 @@ describe("list text", () => {
     const sqlite = ["beta", "alpha"].map((slug) => ({
       slug,
       target: `/work/_v-${slug}/.cache/variants/${slug}.sqlite`,
-      dialect: "sqlite",
+      type: "sqlite",
       database: `.cache/variants/${slug}.sqlite`,
       worktree: `/work/_v-${slug}`,
       statePath: "",
@@ -394,10 +401,10 @@ describe("list text", () => {
     expect(verbose).toContain("v_demo-north");
   });
 
-  it("keeps database, target and dialect in JSON and YAML", () => {
+  it("keeps database, target and type in JSON and YAML", () => {
     const json = JSON.parse(renderOutput("list", records, { format: "json", variantRoot: "/work" }))[0];
 
-    expect(json).toMatchObject({ database: "postgres://app@db.example/app", target: "v_demo", dialect: "postgres" });
+    expect(json).toMatchObject({ database: "postgres://app@db.example/app", target: "v_demo", type: "postgres" });
   });
 
   it("carries schemas in JSON and YAML", () => {

@@ -84,7 +84,7 @@ describe("step log", () => {
       (d) =>
         lines(
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  steps:",
           `    one: { cmd: "echo one >> ${d}/order.log", runBefore: seed }`,
@@ -115,7 +115,7 @@ describe("step log", () => {
 
   it("emits schema creation at trace when the project directory is under /tmp", () =>
     withProject(
-      () => lines("db:", "  dialect: sqlite"),
+      () => lines("db:", "  type: sqlite"),
       async (directory, provision) => {
         const events: LogEvent[] = [];
         setLogSink((event) => events.push(event));
@@ -139,7 +139,7 @@ describe("step log", () => {
     const parent = mkdtempSync(join(homedir(), "variant-outside-"));
     try {
       await withProject(
-        () => lines("db:", "  dialect: sqlite"),
+        () => lines("db:", "  type: sqlite"),
         async (directory, provision) => {
           const events: LogEvent[] = [];
           setLogSink((event) => events.push(event));
@@ -168,7 +168,7 @@ describe("step log", () => {
 
   it("quotes a seed step command as a plus and a JSON string", () =>
     withProject(
-      () => lines("db:", "  dialect: sqlite", "variant:", "  steps:", "    seed: { cmd: printf seeded }"),
+      () => lines("db:", "  type: sqlite", "variant:", "  steps:", "    seed: { cmd: printf seeded }"),
       async (_directory, provision) => {
         const events: LogEvent[] = [];
         setLogSink((event) => events.push(event));
@@ -185,7 +185,7 @@ describe("step log", () => {
 
   it("escapes a double quote in a seed step command", () =>
     withProject(
-      () => lines("db:", "  dialect: sqlite", "variant:", "  steps:", `    seed: { cmd: 'echo "hi"' }`),
+      () => lines("db:", "  type: sqlite", "variant:", "  steps:", `    seed: { cmd: 'echo "hi"' }`),
       async (_directory, provision) => {
         const events: LogEvent[] = [];
         setLogSink((event) => events.push(event));
@@ -205,7 +205,7 @@ describe("provisioning order", () => {
       (d) =>
         lines(
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  watches:",
           `    fe: { kind: vite, dir: fe, up: "echo up >> ${d}/order.log" }`,
@@ -227,7 +227,7 @@ describe("provisioning order", () => {
       (d) =>
         lines(
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  steps:",
           '    first: { cmd: "echo boom; exit 3", runBefore: seed }',
@@ -250,7 +250,7 @@ describe("provisioning order", () => {
       () =>
         lines(
           "db:",
-          "  dialect: sqlite",
+          "  type: sqlite",
           "variant:",
           "  steps:",
           '    here: { cmd: "pwd > pwd.out", dir: server, runBefore: seed }',
@@ -268,7 +268,7 @@ describe("skippable and quiet steps", () => {
   const yaml = (d: string) =>
     lines(
       "db:",
-      "  dialect: sqlite",
+      "  type: sqlite",
       "variant:",
       "  steps:",
       `    demo-user: { cmd: "echo ran > ${d}/ran.out", runBefore: seed }`,
@@ -298,7 +298,7 @@ describe("skippable and quiet steps", () => {
 
   const noisy = lines(
     "db:",
-    "  dialect: sqlite",
+    "  type: sqlite",
     "variant:",
     "  steps:",
     "    migrations:",
@@ -344,7 +344,7 @@ describe("watch install", () => {
   const yaml = (d: string) =>
     lines(
       "db:",
-      "  dialect: sqlite",
+      "  type: sqlite",
       "variant:",
       "  watches:",
       `    fe: { kind: vite, dir: fe, install: "echo installed >> ${d}/install.log" }`,
@@ -377,7 +377,7 @@ describe("command environment", () => {
   const dump = (extra: string[] = [], step = 'cmd: "env > env.out", runBefore: seed') =>
     lines(
       "db:",
-      "  dialect: postgres",
+      "  type: postgres",
       "  host: localhost",
       "  port: 5433",
       "  user: app",
@@ -417,13 +417,7 @@ describe("command environment", () => {
   it("passes SQLITE_DATABASE for SQLite", () =>
     withProject(
       () =>
-        lines(
-          "db:",
-          "  dialect: sqlite",
-          "variant:",
-          "  steps:",
-          '    dump: { cmd: "env > env.out", runBefore: seed }',
-        ),
+        lines("db:", "  type: sqlite", "variant:", "  steps:", '    dump: { cmd: "env > env.out", runBefore: seed }'),
       async (directory, provision) => {
         await provision();
 
@@ -498,7 +492,7 @@ describe("interpolation in commands", () => {
   const project = (extra: string[]) =>
     lines(
       "db:",
-      "  dialect: sqlite",
+      "  type: sqlite",
       "variant:",
       "  watches:",
       "    fe: { kind: vite, dir: fe, install: 'echo ${port} > ../install.out', up: 'echo ${be.port} > ../up.out' }",
@@ -578,7 +572,7 @@ describe("variant storage", () => {
   const yaml = (storage: string[]) =>
     lines(
       "db:",
-      "  dialect: sqlite",
+      "  type: sqlite",
       "variant:",
       ...storage,
       "  steps:",
@@ -665,7 +659,7 @@ const provisionIn = async (repo: string) => {
 const DOTENV_YAML = (extra: string[] = []) =>
   lines(
     "db:",
-    "  dialect: sqlite",
+    "  type: sqlite",
     "variant:",
     "  watches:",
     "    be:",

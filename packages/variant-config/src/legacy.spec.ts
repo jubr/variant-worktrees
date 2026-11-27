@@ -65,7 +65,7 @@ describe("legacy names in variants.yaml", () => {
     }));
 
   it("reads db.filename as db.database with one notice and no unknown-key warning", () =>
-    withProject({ [CONFIG]: "db:\n  dialect: sqlite\n  filename: ./app.sqlite\n" }, (directory) => {
+    withProject({ [CONFIG]: "db:\n  type: sqlite\n  filename: ./app.sqlite\n" }, (directory) => {
       const config = loadConfig({ cwd: directory });
 
       expect(config.db.database).toBe("./app.sqlite");
@@ -77,16 +77,13 @@ describe("legacy names in variants.yaml", () => {
     }));
 
   it("uses db.database when both names exist and says that db.filename was ignored", () =>
-    withProject(
-      { [CONFIG]: "db:\n  dialect: sqlite\n  filename: old.sqlite\n  database: new.sqlite\n" },
-      (directory) => {
-        const config = loadConfig({ cwd: directory });
+    withProject({ [CONFIG]: "db:\n  type: sqlite\n  filename: old.sqlite\n  database: new.sqlite\n" }, (directory) => {
+      const config = loadConfig({ cwd: directory });
 
-        expect(config.db.database).toBe("new.sqlite");
-        expect(config.migrations).toHaveLength(1);
-        expect(config.migrations[0]).toContain("db.filename was ignored because db.database is present");
-      },
-    ));
+      expect(config.db.database).toBe("new.sqlite");
+      expect(config.migrations).toHaveLength(1);
+      expect(config.migrations[0]).toContain("db.filename was ignored because db.database is present");
+    }));
 
   it("still fails for a real error next to a legacy name", () =>
     withProject({ [CONFIG]: "variant:\n  instances:\n    fe:\n      kind: ruby\n" }, (directory) => {
@@ -129,12 +126,12 @@ describe("legacy names in variants.local.yaml", () => {
     withProject(
       {
         [CONFIG]: files[CONFIG],
-        [LOCAL]: "runtime:\n  slug: demo\n  db:\n    dialect: sqlite\n    filename: /x/demo.db\n",
+        [LOCAL]: "runtime:\n  slug: demo\n  db:\n    type: sqlite\n    filename: /x/demo.db\n",
       },
       (directory) => {
         const db = readRuntime(directory, {})?.db;
 
-        expect(db).toEqual({ dialect: "sqlite", database: "/x/demo.db" });
+        expect(db).toEqual({ type: "sqlite", database: "/x/demo.db" });
       },
     ));
 
@@ -145,12 +142,21 @@ describe("legacy names in variants.local.yaml", () => {
         join(directory, ".cache", "variant", "state.yaml"),
         "slug: demo\ndialect: sqlite\ntarget: /x/demo.db\n",
       );
-      expect(readRuntime(directory, {})?.db).toEqual({ dialect: "sqlite", database: "/x/demo.db" });
+      expect(readRuntime(directory, {})?.db).toEqual({ type: "sqlite", database: "/x/demo.db" });
       writeFileSync(
         join(directory, ".cache", "variant", "runtime.yaml"),
-        "db:\n  dialect: sqlite\n  filename: /y/demo.db\n",
+        "db:\n  type: sqlite\n  filename: /y/demo.db\n",
       );
-      expect(readRuntime(directory, {})?.db).toEqual({ dialect: "sqlite", database: "/y/demo.db" });
+      expect(readRuntime(directory, {})?.db).toEqual({ type: "sqlite", database: "/y/demo.db" });
+    }));
+
+  it("reads db.dialect of the runtime dump and of the local file as db.type", () =>
+    withProject({ [CONFIG]: files[CONFIG] }, (directory) => {
+      mkdirSync(join(directory, ".cache", "variant"), { recursive: true });
+      writeFileSync(join(directory, ".cache", "variant", "state.yaml"), "slug: demo\ntype: postgres\ntarget: v_demo\n");
+      writeFileSync(join(directory, ".cache", "variant", "runtime.yaml"), "db:\n  dialect: postgres\n  host: h\n");
+
+      expect(readRuntime(directory, {})?.db).toEqual({ type: "postgres", schema: "v_demo", host: "h" });
     }));
 
   it("stays strict about any other unknown key", () =>
@@ -171,13 +177,29 @@ describe("migrateLegacy", () => {
   });
 
   it("renames db.filename to db.database, in a copy, with a notice", () => {
-    const input = { db: { dialect: "sqlite", filename: "a.sqlite" } };
+    const input = { db: { type: "sqlite", filename: "a.sqlite" } };
 
     const { data, notices } = migrateLegacy(input, "f.yaml");
 
-    expect(data).toEqual({ db: { dialect: "sqlite", database: "a.sqlite" } });
+    expect(data).toEqual({ db: { type: "sqlite", database: "a.sqlite" } });
     expect(notices).toEqual(["f.yaml: db.filename is now db.database"]);
     expect(input.db).toHaveProperty("filename");
+  });
+
+  it("renames db.dialect to db.type without a notice, in db and runtime.db", () => {
+    const input = { db: { dialect: "sqlite" }, runtime: { db: { dialect: "postgres", schema: "v_demo" } } };
+
+    const { data, notices } = migrateLegacy(input, "f.yaml");
+
+    expect(data).toEqual({ db: { type: "sqlite" }, runtime: { db: { type: "postgres", schema: "v_demo" } } });
+    expect(notices).toEqual([]);
+    expect(input.db).toHaveProperty("dialect");
+  });
+
+  it("keeps db.type and drops db.dialect when both exist", () => {
+    expect(migrateLegacy({ db: { dialect: "mysql", type: "postgres" } }, "f.yaml").data).toEqual({
+      db: { type: "postgres" },
+    });
   });
 
   it("returns the data and no notice for a current document or a non-object", () => {
@@ -195,7 +217,7 @@ describe("migrateText", () => {
     const text = [
       "# project",
       "db:",
-      "  dialect: sqlite # engine",
+      "  type: sqlite # engine",
       "variant:",
       "  abbr: vw",
       "  instances: # what runs",
@@ -210,21 +232,32 @@ describe("migrateText", () => {
     expect(migrateText(text)).toBe(text.replace("instances:", "watches:"));
   });
 
+  it("renames db.dialect and keeps a trailing comment", () => {
+    const text = "db:\n  dialect: postgres # engine\n  host: localhost\n";
+
+    expect(migrateText(text)).toBe(text.replace("dialect:", "type:"));
+  });
+
+  it("removes db.dialect when db.type is present, and renames it in a flow-style mapping", () => {
+    expect(migrateText("db:\n  dialect: mysql\n  type: postgres\n")).toBe("db:\n  type: postgres\n");
+    expect(migrateText("db: { dialect: sqlite }\n")).toBe("db: { type: sqlite }\n");
+  });
+
   it("renames db.filename and keeps a trailing comment", () => {
-    const text = "db:\n  dialect: sqlite\n  filename: ./app.sqlite # sqlite only\nvariant:\n  abbr: vw\n";
+    const text = "db:\n  type: sqlite\n  filename: ./app.sqlite # sqlite only\nvariant:\n  abbr: vw\n";
 
     expect(migrateText(text)).toBe(text.replace("filename:", "database:"));
   });
 
   it("removes db.filename when db.database is present", () => {
-    expect(migrateText("db:\n  dialect: sqlite\n  filename: old.sqlite\n  database: new.sqlite\n")).toBe(
-      "db:\n  dialect: sqlite\n  database: new.sqlite\n",
+    expect(migrateText("db:\n  type: sqlite\n  filename: old.sqlite\n  database: new.sqlite\n")).toBe(
+      "db:\n  type: sqlite\n  database: new.sqlite\n",
     );
   });
 
   it("renames db.filename in a flow-style mapping", () => {
-    expect(migrateText("db: { dialect: sqlite, filename: a.sqlite }\n")).toBe(
-      "db: { dialect: sqlite, database: a.sqlite }\n",
+    expect(migrateText("db: { type: sqlite, filename: a.sqlite }\n")).toBe(
+      "db: { type: sqlite, database: a.sqlite }\n",
     );
   });
 
@@ -289,15 +322,15 @@ describe("SQLite files of the former location", () => {
       const before = readFileSync(join(directory, CONFIG), "utf8");
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
 
-      expect(config.db.dialect).toBe("sqlite");
+      expect(config.db.type).toBe("sqlite");
       expect(config.db.database).toBe(join(directory, ".cache", "variants", "${slug}.db"));
       expect(config.migrations).toHaveLength(1);
       expect(config.migrations[0]).toContain(join(directory, ".cache", "variants"));
       expect(readFileSync(join(directory, CONFIG), "utf8")).toBe(before);
     }));
 
-  it("also applies to an explicit db.dialect: sqlite without a database, without asking the environment", () =>
-    withFormer({ [CONFIG]: "db:\n  dialect: sqlite\n" }, (directory) => {
+  it("also applies to an explicit db.type: sqlite without a database, without asking the environment", () =>
+    withFormer({ [CONFIG]: "db:\n  type: sqlite\n" }, (directory) => {
       let asked = 0;
       const config = loadConfig({
         cwd: directory,
@@ -321,7 +354,7 @@ describe("SQLite files of the former location", () => {
       writeFileSync(join(directory, ".cache", "variants", "demo.sqlite"), "");
       expect(loadConfig({ cwd: directory, environment: () => ({}) }).migrations).toEqual([]);
     });
-    withFormer({ [CONFIG]: "db:\n  dialect: sqlite\n  database: abc.sqlite\n" }, (directory) => {
+    withFormer({ [CONFIG]: "db:\n  type: sqlite\n  database: abc.sqlite\n" }, (directory) => {
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
       expect(config.db.database).toBe("abc.sqlite");
       expect(config.migrations).toEqual([]);
@@ -331,7 +364,7 @@ describe("SQLite files of the former location", () => {
       expect(config.db.database).toBe("env.sqlite");
       expect(config.migrations).toEqual([]);
       const postgres = loadConfig({ cwd: directory, environment: () => ({ POSTGRES_HOST: "h" }) });
-      expect(postgres.db.dialect).toBe("postgres");
+      expect(postgres.db.type).toBe("postgres");
       expect(postgres.migrations).toEqual([]);
     });
   });
@@ -350,33 +383,31 @@ describe("SQLite files of the former location", () => {
       expect(findFormerSqliteDatabase(directory)).toBeUndefined();
     }));
 
-  it("adds db with dialect: sqlite and the database to a file without db, even without a trailing newline", () => {
+  it("adds db with type: sqlite and the database to a file without db, even without a trailing newline", () => {
     expect(migrateText("variant:\n  abbr: vw\n", { database: "/x/${slug}.db" })).toBe(
-      "variant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/${slug}.db\n",
+      "variant:\n  abbr: vw\ndb:\n  type: sqlite\n  database: /x/${slug}.db\n",
     );
     expect(migrateText("variant:\n  abbr: vw", { database: "/x/${slug}.db" })).toBe(
-      "variant:\n  abbr: vw\ndb:\n  dialect: sqlite\n  database: /x/${slug}.db\n",
+      "variant:\n  abbr: vw\ndb:\n  type: sqlite\n  database: /x/${slug}.db\n",
     );
   });
 
   it("adds only database below the existing db keys, keeping comments", () => {
-    const text = "# top\ndb:\n  dialect: sqlite # my choice\nvariant:\n  abbr: vw\n";
+    const text = "# top\ndb:\n  type: sqlite # my choice\nvariant:\n  abbr: vw\n";
 
     expect(migrateText(text, { database: "/x/${slug}.db" })).toBe(
-      "# top\ndb:\n  dialect: sqlite # my choice\n  database: /x/${slug}.db\nvariant:\n  abbr: vw\n",
+      "# top\ndb:\n  type: sqlite # my choice\n  database: /x/${slug}.db\nvariant:\n  abbr: vw\n",
     );
   });
 
   it("adds database to a flow-style db", () => {
-    expect(migrateText("db: { dialect: sqlite }\n", { database: "/x/${slug}.db" })).toBe(
-      'db: { dialect: sqlite, database: "/x/${slug}.db" }\n',
+    expect(migrateText("db: { type: sqlite }\n", { database: "/x/${slug}.db" })).toBe(
+      'db: { type: sqlite, database: "/x/${slug}.db" }\n',
     );
   });
 
   it("leaves a file that already names a database alone", () => {
-    expect(
-      migrateText("db:\n  dialect: sqlite\n  database: a.sqlite\n", { database: "/x/${slug}.db" }),
-    ).toBeUndefined();
+    expect(migrateText("db:\n  type: sqlite\n  database: a.sqlite\n", { database: "/x/${slug}.db" })).toBeUndefined();
   });
 });
 
@@ -424,7 +455,7 @@ describe("legacy template syntax", () => {
 
   it("reads the former port template of variants.local.yaml", () =>
     withProject(
-      { [LOCAL]: "runtime:\n  slug: demo\n  db:\n    dialect: postgres\n    port: '{{POSTGRES_PORT}}'\n" },
+      { [LOCAL]: "runtime:\n  slug: demo\n  db:\n    type: postgres\n    port: '{{POSTGRES_PORT}}'\n" },
       (directory) => {
         expect(readRuntime(directory, { POSTGRES_PORT: "5433" })?.db?.port).toBe(5433);
       },

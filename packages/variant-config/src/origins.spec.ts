@@ -185,14 +185,14 @@ describe("config origins", () => {
 
       expect(config.db.host).toBe("db.example");
       expect(configOrigins(config)["db.host"]).toBe("# from env POSTGRES_HOST");
-      expect(configOrigins(config)["db.dialect"]).toBe("# from env POSTGRES_HOST");
+      expect(configOrigins(config)["db.type"]).toBe("# from env POSTGRES_HOST");
     }));
 
   it("names a ${POSTGRES_HOST} written in the file as # from env POSTGRES_HOST", () =>
     withDirectory((directory) => {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "db:\n  dialect: postgres\n  host: ${POSTGRES_HOST}\n  user: app\n  database: app\n",
+        "db:\n  type: postgres\n  host: ${POSTGRES_HOST}\n  user: app\n  database: app\n",
       );
 
       const config = loadConfig({
@@ -208,7 +208,7 @@ describe("config origins", () => {
     withDirectory((directory) => {
       writeFileSync(
         join(directory, "variants.yaml"),
-        "db:\n  dialect: postgres\n  host: ${DB_HOST:-127.0.0.1}\n  user: app\n  database: app\n",
+        "db:\n  type: postgres\n  host: ${DB_HOST:-127.0.0.1}\n  user: app\n  database: app\n",
       );
 
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
@@ -236,8 +236,8 @@ describe("config origins", () => {
 
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
 
-      expect(config.db.dialect).toBe("sqlite");
-      expect(configOrigins(config)["db.dialect"]).toBe("# default");
+      expect(config.db.type).toBe("sqlite");
+      expect(configOrigins(config)["db.type"]).toBe("# default");
       expect(configOrigins(config)["db.database"]).toBe("# default");
     }));
 
@@ -252,9 +252,9 @@ describe("config origins", () => {
       expect(configOrigins(url)["db.database"]).toBe("# from env DATABASE_URL");
     }));
 
-  it("names the default database of an explicit SQLite dialect as # default", () =>
+  it("names the default database of an explicit SQLite type as # default", () =>
     withDirectory((directory) => {
-      writeFileSync(join(directory, "variants.yaml"), "db:\n  dialect: sqlite\n");
+      writeFileSync(join(directory, "variants.yaml"), "db:\n  type: sqlite\n");
 
       const config = loadConfig({ cwd: directory, environment: () => ({}) });
 

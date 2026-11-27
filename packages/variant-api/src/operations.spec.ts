@@ -21,7 +21,7 @@ describe("variant client operations", () => {
       execFileSync("git", ["-C", directory, "commit", "-q", "-m", "initial"]);
       const baseConfig = loadConfig({ cwd: directory, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" as const } },
+        config: { ...baseConfig, db: { type: "sqlite" as const } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
       });
@@ -52,7 +52,7 @@ describe("variant client operations", () => {
     try {
       const baseConfig = loadConfig({ cwd: directory });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: directory,
         stateDir: join(directory, ".cache", "variants"),
         worktree: false,
@@ -80,7 +80,7 @@ describe("variant client operations", () => {
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
       });
@@ -111,7 +111,7 @@ describe("variant client operations", () => {
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
       });
@@ -145,7 +145,7 @@ describe("variant client operations", () => {
 
       const baseConfig = loadConfig({ cwd: repo, env: {} });
       const client = createVariantClient({
-        config: { ...baseConfig, db: { dialect: "sqlite" } },
+        config: { ...baseConfig, db: { type: "sqlite" } },
         cwd: repo,
         stateDir: join(repo, ".cache", "variants"),
         now: () => new Date(2026, 10, 4, 12, 22, 5),
@@ -156,7 +156,7 @@ describe("variant client operations", () => {
       const written = readFileSync(stateFile, "utf8");
       expect(written).toContain("createdAt: 2026-11-04_12:22:05");
       expect(written).toContain("slug: demo");
-      expect(written).toContain("dialect: sqlite");
+      expect(written).toContain("type: sqlite");
       expect(existsSync(join(repo, ".cache", "variants", "demo.yaml"))).toBe(false);
 
       writeFileSync(stateFile, "slug: demo\ncreatedAt: 2026-01-02_03:04:05\n");

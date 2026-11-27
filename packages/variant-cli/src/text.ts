@@ -192,7 +192,8 @@ const recordPairs = (record: VariantRecord): string[] => [
   ...pairs([
     ["worktree", record.worktree],
     ["database", record.database],
-    ["schema", record.dialect === "sqlite" ? undefined : record.target],
+    // the schema line adds nothing when the database line already ends with it (a MySQL database per variant)
+    ["schema", record.type === "sqlite" || record.database?.endsWith(record.target) ? undefined : record.target],
     ["mode", record.mode],
     ["uptime", record.uptimeSeconds === undefined ? undefined : formatDuration(record.uptimeSeconds)],
     ["url", record.url],
@@ -235,7 +236,7 @@ const layouts: Record<string, (result: never, options: TextOptions) => string[] 
             [
               "detected",
               [
-                `database ${result.detected.dialect}${result.detected.databaseSource === "default" ? " (default)" : ""}`,
+                `database ${result.detected.type}${result.detected.databaseSource === "default" ? " (default)" : ""}`,
                 `abbr ${result.detected.abbr}`,
                 ...(result.detected.baseBranch === null ? [] : [`branch ${result.detected.baseBranch}`]),
                 `watches ${result.detected.watches.length === 0 ? "none" : result.detected.watches.join(", ")}`,

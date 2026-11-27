@@ -50,7 +50,7 @@ describe("SqliteAdapter target", () => {
   it(
     "resolves the default file against the directory of the variant, main included",
     workspace((root) => {
-      const adapter = new SqliteAdapter({ dialect: "sqlite" }, worktrees(root));
+      const adapter = new SqliteAdapter({ type: "sqlite" }, worktrees(root));
 
       expect(adapter.target("demo")).toBe(join(root, "_v-demo", ".cache", "variants", "demo.sqlite"));
       expect(adapter.target("main")).toBe(join(root, "main", ".cache", "variants", "main.sqlite"));
@@ -60,7 +60,7 @@ describe("SqliteAdapter target", () => {
   it(
     "resolves an explicit relative file against the directory of each variant",
     workspace((root) => {
-      const adapter = new SqliteAdapter({ dialect: "sqlite", database: "data/abc.sqlite" }, worktrees(root));
+      const adapter = new SqliteAdapter({ type: "sqlite", database: "data/abc.sqlite" }, worktrees(root));
 
       expect(adapter.target("demo")).toBe(join(root, "_v-demo", "data", "abc.sqlite"));
       expect(adapter.target("main")).toBe(join(root, "main", "data", "abc.sqlite"));
@@ -70,9 +70,9 @@ describe("SqliteAdapter target", () => {
   it(
     "fills ${slug} in a relative and in an absolute file",
     workspace((root) => {
-      const relative = new SqliteAdapter({ dialect: "sqlite", database: "db-${slug}.sqlite" }, worktrees(root));
+      const relative = new SqliteAdapter({ type: "sqlite", database: "db-${slug}.sqlite" }, worktrees(root));
       const absolute = new SqliteAdapter(
-        { dialect: "sqlite", database: join(root, "all", "${slug}.sqlite") },
+        { type: "sqlite", database: join(root, "all", "${slug}.sqlite") },
         worktrees(root),
       );
 
@@ -85,10 +85,7 @@ describe("SqliteAdapter target", () => {
   it(
     "uses an absolute file without ${slug} for main and <slug> plus its extension beside it for the others",
     workspace((root) => {
-      const adapter = new SqliteAdapter(
-        { dialect: "sqlite", database: join(root, "all", "app.sqlite") },
-        worktrees(root),
-      );
+      const adapter = new SqliteAdapter({ type: "sqlite", database: join(root, "all", "app.sqlite") }, worktrees(root));
 
       expect(adapter.target("main")).toBe(join(root, "all", "app.sqlite"));
       expect(adapter.target("demo")).toBe(join(root, "all", "demo.sqlite"));
@@ -98,7 +95,7 @@ describe("SqliteAdapter target", () => {
   it(
     "resolves a relative file against the directory of variants.yaml when worktrees are not used",
     workspace((root) => {
-      const adapter = new SqliteAdapter({ dialect: "sqlite" }, shared(root));
+      const adapter = new SqliteAdapter({ type: "sqlite" }, shared(root));
 
       expect(adapter.target("demo")).toBe(join(root, ".cache", "variants", "demo.sqlite"));
       expect(adapter.target("main")).toBe(join(root, ".cache", "variants", "main.sqlite"));
@@ -108,11 +105,11 @@ describe("SqliteAdapter target", () => {
   it(
     "fails naming the slug and db.database when the file of a slug would be the file of main",
     workspace((root) => {
-      const sharedFile = new SqliteAdapter({ dialect: "sqlite", database: "app.sqlite" }, shared(root));
+      const sharedFile = new SqliteAdapter({ type: "sqlite", database: "app.sqlite" }, shared(root));
       expect(() => sharedFile.target("demo")).toThrow(/demo.*db\.database.*app\.sqlite/);
       expect(sharedFile.target("main")).toBe(join(root, "app.sqlite"));
 
-      const named = new SqliteAdapter({ dialect: "sqlite", database: join(root, "demo.sqlite") }, worktrees(root));
+      const named = new SqliteAdapter({ type: "sqlite", database: join(root, "demo.sqlite") }, worktrees(root));
       expect(() => named.target("demo")).toThrow(/demo.*db\.database/);
       expect(named.target("other")).toBe(join(root, "other.sqlite"));
     }),
@@ -123,7 +120,7 @@ describe("SqliteAdapter files", () => {
   it(
     "creates and destroys the file of a slug below its worktree",
     workspace(async (root) => {
-      const adapter = new SqliteAdapter({ dialect: "sqlite" }, worktrees(root, ["test-feature"]));
+      const adapter = new SqliteAdapter({ type: "sqlite" }, worktrees(root, ["test-feature"]));
       try {
         const target = await adapter.create("test-feature");
         expect(target).toBe(join(root, "_v-test-feature", ".cache", "variants", "test-feature.sqlite"));
@@ -142,7 +139,7 @@ describe("SqliteAdapter files", () => {
   it(
     "lists the files of the worktrees for a relative file, and never main",
     workspace((root) => {
-      const adapter = new SqliteAdapter({ dialect: "sqlite" }, worktrees(root, ["alpha", "beta", "gamma"]));
+      const adapter = new SqliteAdapter({ type: "sqlite" }, worktrees(root, ["alpha", "beta", "gamma"]));
       for (const slug of ["alpha", "beta", "main"]) {
         const file = adapter.target(slug);
         mkdirSync(dirname(file), { recursive: true });
@@ -161,7 +158,7 @@ describe("SqliteAdapter files", () => {
       for (const name of ["a.sqlite", "b.sqlite", "app.sqlite", "notes.txt"]) {
         writeFileSync(join(directory, name), "");
       }
-      const plain = new SqliteAdapter({ dialect: "sqlite", database: join(directory, "app.sqlite") }, worktrees(root));
+      const plain = new SqliteAdapter({ type: "sqlite", database: join(directory, "app.sqlite") }, worktrees(root));
       expect(await plain.list()).toEqual(["a", "b"]);
 
       mkdirSync(join(directory, "slugged"));
@@ -169,7 +166,7 @@ describe("SqliteAdapter files", () => {
         writeFileSync(join(directory, "slugged", name), "");
       }
       const template = new SqliteAdapter(
-        { dialect: "sqlite", database: join(directory, "slugged", "${slug}.sqlite") },
+        { type: "sqlite", database: join(directory, "slugged", "${slug}.sqlite") },
         worktrees(root),
       );
       expect(await template.list()).toEqual(["x"]);
@@ -180,7 +177,7 @@ describe("SqliteAdapter files", () => {
     "lists nothing for a directory that does not exist",
     workspace(async (root) => {
       const adapter = new SqliteAdapter(
-        { dialect: "sqlite", database: join(root, "nope", "${slug}.sqlite") },
+        { type: "sqlite", database: join(root, "nope", "${slug}.sqlite") },
         worktrees(root),
       );
 
@@ -190,9 +187,9 @@ describe("SqliteAdapter files", () => {
 });
 
 describe("createDatabaseAdapter", () => {
-  it("rejects unknown database dialects", () => {
-    expect(() => createDatabaseAdapter({ dialect: "oracle" as never }, shared("/tmp"))).toThrow(
-      "Unsupported database dialect: oracle",
+  it("rejects unknown database types", () => {
+    expect(() => createDatabaseAdapter({ type: "oracle" as never }, shared("/tmp"))).toThrow(
+      "Unsupported database type: oracle",
     );
   });
 });

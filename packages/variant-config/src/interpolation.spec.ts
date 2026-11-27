@@ -22,7 +22,7 @@ const load = (yaml: string, environment: NodeJS.ProcessEnv = {}): ReturnType<typ
 
 describe("interpolation in db", () => {
   it("resolves a password reference from the environment", () => {
-    const config = load("db:\n  dialect: postgres\n  host: h\n  password: ${POSTGRES_PASSWORD}\n", {
+    const config = load("db:\n  type: postgres\n  host: h\n  password: ${POSTGRES_PASSWORD}\n", {
       POSTGRES_PASSWORD: "s3",
     });
 
@@ -30,7 +30,7 @@ describe("interpolation in db", () => {
   });
 
   it("resolves a URL reference from the environment", () => {
-    const config = load("db:\n  dialect: postgres\n  url: ${DATABASE_URL}\n", {
+    const config = load("db:\n  type: postgres\n  url: ${DATABASE_URL}\n", {
       DATABASE_URL: "postgres://app@localhost/app",
     });
 
@@ -38,27 +38,55 @@ describe("interpolation in db", () => {
   });
 
   it("uses a default when the variable is set nowhere", () => {
-    const config = load("db:\n  dialect: postgres\n  host: ${DB_HOST:-127.0.0.1}\n");
+    const config = load("db:\n  type: postgres\n  host: ${DB_HOST:-127.0.0.1}\n");
 
     expect(config.db.host).toBe("127.0.0.1");
   });
 
   it("fails naming the setting and the variable when the variable is set nowhere", () => {
-    const config = load("db:\n  dialect: postgres\n  host: h\n  password: ${MISSING}\n");
+    const config = load("db:\n  type: postgres\n  host: h\n  password: ${MISSING}\n");
 
     expect(() => config.db).toThrow(/db\.password/);
     expect(() => config.db).toThrow(/MISSING/);
   });
 
+  it("keeps ${schema} in the db.database of MySQL, filled in for each variant by the adapter", () => {
+    const config = load("db:\n  type: mysql\n  host: h\n  database: ${MYSQL_DATABASE}__${schema}\n", {
+      MYSQL_DATABASE: "project_x",
+    });
+
+    expect(config.db.database).toBe("project_x__${schema}");
+  });
+
+  it("keeps the MySQL prefix that is detected, with ${schema}, under an explicit type", () => {
+    const config = load("db:\n  type: mysql\n  host: h\n", { MYSQL_HOST: "h", MYSQL_DATABASE: "project_x" });
+
+    expect(config.db.database).toBe("project_x__${schema}");
+  });
+
+  it("does not take the database name of another type as the one of an explicit type", () => {
+    const config = load("db:\n  type: postgres\n  host: h\n", { MYSQL_HOST: "m", MYSQL_DATABASE: "project_x" });
+
+    expect(config.db.database).toBeUndefined();
+  });
+
+  it("fails for ${schema} in db.database unless the type is mysql, and for ${slug} unless it is sqlite", () => {
+    const schema = load("db:\n  type: postgres\n  host: h\n  database: x_${schema}\n");
+    const slug = load("db:\n  type: mysql\n  host: h\n  database: x_${slug}\n");
+
+    expect(() => schema.db).toThrow(/db\.database.*\$\{schema\}.*mysql/);
+    expect(() => slug.db).toThrow(/db\.database.*\$\{slug\}.*sqlite/);
+  });
+
   it("fails naming the setting for a variant placeholder, since db has no variant", () => {
-    const config = load("db:\n  dialect: postgres\n  host: h\n  schema: ${slug}\n");
+    const config = load("db:\n  type: postgres\n  host: h\n  schema: ${slug}\n");
 
     expect(() => config.db).toThrow(/db\.schema/);
     expect(() => config.db).toThrow(/slug/);
   });
 
   it("keeps ${slug} in db.database for the SQLite file of each variant", () => {
-    const config = load("db:\n  dialect: sqlite\n  database: data/${slug}.sqlite\n");
+    const config = load("db:\n  type: sqlite\n  database: data/${slug}.sqlite\n");
 
     expect(config.db.database).toBe("data/${slug}.sqlite");
   });
@@ -70,14 +98,14 @@ describe("interpolation in db", () => {
   });
 
   it("still fails for another variant placeholder in db.database", () => {
-    const config = load("db:\n  dialect: sqlite\n  database: ${abbr}/${slug}.sqlite\n");
+    const config = load("db:\n  type: sqlite\n  database: ${abbr}/${slug}.sqlite\n");
 
     expect(() => config.db).toThrow(/db\.database/);
     expect(() => config.db).toThrow(/abbr/);
   });
 
   it("loads a configuration with an unset reference as long as db is not read", () => {
-    const config = load("db:\n  dialect: postgres\n  host: h\n  password: ${MISSING}\nvariant:\n  prefix: wt-\n");
+    const config = load("db:\n  type: postgres\n  host: h\n  password: ${MISSING}\nvariant:\n  prefix: wt-\n");
 
     expect(config.variant.prefix).toBe("wt-");
   });

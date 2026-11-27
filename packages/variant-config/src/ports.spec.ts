@@ -6,7 +6,7 @@ import { pickFreePort } from "./ports.js";
 
 const PROJECT = [
   "db:",
-  "  dialect: sqlite",
+  "  type: sqlite",
   "variant:",
   "  watches:",
   "    fe:",

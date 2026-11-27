@@ -44,7 +44,7 @@ export const runCli = (args: string[], environment: Record<string, string> = {})
 export const withVariants = async (
   run: (environment: Record<string, string>, directory: string) => Promise<void>,
   files: Record<string, string> | ((directory: string) => Record<string, string>) = {},
-  yaml = "db:\n  dialect: sqlite\n",
+  yaml = "db:\n  type: sqlite\n",
 ): Promise<void> => {
   const directory = realpathSync(mkdtempSync(join("/tmp", "variant-cli-")));
   try {

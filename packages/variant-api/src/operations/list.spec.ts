@@ -18,7 +18,7 @@ const withProject = async (
     writeFileSync(join(directory, path), content);
   };
   try {
-    put("variants.yaml", "db:\n  dialect: sqlite\n");
+    put("variants.yaml", "db:\n  type: sqlite\n");
     const list = () =>
       createVariantClient({
         config: loadConfig({ cwd: directory, env: {} }),
@@ -96,7 +96,7 @@ describe("list with runtime facts", () => {
     withProject(async (directory, put, list) => {
       put(
         ".cache/variants/demo.yaml",
-        `slug: demo\ntarget: ${join(directory, ".cache", "variants", "demo.sqlite")}\ndialect: sqlite\nstatePath: ""\nworktree: /from/state\ncreatedAt: now\n`,
+        `slug: demo\ntarget: ${join(directory, ".cache", "variants", "demo.sqlite")}\ntype: sqlite\nstatePath: ""\nworktree: /from/state\ncreatedAt: now\n`,
       );
       put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n  mode: up\n");
 
@@ -176,7 +176,7 @@ describe("list with runtime facts", () => {
       put("_v-demo/variants.local.yaml", "runtime:\n  slug: demo\n  createdAt: yesterday\n");
       put(
         ".cache/variants/demo.yaml",
-        `slug: demo\ntarget: ${join(directory, ".cache", "variants", "demo.sqlite")}\ndialect: sqlite\nstatePath: ""\nworktree: ${variantDir}\ncreatedAt: now\n`,
+        `slug: demo\ntarget: ${join(directory, ".cache", "variants", "demo.sqlite")}\ntype: sqlite\nstatePath: ""\nworktree: ${variantDir}\ncreatedAt: now\n`,
       );
 
       const record = (await list()).find((variant) => variant.slug === "demo");
@@ -203,7 +203,7 @@ describe("list with runtime facts", () => {
       mkdirSync(variantDir);
       put(
         ".cache/variants/solo.yaml",
-        `slug: solo\ntarget: ${join(directory, ".cache", "variants", "solo.sqlite")}\ndialect: sqlite\nstatePath: ""\nworktree: ${variantDir}\ncreatedAt: now\n`,
+        `slug: solo\ntarget: ${join(directory, ".cache", "variants", "solo.sqlite")}\ntype: sqlite\nstatePath: ""\nworktree: ${variantDir}\ncreatedAt: now\n`,
       );
       const dirStat = statSync(variantDir);
 
