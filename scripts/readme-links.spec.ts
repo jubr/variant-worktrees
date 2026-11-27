@@ -81,7 +81,7 @@ describe("the READMEs", () => {
 
   test("none names a key, shape or state file of an earlier version", () => {
     const hits = files.flatMap(({ file, text }) =>
-      [/variant\.instances/, /reservedPorts/, /variants\.local\.yaml/, /\.cache\/variants\/(?!\{slug\}\.(sqlite|db)|(main|demo)\.sqlite)/]
+      [/variant\.instances/, /reservedPorts/, /variants\.local\.yaml/, /\.cache\/variants\/(?!\$\{slug\}\.(sqlite|db)|[\w-]+\.sqlite)/]
         .filter((pattern) => pattern.test(text))
         .map((pattern) => `${file}: ${pattern}`),
     );

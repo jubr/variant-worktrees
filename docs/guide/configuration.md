@@ -391,7 +391,7 @@ All `chatRenamer.*` options are valid in the Variant Worktrees too and are descr
 
 Settings are autodetected from `mise.local.toml`, then the environment, and explicit values override them.
 `variant init` writes the detected values, with secrets as `${NAME}` references.
-A `db` setting has no variant, so a variant placeholder in one is an error: see [Templates](#templates).
+A `db` setting has no variant, so a variant placeholder in one is an error, except `${slug}` in [`db.database`](#db-database): see [Templates](#templates).
 Every key has a heading of its own, in alphabetical order.
 
 ### `db.database`
@@ -400,8 +400,8 @@ The database name for PostgreSQL and MySQL.
 Autodetected from `POSTGRES_DB`, `MYSQL_DATABASE` or `MARIADB_DATABASE`.
 
 For SQLite it is the full file name, absolute or relative, not a database name.
-`{slug}` stands for the slug of the variant, and a relative name is resolved in the worktree of the variant (the main checkout for `main`).
-Absent: `.cache/variants/{slug}.sqlite`.
+`${slug}` stands for the slug of the variant, and a relative name is resolved in the worktree of the variant (the main checkout for `main`).
+Absent: `.cache/variants/${slug}.sqlite`.
 Autodetected from `SQLITE_DATABASE`, `SQLITE_PATH` or a `sqlite:` `DATABASE_URL`.
 Examples for each dialect, with the file layout, are on the [Database](./database) page.
 
@@ -596,7 +596,7 @@ The example values assume slug `demo`, abbreviation `vw`, a watch `be` on port 3
 | `${NAME:-default}`      | the same, falling back to `default`. The placeholders of the first pass work inside a default                                                             | `${JWT_SECRET:-variant-local-${slug}}`     | `variant-local-demo`              |
 | `$${`                   | a literal `${`, for a shell command that expands its own variable                                                                                         | `echo $${HOME}`                            | `echo ${HOME}`                    |
 
-A `db` setting has no variant, so a variant placeholder there is an error; [`db.port`](#db-port) may be `${POSTGRES_PORT}`.
+A `db` setting has no variant, so a variant placeholder there is an error, except `${slug}` in [`db.database`](#db-database), which names the file of each variant; [`db.port`](#db-port) may be `${POSTGRES_PORT}`.
 `variant init` writes secrets as `${NAME}` references.
 A `${` that was already in a value is not touched: write `$${` where a shell must see it, since `${NAME}` reads the environment.
 
@@ -621,6 +621,6 @@ When the header cannot be added (a tracked file with uncommitted changes, `CI`, 
 `db.filename` was renamed [`db.database`](#db-database), and the migration rewrites it: the notice is `<file>: db.filename is now db.database`, and a file that has both keeps [`db.database`](#db-database) and drops `db.filename`.
 The value is kept as it was written.
 A relative name now resolves in the worktree of the variant, where it resolved in the directory of `variants.yaml` before, so write an absolute path to keep a file where it is.
-When there is no [`db.database`](#db-database) and the directory of `variants.yaml` holds `{slug}.db` files below its `.cache/variants` directory, the migration adds `db.database: <that directory>/{slug}.db`, so those databases stay in use; delete the line to move to `.cache/variants/{slug}.sqlite`.
+When there is no [`db.database`](#db-database) and the directory of `variants.yaml` holds `${slug}.db` files below its `.cache/variants` directory, the migration adds `db.database: <that directory>/${slug}.db`, so those databases stay in use; delete the line to move to `.cache/variants/${slug}.sqlite`.
 
 :::
