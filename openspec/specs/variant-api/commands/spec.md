@@ -209,14 +209,14 @@ The system SHALL define the commands `up`, `down`, `watch` and `implode` next to
 
 ### Requirement: List default output
 
-The system SHALL print `variant list` as a text table with the columns `slug`, `mode`, `uptime`, `url`, `log` and `dir`, one row per variant sorted by slug, with `-` for a missing value. `url` SHALL be the complete URL of the first watch that has one, never shortened. `uptime` SHALL be the human-readable `uptimeSeconds` of the variant. `log` SHALL be the absolute path of the log file of its watch when the runtime state records one. `dir` SHALL be shown relative to the variant root. The `--table` flag SHALL NOT exist. `variant list --json` and `--yaml` SHALL print the records instead (see the output-formats capability).
+The system SHALL print `variant list` as a text table with the columns `slug`, `mode`, `uptime`, `url`, `log`, `dir` and `database`, one row per variant sorted by slug, with `-` for a missing value. `url` SHALL be the complete URL of the first watch that has one, never shortened. `uptime` SHALL be the human-readable `uptimeSeconds` of the variant. `log` SHALL be the absolute path of the log file of its watch when the runtime state records one. `dir` SHALL be shown relative to the variant root. `database` SHALL be the `database` of the record, never shortened. The `--table` flag SHALL NOT exist. `variant list --json` and `--yaml` SHALL print the records instead (see the output-formats capability).
 
 #### Scenario: Table output
 
 - **WHEN** variant `alpha` runs a detached watch for 5 minutes with URL `http://alpha.vw.localhost:62060/` and a log file, variant `beta` has a database only, and a user runs `variant list`
 - **THEN** stdout holds a header row and two rows in that order
-- **AND** the `alpha` row shows `watch`, `5m`, the full URL, the absolute log path and its directory
-- **AND** `beta` shows `-` for mode, uptime, URL, log and directory
+- **AND** the `alpha` row shows `watch`, `5m`, the full URL, the absolute log path, its directory and its database
+- **AND** `beta` shows `-` for mode, uptime, URL, log and directory, and its database
 
 #### Scenario: Attached watch log column
 
@@ -228,10 +228,15 @@ The system SHALL print `variant list` as a text table with the columns `slug`, `
 - **WHEN** a URL is longer than any other cell of its column
 - **THEN** the table shows it complete
 
+#### Scenario: Database column
+
+- **WHEN** a user runs `variant list` for a SQLite project with no `db.database`
+- **THEN** the last column is `database` and the `alpha` row ends with `.cache/variants/alpha.sqlite`
+
 #### Scenario: JSON on request
 
 - **WHEN** a user runs `variant list --json`
-- **THEN** stdout is the JSON array of records, each with the fields of the minimal set (`slug`, `mode`, `uptimeSeconds`, `url`, `log`, `worktree`)
+- **THEN** stdout is the JSON array of records, each with the fields of the minimal set (`slug`, `mode`, `uptimeSeconds`, `url`, `log`, `worktree`) and `database`
 
 #### Scenario: Table flag removed
 
