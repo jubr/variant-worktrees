@@ -330,7 +330,7 @@ The system SHALL accept an optional `env` object on any entry of `variant.watche
 
 The system SHALL keep a variant's operational state in `<variant>/.cache/variant/state.yaml` and a dump of the resolved runtime detection in `<variant>/.cache/variant/runtime.yaml`. `<variant>` is the worktree directory, or the main checkout when the slug is `main`. The system SHALL NOT write `variants.local.yaml` or `.cache/variants/<slug>.yaml`.
 
-`state.yaml` SHALL hold only `slug`, `createdAt`, `dir`, `dialect`, `target`, and, when known, `mode` (`up` or `watch`), `log`, and `watches`. `createdAt` and each watch `startedAt`, when present, SHALL match `YYYY-MM-DD_HH:MM:SS`: a zero-padded local date, an underscore, and a zero-padded 24-hour time, with no timezone suffix. `watches` SHALL be a record keyed by watch key; each entry holds optional `port`, `pid`, `url` and `startedAt`. `state.yaml` SHALL NOT hold a database password or a watch command. `runtime.yaml` SHALL hold the resolved detection written whenever operational state is written: the resolved database settings, the resolved watches (directory, command, port, pid and url), and the configuration path. A database password MAY be present in `runtime.yaml`.
+`state.yaml` SHALL hold only `slug`, `createdAt`, `dir`, `type`, `target`, and, when known, `mode` (`up` or `watch`), `log`, and `watches`. `createdAt` and each watch `startedAt`, when present, SHALL match `YYYY-MM-DD_HH:MM:SS`: a zero-padded local date, an underscore, and a zero-padded 24-hour time, with no timezone suffix. `watches` SHALL be a record keyed by watch key; each entry holds optional `port`, `pid`, `url` and `startedAt`. `state.yaml` SHALL NOT hold a database password or a watch command. `runtime.yaml` SHALL hold the resolved detection written whenever operational state is written: the resolved database settings, the resolved watches (directory, command, port, pid and url), and the configuration path. A database password MAY be present in `runtime.yaml`.
 
 Both files SHALL be written only when their serialized content would change. An unchanged write SHALL leave the file and its modification time alone. Unknown keys in `state.yaml` SHALL fail validation of that file. A missing `state.yaml` SHALL mean no operational state for that directory, except the legacy read below. The repository SHALL git-ignore `.cache/`.
 
@@ -393,7 +393,7 @@ When `state.yaml` is absent, the system SHALL still read a `variants.local.yaml`
 
 #### Scenario: Reused database schema
 
-- **WHEN** `state.yaml` sets `dialect: postgres` and `target: v_demo`
+- **WHEN** `state.yaml` sets `type: postgres` and `target: v_demo`
 - **THEN** they validate, and a `port` of `-1` in a legacy `runtime.db` fails validation
 
 #### Scenario: Invalid local file
@@ -754,7 +754,7 @@ named there. Text of a value that does not have a placeholder shape SHALL stay a
 
 ### Requirement: MariaDB detection
 
-The system SHALL autodetect MariaDB as the `mysql` dialect: a `DATABASE_URL` that starts with `mariadb`, and the
+The system SHALL autodetect MariaDB as the `mysql` type: a `DATABASE_URL` that starts with `mariadb`, and the
 variables `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, `MARIADB_PASSWORD` and `MARIADB_DATABASE`, read like their
 `MYSQL_` counterparts. When both a `MYSQL_` and a `MARIADB_` variable of one setting exist, the `MYSQL_` one SHALL win.
 Postgres still SHALL be detected before MySQL and MariaDB, and those before SQLite.
@@ -762,7 +762,7 @@ Postgres still SHALL be detected before MySQL and MariaDB, and those before SQLi
 #### Scenario: MariaDB URL
 
 - **WHEN** `DATABASE_URL` is `mariadb://app@localhost/app`
-- **THEN** the detected dialect is `mysql` and the URL is kept
+- **THEN** the detected type is `mysql` and the URL is kept
 
 #### Scenario: MariaDB variables
 

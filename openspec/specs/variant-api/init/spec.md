@@ -50,7 +50,7 @@ values. A `prefix` that is empty or contains a path separator SHALL be refused b
 ### Requirement: Init writes autodetected values
 
 `variant init` SHALL write into `variants.yaml` every value that autodetection resolves for the directory: the `db`
-settings found in the Mise or process environment ([specs/tools/mise](../../tools/mise/spec.md)) (Postgres, MySQL and MariaDB, which are written as dialect
+settings found in the Mise or process environment ([specs/tools/mise](../../tools/mise/spec.md)) (Postgres, MySQL and MariaDB, which are written as type
 `mysql`, and SQLite), `variant.abbr`, `variant.prefix`, and one entry of `variant.watches` per detected application
 with its `kind`, `watch` and, for Vite, `url` (in the `${...}` syntax); `dir` is written only when it differs from the key of the entry. When no
 database setting is detected it SHALL write no `db` key at all, so the file leaves the choice to autodetection. Machine-specific paths (`variant.main`,
@@ -64,14 +64,14 @@ The written file SHALL pass the same validation as any
 
 - **WHEN** `mise.local.toml` defines `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and
   `POSTGRES_DB` as `appdb`
-- **THEN** the file has `db.dialect: postgres`, `host: ${POSTGRES_HOST}`, `port: ${POSTGRES_PORT}`, `user: ${POSTGRES_USER}`, `password: ${POSTGRES_PASSWORD}` and `database: appdb`
+- **THEN** the file has `db.type: postgres`, `host: ${POSTGRES_HOST}`, `port: ${POSTGRES_PORT}`, `user: ${POSTGRES_USER}`, `password: ${POSTGRES_PASSWORD}` and `database: appdb`
 - **AND** the file has neither `variant.main` nor `variant.root`
 - **AND** the file does not contain the password value
 
 #### Scenario: MariaDB
 
 - **WHEN** the environment defines `MARIADB_HOST` and `MARIADB_DATABASE`
-- **THEN** the file has `db.dialect: mysql` with that host and database
+- **THEN** the file has `db.type: mysql` with that host and database
 
 #### Scenario: Nothing detected
 
@@ -180,14 +180,14 @@ autodetected watches, with `app` for the project directory, which then also gets
 ### Requirement: Alternatives in same-line comments
 
 Every written setting whose accepted values are a closed set or whose form is constrained SHALL carry, in a comment
-on the same line, the other accepted values or the rule: `dialect` lists the other dialects (`sqlite | mysql` after
+on the same line, the other accepted values or the rule: `type` lists the other database types (`sqlite | mysql` after
 `postgres`), `kind` lists the other kinds, `ssl` the other boolean, `abbr` and `prefix` state their constraint. The
 current value SHALL NOT be repeated in the comment. A comment SHALL NOT change the YAML value.
 
-#### Scenario: Dialect alternatives
+#### Scenario: Type alternatives
 
 - **WHEN** the file is written for a Postgres database
-- **THEN** the line reads `dialect: postgres # sqlite | mysql`
+- **THEN** the line reads `type: postgres # sqlite | mysql`
 
 #### Scenario: Kind alternatives
 

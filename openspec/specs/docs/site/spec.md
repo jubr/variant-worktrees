@@ -183,7 +183,7 @@ The library page SHALL consist of code examples with a one-line caption each, an
 
 ### Requirement: Configuration page structure
 
-The Configuration page SHALL have the second-level sections *Variant options*, *Chat Renamer options*, *Database options*, *Custom Steps*, *Custom multi-tenancy steps*, *Templates* and *Unknown keys and migration*, in this order. *Variant options* SHALL give every key of `variant` in `variants.yaml` its own heading named `variant.<key>`, in alphabetical order, so other pages can link to it. Every sub-key of those options SHALL have a third-level heading of its own named with its full path (`variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `variant.steps.<name>.cmd`), directly after its parent and in alphabetical order. *Chat Renamer options* SHALL link to the Chat Renamer configuration page and has no heading per key. *Database options* SHALL have a third-level heading for every key of `db` and every key of `db.multi` (`db.ssl`, `db.multi.tenantsCmd`). The `variant.steps` section SHALL link to `overview#flow-of-steps`. *Templates* SHALL list every placeholder and environment form in a table with the columns Item, Meaning, Example use and Example value, and no column for the pass. *Unknown keys and migration* SHALL be the last section and SHALL NOT name a key or shape of an earlier version.
+The Configuration page SHALL have the second-level sections *Variant options*, *Chat Renamer options*, *Database options*, *Custom Steps*, *Custom multi-tenancy steps*, *Templates* and *Unknown keys and migration*, in this order. *Variant options* SHALL give every key of `variant` in `variants.yaml` its own heading named `variant.<key>`, in alphabetical order, so other pages can link to it. Every sub-key of those options SHALL have a third-level heading of its own named with its full path (`variant.implode.maxDiffLines`, `variant.mise.binPath`, `variant.watches.<key>.dir`, `variant.steps.<name>.cmd`), directly after its parent and in alphabetical order. *Chat Renamer options* SHALL link to the Chat Renamer configuration page and has no heading per key. *Database options* SHALL have a third-level heading for every key of `db` and every key of `db.multi` (`db.ssl`, `db.multi.tenantsCmd`). The `variant.steps` section SHALL link to `overview#flow-of-steps`. *Templates* SHALL list every placeholder and environment form in a table with the columns Item, Meaning, Usage example and Usage value, and no column for the pass. *Unknown keys and migration* SHALL be the last section and SHALL NOT name a key or shape of an earlier version.
 
 #### Scenario: Every option has an anchor
 
@@ -221,7 +221,7 @@ The Configuration page SHALL have the second-level sections *Variant options*, *
 #### Scenario: Templates are listed in a table
 
 - **WHEN** the Templates section of the built Configuration page is read
-- **THEN** its table has the columns Item, Meaning, Example use and Example value, and no column Pass
+- **THEN** its table has the columns Item, Meaning, Usage example and Usage value, and no column Pass
 - **AND** it has a row for each of `${slug}`, `${schema}`, `${storage}`, `${worktree}`, `${url}`, `${port}`, `${<watch>.port}`, `${abbr}`, `${multi.tenants}`, `${multi.schemaPrefix}`, `${NAME}`, `${NAME:-default}` and `$${`
 
 ### Requirement: Relocatable asset URLs

@@ -20,7 +20,7 @@ The built library, `variant-api` and `variant-api/commands`, SHALL load and run 
 - **WHEN** Bun imports the built `variant-api`
 - **THEN** the import succeeds
 
-#### Scenario: No driver loaded for other dialects
+#### Scenario: No driver loaded for other database types
 
 - **WHEN** a client for a PostgreSQL configuration is created and used under Node
 - **THEN** no sqlite module is loaded
@@ -32,7 +32,7 @@ The built library, `variant-api` and `variant-api/commands`, SHALL load and run 
 
 ### Requirement: SQLite variants under both runtimes
 
-For a SQLite configuration the library SHALL create the database file of a variant, list the variants that have a file, and remove the file, with the same file names under Node and Bun. It SHALL use the sqlite driver of the running runtime, loaded when the first SQLite operation runs. A runtime without such a driver SHALL make a SQLite operation fail with an error that names the dialect and the minimum Node version.
+For a SQLite configuration the library SHALL create the database file of a variant, list the variants that have a file, and remove the file, with the same file names under Node and Bun. It SHALL use the sqlite driver of the running runtime, loaded when the first SQLite operation runs. A runtime without such a driver SHALL make a SQLite operation fail with an error that names the type and the minimum Node version.
 
 #### Scenario: Create under Node
 

@@ -52,7 +52,7 @@ The system SHALL obtain the list of tenants from `db.multi.tenants` when that is
 
 ### Requirement: Schemas of a variant
 
-The system SHALL name the schema of a tenant by filling `${slug}` in `db.multi.schemaPrefix` and appending the tenant. A hyphen in the slug stays a hyphen. Where the builtin creates schemas, it SHALL create every such schema that does not exist and leave an existing one with its data. The `target` recorded in state and reported SHALL stay `v_<slug>` (a hyphen of the slug written as `_`). `main` SHALL never be created or dropped. `db.multi` with a dialect other than PostgreSQL SHALL fail when the client is created, naming the dialect.
+The system SHALL name the schema of a tenant by filling `${slug}` in `db.multi.schemaPrefix` and appending the tenant. A hyphen in the slug stays a hyphen. Where the builtin creates schemas, it SHALL create every such schema that does not exist and leave an existing one with its data. The `target` recorded in state and reported SHALL stay `v_<slug>` (a hyphen of the slug written as `_`). `main` SHALL never be created or dropped. `db.multi` with a type other than PostgreSQL SHALL fail when the client is created, naming the type.
 
 #### Scenario: One schema per value
 
@@ -69,10 +69,10 @@ The system SHALL name the schema of a tenant by filling `${slug}` in `db.multi.s
 - **WHEN** `schemaPrefix` is `v_${slug}_t_` and the value is `east`
 - **THEN** the schema of `demo` is `v_demo_t_east`
 
-#### Scenario: Another dialect
+#### Scenario: Another database type
 
-- **WHEN** `db.multi` is set and the dialect is `sqlite` or `mysql`
-- **THEN** creating the client fails naming the dialect
+- **WHEN** `db.multi` is set and the type is `sqlite` or `mysql`
+- **THEN** creating the client fails naming the type
 
 ### Requirement: Provision and seed run once
 

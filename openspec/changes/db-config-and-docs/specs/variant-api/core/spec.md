@@ -2,7 +2,7 @@
 
 ### Requirement: Multi-DB strategy
 
-The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-variant for SQLite, and report unsupported dialects.
+The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-variant for SQLite, and report unsupported database types.
 
 #### Scenario: PostgreSQL uses schemas
 - **WHEN** the connection is PostgreSQL
@@ -16,8 +16,8 @@ The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-v
 - **WHEN** the connection is SQLite and `db.database` is set
 - **THEN** each variant is stored in the file that `db.database` resolves to for its slug, as described in "SQLite target of every slug"
 
-#### Scenario: Unsupported dialect
-- **WHEN** the dialect lacks supported schema or database isolation
+#### Scenario: Unsupported database type
+- **WHEN** the database type lacks supported schema or database isolation
 - **THEN** the system returns an error explaining that table-prefix mode is not implemented
 
 ## ADDED Requirements
@@ -80,12 +80,12 @@ For SQLite the database target of a slug, the value in `state.yaml`, in `VARIANT
 
 #### Scenario: Earlier state of main
 
-- **WHEN** the `state.yaml` of the main checkout records the dialect `sqlite` and the target `public`, and `provision` or `watch` runs for `main`
+- **WHEN** the `state.yaml` of the main checkout records the type `sqlite` and the target `public`, and `provision` or `watch` runs for `main`
 - **THEN** the recorded target becomes the resolved file of `main`
 
 ### Requirement: Variant records name their database
 
-A variant record SHALL carry `database`, a string that says where the data of the variant is, without a secret. For SQLite it SHALL be `db.database` with `${slug}` replaced by the slug and nothing else changed: a relative file stays relative to the worktree of the variant, an absolute one stays absolute (the `target` is always the absolute path). For PostgreSQL and MySQL it SHALL be the connection as a URL with the scheme `postgres://` or `mysql://`, built from `db.url` or else from `db.user`, `db.host`, `db.port` and `db.database`; a password present in either SHALL be shown as `***`, and no other part of the URL SHALL be changed. The record SHALL keep `target` and `dialect`.
+A variant record SHALL carry `database`, a string that says where the data of the variant is, without a secret. For SQLite it SHALL be `db.database` with `${slug}` replaced by the slug and nothing else changed: a relative file stays relative to the worktree of the variant, an absolute one stays absolute (the `target` is always the absolute path). For PostgreSQL and MySQL it SHALL be the connection as a URL with the scheme `postgres://` or `mysql://`, built from `db.url` or else from `db.user`, `db.host`, `db.port` and `db.database`; a password present in either SHALL be shown as `***`, and no other part of the URL SHALL be changed. The record SHALL keep `target` and `type`.
 
 #### Scenario: SQLite record
 
@@ -106,3 +106,29 @@ A variant record SHALL carry `database`, a string that says where the data of th
 
 - **WHEN** `db.url` is `mysql://app:secret@db.example/appdb`
 - **THEN** `database` is `mysql://app:***@db.example/appdb`
+
+### Requirement: One MySQL database per variant
+
+For type `mysql`, the database of a variant SHALL be `db.database` with `${schema}` replaced by the schema name of the variant (`v_<slug>`, hyphens as underscores) when `db.database` holds the placeholder, and the schema name alone otherwise. `create` and `destroy` of the adapter SHALL create and drop that database, the connection SHALL NOT start in a database when `db.database` holds `${schema}`, and `list` SHALL find the databases of all variants by the shape of that template and report their schema names. `${schema}` of every command and watch SHALL stay the schema name, and `MYSQL_DATABASE` of every command SHALL be the database of the variant. A variant record SHALL name that database in `database`, and the text of `create`, `status` and `list` SHALL leave out the `schema:` line when the database line already ends with the schema name.
+
+#### Scenario: Database from the template
+
+- **WHEN** `db.database` is `project_x__${schema}` and the slug is `feature-42`
+- **THEN** provisioning creates the database `project_x__v_feature_42`
+- **AND** the commands see `MYSQL_DATABASE` `project_x__v_feature_42` and `MYSQL_SCHEMA` `v_feature_42`
+
+#### Scenario: Main
+
+- **WHEN** `db.database` is `project_x__${schema}` and the variant is `main`
+- **THEN** `${schema}` is `main` unless `db.schema` is set, and `MYSQL_DATABASE` is `project_x__main`
+
+#### Scenario: Name without the placeholder
+
+- **WHEN** `db.database` is `shop`
+- **THEN** provisioning creates the database `v_feature_42` and `MYSQL_DATABASE` is `shop`
+
+#### Scenario: Record and text
+
+- **WHEN** `variant create -s feature-42` runs with the template above
+- **THEN** `database` is `mysql://app:***@127.0.0.1:3306/project_x__v_feature_42`
+- **AND** there is no `schema:` line

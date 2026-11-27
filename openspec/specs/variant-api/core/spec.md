@@ -9,7 +9,7 @@ portable YAML state across supported database engines.
 
 ### Requirement: Create schema variant
 
-The system SHALL create the git worktree and the state for a slug. It SHALL NOT create a database schema or database file. That is the `provision` step. It SHALL write `.cache/variant/state.yaml` in the variant directory: the worktree `<prefix><slug>`, or the main checkout when the slug is `main`. That file SHALL contain `createdAt` set to the local time the create runs, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix), plus `slug`, `dir`, `dialect` and `target`. When `createdAt` is already present, create SHALL leave it unchanged. The system SHALL NOT write `variants.local.yaml` or `.cache/variants/<slug>.yaml`.
+The system SHALL create the git worktree and the state for a slug. It SHALL NOT create a database schema or database file. That is the `provision` step. It SHALL write `.cache/variant/state.yaml` in the variant directory: the worktree `<prefix><slug>`, or the main checkout when the slug is `main`. That file SHALL contain `createdAt` set to the local time the create runs, formatted `YYYY-MM-DD_HH:MM:SS` (zero-padded date, underscore, zero-padded 24-hour time, no timezone suffix), plus `slug`, `dir`, `type` and `target`. When `createdAt` is already present, create SHALL leave it unchanged. The system SHALL NOT write `variants.local.yaml` or `.cache/variants/<slug>.yaml`.
 
 #### Scenario: Create PostgreSQL schema variant
 
@@ -172,7 +172,7 @@ The system SHALL derive a slug from the git worktree or branch, or accept an exp
 
 ### Requirement: Multi-DB strategy
 
-The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-variant for SQLite, and report unsupported dialects.
+The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-variant for SQLite, and report unsupported database types.
 
 #### Scenario: PostgreSQL uses schemas
 - **WHEN** the connection is PostgreSQL
@@ -182,8 +182,8 @@ The system SHALL use schema-per-variant for PostgreSQL and MySQL, database-per-v
 - **WHEN** the connection is SQLite
 - **THEN** each variant is stored in `.cache/variants/<slug>.db`
 
-#### Scenario: Unsupported dialect
-- **WHEN** the dialect lacks supported schema or database isolation
+#### Scenario: Unsupported database type
+- **WHEN** the database type lacks supported schema or database isolation
 - **THEN** the system returns an error explaining that table-prefix mode is not implemented
 
 ### Requirement: Worktree coupling
