@@ -74,7 +74,12 @@ its command or section is described. Record the change in `CHANGELOG.md`.
 **All commands** and project tools (`openspec`, `task`, `bun`, `hk`, `commitlint`, etc)
 should use mise-managed versions.
 **AI agents** run `cd path/to/folder && eval "$(mise hook-env -s bash; set -x)";` at start of each shell series.
-This will set all relevant env vars, including $PATH. Then `-x` echos, so no need for `echo '---what---'`. The `mise x --` prefix is a shorthand for this.
+This will set all relevant env vars, including $PATH. The `mise x --` prefix is a shorthand for this.
+Then `-x` echos, so no need for `echo '---what---'`.
+
+**Cursor:** for simple edits prefer the `StrReplace` and `Write` tools over scripting (`sed`, `python`, heredocs).
+They need no shell quoting, fail loudly when the text is not found, and show the change as a reviewable diff.
+Keep scripts for bulk or mechanical rewrites. Note that `sed` is GNU sed under mise and differs from the macOS one.
 
 Local lint, format and tests use [hk](https://hk.jdx.dev/) (2.x, pinned in `mise.toml`) wrapping
 Biome and `bun test`. Git `pre-commit` and `commit-msg` live under `.githooks/` and call hk /
@@ -116,8 +121,8 @@ prefer `task` names that match the gates.
 - `Taskfile.yaml` is the source of install / lint / format / build / test CLI invocations.
 - Biome and TypeScript run through workspace scripts (`bun run lint`, `bun run build`). 
 - Tests are `bun test` via `bun run test`.
-- `commitlint` and `openspec` are mise `npm:` tools.
-- `node` is pinned only as their shim runtime. 
+- `commitlint` and `openspec` are mise `npm:` tools, installed with `aube` so they run under `bun`.
+- `mise.toml` does not pin `node`. `variant-api`'s runtime tests use the first real Node on `PATH`. 
 
 ```bash
 task install           # bun install at workspace root
