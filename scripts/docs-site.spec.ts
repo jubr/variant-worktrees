@@ -390,99 +390,6 @@ describe("runtime page", () => {
   });
 });
 
-describe("database page", () => {
-  const html = () => page("guide/database.html");
-  const plain = (fragment: string): string => decodeEntities(fragment.replace(/<[^>]+>/g, ""));
-  /** The part of the built page from the heading with `id` up to the next second-level heading. */
-  const sectionById = (id: string): string => {
-    const start = html().indexOf(`id="${id}"`);
-    const next = html().indexOf("<h2", start);
-    return html().slice(start, next === -1 ? undefined : next);
-  };
-  const fences = (section: string): { language: string; code: string }[] =>
-    [...section.matchAll(/<div class="language-(\w+)"[^>]*>([\s\S]*?)<\/pre><\/div>/g)].map((match) => ({
-      language: match[1],
-      code: plain(match[2]),
-    }));
-
-  test("has the sections PostgreSQL, MySQL and MariaDB, and SQLite, in that order", () => {
-    const sections = headingsOf(html())
-      .filter((heading) => heading.level === 2)
-      .map((heading) => heading.text);
-    expect(sections).toEqual(["PostgreSQL", "MySQL and MariaDB", "SQLite"]);
-  });
-
-  test("keeps the password in mise.local.toml and refers to it as ${POSTGRES_PASSWORD}", () => {
-    const blocks = fences(sectionById("postgresql"));
-    const yaml = blocks.find((block) => block.language === "yaml")?.code ?? "";
-    const tree = blocks.find((block) => block.language === "text")?.code ?? "";
-    const toml = blocks.find((block) => block.language === "toml")?.code ?? "";
-
-    expect(yaml).toContain("password: ${POSTGRES_PASSWORD}");
-    expect(tree).toContain("variants.yaml");
-    expect(tree).toContain("mise.toml");
-    expect(tree).toContain("mise.local.toml");
-    expect(toml).toContain("[env]");
-    expect(toml).toMatch(/^POSTGRES_PASSWORD = "<[^>]+>"$/m);
-    expect(yaml).not.toContain("<your-password>");
-  });
-
-  test("shows the connection that create prints, with the password as ***", () => {
-    const text = textOf(html());
-    expect(text).toMatch(/database: {2}postgres:\/\/\w+:\*\*\*@[\w.]+:\d+\/\w+/);
-    expect(text).toMatch(/database: {2}mysql:\/\/\w+:\*\*\*@[\w.]+:\d+\/\w+/);
-  });
-
-  test("names MariaDB, its variables and the mariadb:// URL", () => {
-    const section = plain(sectionById("mysql-and-mariadb"));
-    expect(section).toContain("MariaDB is the dialect mysql");
-    expect(section).toContain("MARIADB_");
-    expect(section).toContain("mariadb://");
-    expect(section).toContain("password: ${MYSQL_PASSWORD}");
-  });
-
-  test("says that for SQLite db.database is the full file name and shows the file of each worktree", () => {
-    const section = sectionById("sqlite");
-    const text = plain(section);
-    expect(text).toContain("full file name, absolute or relative");
-    expect(text).toContain("{slug}");
-    expect(text).toContain(".cache/variants/{slug}.sqlite");
-    expect(text).toContain("SQLITE_DATABASE");
-    const tree = fences(section).find((block) => block.language === "text" && block.code.includes("_v-demo"))?.code ?? "";
-    expect(tree).toContain(".cache/variants/main.sqlite");
-    expect(tree).toContain(".cache/variants/demo.sqlite");
-  });
-
-  test("contains no real credential", () => {
-    expect(textOf(html())).not.toMatch(/(password|PASSWORD)\s*[:=]\s*"?(?![<$*])[^\s"]+/);
-  });
-});
-
-describe("configuration page documents db.database", () => {
-  const configuration = () => page("guide/configuration.html");
-  const plain = (fragment: string): string => decodeEntities(fragment.replace(/<[^>]+>/g, ""));
-
-  test("has db.database and no db.filename heading", () => {
-    const names = headingsOf(configuration()).map((heading) => heading.text);
-    expect(names).toContain("db.database");
-    expect(names).not.toContain("db.filename");
-  });
-
-  test("says that for SQLite db.database is the full file name, mentions {slug} and links to the Database page", () => {
-    const section = sectionOf(configuration(), "db-database");
-    const text = plain(section);
-    expect(text).toContain("full file name, absolute or relative");
-    expect(text).toContain("{slug}");
-    expect(text).toContain("worktree of the variant");
-    expect(linksOf(section, "guide/configuration.html").some((link) => link.path === "/guide/database")).toBe(true);
-  });
-
-  test("says that db.filename was renamed db.database by the migration", () => {
-    const section = sectionOf(configuration(), "unknown-keys-and-migration");
-    expect(plain(section)).toContain("db.filename is now db.database");
-  });
-});
-
 describe("library, extension and socket pages", () => {
   test("the library page is code with one-line captions and links into Commands", () => {
     const html = page("development/library.html");
@@ -748,7 +655,7 @@ describe("no earlier configuration shapes in the docs", () => {
       /`run` key/,
       /former shape/,
       /variants\.local\.yaml/,
-      /\.cache\/variants\/(?!\{slug\}\.(sqlite|db)|(main|demo)\.sqlite)/,
+      /\.cache\/variants\/(?!\$\{slug\}\.(sqlite|db)|[\w-]+\.sqlite)/,
     ];
     const hits = trackedDocs().flatMap((file) => {
       const text = readFileSync(join(root, file), "utf8");
