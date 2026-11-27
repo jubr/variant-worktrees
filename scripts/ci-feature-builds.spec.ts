@@ -7,7 +7,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 
-type Step = { run?: string; env?: Record<string, string>; with?: { name?: string; path?: string } };
+type Step = {
+  run?: string;
+  env?: Record<string, string>;
+  "continue-on-error"?: boolean;
+  with?: { name?: string; path?: string };
+};
 type Job = { "runs-on"?: string; "timeout-minutes"?: number; steps?: Step[] };
 type Workflow = { jobs: Record<string, Job> };
 
@@ -52,6 +57,18 @@ describe("feature-branch CI", () => {
     expect(steps[smoke]?.run).toBe("bun scripts/smoke-slim.ts out/variant-*-linux-x64");
     expect(runs({ gate: workflow("ci-branch.yaml").jobs.gate as Job }).join("\n")).not.toContain("package:cli");
     expect(JSON.stringify(workflow("ci-branch.yaml"))).not.toContain("upload-artifact\",\"with\":{\"name\":\"variant");
+  });
+
+  // Specification: openspec/specs/meta/ci-feature-builds/spec.md (Branch builds report the slim runtime and executable sizes)
+  test("writes the slim runtime release and the sizes to the step summary after the smoke test, without failing the job", () => {
+    const steps = workflow("ci-branch.yaml").jobs["node-smoke"]?.steps ?? [];
+    const smoke = steps.findIndex((step) => step.run?.startsWith("bun scripts/smoke-slim.ts"));
+    const report = steps.findIndex((step) => step.run?.includes("scripts/slim-summary.ts"));
+
+    expect(report).toBeGreaterThan(smoke);
+    expect(steps[report]?.run).toContain("bun scripts/slim-summary.ts bun-linux-x64 ");
+    expect(steps[report]?.run).toContain('>> "$GITHUB_STEP_SUMMARY"');
+    expect(steps[report]?.["continue-on-error"]).toBe(true);
   });
 
   // Specification: openspec/specs/meta/ci-feature-builds/spec.md (A hung gate fails)

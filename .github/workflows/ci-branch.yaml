@@ -55,3 +55,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - run: bun scripts/smoke-slim.ts out/variant-*-linux-x64
+      # The slim runtime release that went in, its size and the size of variant, for the reviewer. A report never fails the job.
+      - name: Size summary
+        continue-on-error: true
+        run: |
+          bin=(out/variant-*-linux-x64)
+          bun scripts/slim-summary.ts bun-linux-x64 "${bin[0]}" >> "$GITHUB_STEP_SUMMARY"

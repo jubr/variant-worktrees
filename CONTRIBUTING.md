@@ -175,7 +175,7 @@ GitHub Actions workflows live under `.github/workflows/`. Shared gates today:
 
 - `ci-branch.yaml` — every push to a branch other than `main`: `task check:full`
   (install, lint, build, test, commitlint, workflow lint, docs build, all as hk steps), then
-  `task package:vsix` (both `.vsix` packages) and the upload of `out/*.vsix`. The library and CLI job also compiles `variant` for linux-x64 and fails unless `--version` names the slim runtime of the pinned Bun (`bun scripts/smoke-slim.ts`): that is how a branch learns that `jubr/bun-slim` has no build of it. Also called by the release workflow.
+  `task package:vsix` (both `.vsix` packages) and the upload of `out/*.vsix`. The library and CLI job also compiles `variant` for linux-x64 and fails unless `--version` names the slim runtime of the pinned Bun (`bun scripts/smoke-slim.ts`): that is how a branch learns that `jubr/bun-slim` has no build of it. It then writes the embedded slim release, its size and the size of `variant` to the step summary (`bun scripts/slim-summary.ts`). Also called by the release workflow.
 - `ci-release.yaml` — push to `main`: runs `ci-branch.yaml`, then builds both `.vsix`
   files and `variant` single-file executables (`bun build --compile`) for
   linux/darwin/windows × x64/arm64, plus `SHA256SUMS`, and creates GitHub Release
